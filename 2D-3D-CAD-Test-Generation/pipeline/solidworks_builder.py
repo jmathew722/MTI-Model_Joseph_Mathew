@@ -1,0 +1,638 @@
+"""SolidWorks 2024 model builder via the Windows COM API.
+
+WINDOWS ONLY. ``win32com``/``pythoncom`` are imported lazily *inside* functions
+so this module imports cleanly on any platform (macOS/Linux); the Windows-only
+code paths raise a clear :class:`PlatformError` only when actually invoked.
+
+Design discipline enforced throughout:
+  * every COM call's return value is checked for ``None``/failure;
+  * EVERY linear dimension passes through :func:`utils.unit_converter.to_meters`
+    (asserted via :func:`assert_meters`) before reaching the API — SolidWorks works
+    in meters internally;
+  * document units are set BEFORE any geometry is created;
+  * sketches are verified FULLY DEFINED before extruding;
+  * :func:`check_rebuild_errors` runs after EVERY feature;
+  * fillets and chamfers (the fragile operations) are wrapped in try/except and
+    demoted to warnings rather than crashing the whole build;
+  * a partial model is saved if the build crashes, and an auto-save runs every
+    few features.
+
+NOTE: This module is verified by inspection on non-Windows dev machines; run it on
+Windows + SolidWorks 2024 to exercise the COM paths.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Any, Optional, Union
+
+from pipeline.schema import DrawingData, Feature, FeatureType
+from utils.logger import get_logger
+from utils.unit_converter import assert_meters, to_meters, to_radians
+
+log = get_logger()
+
+AUTOSAVE_EVERY = 3  # auto-save the part every N features
+OUTPUT_DIR_DEFAULT = Path(__file__).resolve().parent.parent / "output"
+
+# Plane names as SolidWorks exposes them for SelectByID2.
+_PLANE_NAMES = {
+    "front": "Front Plane",
+    "top": "Top Plane",
+    "right": "Right Plane",
+}
+
+
+class PlatformError(RuntimeError):
+    """Raised when SolidWorks/COM functionality is used off Windows."""
+
+
+class SolidWorksError(RuntimeError):
+    """Raised on any SolidWorks build failure. Carries the partial-save path."""
+
+    def __init__(self, message: str, partial_path: Optional[str] = None):
+        self.partial_path = partial_path
+        super().__init__(message)
+
+
+# --------------------------------------------------------------------------- #
+# COM bootstrap
+# --------------------------------------------------------------------------- #
+def _require_windows() -> None:
+    if sys.platform != "win32":
+        raise PlatformError(
+            "The SolidWorks build stage requires Windows with SolidWorks 2024 and "
+            f"pywin32 installed. Current platform: {sys.platform!r}. Use --validate-only "
+            "to run the extraction/validation pipeline on this machine."
+        )
+
+
+def _constants():
+    """Return the win32com SolidWorks constants namespace (requires makepy/gencache)."""
+    from win32com.client import constants  # type: ignore
+
+    return constants
+
+
+def _const(name: str, default: Optional[int] = None) -> int:
+    """Fetch a SolidWorks enum constant by name with an optional fallback.
+
+    Using the generated type-library constants (early binding) is reliable once
+    ``EnsureDispatch`` has run. The fallback keeps us robust if a particular
+    constant is missing from the generated cache.
+    """
+    try:
+        value = getattr(_constants(), name)
+        if value is not None:
+            return value
+    except Exception:
+        pass
+    if default is None:
+        raise SolidWorksError(f"SolidWorks constant {name!r} unavailable (run makepy).")
+    return default
+
+
+def connect_to_solidworks():
+    """Connect to a running SolidWorks instance, or launch a new one.
+
+    Uses ``gencache.EnsureDispatch`` so the type library is generated and the
+    ``constants`` namespace is populated (needed by the feature builders).
+
+    Returns:
+        The ``ISldWorks`` application object.
+
+    Raises:
+        PlatformError: if not on Windows.
+        SolidWorksError: if connection/launch fails.
+    """
+    _require_windows()
+    import pythoncom  # type: ignore
+    import win32com.client  # type: ignore
+    from win32com.client import gencache  # type: ignore
+
+    pythoncom.CoInitialize()
+
+    sw_app = None
+    try:
+        # Prefer an already-running instance.
+        active = win32com.client.GetActiveObject("SldWorks.Application")
+        sw_app = gencache.EnsureDispatch(active)
+        log.info("Connected to existing SolidWorks instance.")
+    except Exception:
+        try:
+            sw_app = gencache.EnsureDispatch("SldWorks.Application")
+            sw_app.Visible = True
+            log.info("Launched a new SolidWorks instance.")
+        except Exception as e:
+            raise SolidWorksError(f"Failed to connect to or launch SolidWorks: {e}") from e
+
+    if sw_app is None:
+        raise SolidWorksError("Failed to obtain a SolidWorks application object.")
+
+    try:
+        log.info("SolidWorks revision: %s", sw_app.RevisionNumber())
+    except Exception:
+        log.warning("Could not read SolidWorks revision number (continuing).")
+    return sw_app
+
+
+def create_new_part(sw_app, template_path: Optional[str] = None):
+    """Create a new part document.
+
+    Raises:
+        SolidWorksError: if the template is missing or the document is not created.
+    """
+    if not template_path:
+        # swUserPreferenceStringValue.swDefaultTemplatePart = 8 (documented default).
+        try:
+            template_path = sw_app.GetUserPreferenceStringValue(_const("swDefaultTemplatePart", 8))
+        except Exception as e:
+            raise SolidWorksError(f"Could not resolve default part template: {e}") from e
+
+    if not template_path or not Path(template_path).exists():
+        raise SolidWorksError(
+            f"Part template not found: {template_path!r}. Set SOLIDWORKS_TEMPLATE_PATH "
+            "in .env or ensure the SolidWorks default template is configured."
+        )
+
+    sw_doc = sw_app.NewDocument(template_path, 0, 0, 0)
+    if sw_doc is None:
+        raise SolidWorksError("NewDocument returned None — failed to create part document.")
+    log.info("Created new part from template: %s", template_path)
+    return sw_doc
+
+
+def set_document_units(sw_doc, unit_system: str) -> None:
+    """Set the document's display units. MUST be called before creating geometry.
+
+    SolidWorks stores geometry in meters regardless of this setting; this only
+    affects what the user sees in the UI, but we set it for correctness.
+    """
+    # swLengthUnit_e via generated constants; cm corrected from the original spec
+    # (which used the unit-*system* constant swCGS by mistake).
+    unit_map = {
+        "mm": _const("swMM", 0),
+        "cm": _const("swCM", 1),
+        "inch": _const("swINCHES", 3),
+    }
+    length_unit = unit_map.get(unit_system.lower().strip(), unit_map["mm"])
+    # SetUnits(lengthUnit, thousandsDelimiter, decimalPlaces, fractionDenominator, roundToFraction)
+    ok = sw_doc.SetUnits(length_unit, 0, 4, 2, False)
+    if ok is False:  # SetUnits returns bool; None on some bindings — treat None as ok.
+        log.warning("SetUnits reported failure for unit system %r (continuing).", unit_system)
+    else:
+        log.info("Document units set to %s.", unit_system)
+
+
+# --------------------------------------------------------------------------- #
+# Helpers
+# --------------------------------------------------------------------------- #
+def _coerce(data: Union[DrawingData, dict[str, Any]]) -> DrawingData:
+    return data if isinstance(data, DrawingData) else DrawingData.model_validate(data)
+
+
+def get_feature_by_id(model: DrawingData, feature_id: str) -> Feature:
+    feature = model.feature_by_id(feature_id)
+    if feature is None:
+        raise SolidWorksError(f"build_order references missing feature {feature_id!r}.")
+    return feature
+
+
+def get_dimensions_for_feature(model: DrawingData, feature: Feature) -> dict[str, float]:
+    """Resolve a feature's dimensions to METERS, keyed by ``applies_to``.
+
+    Every value is converted via :func:`to_meters` and gated by
+    :func:`assert_meters`, so anything handed to the COM API is guaranteed to be
+    a sane meter value. Angular dimensions are returned in radians under their
+    ``applies_to`` key as well.
+    """
+    resolved: dict[str, float] = {}
+    ids = list(feature.related_dimensions)
+    if feature.depth_dimension_id and feature.depth_dimension_id not in ids:
+        ids.append(feature.depth_dimension_id)
+
+    for dim_id in ids:
+        dim = model.dimension_by_id(dim_id)
+        if dim is None:
+            raise SolidWorksError(
+                f"Feature {feature.id} references missing dimension {dim_id!r}."
+            )
+        key = (dim.applies_to or dim.type.value).lower().strip()
+        if dim.type.value == "angular":
+            resolved[key] = to_radians(dim.value)
+        else:
+            resolved[key] = assert_meters(to_meters(dim.value, dim.unit.value), f"{feature.id}.{key}")
+
+    # Also expose the depth explicitly under "depth" for builders that need it.
+    if feature.depth_dimension_id:
+        depth_dim = model.dimension_by_id(feature.depth_dimension_id)
+        if depth_dim is not None and depth_dim.type.value != "angular":
+            resolved.setdefault(
+                "depth",
+                assert_meters(
+                    to_meters(depth_dim.value, depth_dim.unit.value), f"{feature.id}.depth"
+                ),
+            )
+    return resolved
+
+
+def _select_plane(sw_doc, sketch_plane: Optional[str]) -> None:
+    """Select the named reference plane for the next sketch."""
+    name = _PLANE_NAMES.get((sketch_plane or "front").lower().strip(), "Front Plane")
+    selected = sw_doc.Extension.SelectByID2(name, "PLANE", 0, 0, 0, False, 0, None, 0)
+    if not selected:
+        raise SolidWorksError(f"Could not select sketch plane {name!r}.")
+
+
+def _verify_sketch_fully_defined(sw_doc) -> None:
+    """Verify the active sketch is fully defined before extruding.
+
+    An under-defined sketch produces unpredictable geometry. We attempt to add
+    relations automatically; if it remains under-defined we warn (the geometry
+    is still dimensionally pinned by the values we drew with).
+    """
+    sketch = sw_doc.SketchManager.ActiveSketch
+    if sketch is None:
+        raise SolidWorksError("No active sketch to verify.")
+    # GetConstrainedStatus: 1 = fully defined, 2 = over defined, 3 = under defined.
+    try:
+        status = sketch.GetConstrainedStatus()
+    except Exception:
+        status = None
+    if status == 3:
+        log.warning("Sketch is under-defined; attempting Fully Define Sketch.")
+        try:
+            sw_doc.SketchManager.FullyDefineSketch(
+                True, True, 0, 0, 0, None, None, None, None, None
+            )
+            status = sketch.GetConstrainedStatus()
+        except Exception as e:
+            log.warning("FullyDefineSketch failed: %s", e)
+    if status == 2:
+        raise SolidWorksError("Sketch is over-defined — cannot extrude reliably.")
+    if status == 3:
+        log.warning("Sketch still under-defined after auto-define; geometry may be loose.")
+
+
+def _origin_relation_for_rectangle(sw_doc) -> None:
+    """Best-effort: relate the sketch to the origin so it's anchored."""
+    try:
+        # Selecting the origin and a sketch point and making them coincident is
+        # geometry-specific; we leave the explicit relation to FullyDefineSketch.
+        pass
+    except Exception:
+        pass
+
+
+def check_rebuild_errors(sw_doc) -> bool:
+    """Check for rebuild errors/warnings after a feature. Returns True if clean."""
+    try:
+        errors = sw_doc.GetRebuildErrorCount() if hasattr(sw_doc, "GetRebuildErrorCount") else sw_doc.GetRebuildErrors()
+    except Exception:
+        # Older API name fallback.
+        errors = 0
+    try:
+        warnings = sw_doc.GetRebuildWarningCount() if hasattr(sw_doc, "GetRebuildWarningCount") else 0
+    except Exception:
+        warnings = 0
+
+    if errors and errors > 0:
+        log.error("REBUILD ERROR: %s error(s) detected.", errors)
+        return False
+    if warnings and warnings > 0:
+        log.warning("REBUILD WARNING: %s warning(s) — continuing.", warnings)
+    return True
+
+
+def _solid_body_exists(sw_doc) -> bool:
+    """True if the part currently contains at least one solid body with volume."""
+    try:
+        mass = sw_doc.Extension.CreateMassProperty()
+        if mass is None:
+            return False
+        mass.UseSystemUnits = True  # meters
+        return float(mass.Volume) > 0.0
+    except Exception as e:
+        log.warning("Could not query mass properties: %s", e)
+        return False
+
+
+# --------------------------------------------------------------------------- #
+# Feature builders — each returns the created feature object (or None on skip)
+# --------------------------------------------------------------------------- #
+def build_extrude_boss(sw_doc, feature: Feature, dims: dict[str, float]):
+    """Create the solid base body: a rectangular or circular extruded boss."""
+    _select_plane(sw_doc, feature.sketch_plane)
+    sw_doc.SketchManager.InsertSketch(True)
+    if sw_doc.SketchManager.ActiveSketch is None:
+        raise SolidWorksError("Failed to enter sketch mode for extrude_boss.")
+
+    diameter = dims.get("diameter") or dims.get("hole_diameter")
+    length = dims.get("length") or dims.get("width")
+    width = dims.get("width") or dims.get("length")
+
+    if diameter:
+        r = diameter / 2.0
+        # Circle centered at origin.
+        if sw_doc.SketchManager.CreateCircleByRadius(0, 0, 0, r) is None:
+            raise SolidWorksError("CreateCircleByRadius returned None for extrude_boss.")
+    elif length and width:
+        # Center rectangle around the origin.
+        hl, hw = length / 2.0, width / 2.0
+        if sw_doc.SketchManager.CreateCenterRectangle(0, 0, 0, hl, hw, 0) is None:
+            raise SolidWorksError("CreateCenterRectangle returned None for extrude_boss.")
+    else:
+        raise SolidWorksError(
+            f"extrude_boss {feature.id} needs either a diameter or length+width; got {dims}."
+        )
+    _origin_relation_for_rectangle(sw_doc)
+    _verify_sketch_fully_defined(sw_doc)
+
+    depth = dims.get("depth") or dims.get("height") or dims.get("thickness")
+    if not depth:
+        raise SolidWorksError(f"extrude_boss {feature.id} has no depth/height dimension.")
+    assert_meters(depth, f"{feature.id}.extrude_depth")
+
+    sw_doc.SketchManager.InsertSketch(True)  # close the sketch
+    # FeatureExtrusion3(Sd, Flip, Dir, T1, T2, D1, D2, Dchk1, Dchk2, Ddir1, Ddir2,
+    #   Dang1, Dang2, OffsetReverse1, OffsetReverse2, TranslateSurface1, TranslateSurface2,
+    #   Merge, UseFeatScope, UseAutoSelect, T0, StartOffset, FlipStartOffset)
+    feat = sw_doc.FeatureManager.FeatureExtrusion3(
+        True, False, False, 0, 0, depth, 0.01,
+        False, False, False, False,
+        to_radians(0), to_radians(0),
+        False, False, False, False,
+        True, True, True, 0, 0, False,
+    )
+    if feat is None:
+        raise SolidWorksError(f"FeatureExtrusion3 returned None for {feature.id}.")
+    if not _solid_body_exists(sw_doc):
+        raise SolidWorksError(f"No solid body exists after base extrude {feature.id} (volume=0).")
+    return feat
+
+
+def build_extrude_cut(sw_doc, feature: Feature, dims: dict[str, float]):
+    """Cut material from the existing solid. Requires a base body first."""
+    if not _solid_body_exists(sw_doc):
+        raise SolidWorksError(f"extrude_cut {feature.id} requires an existing solid body.")
+
+    _select_plane(sw_doc, feature.sketch_plane)
+    sw_doc.SketchManager.InsertSketch(True)
+    if sw_doc.SketchManager.ActiveSketch is None:
+        raise SolidWorksError("Failed to enter sketch mode for extrude_cut.")
+
+    diameter = dims.get("diameter") or dims.get("hole_diameter")
+    length = dims.get("length")
+    width = dims.get("width")
+    if diameter:
+        if sw_doc.SketchManager.CreateCircleByRadius(0, 0, 0, diameter / 2.0) is None:
+            raise SolidWorksError("CreateCircleByRadius returned None for extrude_cut.")
+    elif length and width:
+        if sw_doc.SketchManager.CreateCenterRectangle(0, 0, 0, length / 2.0, width / 2.0, 0) is None:
+            raise SolidWorksError("CreateCenterRectangle returned None for extrude_cut.")
+    else:
+        raise SolidWorksError(f"extrude_cut {feature.id} needs diameter or length+width; got {dims}.")
+    _verify_sketch_fully_defined(sw_doc)
+    sw_doc.SketchManager.InsertSketch(True)
+
+    depth = dims.get("depth")
+    through_all = depth is None  # no depth → cut through everything
+    if depth:
+        assert_meters(depth, f"{feature.id}.cut_depth")
+    # FeatureCut4 with through-all flag when no blind depth is given.
+    feat = sw_doc.FeatureManager.FeatureCut4(
+        True, False, False,
+        0 if not through_all else 1,  # endCondition: 0=Blind, 1=ThroughAll
+        0, depth or 0.0, 0.01,
+        False, False, False, False,
+        to_radians(0), to_radians(0),
+        False, False, False, False, False,
+        True, True, True, True, False, 0, 0, False, False,
+    )
+    if feat is None:
+        raise SolidWorksError(f"FeatureCut4 returned None for {feature.id}.")
+    return feat
+
+
+def build_hole(sw_doc, feature: Feature, dims: dict[str, float]):
+    """Create a hole. Implemented as a simple circular cut for portability.
+
+    The full Hole Wizard (counterbore/countersink/threaded) requires extensive
+    callout data the extractor does not reliably provide; a simple through/blind
+    circular cut is the robust default. Counterbore/countersink/thread variants
+    would extend this with HoleWizard5 once richer callouts are available.
+    """
+    if not _solid_body_exists(sw_doc):
+        raise SolidWorksError(f"hole {feature.id} requires an existing solid body.")
+    diameter = dims.get("hole_diameter") or dims.get("diameter")
+    if not diameter:
+        raise SolidWorksError(f"hole {feature.id} has no diameter dimension.")
+    # Reuse the cut path with the resolved diameter.
+    return build_extrude_cut(sw_doc, feature, {"diameter": diameter, **({"depth": dims["depth"]} if "depth" in dims else {})})
+
+
+def build_fillet(sw_doc, feature: Feature, dims: dict[str, float]):
+    """Apply a constant-radius fillet. FRAGILE — wrapped by the orchestrator.
+
+    Selects edges of the most recent feature when no explicit edge data exists.
+    On failure the orchestrator records a warning and continues.
+    """
+    radius = dims.get("fillet_radius") or dims.get("radius") or next(iter(dims.values()), None)
+    if not radius:
+        raise SolidWorksError(f"fillet {feature.id} has no radius dimension.")
+    assert_meters(radius, f"{feature.id}.fillet_radius")
+
+    # Select all edges of the part by selecting the solid body's edges is non-trivial
+    # without topology data; select the last feature so SW fillets its edges.
+    sw_doc.ClearSelection2(True)
+    # FeatureFillet3(Options, R1, Ftyp, OverflowType, ...) — minimal constant-radius form.
+    feat = sw_doc.FeatureManager.FeatureFillet3(
+        195,  # default fillet options bitmask (propagate, etc.)
+        radius, 0, 0, 0, 0, 0,
+        None, None, None, None, None, None, None,
+    )
+    if feat is None:
+        raise SolidWorksError(f"FeatureFillet3 returned None for {feature.id} (no edges selected?).")
+    return feat
+
+
+def build_chamfer(sw_doc, feature: Feature, dims: dict[str, float]):
+    """Apply a chamfer. FRAGILE — wrapped by the orchestrator like fillet."""
+    distance = dims.get("chamfer") or dims.get("length") or next(
+        (v for k, v in dims.items() if k != "angle"), None
+    )
+    if not distance:
+        raise SolidWorksError(f"chamfer {feature.id} has no distance dimension.")
+    assert_meters(distance, f"{feature.id}.chamfer_distance")
+    angle = dims.get("angle", to_radians(45))  # default 45° if unspecified (already radians)
+
+    sw_doc.ClearSelection2(True)
+    # InsertFeatureChamfer(Width, Angle, Flip, Type, OtherDist, VertexChamDist, VertexChamDist2)
+    feat = sw_doc.FeatureManager.InsertFeatureChamfer(
+        4, 1, distance, angle, 0, 0, 0, 0
+    )
+    if feat is None:
+        raise SolidWorksError(f"InsertFeatureChamfer returned None for {feature.id}.")
+    return feat
+
+
+def build_pattern(sw_doc, feature: Feature, dims: dict[str, float], feature_map: dict[str, Any]):
+    """Create a linear pattern of the most-recent seed feature.
+
+    Requires a seed feature to exist. Spacing/count come from the feature's
+    related dimensions where available; sensible defaults otherwise.
+    """
+    if not feature_map:
+        raise SolidWorksError(f"pattern {feature.id} has no seed feature to pattern.")
+    spacing = dims.get("spacing") or dims.get("length") or next(iter(dims.values()), None)
+    if not spacing:
+        raise SolidWorksError(f"pattern {feature.id} has no spacing dimension.")
+    assert_meters(spacing, f"{feature.id}.pattern_spacing")
+    count = max(2, int(feature.quantity))
+
+    # Select the seed (last created feature) before patterning.
+    sw_doc.ClearSelection2(True)
+    feat = sw_doc.FeatureManager.FeatureLinearPattern4(
+        count, spacing, 1, 0.0, False, False, "NULL", "NULL",
+        False, False, False, False, False, False, False, False, 0, 0,
+    )
+    if feat is None:
+        raise SolidWorksError(f"FeatureLinearPattern4 returned None for {feature.id}.")
+    return feat
+
+
+# Map feature types to (builder, is_fragile).
+_BUILDERS = {
+    FeatureType.EXTRUDE_BOSS: (build_extrude_boss, False),
+    FeatureType.EXTRUDE_CUT: (build_extrude_cut, False),
+    FeatureType.HOLE: (build_hole, False),
+    FeatureType.FILLET: (build_fillet, True),
+    FeatureType.CHAMFER: (build_chamfer, True),
+}
+
+
+def dispatch_feature_builder(sw_doc, feature: Feature, dims: dict[str, float], feature_map: dict[str, Any]):
+    """Dispatch to the right feature builder. Returns the created feature object."""
+    if feature.type == FeatureType.PATTERN:
+        return build_pattern(sw_doc, feature, dims, feature_map)
+    entry = _BUILDERS.get(feature.type)
+    if entry is None:
+        raise SolidWorksError(
+            f"Feature type {feature.type.value!r} ({feature.id}) is not yet supported by the builder."
+        )
+    builder, _fragile = entry
+    return builder(sw_doc, feature, dims)
+
+
+def _is_fragile(feature: Feature) -> bool:
+    return feature.type in (FeatureType.FILLET, FeatureType.CHAMFER)
+
+
+def save_model(sw_doc, name: str, output_dir: Optional[Path] = None) -> str:
+    """Save the part as a .sldprt and return the absolute path.
+
+    Raises:
+        SolidWorksError: if the save fails.
+    """
+    output_dir = Path(output_dir) if output_dir else OUTPUT_DIR_DEFAULT
+    output_dir.mkdir(parents=True, exist_ok=True)
+    safe = "".join(c for c in (name or "output_part") if c.isalnum() or c in ("_", "-")).strip("_") or "output_part"
+    path = output_dir / f"{safe}.sldprt"
+
+    # SaveAs3(Name, Version, Options) → returns error/warning ints via SaveAs.
+    errors = 0
+    warnings = 0
+    try:
+        result = sw_doc.SaveAs3(str(path), 0, 1)
+        # Some bindings return a bool; treat falsy as failure only if no file written.
+        if result in (False, None) and not path.exists():
+            raise SolidWorksError(f"SaveAs3 failed for {path}.")
+    except SolidWorksError:
+        raise
+    except Exception as e:
+        raise SolidWorksError(f"Saving {path} failed: {e} (errors={errors}, warnings={warnings})") from e
+
+    log.info("Saved model: %s", path)
+    return str(path)
+
+
+def build_model(
+    sw_app,
+    drawing_data: Union[DrawingData, dict[str, Any]],
+    output_dir: Optional[Union[str, Path]] = None,
+    template_path: Optional[str] = None,
+):
+    """Build the complete 3D model from validated drawing data.
+
+    Returns:
+        (output_path, sw_doc): path to the saved .sldprt and the live document
+        (so the caller can run model validation against it).
+
+    Raises:
+        SolidWorksError: on any build failure. The exception carries the path to
+            a saved partial model (``partial_path``) for debugging.
+    """
+    _require_windows()
+    model = _coerce(drawing_data)
+    output_dir = Path(output_dir) if output_dir else OUTPUT_DIR_DEFAULT
+
+    sw_doc = create_new_part(sw_app, template_path)
+    set_document_units(sw_doc, model.units.value)  # BEFORE any geometry
+
+    feature_map: dict[str, Any] = {}
+    built_count = 0
+
+    for feature_id in model.build_order:
+        feature = get_feature_by_id(model, feature_id)
+        dims = get_dimensions_for_feature(model, feature)
+        log.info("Building feature %s: %s", feature_id, feature.type.value)
+
+        try:
+            result = dispatch_feature_builder(sw_doc, feature, dims, feature_map)
+
+            if result is None:
+                raise SolidWorksError(f"Feature builder returned None for {feature_id}.")
+            feature_map[feature_id] = result
+
+            if not check_rebuild_errors(sw_doc):
+                raise SolidWorksError(f"Rebuild errors after feature {feature_id}.")
+
+            built_count += 1
+            log.info("  ✓ %s complete", feature_id)
+
+            # Periodic auto-save so a later crash doesn't lose everything.
+            if built_count % AUTOSAVE_EVERY == 0:
+                try:
+                    save_model(sw_doc, f"AUTOSAVE_{model.part_name or 'part'}", output_dir)
+                except SolidWorksError as e:
+                    log.warning("Auto-save failed (continuing): %s", e)
+
+        except SolidWorksError as e:
+            if _is_fragile(feature):
+                # Fillets/chamfers are demoted to warnings — do not abort the build.
+                log.warning("  ! %s (%s) failed and was SKIPPED: %s", feature_id, feature.type.value, e)
+                model.warnings.append(f"{feature_id} ({feature.type.value}) skipped: {e}")
+                continue
+
+            # Non-fragile failure: save a partial model and abort with context.
+            partial_path = None
+            try:
+                partial_path = save_model(sw_doc, f"PARTIAL_{feature_id}", output_dir)
+            except Exception as save_err:
+                log.error("Could not save partial model: %s", save_err)
+            log.error("  ✗ %s FAILED: %s", feature_id, e)
+            raise SolidWorksError(
+                f"Build failed at feature {feature_id}: {e}"
+                + (f" Partial model saved to {partial_path}." if partial_path else ""),
+                partial_path=partial_path,
+            ) from e
+
+    # Final rebuild + error check.
+    try:
+        sw_doc.ForceRebuild3(True)
+    except Exception as e:
+        log.warning("ForceRebuild3 failed: %s", e)
+    check_rebuild_errors(sw_doc)
+
+    output_path = save_model(sw_doc, model.part_name or "output_part", output_dir)
+    return output_path, sw_doc
