@@ -1,27 +1,34 @@
 # 2D → 3D SolidWorks Pipeline
 
 Convert a 2D engineering drawing (image or PDF) into a parametric SolidWorks 2024
-part: extract dimensions with the Claude Vision API, validate them into a strict
-schema, build the 3D model via the SolidWorks COM API, and verify the result.
+part in two phases:
+
+- **Phase 1 — Extraction & Verification** (runs on any OS): extract every
+  dimension, tolerance, view, hole callout, and geometric relationship with the
+  Claude Vision API, then arithmetically verify it (dimensional closure, pattern
+  envelopes, unit consistency, ambiguity flags). Output: a `VERIFICATION REPORT`
+  with **READY TO BUILD / BLOCKED** status. BLOCKED = nothing gets built.
+- **Phase 2 — Build**: generate numbered **SolidWorks VBA macros** (default) that
+  you run inside SolidWorks on any machine — *no Python needed there* — or drive
+  SolidWorks directly over COM (`--engine com`, Windows only).
 
 ## Pipeline
 
 ```
-drawing → image_prep → extractor (Claude) → schema/validator → solidworks_builder → model_validator → .sldprt
+drawing → image_prep → extractor (Claude) → verification gate → macro generator → macros/*.vba
+                                                  │                                    (run in SolidWorks)
+                                                  └→ (--engine com) solidworks_builder → .sldprt
 ```
 
 | Stage | Module | Runs on |
 |-------|--------|---------|
 | Image prep | `utils/image_prep.py` | any OS |
-| Extraction | `pipeline/extractor.py` (`claude-opus-4-8`, structured outputs) | any OS |
-| Schema | `pipeline/schema.py` (Pydantic v2) | any OS |
-| Validation | `pipeline/validator.py` | any OS |
-| Units | `utils/unit_converter.py` (everything → meters) | any OS |
-| Build | `pipeline/solidworks_builder.py` (COM) | **Windows + SolidWorks 2024** |
-| Model check | `pipeline/model_validator.py` | **Windows + SolidWorks 2024** |
-
-The SolidWorks half imports cleanly everywhere but only runs on Windows; the
-extraction/validation half runs and is tested on any platform.
+| Extraction | `pipeline/extractor.py` (`claude-sonnet-4-6`, forced tool call) | any OS |
+| Schema | `pipeline/schema.py` (Pydantic v2; views, hole callouts, relationships, ambiguity) | any OS |
+| Verification | `pipeline/validator.py` (closure, envelopes, READY/BLOCKED report) | any OS |
+| **VBA macros** | `pipeline/macro_generator.py` | any OS (macros run on any SolidWorks machine) |
+| COM build | `pipeline/solidworks_builder.py` | Windows + SolidWorks 2024 |
+| Model check | `pipeline/model_validator.py` | Windows + SolidWorks 2024 |
 
 ## Setup
 
@@ -33,35 +40,66 @@ python setup.py                 # checks Python, installs deps, creates .env
 ## Run
 
 ```bash
-# Extract + validate only (no SolidWorks needed — runs anywhere):
+# Extract + verify only (no SolidWorks needed):
 python main.py --drawing path/to/drawing.pdf --validate-only --debug
 
-# Full pipeline (Windows + SolidWorks 2024):
+# Full Phase 1 + VBA macro package (runs anywhere):
 python main.py --drawing path/to/drawing.pdf --output ./output
+
+# Regenerate macros from a saved extraction (no API call):
+python main.py --from-json debug_extraction.json --output ./output
+
+# Direct COM build (Windows + SolidWorks 2024):
+python main.py --drawing path/to/drawing.pdf --engine com
 
 # Tests:
 pytest tests/ -v
 ```
 
-Flags: `--drawing` (required), `--output`, `--page N` (multi-page PDFs),
-`--debug` (saves `debug_extraction.json`), `--validate-only`.
+Flags: `--drawing` or `--from-json` (one required), `--output`, `--page N`,
+`--debug`, `--engine vba|com` (default `vba`), `--validate-only`.
+
+## Output package (engine `vba`)
+
+```
+output/<PartNumber>/
+├── <PartNumber>_extraction.json          # full Phase 1 extraction
+├── <PartNumber>_verification_report.txt  # READY TO BUILD / BLOCKED
+├── <PartNumber>_build_plan.json          # ordered steps + skipped/needs-review
+├── macros/                               # 00_setup … ZZ_final_verify + README.md
+└── logs/                                 # build_log.txt appended by the macros
+```
+
+Copy the folder to any SolidWorks machine (e.g. a school VDI — no installs
+needed) and follow `macros/README.md`: run the macros in numbered order; each
+logs PASS/FAIL and stops on failure.
 
 ## Key design notes
 
-- **Model:** `claude-opus-4-8` with **structured outputs** — the response is
-  forced to conform to the `DrawingData` Pydantic schema, so JSON validity is
-  guaranteed (no regex repair).
-- **Units:** every linear value passes through `to_meters()` and is gated by
-  `assert_meters()` before reaching the COM API (SolidWorks works in meters).
-- **Robustness:** rebuild errors checked after every feature; fillets/chamfers
-  wrapped in try/except and demoted to warnings; partial model saved on crash;
-  auto-save every 3 features.
+- **Extraction:** `claude-sonnet-4-6` (override with `EXTRACTION_MODEL`) via a
+  **forced tool call** validated against the Pydantic schema with one repair
+  retry. (Strict structured outputs reject this schema's nested arrays — don't
+  switch back.)
+- **Units:** SolidWorks API works in meters. Python COM path: every value
+  through `to_meters()` + `assert_meters()`. VBA path: every value written as
+  `<drawing value> * UNIT_FACTOR` for traceability.
+- **Verification gate:** ambiguous dimensions (`resolution_required`),
+  non-closing dimension chains, and infeasible patterns **block** the build.
+- **Macro discipline:** one macro per feature, named features, per-step
+  PASS/FAIL logging, stop-on-first-failure, fillets/chamfers last (interactive
+  edge selection with extracted values baked in).
+- **Prohibited features** (loft, sweep, boundary, shell, draft, surfacing,
+  helical threads): never generated — flagged in the build plan and skipped.
+  Threads are cosmetic only.
 
 ## Limitations
 
-- Checkpoint **resume** (re-entering a partial build) is not implemented — only
-  partial-save-on-crash + periodic auto-save.
-- The SolidWorks build/validate stages are verified by inspection on non-Windows
-  machines; run them on Windows + SolidWorks 2024 to exercise the COM paths.
-- Hole Wizard variants (counterbore/countersink/threaded) fall back to a simple
-  circular cut until richer callout data is available.
+- Feature/hole **positions** are only as good as the drawing callouts: when a
+  position isn't dimensioned from the origin, macros center geometry and mark it
+  `POSITION ASSUMED` — verify before trusting the model.
+- Revolves and feature-level patterns are emitted as TODO-marked skeletons
+  (`needs_review` in the build plan) rather than guessed API calls.
+- The COM build path (`--engine com`) and `ZZ_final_verify` macro are exercised
+  only on Windows + SolidWorks 2024.
+- Checkpoint *resume* for the COM path is not implemented (partial-save +
+  auto-save only).

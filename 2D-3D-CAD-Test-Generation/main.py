@@ -1,11 +1,22 @@
 """2D -> 3D SolidWorks Pipeline — entry point.
 
+Phase 1 (any OS): prepare image -> extract with Claude Vision -> verify.
+Phase 2: generate SolidWorks VBA macros (default, any OS — run the macros on any
+SolidWorks machine, no Python needed there), or drive SolidWorks directly over
+COM (--engine com, Windows + SolidWorks required).
+
 Usage:
-    # Extract + validate only (no SolidWorks needed — runs anywhere):
+    # Extract + verify only (no SolidWorks needed — runs anywhere):
     python main.py --drawing path/to/drawing.pdf --validate-only --debug
 
-    # Full pipeline (Windows + SolidWorks 2024 required):
+    # Full Phase 1 + VBA macro package (runs anywhere):
     python main.py --drawing path/to/drawing.pdf --output ./output
+
+    # Regenerate macros from a saved extraction (no API call):
+    python main.py --from-json debug_extraction.json --output ./output
+
+    # Direct COM build (Windows + SolidWorks 2024):
+    python main.py --drawing path/to/drawing.pdf --engine com
 """
 from __future__ import annotations
 
@@ -20,86 +31,149 @@ from rich.panel import Panel
 console = Console()
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Convert a 2D engineering drawing into a SolidWorks 3D model."
-    )
-    parser.add_argument("--drawing", required=True, help="Path to the 2D drawing (PDF, PNG, JPG, TIFF).")
-    parser.add_argument("--output", default="./output", help="Output directory for the .sldprt file.")
-    parser.add_argument("--page", type=int, default=1, help="Page to use for multi-page PDFs (default 1).")
-    parser.add_argument("--debug", action="store_true", help="Save intermediate extraction JSON.")
-    parser.add_argument(
-        "--validate-only",
-        action="store_true",
-        help="Extract and validate only; do not connect to SolidWorks.",
-    )
-    args = parser.parse_args()
-
-    console.print(Panel("2D -> 3D SolidWorks Pipeline", style="bold blue"))
-
-    # --- [1/6] Prepare image ---
-    console.print("[1/6] Preparing drawing image...")
+def _prepare_and_extract(args) -> dict | None:
+    """Stages 1-2: image prep + Claude extraction. Returns the extraction dict."""
+    console.print("[1/4] Preparing drawing image...")
     from utils.image_prep import ImagePrepError, prepare_image
 
     try:
         prepared = prepare_image(args.drawing, page=args.page, return_details=True)
     except ImagePrepError as e:
         console.print(f"[red]Image preparation failed:[/red] {e}")
-        return 2
+        return None
     for w in prepared.warnings:
         console.print(f"  [yellow]warning:[/yellow] {w}")
     console.print(f"  Prepared {prepared.width}x{prepared.height} PNG (page {prepared.page}).")
 
-    # --- [2/6] Extract dimensions ---
-    console.print("[2/6] Extracting dimensions with Claude Vision...")
+    console.print("[2/4] Extracting drawing data with Claude Vision...")
     from pipeline.extractor import ExtractionError, extract_drawing_data
 
     try:
-        drawing_data = extract_drawing_data(
+        return extract_drawing_data(
             prepared.base64,
             media_type=prepared.media_type,
             prep_warnings=prepared.warnings,
         )
     except EnvironmentError as e:
         console.print(f"[red]Extraction failed (configuration):[/red] {e}")
-        return 3
     except ExtractionError as e:
         console.print(f"[red]Extraction failed:[/red] {e}")
-        return 3
     except Exception as e:
         # The extractor wraps an external API: auth, rate-limit, and network
-        # failures surface as the SDK's own exception types. Present cleanly
-        # rather than dumping a traceback.
+        # failures surface as the SDK's own exception types. Present cleanly.
         console.print(f"[red]Extraction failed (API error):[/red] {type(e).__name__}: {e}")
-        return 3
+    return None
 
-    if args.debug:
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Convert a 2D engineering drawing into a SolidWorks 3D model."
+    )
+    src = parser.add_mutually_exclusive_group(required=True)
+    src.add_argument("--drawing", help="Path to the 2D drawing (PDF, PNG, JPG, TIFF).")
+    src.add_argument(
+        "--from-json",
+        help="Skip extraction: load a previously saved extraction JSON (e.g. debug_extraction.json).",
+    )
+    parser.add_argument("--output", default="./output", help="Output directory.")
+    parser.add_argument("--page", type=int, default=1, help="Page to use for multi-page PDFs (default 1).")
+    parser.add_argument("--debug", action="store_true", help="Save intermediate extraction JSON.")
+    parser.add_argument(
+        "--engine",
+        choices=("vba", "com"),
+        default="vba",
+        help="Build engine: 'vba' generates SolidWorks macros (default, any OS); "
+        "'com' drives SolidWorks directly (Windows only).",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Extract and verify only; do not generate macros or touch SolidWorks.",
+    )
+    args = parser.parse_args()
+
+    console.print(Panel("2D -> 3D SolidWorks Pipeline", style="bold blue"))
+
+    # --- [1-2/4] Source the extraction ---
+    if args.from_json:
+        json_path = Path(args.from_json)
+        if not json_path.exists():
+            console.print(f"[red]Extraction JSON not found:[/red] {json_path}")
+            return 2
+        console.print(f"[1-2/4] Loading extraction from {json_path} (skipping API)...")
+        try:
+            drawing_data = json.loads(json_path.read_text())
+        except json.JSONDecodeError as e:
+            console.print(f"[red]Could not parse {json_path}:[/red] {e}")
+            return 2
+    else:
+        drawing_data = _prepare_and_extract(args)
+        if drawing_data is None:
+            return 3
+
+    if args.debug and not args.from_json:
         debug_path = Path("debug_extraction.json")
         debug_path.write_text(json.dumps(drawing_data, indent=2))
         console.print(f"  Debug: extraction saved to {debug_path}")
 
-    # --- [3/6] Validate extracted data ---
-    console.print("[3/6] Validating extracted data...")
-    from pipeline.validator import DrawingValidationError, validate_drawing_data
+    # --- [3/4] Verification (Phase 1 gate) ---
+    console.print("[3/4] Verifying extracted data...")
+    from pipeline.validator import format_verification_report, run_verification
 
-    try:
-        validated = validate_drawing_data(drawing_data)
-    except DrawingValidationError as e:
-        console.print("[red]Validation failed — not proceeding to SolidWorks.[/red]")
-        console.print(str(e.report))
+    model, report = run_verification(drawing_data)
+    verification_text = format_verification_report(model, report)
+    console.print(verification_text)
+
+    output_dir = Path(args.output)
+    if model is not None:
+        # Always persist the verification report, READY or BLOCKED.
+        report_dir = output_dir / (model.display_name.replace(" ", "_") or "part")
+        report_dir.mkdir(parents=True, exist_ok=True)
+        report_path = report_dir / f"{model.display_name}_verification_report.txt"
+        report_path.write_text(verification_text)
+        console.print(f"  Report written to {report_path}")
+
+    if model is None or not report.ok:
+        console.print(
+            Panel(
+                "[red]BLOCKED — resolve the issues above, then re-run.[/red]\n"
+                "Nothing was sent to SolidWorks and no macros were generated.",
+                style="red",
+            )
+        )
         return 4
-    console.print(
-        f"  Validated: {len(validated.dimensions)} dimensions, "
-        f"{len(validated.features)} features, confidence {validated.confidence:.2f}."
-    )
 
     if args.validate_only:
-        console.print(
-            Panel("[green]Validation complete. Exiting (--validate-only).[/green]", style="green")
-        )
+        console.print(Panel("[green]READY TO BUILD. Exiting (--validate-only).[/green]", style="green"))
         return 0
 
-    # --- [4/6] Connect to SolidWorks ---
+    # --- [4/4] Build ---
+    if args.engine == "vba":
+        console.print("[4/4] Generating SolidWorks VBA macro package...")
+        from pipeline.macro_generator import generate_macro_package
+
+        pkg = generate_macro_package(model, drawing_data, verification_text, output_dir)
+        n_macros = sum(1 for s in pkg.steps if s.macro_file.endswith(".vba"))
+        lines = [
+            f"[green]Macro package complete:[/green] {pkg.root}",
+            f"  {n_macros} macros in {pkg.macros_dir}",
+            f"  Build plan: {pkg.build_plan_json}",
+        ]
+        if pkg.skipped:
+            lines.append(
+                f"  [yellow]{len(pkg.skipped)} feature(s) skipped (prohibited):[/yellow] "
+                + ", ".join(s.feature_id for s in pkg.skipped)
+            )
+        if pkg.needs_review:
+            lines.append(
+                f"  [yellow]{len(pkg.needs_review)} macro(s) need manual review:[/yellow] "
+                + ", ".join(s.feature_id for s in pkg.needs_review)
+            )
+        lines.append("  Next: copy the package folder to a SolidWorks machine and follow macros/README.md.")
+        console.print(Panel("\n".join(lines), style="green"))
+        return 0
+
+    # --- engine == "com": direct COM build (Windows + SolidWorks) ---
     console.print("[4/6] Connecting to SolidWorks...")
     from pipeline.solidworks_builder import (
         PlatformError,
@@ -117,14 +191,13 @@ def main() -> int:
         console.print(f"[red]Could not connect to SolidWorks:[/red] {e}")
         return 5
 
-    # --- [5/6] Build the model ---
     console.print("[5/6] Building 3D model in SolidWorks...")
     import os
 
     template_path = os.getenv("SOLIDWORKS_TEMPLATE_PATH") or None
     try:
         output_path, sw_doc = build_model(
-            sw_app, validated, output_dir=args.output, template_path=template_path
+            sw_app, model, output_dir=args.output, template_path=template_path
         )
     except SolidWorksError as e:
         console.print(f"[red]Build failed:[/red] {e}")
@@ -132,27 +205,26 @@ def main() -> int:
             console.print(f"  Partial model saved to: {e.partial_path}")
         return 6
 
-    # --- [6/6] Validate the built model ---
     console.print("[6/6] Validating built model...")
     from pipeline.model_validator import validate_model
 
-    report = validate_model(sw_doc, validated)
-    for p in report["passed"]:
+    vreport = validate_model(sw_doc, model)
+    for p in vreport["passed"]:
         console.print(f"  [green]PASS[/green] {p}")
-    for f in report["failed"]:
+    for f in vreport["failed"]:
         console.print(f"  [red]FAIL[/red] {f}")
-    for w in report["warnings"]:
+    for w in vreport["warnings"]:
         console.print(f"  [yellow]WARN[/yellow] {w}")
 
-    style = "green" if report.get("ok") else "yellow"
+    style = "green" if vreport.get("ok") else "yellow"
     console.print(
         Panel(
             f"[{style}]Pipeline complete.[/{style}]\nSaved to: {output_path}\n"
-            f"Model validation: {'PASSED' if report.get('ok') else 'completed with issues'}.",
+            f"Model validation: {'PASSED' if vreport.get('ok') else 'completed with issues'}.",
             style=style,
         )
     )
-    return 0 if report.get("ok") else 7
+    return 0 if vreport.get("ok") else 7
 
 
 if __name__ == "__main__":

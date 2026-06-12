@@ -3,16 +3,20 @@
 This module is the **single source of truth** for the data shape. The same
 models are used two ways:
 
-1. As the JSON schema Claude must conform to (passed to ``messages.parse`` via
-   ``output_config.format``) — structured outputs guarantee a schema-valid
-   response, so no regex/JSON-repair fallback is needed.
+1. As the ``input_schema`` of the forced tool call Claude must make (see
+   pipeline/extractor.py — strict structured outputs choke on this schema's
+   nested object arrays, so non-strict forced tool use is used instead).
 2. As the validation layer for any data the pipeline ingests (including the
    ``--debug`` JSON files and test fixtures).
 
+CONVENTION: no Optional/None fields — every field has a non-null default
+("", 0.0, empty list). Tool-use extraction emits these far more reliably than
+nullable fields.
+
 Field-level guarantees (positivity, enums, ranges) live here. Cross-field
 *build-readiness* rules (base feature exists, build_order dependencies satisfied,
-sketch definability) live in :mod:`pipeline.validator`, which produces a rich
-human-readable report instead of a raw ValidationError.
+dimensional closure, pattern envelopes) live in :mod:`pipeline.validator`, which
+produces a rich human-readable report instead of a raw ValidationError.
 """
 from __future__ import annotations
 
@@ -77,11 +81,146 @@ _FEATURE_ALIASES = {
 }
 
 
+class HoleType(str, Enum):
+    THRU = "thru"
+    BLIND = "blind"
+    COUNTERBORE = "counterbore"
+    COUNTERSINK = "countersink"
+    SPOTFACE = "spotface"
+    TAPPED = "tapped"
+
+
+class PatternKind(str, Enum):
+    NONE = "none"
+    LINEAR = "linear"
+    CIRCULAR = "circular"
+
+
 class View(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    view_type: str = Field(description="Front/Top/Right/Isometric/Section/Detail")
+    view_type: str = Field(description="Front/Top/Right/Isometric/Section/Detail/Auxiliary")
     description: str = Field(description="What this view shows")
+    dimensions_shown: list[str] = Field(
+        default_factory=list, description="IDs of dimensions readable in this view"
+    )
+    visible_features: list[str] = Field(
+        default_factory=list, description="Feature IDs visible (solid lines) in this view"
+    )
+    hidden_features: list[str] = Field(
+        default_factory=list, description="Feature IDs shown hidden (dashed lines) in this view"
+    )
+    centerline_notes: str = Field(
+        default="",
+        description="Center lines present and what they imply (holes, symmetry, revolved geometry); empty if none",
+    )
+
+
+class HoleCallout(BaseModel):
+    """One hole callout (possibly covering multiple instances via qty/pattern)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(description="Stable identifier, e.g. H001")
+    type: HoleType
+    diameter: float = Field(description="Nominal hole diameter in drawing units")
+    thru: bool = Field(default=True, description="True for THRU holes; False for blind")
+    depth: float = Field(default=0.0, description="Blind depth in drawing units; 0.0 if THRU")
+    thread_spec: str = Field(default="", description='Thread callout, e.g. "1/4-20 UNC"; empty if not tapped')
+    cbore_diameter: float = Field(default=0.0, description="Counterbore diameter; 0.0 if none")
+    cbore_depth: float = Field(default=0.0, description="Counterbore depth; 0.0 if none")
+    csink_diameter: float = Field(default=0.0, description="Countersink diameter; 0.0 if none")
+    csink_angle: float = Field(default=0.0, description="Countersink included angle in degrees; 0.0 if none")
+    qty: int = Field(default=1, description="Number of instances this callout covers")
+    x_position: float = Field(
+        default=0.0,
+        description="X of the first instance from the part center/origin, drawing units; 0.0 if centered/unknown",
+    )
+    y_position: float = Field(
+        default=0.0,
+        description="Y of the first instance from the part center/origin, drawing units; 0.0 if centered/unknown",
+    )
+    position_known: bool = Field(
+        default=False, description="True only if x/y positions were read from the drawing"
+    )
+    pattern: PatternKind = Field(default=PatternKind.NONE)
+    pattern_spacing: float = Field(default=0.0, description="Pattern spacing in drawing units; 0.0 if no pattern")
+    feature_ref: str = Field(default="", description="Feature ID (F###) this callout corresponds to; empty if none")
+    view: str = Field(default="", description="View the callout appears in")
+
+    @field_validator("diameter")
+    @classmethod
+    def diameter_positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError(f"hole diameter must be positive, got {v}")
+        return v
+
+    @field_validator("qty")
+    @classmethod
+    def qty_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError(f"qty must be >= 1, got {v}")
+        return v
+
+
+class DimensionChain(BaseModel):
+    """A closed dimensional loop: total = sum of components (closure-checkable)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    total_dimension_id: str = Field(description="ID of the overall/envelope dimension")
+    component_dimension_ids: list[str] = Field(
+        description="IDs of the dimensions that should sum to the total"
+    )
+    description: str = Field(default="", description="What this chain represents")
+
+
+class SymmetryNote(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    plane: str = Field(description="Plane of symmetry: Front/Top/Right or described")
+    feature_ids: list[str] = Field(default_factory=list, description="Features mirrored about this plane")
+    description: str = Field(default="")
+
+
+class ConcentricGroup(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    feature_ids: list[str] = Field(description="Features that are coaxial/concentric")
+    description: str = Field(default="")
+
+
+class SpacingNote(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    feature_ref: str = Field(description="Feature or hole-callout ID with equal spacing")
+    qty: int = Field(description="Number of equally spaced instances")
+    spacing_value: float = Field(description="Computed spacing in drawing units")
+    computed_from: str = Field(
+        default="", description="How spacing was derived, e.g. 'overall 80mm / 4 gaps'"
+    )
+
+
+class RelationshipMap(BaseModel):
+    """Explicit geometric relationships mapped before any build."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symmetry: list[SymmetryNote] = Field(default_factory=list)
+    concentric_groups: list[ConcentricGroup] = Field(default_factory=list)
+    equal_spacing: list[SpacingNote] = Field(default_factory=list)
+    dimension_chains: list[DimensionChain] = Field(
+        default_factory=list,
+        description="Closed dimension loops where components should sum to a total",
+    )
+    derived_dimension_ids: list[str] = Field(
+        default_factory=list,
+        description="IDs of dimensions that were computed (implied by symmetry/spacing), not read directly",
+    )
+    reference_dimension_ids: list[str] = Field(
+        default_factory=list,
+        description="IDs of REF / parenthesized dimensions — non-controlling",
+    )
 
 
 class Dimension(BaseModel):
@@ -99,7 +238,32 @@ class Dimension(BaseModel):
     applies_to: str = Field(
         default="", description="length/width/height/hole_diameter/fillet_radius/etc, or empty if unknown"
     )
+    feature_ref: str = Field(
+        default="", description="Feature ID (F###) this dimension controls, or empty if unknown"
+    )
     view: str = Field(default="", description="Which view this dimension is read from, or empty if unclear")
+    datum_ref: str = Field(default="", description="GD&T datum reference, e.g. A; empty if none")
+    gdt_symbol: str = Field(
+        default="", description="GD&T symbol (flatness/perpendicularity/etc); empty if none"
+    )
+    is_reference: bool = Field(
+        default=False, description="True for REF / parenthesized (non-controlling) dimensions"
+    )
+    value_unclear: bool = Field(
+        default=False,
+        description="True if the printed value is illegible/ambiguous — `value` is then a best guess",
+    )
+    ambiguity_reason: str = Field(
+        default="", description="Why the value is unclear (overlapping lines, smudge, ...); empty if clear"
+    )
+    possible_values: list[float] = Field(
+        default_factory=list,
+        description="Candidate readings when value_unclear (best guess first); empty if clear",
+    )
+    resolution_required: bool = Field(
+        default=False,
+        description="True if a human must resolve this dimension before building",
+    )
     notes: str = Field(default="", description="Special callouts or notes, or empty if none")
 
     @field_validator("value")
@@ -123,6 +287,21 @@ class Feature(BaseModel):
     sketch_plane: str = Field(default="", description="Front/Top/Right/custom, or empty for default")
     depth_dimension_id: str = Field(
         default="", description="ID of the dimension giving this feature's depth/length, or empty if none"
+    )
+    parent_feature: str = Field(
+        default="",
+        description="Feature ID this one depends on (e.g. pattern seed, fillet's host); empty for base",
+    )
+    offset_x: float = Field(
+        default=0.0,
+        description="Sketch-center X offset from the part origin in drawing units; 0.0 if centered/unknown",
+    )
+    offset_y: float = Field(
+        default=0.0,
+        description="Sketch-center Y offset from the part origin in drawing units; 0.0 if centered/unknown",
+    )
+    position_known: bool = Field(
+        default=False, description="True only if the offsets were read from the drawing"
     )
     quantity: int = Field(default=1, description="Instance count (for patterns)")
 
@@ -155,16 +334,24 @@ class DrawingData(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    part_name: str = Field(default="", description="Part name/number, or empty if not given")
+    part_name: str = Field(default="", description="Part name from the title block, or empty if not given")
+    part_number: str = Field(default="", description="Part number from the title block, or empty if not given")
+    revision: str = Field(default="", description="Drawing revision, e.g. A; empty if not given")
     drawing_standard: str = Field(default="", description="ASME/ISO/DIN, or empty if not given")
     units: Units = Field(description="Drawing's declared unit system")
     scale: str = Field(default="", description='e.g. "1:1" or "as shown", or empty if not given')
     material: str = Field(default="", description="Material, or empty if not given")
     finish: str = Field(default="", description="Surface finish, or empty if not given")
+    general_tolerance: str = Field(
+        default="",
+        description="General tolerance block text (e.g. '.XX ±0.01, .XXX ±0.005'); empty if not given",
+    )
     views: list[View] = Field(default_factory=list)
     dimensions: list[Dimension] = Field(default_factory=list)
+    hole_callouts: list[HoleCallout] = Field(default_factory=list)
     features: list[Feature] = Field(default_factory=list)
     geometric_tolerances: list[GeometricTolerance] = Field(default_factory=list)
+    relationships: RelationshipMap = Field(default_factory=RelationshipMap)
     build_order: list[str] = Field(
         default_factory=list,
         description="Feature IDs in logical SolidWorks build order; first must be a base solid",
@@ -186,3 +373,17 @@ class DrawingData(BaseModel):
 
     def dimension_by_id(self, dim_id: str) -> Optional[Dimension]:
         return next((d for d in self.dimensions if d.id == dim_id), None)
+
+    def hole_callout_by_id(self, hole_id: str) -> Optional[HoleCallout]:
+        return next((h for h in self.hole_callouts if h.id == hole_id), None)
+
+    def hole_callout_for_feature(self, feature_id: str) -> Optional[HoleCallout]:
+        return next((h for h in self.hole_callouts if h.feature_ref == feature_id), None)
+
+    @property
+    def display_name(self) -> str:
+        """Best available name for files/folders: part_number > part_name > 'part'."""
+        base = self.part_number or self.part_name or "part"
+        if self.revision:
+            base = f"{base}-Rev{self.revision}"
+        return base

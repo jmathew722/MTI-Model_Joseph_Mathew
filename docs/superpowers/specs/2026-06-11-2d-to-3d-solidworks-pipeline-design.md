@@ -1,8 +1,34 @@
 # 2D → 3D SolidWorks Pipeline — Design
 
-**Date:** 2026-06-11
+**Date:** 2026-06-11 (v1) · **Updated:** 2026-06-12 (v2 — two-phase + VBA macro generation)
 **Owner:** Joe Mathew — iNDustry Labs / MTI Welding
-**Target runtime:** SolidWorks 2024, Python 3.10+, Windows (extraction half is cross-platform)
+**Target runtime:** SolidWorks 2024, Python 3.10+ (Phase 1 + macro generation run on any OS; macros run on any SolidWorks machine with zero installs)
+
+## v2 summary (approved 2026-06-12)
+
+Two-phase workflow extending v1 in place:
+
+- **Phase 1 — Extraction & Verification** (any OS): image prep → Claude Vision
+  (`claude-sonnet-4-6`, forced tool call) → expanded schema (views with
+  dimension/feature visibility, hole callouts, GD&T/datum fields, ambiguity
+  flags with candidate values, relationship map with dimension chains) →
+  verification gate producing the spec-format `VERIFICATION REPORT` with
+  **READY TO BUILD / BLOCKED**. BLOCKED stops everything.
+- **Phase 2 — VBA macro generation** (default engine, any OS): emits
+  `output/<Part>/` with `_extraction.json`, `_verification_report.txt`,
+  `_build_plan.json`, numbered `macros/*.vba` (00_setup … ZZ_final_verify),
+  and `logs/`. Macros run inside SolidWorks (no Python on that machine),
+  log PASS/FAIL per step, stop on first failure. Prohibited features
+  (loft/sweep/shell/…) are never generated — flagged and skipped. Threads are
+  cosmetic-only. Fillets/chamfers are an interactive select-edges-then-run
+  macro with the extracted values baked in. The v1 Python-COM builder remains
+  available via `--engine com`.
+- `--from-json` regenerates macros from a saved extraction without an API call.
+
+Key v2 constraints carried from debugging (commit cdef0e1): strict structured
+outputs fail on this schema (use forced tool call + Pydantic repair retry);
+schema fields use non-null defaults; SolidWorks COM needs late-bound Dispatch +
+NULL VARIANTs.
 
 ## Goal
 

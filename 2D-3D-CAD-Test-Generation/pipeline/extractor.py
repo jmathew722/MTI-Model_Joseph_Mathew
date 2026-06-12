@@ -1,9 +1,9 @@
 """Dimension extraction via the Claude Vision API.
 
-Uses ``claude-opus-4-8`` with a **forced tool call** — Claude must respond by
-calling the ``report_drawing_data`` tool, whose ``input_schema`` is generated
-from :class:`pipeline.schema.DrawingData`. The tool's JSON input is then
-validated against the same Pydantic model.
+Uses ``claude-sonnet-4-6`` (override with ``EXTRACTION_MODEL``) with a **forced
+tool call** — Claude must respond by calling the ``report_drawing_data`` tool,
+whose ``input_schema`` is generated from :class:`pipeline.schema.DrawingData`.
+The tool's JSON input is then validated against the same Pydantic model.
 
 Note: this intentionally avoids Anthropic's *strict* structured outputs
 (``output_format=``), whose server-side grammar compiler cannot handle
@@ -28,7 +28,7 @@ from utils.logger import get_logger
 log = get_logger()
 load_dotenv()
 
-DEFAULT_MODEL = "claude-opus-4-8"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 16000
 CONFIDENCE_THRESHOLD = 0.7  # below this, re-query once for a closer look
 SDK_MAX_RETRIES = 3  # SDK-level retries for transient API errors
@@ -36,25 +36,69 @@ SDK_MAX_RETRIES = 3  # SDK-level retries for transient API errors
 TOOL_NAME = "report_drawing_data"
 
 SYSTEM_PROMPT = """\
-You are a precision engineering drawing interpreter. Extract ALL information \
-from this 2D engineering drawing with exact accuracy, then report it by calling \
-the required tool.
+You are a senior design engineer interpreting a 2D engineering drawing with exact \
+accuracy. Fully extract, interpret, and cross-check the drawing, then report it by \
+calling the required tool. A bad extraction becomes a wrong 3D model — be thorough \
+and honest about uncertainty.
 
-CRITICAL RULES:
-- Extract EVERY visible dimension — miss nothing. Each gets a stable id (D001, D002, ...).
-- If a dimension is unclear, still include it and add a note to `warnings`; do not skip it.
-- All numeric values must be numbers, never strings (e.g. 25.4, not "25.4mm"). Put the
-  unit in the `unit` field.
-- `features` describe how to build the part. Each gets a stable id (F001, F002, ...).
-  Use ONLY these feature `type` values: extrude_boss, extrude_cut, revolve, hole,
+TITLE BLOCK & STANDARD:
+- Read the title block: part_name, part_number, revision, scale, material, finish,
+  and the general tolerance block text (general_tolerance).
+- Identify drawing_standard (ASME/ISO/DIN) and units (inch vs mm; fractional inches
+  are still "inch").
+
+VIEWS:
+- Identify and classify EVERY view (Front/Top/Right/Section/Detail/Auxiliary/...).
+- For each view list which dimension ids are readable in it (dimensions_shown),
+  which features are visible vs hidden (dashed), and what the center lines imply
+  (holes, symmetry, revolved geometry) in centerline_notes.
+
+DIMENSIONS:
+- Extract EVERY dimension — miss nothing. Stable ids D001, D002, ...
+- All numeric values are numbers, never strings (25.4, not "25.4mm"); unit goes in `unit`.
+- Record tolerances (explicit, or note when only the general block applies),
+  GD&T symbols and datum references where present.
+- Mark REF / parenthesized dimensions with is_reference=true — they are non-controlling.
+- If a value is illegible or ambiguous: set value to your best guess, value_unclear=true,
+  fill ambiguity_reason and possible_values (best guess first), and set
+  resolution_required=true if a human MUST resolve it before building. NEVER silently skip.
+- Set feature_ref to the feature (F###) each dimension controls when determinable.
+
+HOLE CALLOUTS:
+- Extract every hole callout into hole_callouts (H001, ...): type
+  (thru/blind/counterbore/countersink/spotface/tapped), diameter, depth or thru,
+  thread_spec (e.g. "1/4-20 UNC"), cbore/csink data, qty, pattern and spacing.
+- If the drawing dimensions the hole position from the part origin/center, set
+  x_position/y_position and position_known=true. Otherwise leave position_known=false.
+
+FEATURES & BUILD ORDER (F001, F002, ...):
+- Use ONLY these feature `type` values: extrude_boss, extrude_cut, revolve, hole,
   fillet, chamfer, thread, pattern, shell.
-- `build_order` lists feature ids in logical SolidWorks build order. The FIRST feature
-  MUST be a solid base body — an `extrude_boss` (or `revolve`) — before any cut/hole.
-- `related_dimensions` / `depth_dimension_id` must reference ids that exist in `dimensions`.
-- `confidence`: 1.0 = every dimension is clear and unambiguous; 0.0 = the drawing is
-  very unclear. Be honest — a low score triggers a closer second look.
+- build_order: base solid first (largest extrude_boss or revolve), then primary
+  cuts/through holes, then counterbores/countersinks/taps, fillets and chamfers
+  LAST, patterns after their seed. The FIRST feature MUST be extrude_boss or revolve.
+- related_dimensions / depth_dimension_id must reference existing dimension ids.
+- Set parent_feature for dependent features (pattern seed, fillet's host feature).
+- If a feature's sketch center is dimensioned from the part origin/center, set
+  offset_x/offset_y and position_known=true.
+
+RELATIONSHIPS (fill the relationships object — this enables arithmetic verification):
+- symmetry: planes of symmetry and which features mirror about them.
+- concentric_groups: coaxial holes/bosses.
+- equal_spacing: equally spaced patterns with computed spacing (state the arithmetic
+  in computed_from, e.g. "overall 80 / 4 gaps = 20").
+- dimension_chains: EVERY closed dimension loop you can identify, e.g. overall
+  length = left offset + feature + right offset. These are arithmetically checked.
+- derived_dimension_ids: dimensions you computed (implied by symmetry/spacing) rather
+  than read. Also add each derived dimension to `dimensions` with a note.
+- reference_dimension_ids: ids of REF dimensions.
+
+GENERAL:
+- confidence: 1.0 = everything clear; below 0.7 triggers a closer second look. Be honest.
 - If you genuinely cannot determine the units, use millimeters and add a warning.
-- Use empty string "" (not null) for any text field you cannot determine.
+- Use empty string "" (not null) for any text field you cannot determine; use 0.0 for
+  unknown numeric fields that have a 0.0 default.
+- Put any remaining doubts in `warnings`.
 """
 
 INITIAL_USER_TEXT = (

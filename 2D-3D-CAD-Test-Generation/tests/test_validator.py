@@ -4,7 +4,12 @@ import copy
 import pytest
 
 from pipeline.schema import DrawingData
-from pipeline.validator import DrawingValidationError, validate_drawing_data
+from pipeline.validator import (
+    DrawingValidationError,
+    format_verification_report,
+    run_verification,
+    validate_drawing_data,
+)
 
 
 def valid_drawing() -> dict:
@@ -123,3 +128,120 @@ class TestFeatureAliasNormalization:
         data["features"][0]["type"] = "extrude"  # alias for extrude_boss
         result = validate_drawing_data(data)
         assert result.features[0].type.value == "extrude_boss"
+
+
+# --------------------------------------------------------------------------- #
+# v2 checks
+# --------------------------------------------------------------------------- #
+class TestAmbiguity:
+    def test_resolution_required_blocks(self):
+        data = valid_drawing()
+        data["dimensions"][0].update(
+            {"value_unclear": True, "resolution_required": True,
+             "ambiguity_reason": "overlapping section line", "possible_values": [100.0, 105.0]}
+        )
+        model, report = run_verification(data)
+        assert not report.ok
+        assert any("D001" in e and "resolution" in e.lower() for e in report.errors)
+        assert "BLOCKED" in format_verification_report(model, report)
+
+    def test_unclear_without_resolution_is_warning_only(self):
+        data = valid_drawing()
+        data["dimensions"][0].update(
+            {"value_unclear": True, "ambiguity_reason": "faint print"}
+        )
+        model, report = run_verification(data)
+        assert report.ok
+        assert any("D001" in w for w in report.warnings)
+        assert "READY TO BUILD" in format_verification_report(model, report)
+
+
+class TestDimensionalClosure:
+    def _with_chain(self, total_ok: bool) -> dict:
+        data = valid_drawing()
+        # Components: 30 + 70 = 100 (D001). Break the total when total_ok=False.
+        data["dimensions"] += [
+            {"id": "D010", "type": "linear", "value": 30.0, "unit": "mm"},
+            {"id": "D011", "type": "linear", "value": 70.0 if total_ok else 60.0, "unit": "mm"},
+        ]
+        data["relationships"] = {
+            "dimension_chains": [
+                {"total_dimension_id": "D001", "component_dimension_ids": ["D010", "D011"]}
+            ]
+        }
+        return data
+
+    def test_closing_chain_passes(self):
+        model, report = run_verification(self._with_chain(total_ok=True))
+        assert report.ok
+        assert "Dimensional closure: PASS" in format_verification_report(model, report)
+
+    def test_non_closing_chain_blocks(self):
+        model, report = run_verification(self._with_chain(total_ok=False))
+        assert not report.ok
+        assert report.failed_closure_chains
+        assert "Dimensional closure: FAIL" in format_verification_report(model, report)
+
+    def test_chain_with_unknown_ids_warns_not_blocks(self):
+        data = valid_drawing()
+        data["relationships"] = {
+            "dimension_chains": [
+                {"total_dimension_id": "D999", "component_dimension_ids": ["D001"]}
+            ]
+        }
+        model, report = run_verification(data)
+        assert report.ok  # unknown chain refs degrade to warnings
+        assert any("D999" in w for w in report.warnings)
+
+
+class TestPatternEnvelope:
+    def test_pattern_exceeding_envelope_blocks(self):
+        data = valid_drawing()
+        # 5 holes x 30mm spacing = 120mm span > 100mm max envelope
+        data["hole_callouts"] = [
+            {"id": "H001", "type": "thru", "diameter": 5.0, "qty": 5,
+             "pattern": "linear", "pattern_spacing": 30.0}
+        ]
+        model, report = run_verification(data)
+        assert not report.ok
+        assert any("Pattern infeasible" in e for e in report.errors)
+        assert "Feature feasibility: FAIL" in format_verification_report(model, report)
+
+    def test_pattern_inside_envelope_passes(self):
+        data = valid_drawing()
+        data["hole_callouts"] = [
+            {"id": "H001", "type": "thru", "diameter": 5.0, "qty": 4,
+             "pattern": "linear", "pattern_spacing": 20.0}  # span 60 < 100
+        ]
+        model, report = run_verification(data)
+        assert report.ok
+
+
+class TestReferenceDimensions:
+    def test_ref_driving_dimension_warns(self):
+        data = valid_drawing()
+        data["dimensions"][2]["is_reference"] = True  # D003 drives F001's depth
+        model, report = run_verification(data)
+        assert report.ok  # warning, not a block
+        assert any("REF" in w for w in report.warnings)
+
+
+class TestVerificationReportFormat:
+    def test_ready_report_contains_required_lines(self):
+        model, report = run_verification(valid_drawing())
+        text = format_verification_report(model, report)
+        for line in (
+            "VERIFICATION REPORT",
+            "Total dimensions extracted: 4",
+            "Dimensional closure:",
+            "Unit consistency: PASS",
+            "View consistency: PASS",
+            "Feature feasibility: PASS",
+            "OVERALL STATUS: READY TO BUILD",
+        ):
+            assert line in text, f"missing: {line}"
+
+    def test_shape_failure_report_is_blocked(self):
+        model, report = run_verification({"units": "mm"})  # missing confidence etc.
+        assert model is None
+        assert "BLOCKED" in format_verification_report(model, report)
