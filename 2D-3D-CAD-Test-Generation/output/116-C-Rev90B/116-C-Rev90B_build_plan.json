@@ -1,0 +1,83 @@
+{
+  "part": "116-C-Rev90B",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "confidence": 0.82,
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_rectangular_block_body_overall_2_38.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base rectangular block body, overall 2.38 wide x 2.75 tall (top view); depth/thickness shown in section A-A (~0.94); corners appear radiused",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 3.25,
+        "width": 2.75,
+        "depth": 1.5
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing."
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F003_40_DIA_THRU_holes_4_places_arranged_in_b.vba",
+      "feature_id": "F003",
+      "type": "hole",
+      "description": ".40 DIA. THRU holes, 4 places, arranged in bolt pattern 1.88 x 1.88 spacing",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.4,
+        "qty": 4.0
+      },
+      "notes": "HOLE POSITIONS ASSUMED (centered on the plate envelope) - verify against the drawing."
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F002_Counterbore_holes_2_places_DRILL_58_DIA_.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "Counterbore holes (2 places): DRILL .58 DIA. x .50 DP, C'BORE 1.012/1.002 DIA. x .111/.113 DEEP",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.58,
+        "qty": 2.0,
+        "depth": 0.5,
+        "cbore_diameter": 1.007,
+        "cbore_depth": 0.112
+      },
+      "notes": "HOLE POSITIONS ASSUMED (centered on the plate envelope) - verify against the drawing."
+    },
+    {
+      "seq": 4,
+      "macro_file": "04_fillets_chamfers.vba",
+      "feature_id": "F004",
+      "type": "fillet/chamfer",
+      "description": "Interactive: select edges, run, repeat",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Run last. Interactive edge selection (values from the drawing are baked in)."
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

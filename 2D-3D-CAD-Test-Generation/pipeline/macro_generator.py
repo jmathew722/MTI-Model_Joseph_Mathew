@@ -69,6 +69,9 @@ UNIT_SYSTEM_ENUM = {  # document unit system, by drawing units
     Units.INCH: "swUnitSystem_e.swUnitSystem_IPS",
 }
 PLANE_NAMES = {"front": "Front Plane", "top": "Top Plane", "right": "Right Plane"}
+# 1-based position of each standard plane in a default template's feature tree
+# (used as a name-independent fallback when selecting by name fails).
+PLANE_INDEX = {"Front Plane": 1, "Top Plane": 2, "Right Plane": 3}
 
 # Feature types we can emit reliable macros for.
 SUPPORTED = {
@@ -174,24 +177,40 @@ def _plane_for(feature: Feature) -> str:
     return PLANE_NAMES.get((feature.sketch_plane or "front").lower().strip(), "Front Plane")
 
 
-def _hole_positions(h: HoleCallout) -> list[tuple[float, float]]:
-    """Instance centers in drawing units.
+def _envelope(model: DrawingData) -> tuple[Optional[float], Optional[float]]:
+    """The part's length/width envelope in drawing units (None when not extracted)."""
+    length = width = None
+    for d in model.dimensions:
+        key = (d.applies_to or "").lower().strip()
+        if key == "length" and length is None and not d.is_reference:
+            length = d.value
+        elif key == "width" and width is None and not d.is_reference:
+            width = d.value
+    return length, width
 
-    If the drawing gave a position, start there; otherwise center the group on
-    the origin. Linear patterns march along +X from the first instance; when the
-    position is unknown the whole row is centered about the origin.
+
+def _hole_positions(model: DrawingData, h: HoleCallout) -> list[tuple[float, float]]:
+    """Instance centers in the DRAWING FRAME (base plate lower-left corner at origin).
+
+    Known positions are used as-is — drawings dimension hole centers from the
+    part edges, which is exactly this frame. Unknown positions are centered on
+    the plate envelope (when one was extracted), else at the origin. Linear
+    patterns march along +X from the first instance.
     """
+    length, width = _envelope(model)
+    ecx = (length / 2.0) if length else 0.0
+    ecy = (width / 2.0) if width else 0.0
     if h.pattern == PatternKind.LINEAR and h.qty > 1 and h.pattern_spacing > 0:
         if h.position_known:
             x0, y0 = h.x_position, h.y_position
         else:
             span = (h.qty - 1) * h.pattern_spacing
-            x0, y0 = -span / 2.0, 0.0
+            x0, y0 = ecx - span / 2.0, ecy
         return [(x0 + i * h.pattern_spacing, y0) for i in range(h.qty)]
     # Single position (or qty>1 with no usable spacing — macro comments flag it).
     if h.position_known:
         return [(h.x_position, h.y_position)]
-    return [(0.0, 0.0)]
+    return [(ecx, ecy)]
 
 
 # --------------------------------------------------------------------------- #
@@ -253,14 +272,46 @@ Function VerifySolidBody(step As String) As Boolean
         VerifySolidBody = False
         LogResult "FAIL", step, "No solid body present after feature"
     Else
+        ' Bounding box read from the solid body itself (IBody2::GetBodyBox) -
+        ' ModelDoc2 exposes no whole-model bounding-box call in VBA.
+        Dim swBody As SldWorks.Body2
         Dim vBox As Variant
-        vBox = swModel.GetModelBoundingBox()
+        Set swBody = vBodies(0)
+        vBox = swBody.GetBodyBox
         LogResult "PASS", step, "Solid body OK; bbox(drawing units) " & _
             Format$((vBox(3) - vBox(0)) / UNIT_FACTOR, "0.000") & " x " & _
             Format$((vBox(4) - vBox(1)) / UNIT_FACTOR, "0.000") & " x " & _
             Format$((vBox(5) - vBox(2)) / UNIT_FACTOR, "0.000")
         VerifySolidBody = True
     End If
+End Function
+
+' --- Select a reference plane robustly (plane names vary by template / language) ---
+Function SelectRefPlane(planeName As String, planeIndex As Integer) As Boolean
+    Dim tries As Variant, i As Integer
+    swModel.ClearSelection2 True
+    tries = Array(planeName, Replace(planeName, " Plane", ""), "Plane" & planeIndex)
+    For i = LBound(tries) To UBound(tries)
+        If swModel.Extension.SelectByID2(CStr(tries(i)), "PLANE", 0, 0, 0, False, 0, Nothing, 0) Then
+            SelectRefPlane = True
+            Exit Function
+        End If
+    Next i
+    ' Fallback: planeIndex-th reference plane in the feature tree (template order).
+    Dim feat As SldWorks.Feature, n As Integer
+    Set feat = swModel.FirstFeature
+    Do While Not feat Is Nothing
+        If feat.GetTypeName2 = "RefPlane" Then
+            n = n + 1
+            If n = planeIndex Then
+                swModel.ClearSelection2 True
+                SelectRefPlane = feat.Select2(False, 0)
+                Exit Function
+            End If
+        End If
+        Set feat = feat.GetNextFeature
+    Loop
+    SelectRefPlane = False
 End Function
 
 Sub main()
@@ -282,11 +333,10 @@ def _fail_block(step: str, message: str, indent: str = "    ") -> str:
 
 
 def _sketch_open(plane: str, step: str) -> str:
-    return f"""    ' ---- PLANE SELECTION ({plane}) ----
-    swModel.ClearSelection2 True
-    boolstatus = swModel.Extension.SelectByID2("{plane}", "PLANE", 0, 0, 0, False, 0, Nothing, 0)
-    If Not boolstatus Then
-{_fail_block(step, f"Could not select {plane}.", "        ")}    End If
+    idx = PLANE_INDEX.get(plane, 1)
+    return f"""    ' ---- PLANE SELECTION ({plane}; name auto-detected) ----
+    If Not SelectRefPlane("{plane}", {idx}) Then
+{_fail_block(step, f"Could not select {plane} (no reference plane found).", "        ")}    End If
 
     ' ---- OPEN SKETCH ----
     swModel.SketchManager.InsertSketch True
@@ -295,22 +345,27 @@ def _sketch_open(plane: str, step: str) -> str:
 
 def _sketch_close_fully_define(step: str) -> str:
     return f"""
-    ' ---- FULLY DEFINE & CLOSE SKETCH ----
-    ' Geometry above is drawn at exact coordinates, so the feature is correct
-    ' even if this defensive auto-constrain call is unavailable on this version.
+    ' ---- FINALIZE SKETCH ----
+    ' The feature call below consumes the ACTIVE sketch - this is exactly what
+    ' SolidWorks' own macro recorder emits (ClearSelection2 then the feature
+    ' call, sketch left open). No closing, no name-based reselection.
     On Error Resume Next
     swModel.SketchManager.FullyDefineSketch True, True, 0, True, 1, Nothing, 1, Nothing, 0, 0
     On Error GoTo 0
     swModel.ClearSelection2 True
-    swModel.SketchManager.InsertSketch True   ' close the sketch
-
-    If Not swModel.SketchManager.ActiveSketch Is Nothing Then
-{_fail_block(step, "Sketch did not close cleanly.", "        ")}    End If
+    If swModel.SketchManager.ActiveSketch Is Nothing Then
+{_fail_block(step, "No active sketch to build the feature from.", "        ")}    End If
 """
 
 
 def _profile_vba(dims: dict[str, float], cx: float, cy: float, step: str) -> tuple[str, dict[str, float]]:
-    """VBA to draw a circle or centered rectangle profile at (cx, cy)."""
+    """VBA to draw a circle (centered at cx, cy) or rectangle (lower-left corner
+    at cx, cy) profile.
+
+    DRAWING FRAME convention: the base plate's lower-left corner sits at the
+    sketch origin, so hole/feature positions dimensioned from the part edges
+    (the normal drafting practice) can be used as sketch coordinates directly.
+    """
     used: dict[str, float] = {}
     diameter = dims.get("diameter") or dims.get("hole_diameter")
     length = dims.get("length") or dims.get("width")
@@ -322,9 +377,11 @@ def _profile_vba(dims: dict[str, float], cx: float, cy: float, step: str) -> tup
 """
     elif length and width:
         used["length"], used["width"] = length, width
-        code = f"""    ' ---- SKETCH: centered rectangle {_v(length)} x {_v(width)} at ({_v(cx)}, {_v(cy)}) ----
-    swModel.SketchManager.CreateCenterRectangle {_v(cx)} * UNIT_FACTOR, {_v(cy)} * UNIT_FACTOR, 0#, _
-        ({_v(cx)} + {_v(length)} / 2#) * UNIT_FACTOR, ({_v(cy)} + {_v(width)} / 2#) * UNIT_FACTOR, 0#
+        code = f"""    ' ---- SKETCH: rectangle {_v(length)} x {_v(width)}, lower-left corner at ({_v(cx)}, {_v(cy)}) ----
+    ' (Corner at the origin keeps sketch coordinates equal to the drawing's
+    '  edge-referenced dimensions, so hole positions land where dimensioned.)
+    swModel.SketchManager.CreateCornerRectangle {_v(cx)} * UNIT_FACTOR, {_v(cy)} * UNIT_FACTOR, 0#, _
+        ({_v(cx)} + {_v(length)}) * UNIT_FACTOR, ({_v(cy)} + {_v(width)}) * UNIT_FACTOR, 0#
 """
     else:
         raise MacroGenerationError(
@@ -348,19 +405,51 @@ def _extrusion3(depth_expr: str, blind: bool = True) -> str:
 """
 
 
-def _cut4(depth_expr: str, thru: bool) -> str:
-    """FeatureCut4 — mirrors the verified call in pipeline/solidworks_builder.py."""
-    end = "swEndConditions_e.swEndCondThroughAll" if thru else "swEndConditions_e.swEndCondBlind"
-    return f"""    Dim swFeat As SldWorks.Feature
-    Set swFeat = swModel.FeatureManager.FeatureCut4( _
-        True, False, False, _
-        {end}, swEndConditions_e.swEndCondBlind, _
-        {depth_expr}, 0.01, _
-        False, False, False, False, 0#, 0#, _
-        False, False, False, False, False, _
-        True, True, True, True, False, _
-        swStartConditions_e.swStartSketchPlane, 0#, False, False)
+def _cut4(depth_expr: str, thru: bool, var: str = "swFeat") -> str:
+    """FeatureCut4 — mirrors the verified call in pipeline/solidworks_builder.py.
+
+    Direction-proof: thru cuts use Through All - Both so the cut reaches the
+    material regardless of which side of the sketch plane the body sits on;
+    if the first attempt still fails (e.g. blind cut aimed at empty space),
+    the sketch is reselected and the cut retried with the direction flipped.
+    """
+    end = "swEndConditions_e.swEndCondThroughAllBoth" if thru else "swEndConditions_e.swEndCondBlind"
+    retry_end = "swEndConditions_e.swEndCondThroughAll" if thru else "swEndConditions_e.swEndCondBlind"
+
+    def call(indent: str, dir_flip: str, end_cond: str) -> str:
+        return f"""{indent}Set {var} = swModel.FeatureManager.FeatureCut4( _
+{indent}    True, False, {dir_flip}, _
+{indent}    {end_cond}, swEndConditions_e.swEndCondBlind, _
+{indent}    {depth_expr}, 0.01, _
+{indent}    False, False, False, False, 0#, 0#, _
+{indent}    False, False, False, False, False, _
+{indent}    True, True, True, True, False, _
+{indent}    swStartConditions_e.swStartSketchPlane, 0#, False, False)
 """
+
+    return (
+        f"    Dim {var} As SldWorks.Feature\n"
+        + call("    ", "False", end)
+        + f"""    If {var} Is Nothing Then
+        ' The cut may have missed the material (body on the other side of the
+        ' sketch plane) - restore the profile sketch and retry, direction flipped.
+        If swModel.SketchManager.ActiveSketch Is Nothing Then
+            ' Sketch was consumed/closed by the failed attempt: select the most
+            ' recent sketch feature in the tree (type "ProfileFeature") by object,
+            ' never by name.
+            Dim featR{var} As SldWorks.Feature, lastSk{var} As SldWorks.Feature
+            Set featR{var} = swModel.FirstFeature
+            Do While Not featR{var} Is Nothing
+                If featR{var}.GetTypeName2 = "ProfileFeature" Then Set lastSk{var} = featR{var}
+                Set featR{var} = featR{var}.GetNextFeature
+            Loop
+            swModel.ClearSelection2 True
+            If Not lastSk{var} Is Nothing Then lastSk{var}.Select2 False, 0
+        End If
+"""
+        + call("        ", "True", retry_end)
+        + "    End If\n"
+    )
 
 
 def _feature_check_and_name(feature_name: str, step: str) -> str:
@@ -381,7 +470,15 @@ def _macro_extrude(model: DrawingData, feature: Feature, step: str, is_cut: bool
     dims = _dims_map(model, feature)
     depth = _depth_of(dims)
     plane = _plane_for(feature)
-    cx, cy = (feature.offset_x, feature.offset_y) if feature.position_known else (0.0, 0.0)
+    if feature.position_known:
+        cx, cy = feature.offset_x, feature.offset_y
+    elif dims.get("diameter") or dims.get("hole_diameter"):
+        # Unplaced circular feature: assume centered on the plate envelope.
+        length, width = _envelope(model)
+        cx, cy = (length or 0.0) / 2.0, (width or 0.0) / 2.0
+    else:
+        # Unplaced rectangle: lower-left corner at the origin (drawing frame).
+        cx, cy = 0.0, 0.0
 
     profile, used = _profile_vba(dims, cx, cy, step)
     thru = is_cut and depth is None
@@ -394,7 +491,7 @@ def _macro_extrude(model: DrawingData, feature: Feature, step: str, is_cut: bool
     position_note = (
         "Position read from drawing."
         if feature.position_known
-        else "POSITION ASSUMED CENTERED AT ORIGIN - verify against the drawing."
+        else "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing."
     )
     body = _sketch_open(plane, step)
     body += profile
@@ -416,7 +513,7 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
         return _macro_extrude(model, feature, step, is_cut=True)
 
     plane = _plane_for(feature)
-    positions = _hole_positions(h)
+    positions = _hole_positions(model, h)
     used: dict[str, float] = {"diameter": h.diameter, "qty": float(h.qty)}
     thru = h.thru or h.type == HoleType.THRU
     depth_expr = "0#"
@@ -429,7 +526,7 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
     position_note = (
         "Hole positions read from drawing."
         if h.position_known
-        else "HOLE POSITIONS ASSUMED (centered/origin) - verify against the drawing."
+        else "HOLE POSITIONS ASSUMED (centered on the plate envelope) - verify against the drawing."
     )
 
     body = _sketch_open(plane, step)
@@ -451,7 +548,7 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
         body += f"""
     ' ---- COUNTERBORE: concentric blind cut dia {_v(h.cbore_diameter)} x {_v(h.cbore_depth)} deep ----
 """
-        body += _sketch_open(plane, step + "_cbore").replace("Dim swFeat", "Dim swFeatCb")
+        body += _sketch_open(plane, step + "_cbore")
         for x, y in positions:
             body += (
                 f"    swModel.SketchManager.CreateCircleByRadius {_v(x)} * UNIT_FACTOR, "
@@ -459,9 +556,7 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
             )
         body += _sketch_close_fully_define(step + "_cbore")
         body += "\n"
-        body += _cut4(f"{_v(h.cbore_depth)} * UNIT_FACTOR", thru=False).replace(
-            "Dim swFeat As", "Dim swFeatCb As"
-        ).replace("Set swFeat =", "Set swFeatCb =")
+        body += _cut4(f"{_v(h.cbore_depth)} * UNIT_FACTOR", thru=False, var="swFeatCb")
         body += f"""
     If swFeatCb Is Nothing Then
 {_fail_block(step, "Counterbore cut failed.", "        ")}    End If
@@ -580,6 +675,29 @@ def _macro_revolve_skeleton(feature: Feature, step: str) -> str:
 """
 
 
+def _pattern_covered_by(model: DrawingData, feature: Feature) -> Optional[tuple[str, int]]:
+    """If the pattern's instances were already emitted as multiple circles in
+    the parent hole feature's cut, return (parent_id, qty) — the pattern macro
+    becomes a verified no-op instead of a manual step."""
+    if not feature.parent_feature:
+        return None
+    parent = model.feature_by_id(feature.parent_feature)
+    if parent is None:
+        return None
+    h = model.hole_callout_for_feature(parent.id)
+    if h is not None and h.qty >= max(feature.quantity, 2):
+        return parent.id, h.qty
+    return None
+
+
+def _macro_pattern_covered(parent_id: str, qty: int, feature: Feature, step: str) -> str:
+    return f"""    ' Pattern {feature.id} is ALREADY SATISFIED: feature {parent_id} cut all
+    ' {qty} instance(s) as separate circles in one sketch, so there is nothing
+    ' left to pattern. This macro just records that and moves on.
+    LogResult "PASS", "{step}", "{feature.id} pattern already realized by {parent_id} ({qty} instances) - no action needed"
+"""
+
+
 def _macro_pattern_skeleton(model: DrawingData, feature: Feature, step: str) -> str:
     dims = _dims_map(model, feature)
     spacing = dims.get("spacing") or next(iter(dims.values()), 0.0)
@@ -598,16 +716,53 @@ def _macro_pattern_skeleton(model: DrawingData, feature: Feature, step: str) -> 
 # --------------------------------------------------------------------------- #
 # Setup / final-verify macros
 # --------------------------------------------------------------------------- #
+_FIND_TEMPLATE_VBA = """' --- Find a Part template (.prtdot): configured folders first, then standard locations ---
+Function FindPartTemplate(app As SldWorks.SldWorks) As String
+    Dim dirs As String, parts() As String, i As Integer, p As String, hit As String
+    ' Configured document-template folders (semicolon-separated), then common defaults.
+    dirs = app.GetUserPreferenceStringValue(swUserPreferenceStringValue_e.swFileLocationsDocumentTemplates)
+    dirs = dirs & ";C:\\ProgramData\\SOLIDWORKS\\SOLIDWORKS 2024\\templates" & _
+                  ";C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates" & _
+                  ";C:\\ProgramData\\SOLIDWORKS\\SOLIDWORKS 2025\\templates" & _
+                  ";C:\\ProgramData\\SOLIDWORKS\\SOLIDWORKS 2023\\templates"
+    parts = Split(dirs, ";")
+    For i = LBound(parts) To UBound(parts)
+        p = Trim$(parts(i))
+        If Len(p) > 0 Then
+            If Right$(p, 1) <> "\\" Then p = p & "\\"
+            If Dir(p & "Part.prtdot") <> "" Then
+                FindPartTemplate = p & "Part.prtdot"
+                Exit Function
+            End If
+            hit = Dir(p & "*.prtdot")
+            If hit <> "" Then
+                FindPartTemplate = p & hit
+                Exit Function
+            End If
+        End If
+    Next i
+    FindPartTemplate = ""
+End Function
+
+"""
+
+
 def _setup_macro(model: DrawingData, unit_factor: float) -> str:
     unit_enum = UNIT_SYSTEM_ENUM[model.units]
     part_file = _safe_name(model.display_name) + ".sldprt"
     header = _vba_header("00_setup - new part, units, save-as", model.display_name, unit_factor, body_uses_doc=False)
+    header = header.replace("Sub main()", _FIND_TEMPLATE_VBA + "Sub main()")
     return header + f"""
-    ' ---- CREATE NEW PART from the default part template ----
+    ' ---- CREATE NEW PART from a part template ----
+    ' Prefer the configured default; if unset (common on fresh installs / VDI),
+    ' auto-discover a Part.prtdot from the template folders.
     Dim templatePath As String
     templatePath = swApp.GetUserPreferenceStringValue(swUserPreferenceStringValue_e.swDefaultTemplatePart)
+    If Len(templatePath) = 0 Or Dir(templatePath) = "" Then
+        templatePath = FindPartTemplate(swApp)
+    End If
     If Len(templatePath) = 0 Then
-{_fail_block("00_setup", "No default part template configured in SolidWorks.", "        ")}    End If
+{_fail_block("00_setup", "No part template found - set Tools > Options > Default Templates > Parts.", "        ")}    End If
     Set swModel = swApp.NewDocument(templatePath, 0, 0, 0)
     If swModel Is Nothing Then
 {_fail_block("00_setup", "NewDocument failed.", "        ")}    End If
@@ -662,8 +817,18 @@ def _final_verify_macro(model: DrawingData, unit_factor: float, n_features: int)
 
     ' ---- BOUNDING BOX vs DRAWING ENVELOPE ----
     ' Expected from the drawing: {expectations}
+    ' Box read from the solid body (IBody2::GetBodyBox) - ModelDoc2 exposes
+    ' no whole-model bounding-box call in VBA.
+    Dim swPart As SldWorks.PartDoc
+    Dim vBodies As Variant
+    Dim swBody As SldWorks.Body2
     Dim vBox As Variant
-    vBox = swModel.GetModelBoundingBox()
+    Set swPart = swModel
+    vBodies = swPart.GetBodies2(swBodyType_e.swSolidBody, True)
+    If IsEmpty(vBodies) Then
+{_fail_block("ZZ_final_verify", "No solid body to measure.", "        ")}    End If
+    Set swBody = vBodies(0)
+    vBox = swBody.GetBodyBox
     MsgBox "Bounding box (drawing units): " & _
         Format$((vBox(3) - vBox(0)) / UNIT_FACTOR, "0.000") & " x " & _
         Format$((vBox(4) - vBox(1)) / UNIT_FACTOR, "0.000") & " x " & _
@@ -809,8 +974,14 @@ def generate_macro_package(
                 body = _macro_revolve_skeleton(feature, step_name)
                 status, notes = "needs_review", "Revolve requires manual modeling (see macro)."
             elif feature.type == FeatureType.PATTERN:
-                body = _macro_pattern_skeleton(model, feature, step_name)
-                status, notes = "needs_review", "Pattern left for manual application (see macro)."
+                covered = _pattern_covered_by(model, feature)
+                if covered is not None:
+                    parent_id, qty = covered
+                    body = _macro_pattern_covered(parent_id, qty, feature, step_name)
+                    notes = f"Pattern already realized by {parent_id}'s hole cut ({qty} instances)."
+                else:
+                    body = _macro_pattern_skeleton(model, feature, step_name)
+                    status, notes = "needs_review", "Pattern left for manual application (see macro)."
             else:  # pragma: no cover — guarded by SUPPORTED above
                 raise MacroGenerationError(f"No builder for {feature.type.value}")
         except MacroGenerationError as e:

@@ -1,0 +1,28 @@
+VERIFICATION REPORT
+===================
+Part: 115 C-RevB    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 21
+Hole callouts extracted: 3
+Features identified: 6  (build order: 6)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (2 chain(s) checked)
+Unit consistency: PASS
+View consistency: FAIL
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+WARNINGS:
+  [WARN]  extraction: Part label reads '115 C' and MODEL No. '90 B' — part number vs model number distinction noted; 115 C used as part_number.
+  [WARN]  extraction: Material field reads '1018' with 'NX' annotation — may indicate 1018 carbon steel; confirm material specification.
+  [WARN]  extraction: 37/64 fractional drill sizes converted to decimal: 37/64 = 0.578125 inch, 13/32 = 0.40625 inch.
+  [WARN]  extraction: GR. FLAT callout on bottom view — interpreted as ground flat finish requirement on bottom face.
+  [WARN]  extraction: Dimension chain for D001 (3.25): 0.44 + 2.375 + 0.44 = 3.255, slight 0.005 discrepancy — within general tolerance but flagged.
+  [WARN]  extraction: Dimension chain for D002 (2.75): 0.44 + 1.875 + 0.44 = 2.755, slight 0.005 discrepancy — within general tolerance but flagged.
+  [WARN]  extraction: D005 (0.75) in right side view — could be the length/depth of part in that direction; cross-check against front view.
+  [WARN]  extraction: Two counterbored holes (H002/F006) position relative to part center is not fully dimensioned; position_known set to false.
+  [WARN]  extraction: D010 (0.94) and D011 (1.005) may refer to different bolt pattern spacing directions — verify which controls which axis.
+  [WARN]  extraction: The bottom view shows hidden lines suggesting internal cross-passages or manifold geometry that may not be fully detailed.
+  [WARN]  extraction: Image appears nearly blank (mean pixel value 249.9 > 240) — it may contain no visible line work.
+  [WARN]  Dimension D001 cites view 'Bottom/Front', which is not among the identified views.
+
+OVERALL STATUS: READY TO BUILD

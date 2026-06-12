@@ -1,0 +1,297 @@
+{
+  "part_name": "KEY",
+  "part_number": "135-A",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "1:1",
+  "material": "KEYSTOCK",
+  "finish": "",
+  "general_tolerance": "2 PLACE DIM \u00b1.03; 3 PLACE DIM \u00b1 (illegible); ANGULAR DIM \u00b1 (illegible)",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front/top plan view of the rectangular key plate showing two counterbored holes and overall length/width",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Horizontal centerline through both holes implies the two holes are vertically centered on the 1.000 width and aligned with each other. Vertical centerlines locate hole centers."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side/section view showing thickness 1.00 and the counterbored holes (dashed) extending into the part",
+      "dimensions_shown": [
+        "D006"
+      ],
+      "visible_features": [
+        "F001"
+      ],
+      "hidden_features": [
+        "F002",
+        "F003"
+      ],
+      "centerline_notes": "Vertical centerlines through the two counterbore features showing they pass through thickness"
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 3.0,
+      "unit": "inch",
+      "tolerance_plus": 0.03,
+      "tolerance_minus": 0.03,
+      "tolerance_type": "bilateral",
+      "applies_to": "length",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall length, governed by general 2-place tolerance \u00b1.03"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 0.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_position",
+      "feature_ref": "H001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Left edge to first hole center"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 2.0,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_spacing",
+      "feature_ref": "H001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Center-to-center distance between the two holes"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 0.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_position_y",
+      "feature_ref": "H001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Top edge to hole centerline (holes centered on 1.000 width)"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 1.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.001,
+      "tolerance_type": "unilateral",
+      "applies_to": "width",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall width/height with tolerance +.000/-.001"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 1.0,
+      "unit": "inch",
+      "tolerance_plus": 0.03,
+      "tolerance_minus": 0.03,
+      "tolerance_type": "bilateral",
+      "applies_to": "thickness",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Part thickness, general 2-place tolerance \u00b1.03"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "counterbore",
+      "diameter": 0.3125,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 2,
+      "x_position": 0.5,
+      "y_position": 0.5,
+      "position_known": true,
+      "pattern": "linear",
+      "pattern_spacing": 2.0,
+      "feature_ref": "F002",
+      "view": "Front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Rectangular key plate, 3.00 long x 1.000 wide x 1.00 thick",
+      "related_dimensions": [
+        "D001",
+        "D005",
+        "D006"
+      ],
+      "sketch_plane": "Front",
+      "depth_dimension_id": "D006",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": "Drill and counterbore for .3125-18 socket head cap screw, 2 holes thru",
+      "related_dimensions": [
+        "D002",
+        "D003",
+        "D004"
+      ],
+      "sketch_plane": "Front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.5,
+      "offset_y": 0.5,
+      "position_known": true,
+      "quantity": 1
+    },
+    {
+      "id": "F003",
+      "type": "pattern",
+      "description": "Linear pattern of the drilled/counterbored hole, 2 instances spaced 2.000 apart",
+      "related_dimensions": [
+        "D003"
+      ],
+      "sketch_plane": "",
+      "depth_dimension_id": "",
+      "parent_feature": "F002",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 2
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Right",
+        "feature_ids": [
+          "F002",
+          "F003"
+        ],
+        "description": "Two holes symmetric about the vertical centerline of the plate (.500 + 2.000 + .500 = 3.00)"
+      },
+      {
+        "plane": "Top",
+        "feature_ids": [
+          "F002",
+          "F003"
+        ],
+        "description": "Holes centered on 1.000 width (.500 from each edge)"
+      }
+    ],
+    "concentric_groups": [],
+    "equal_spacing": [
+      {
+        "feature_ref": "F003",
+        "qty": 2,
+        "spacing_value": 2.0,
+        "computed_from": "explicit 2.000 center-to-center dimension"
+      }
+    ],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D001",
+        "component_dimension_ids": [
+          "D002",
+          "D003",
+          "D002"
+        ],
+        "description": "Overall length 3.00 = .500 left offset + 2.000 hole spacing + .500 right offset"
+      }
+    ],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": []
+  },
+  "build_order": [
+    "F001",
+    "F002",
+    "F003"
+  ],
+  "warnings": [
+    "Hole callout reads 'DR. & C'BORE FOR .3125-18 SOC. HD. SCR. 2 HLS' (handwritten); thread spec .3125-18 is unusual (likely 5/16 hardware) \u2014 verify drill and counterbore diameters from screw spec as none are explicitly dimensioned.",
+    "Counterbore diameter and depth not explicitly dimensioned; must be derived from the socket head cap screw standard.",
+    "General 3-place and angular tolerance values are illegible in the tolerance block.",
+    "Material listed as 'KEYSTOCK'; no specific alloy/grade given.",
+    "Right view interpreted as side/section showing thickness; counterbore depth not callable from drawing."
+  ],
+  "confidence": 0.7
+}

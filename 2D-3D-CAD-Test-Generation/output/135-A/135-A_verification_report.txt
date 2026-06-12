@@ -1,0 +1,21 @@
+VERIFICATION REPORT
+===================
+Part: 135-A    Units: inch    Standard: ASME    Confidence: 0.70
+Total dimensions extracted: 6
+Hole callouts extracted: 1
+Features identified: 3  (build order: 3)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (1 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+WARNINGS:
+  [WARN]  extraction: Hole callout reads 'DR. & C'BORE FOR .3125-18 SOC. HD. SCR. 2 HLS' (handwritten); thread spec .3125-18 is unusual (likely 5/16 hardware) — verify drill and counterbore diameters from screw spec as none are explicitly dimensioned.
+  [WARN]  extraction: Counterbore diameter and depth not explicitly dimensioned; must be derived from the socket head cap screw standard.
+  [WARN]  extraction: General 3-place and angular tolerance values are illegible in the tolerance block.
+  [WARN]  extraction: Material listed as 'KEYSTOCK'; no specific alloy/grade given.
+  [WARN]  extraction: Right view interpreted as side/section showing thickness; counterbore depth not callable from drawing.
+
+OVERALL STATUS: READY TO BUILD

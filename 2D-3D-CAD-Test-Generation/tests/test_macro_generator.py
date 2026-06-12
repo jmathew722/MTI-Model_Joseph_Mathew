@@ -103,8 +103,11 @@ class TestHoleGeneration:
         pkg, _ = package
         holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
         assert holes.count("CreateCircleByRadius") == 4
-        # centered linear pattern spans (qty-1)*spacing = 3.0 -> first at -1.5
-        assert "-1.5 * UNIT_FACTOR" in holes
+        # Drawing frame: the 4x2 plate's corner is at the origin, so the unplaced
+        # row spans (qty-1)*spacing = 3.0 centered on the plate center (2, 1)
+        # -> first hole at (0.5, 1) — inside the material.
+        assert "CreateCircleByRadius 0.5 * UNIT_FACTOR, 1 * UNIT_FACTOR" in holes
+        assert "CreateCircleByRadius 3.5 * UNIT_FACTOR, 1 * UNIT_FACTOR" in holes
 
     def test_thru_hole_uses_through_all(self, package):
         pkg, _ = package
@@ -115,6 +118,77 @@ class TestHoleGeneration:
         pkg, _ = package
         holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
         assert "POSITIONS ASSUMED" in holes
+
+
+class TestMachineRobustness:
+    """Macros must survive machines with no default template / renamed planes."""
+
+    def test_setup_discovers_template_when_default_unset(self, package):
+        pkg, _ = package
+        setup = (pkg.macros_dir / "00_setup.vba").read_text()
+        assert "FindPartTemplate" in setup
+        assert "swFileLocationsDocumentTemplates" in setup
+
+    def test_feature_macros_select_planes_robustly(self, package):
+        pkg, _ = package
+        base = next(pkg.macros_dir.glob("01_F001_*.vba")).read_text()
+        assert "SelectRefPlane" in base
+        # Fallback by tree position, never only by hard-coded name:
+        assert 'GetTypeName2 = "RefPlane"' in base
+
+    def test_cuts_are_direction_proof(self, package):
+        pkg, _ = package
+        holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
+        # Thru cuts reach material on either side of the sketch plane...
+        assert "swEndCondThroughAllBoth" in holes
+        # ...and a failed cut is retried once with the direction flipped.
+        assert holes.count("FeatureCut4") == 2
+        # Retry restores the sketch by feature-tree object, never by name.
+        assert '"ProfileFeature"' in holes
+        assert 'SelectByID2(sketchName' not in holes
+
+    def test_features_consume_active_sketch(self, package):
+        """Recorded-macro pattern: feature calls consume the ACTIVE sketch.
+        No closing InsertSketch, no name-based sketch reselection."""
+        pkg, _ = package
+        for name in ("01_F001_*.vba", "02_F002_*.vba"):
+            text = next(pkg.macros_dir.glob(name)).read_text()
+            assert text.count("InsertSketch") == 1, name  # open only, never close
+            assert 'SelectByID2(sketchName' not in text, name
+
+    def test_pattern_covered_by_hole_cut_is_a_noop_pass(self, tmp_path):
+        """A pattern whose instances were already cut by the parent hole
+        feature must not demand manual work (no MsgBox, no needs_review)."""
+        data = bracket_drawing()
+        data["features"].append(
+            {"id": "F005", "type": "pattern", "description": "Hole pattern",
+             "parent_feature": "F002", "quantity": 4, "related_dimensions": []}
+        )
+        data["build_order"].append("F005")
+        model, report = run_verification(data)
+        pkg = generate_macro_package(model, data, "x", tmp_path)
+        assert not any(s.feature_id == "F005" for s in pkg.needs_review)
+        macro = next(pkg.macros_dir.glob("*F005*")).read_text()
+        assert "ALREADY SATISFIED" in macro
+        # No manual-action prompt — only the standard run-order guard remains.
+        assert "apply manually" not in macro
+        assert "vbInformation" not in macro
+
+    def test_no_nonexistent_bounding_box_api(self, package):
+        pkg, _ = package
+        for vba in pkg.macros_dir.glob("*.vba"):
+            text = vba.read_text()
+            # IModelDoc2 has no GetModelBoundingBox — VBA runtime error 438.
+            assert "GetModelBoundingBox" not in text, vba.name
+            if "vBox" in text:
+                assert "GetBodyBox" in text, vba.name
+
+    def test_base_plate_uses_drawing_frame_corner_rectangle(self, package):
+        pkg, _ = package
+        base = next(pkg.macros_dir.glob("01_F001_*.vba")).read_text()
+        # Corner at the origin so edge-referenced hole positions land in material.
+        assert "CreateCornerRectangle 0 * UNIT_FACTOR, 0 * UNIT_FACTOR" in base
+        assert "CreateCenterRectangle" not in base
 
 
 class TestProhibitedAndDeferred:

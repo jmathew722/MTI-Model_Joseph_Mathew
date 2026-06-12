@@ -1,0 +1,67 @@
+{
+  "part": "135-A",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "confidence": 0.7,
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Rectangular_key_plate_3_00_long_x_1_000_.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Rectangular key plate, 3.00 long x 1.000 wide x 1.00 thick",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 3.0,
+        "width": 1.0,
+        "depth": 1.0
+      },
+      "notes": "Position read from drawing."
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_Drill_and_counterbore_for_3125_18_socket.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "Drill and counterbore for .3125-18 socket head cap screw, 2 holes thru",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.3125,
+        "qty": 2.0
+      },
+      "notes": "Hole positions read from drawing."
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F003_Linear_pattern_of_the_drilled_counterbor.vba",
+      "feature_id": "F003",
+      "type": "pattern",
+      "description": "Linear pattern of the drilled/counterbored hole, 2 instances spaced 2.000 apart",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Pattern already realized by F002's hole cut (2 instances)."
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

@@ -87,8 +87,13 @@ def validate_model(sw_doc, drawing_data: Union[DrawingData, dict[str, Any]]) -> 
         report["warnings"].append("Could not read surface area.")
 
     # --- Bounding box vs overall drawing dimensions ---
+    # IModelDoc2 has no GetModelBoundingBox; read the box from the solid body
+    # itself (IBody2::GetBodyBox). [xmin,ymin,zmin,xmax,ymax,zmax] in meters.
     try:
-        bbox = sw_doc.GetModelBoundingBox()  # [xmin,ymin,zmin,xmax,ymax,zmax] meters
+        bodies = sw_doc.GetBodies2(0, True)  # swBodyType_e.swSolidBody = 0
+        bbox = bodies[0].GetBodyBox() if bodies else None
+        if bbox is None:
+            report["warnings"].append("No solid body found to read a bounding box from.")
     except Exception as e:
         report["warnings"].append(f"Could not read bounding box: {e}")
         bbox = None
