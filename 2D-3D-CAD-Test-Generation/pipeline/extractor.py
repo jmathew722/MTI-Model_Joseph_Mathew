@@ -1,10 +1,16 @@
 """Dimension extraction via the Claude Vision API.
 
-Uses ``claude-opus-4-8`` with **structured outputs** — the response is forced to
-conform to the :class:`pipeline.schema.DrawingData` schema, so we get a
-schema-valid object back with no regex/JSON-repair fallback. The Anthropic SDK
-handles API-level retry/backoff (429/5xx) automatically; on top of that we add a
-domain-specific re-query when the model reports low confidence.
+Uses ``claude-opus-4-8`` with a **forced tool call** — Claude must respond by
+calling the ``report_drawing_data`` tool, whose ``input_schema`` is generated
+from :class:`pipeline.schema.DrawingData`. The tool's JSON input is then
+validated against the same Pydantic model.
+
+Note: this intentionally avoids Anthropic's *strict* structured outputs
+(``output_format=``), whose server-side grammar compiler cannot handle
+``DrawingData``'s nested arrays of objects ("Schema is too complex" /
+"Grammar compilation timed out"). Non-strict tool use has no such compiler
+step, at the cost of needing a Pydantic-validation repair retry instead of a
+server-side guarantee.
 
 Public entry point: :func:`extract_drawing_data`.
 """
@@ -14,6 +20,7 @@ import os
 from typing import Any, Optional
 
 from dotenv import load_dotenv
+from pydantic import ValidationError
 
 from pipeline.schema import DrawingData
 from utils.logger import get_logger
@@ -26,10 +33,12 @@ MAX_TOKENS = 16000
 CONFIDENCE_THRESHOLD = 0.7  # below this, re-query once for a closer look
 SDK_MAX_RETRIES = 3  # SDK-level retries for transient API errors
 
+TOOL_NAME = "report_drawing_data"
+
 SYSTEM_PROMPT = """\
 You are a precision engineering drawing interpreter. Extract ALL information \
-from this 2D engineering drawing with exact accuracy into the required structured \
-schema.
+from this 2D engineering drawing with exact accuracy, then report it by calling \
+the required tool.
 
 CRITICAL RULES:
 - Extract EVERY visible dimension — miss nothing. Each gets a stable id (D001, D002, ...).
@@ -45,11 +54,12 @@ CRITICAL RULES:
 - `confidence`: 1.0 = every dimension is clear and unambiguous; 0.0 = the drawing is
   very unclear. Be honest — a low score triggers a closer second look.
 - If you genuinely cannot determine the units, use millimeters and add a warning.
+- Use empty string "" (not null) for any text field you cannot determine.
 """
 
 INITIAL_USER_TEXT = (
     "Extract all dimensions, tolerances, views, geometric tolerances, and build "
-    "features from this engineering drawing into the structured schema."
+    "features from this engineering drawing, then call the tool with the result."
 )
 
 
@@ -76,31 +86,86 @@ def _image_block(image_b64: str, media_type: str) -> dict[str, Any]:
     }
 
 
-def _parse(client, model: str, messages: list[dict[str, Any]]) -> tuple[DrawingData, Any]:
-    """Call messages.parse and return (validated DrawingData, raw response).
+def _drawing_data_tool() -> dict[str, Any]:
+    return {
+        "name": TOOL_NAME,
+        "description": "Report the fully extracted structured data for this engineering drawing.",
+        "input_schema": DrawingData.model_json_schema(),
+    }
 
-    Raises ExtractionError if the model refused or returned no parsed output.
-    """
-    response = client.messages.parse(
+
+def _call(client, model: str, messages: list[dict[str, Any]]):
+    return client.messages.create(
         model=model,
         max_tokens=MAX_TOKENS,
-        thinking={"type": "adaptive"},
         system=SYSTEM_PROMPT,
         messages=messages,
-        output_format=DrawingData,
+        tools=[_drawing_data_tool()],
+        tool_choice={"type": "tool", "name": TOOL_NAME},
     )
+
+
+def _find_tool_use(response) -> Any:
+    for block in response.content:
+        if getattr(block, "type", None) == "tool_use" and block.name == TOOL_NAME:
+            return block
+    raise ExtractionError(
+        f"Model did not call {TOOL_NAME!r} (stop_reason={getattr(response, 'stop_reason', None)})."
+    )
+
+
+def _tool_result_message(tool_use_id: str, content: str, is_error: bool = False) -> dict[str, Any]:
+    return {
+        "role": "user",
+        "content": [
+            {
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": content,
+                "is_error": is_error,
+            }
+        ],
+    }
+
+
+def _parse(client, model: str, messages: list[dict[str, Any]]) -> tuple[DrawingData, Any, Any]:
+    """Call the model and return (validated DrawingData, response, tool_use block).
+
+    Raises ExtractionError if the model refused, didn't call the tool, or the
+    tool input fails Pydantic validation even after one repair retry.
+    """
+    response = _call(client, model, messages)
     if getattr(response, "stop_reason", None) == "refusal":
         raise ExtractionError(
             "Model refused the extraction request "
             f"(stop_details={getattr(response, 'stop_details', None)})."
         )
-    parsed = getattr(response, "parsed_output", None)
-    if parsed is None:
-        raise ExtractionError(
-            "Structured output could not be parsed into DrawingData "
-            f"(stop_reason={getattr(response, 'stop_reason', None)})."
-        )
-    return parsed, response
+    tool_use = _find_tool_use(response)
+
+    try:
+        return DrawingData.model_validate(tool_use.input), response, tool_use
+    except ValidationError as e:
+        log.warning("Tool input failed validation; requesting a repair: %s", e)
+        repair_messages = messages + [
+            {"role": "assistant", "content": response.content},
+            _tool_result_message(
+                tool_use.id,
+                f"Your input did not match the required schema:\n{e}\n"
+                f"Call {TOOL_NAME} again with corrected input.",
+                is_error=True,
+            ),
+        ]
+        response2 = _call(client, model, repair_messages)
+        if getattr(response2, "stop_reason", None) == "refusal":
+            raise ExtractionError(
+                "Model refused the repair request "
+                f"(stop_details={getattr(response2, 'stop_details', None)})."
+            )
+        tool_use2 = _find_tool_use(response2)
+        try:
+            return DrawingData.model_validate(tool_use2.input), response2, tool_use2
+        except ValidationError as e2:
+            raise ExtractionError(f"Tool input failed validation after repair retry: {e2}") from e2
 
 
 def extract_drawing_data(
@@ -123,7 +188,7 @@ def extract_drawing_data(
 
     Raises:
         EnvironmentError: if the API key is missing.
-        ExtractionError: if the model refuses or returns unparseable output.
+        ExtractionError: if the model refuses or returns unvalidatable output.
     """
     model = model or os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL
     client = _build_client(SDK_MAX_RETRIES)
@@ -139,7 +204,7 @@ def extract_drawing_data(
         }
     ]
 
-    data, response = _parse(client, model, messages)
+    data, response, tool_use = _parse(client, model, messages)
     log.info(
         "Initial extraction: %d dimensions, %d features, confidence=%.2f",
         len(data.dimensions),
@@ -160,6 +225,11 @@ def extract_drawing_data(
             {
                 "role": "user",
                 "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_use.id,
+                        "content": "Received. Take another look before finalizing.",
+                    },
                     _image_block(image_b64, media_type),
                     {
                         "type": "text",
@@ -167,15 +237,15 @@ def extract_drawing_data(
                             "Re-examine the drawing carefully, paying special attention "
                             f"to these unclear areas: {unclear}. Zoom mentally into the "
                             "dimension callouts and produce a corrected, complete "
-                            "extraction. Improve confidence only if the drawing genuinely "
-                            "supports it."
+                            "extraction by calling the tool again. Improve confidence "
+                            "only if the drawing genuinely supports it."
                         ),
                     },
                 ],
             }
         )
         try:
-            requeried, _ = _parse(client, model, messages)
+            requeried, _, _ = _parse(client, model, messages)
             log.info(
                 "Re-query result: %d dimensions, confidence %.2f -> %.2f",
                 len(requeried.dimensions),

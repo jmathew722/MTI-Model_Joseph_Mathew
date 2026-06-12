@@ -74,6 +74,20 @@ def _constants():
     return constants
 
 
+def _null_dispatch():
+    """A VT_DISPATCH NULL VARIANT.
+
+    Late-bound (non-gencache) COM calls can't pass plain Python ``None`` for an
+    ``Object``-typed parameter — dynamic dispatch sends VT_EMPTY, and SolidWorks'
+    IDispatch::Invoke rejects that with "Type mismatch". Wrapping it as an
+    explicit VT_DISPATCH NULL VARIANT is accepted.
+    """
+    import pythoncom  # type: ignore
+    from win32com.client import VARIANT  # type: ignore
+
+    return VARIANT(pythoncom.VT_DISPATCH, None)
+
+
 def _const(name: str, default: Optional[int] = None) -> int:
     """Fetch a SolidWorks enum constant by name with an optional fallback.
 
@@ -92,11 +106,21 @@ def _const(name: str, default: Optional[int] = None) -> int:
     return default
 
 
+# SOLIDWORKS 2024 Constant type library — loading this by CLSID/version populates
+# win32com.client.constants with the swConst enums (swDocPART, swSketchSegment_*, etc.)
+# without needing GetTypeInfo() on a live SolidWorks object.
+_SW_CONST_TYPELIB = ("{4687F359-55D0-4CD3-B6CF-2EB42C11F989}", 0, 20, 0)
+
+
 def connect_to_solidworks():
     """Connect to a running SolidWorks instance, or launch a new one.
 
-    Uses ``gencache.EnsureDispatch`` so the type library is generated and the
-    ``constants`` namespace is populated (needed by the feature builders).
+    SolidWorks' IDispatch does not support ``GetTypeInfo()``, so
+    ``gencache.EnsureDispatch`` (which calls it) always fails with "This COM
+    object can not automate the makepy process". Instead we use plain
+    (late-bound) ``Dispatch`` for the application object, and load the
+    SOLIDWORKS constants type library directly by CLSID to populate
+    ``win32com.client.constants`` (needed by the feature builders).
 
     Returns:
         The ``ISldWorks`` application object.
@@ -111,16 +135,17 @@ def connect_to_solidworks():
     from win32com.client import gencache  # type: ignore
 
     pythoncom.CoInitialize()
+    gencache.EnsureModule(*_SW_CONST_TYPELIB)
 
     sw_app = None
     try:
         # Prefer an already-running instance.
         active = win32com.client.GetActiveObject("SldWorks.Application")
-        sw_app = gencache.EnsureDispatch(active)
+        sw_app = win32com.client.Dispatch(active)
         log.info("Connected to existing SolidWorks instance.")
     except Exception:
         try:
-            sw_app = gencache.EnsureDispatch("SldWorks.Application")
+            sw_app = win32com.client.Dispatch("SldWorks.Application")
             sw_app.Visible = True
             log.info("Launched a new SolidWorks instance.")
         except Exception as e:
@@ -130,7 +155,7 @@ def connect_to_solidworks():
         raise SolidWorksError("Failed to obtain a SolidWorks application object.")
 
     try:
-        log.info("SolidWorks revision: %s", sw_app.RevisionNumber())
+        log.info("SolidWorks revision: %s", sw_app.RevisionNumber)
     except Exception:
         log.warning("Could not read SolidWorks revision number (continuing).")
     return sw_app
@@ -239,7 +264,9 @@ def get_dimensions_for_feature(model: DrawingData, feature: Feature) -> dict[str
 def _select_plane(sw_doc, sketch_plane: Optional[str]) -> None:
     """Select the named reference plane for the next sketch."""
     name = _PLANE_NAMES.get((sketch_plane or "front").lower().strip(), "Front Plane")
-    selected = sw_doc.Extension.SelectByID2(name, "PLANE", 0, 0, 0, False, 0, None, 0)
+    selected = sw_doc.Extension.SelectByID2(
+        name, "PLANE", 0.0, 0.0, 0.0, False, 0, _null_dispatch(), 0
+    )
     if not selected:
         raise SolidWorksError(f"Could not select sketch plane {name!r}.")
 
@@ -263,7 +290,9 @@ def _verify_sketch_fully_defined(sw_doc) -> None:
         log.warning("Sketch is under-defined; attempting Fully Define Sketch.")
         try:
             sw_doc.SketchManager.FullyDefineSketch(
-                True, True, 0, 0, 0, None, None, None, None, None
+                True, True, 0, 0, 0,
+                _null_dispatch(), _null_dispatch(), _null_dispatch(),
+                _null_dispatch(), _null_dispatch(),
             )
             status = sketch.GetConstrainedStatus()
         except Exception as e:
@@ -449,7 +478,8 @@ def build_fillet(sw_doc, feature: Feature, dims: dict[str, float]):
     feat = sw_doc.FeatureManager.FeatureFillet3(
         195,  # default fillet options bitmask (propagate, etc.)
         radius, 0, 0, 0, 0, 0,
-        None, None, None, None, None, None, None,
+        _null_dispatch(), _null_dispatch(), _null_dispatch(), _null_dispatch(),
+        _null_dispatch(), _null_dispatch(), _null_dispatch(),
     )
     if feat is None:
         raise SolidWorksError(f"FeatureFillet3 returned None for {feature.id} (no edges selected?).")
@@ -588,7 +618,14 @@ def build_model(
         log.info("Building feature %s: %s", feature_id, feature.type.value)
 
         try:
-            result = dispatch_feature_builder(sw_doc, feature, dims, feature_map)
+            try:
+                result = dispatch_feature_builder(sw_doc, feature, dims, feature_map)
+            except SolidWorksError:
+                raise
+            except Exception as e:
+                # Wrap unexpected COM errors (e.g. pywintypes.com_error) so the
+                # fragile/partial-save handling below applies uniformly.
+                raise SolidWorksError(f"{type(e).__name__}: {e}") from e
 
             if result is None:
                 raise SolidWorksError(f"Feature builder returned None for {feature_id}.")

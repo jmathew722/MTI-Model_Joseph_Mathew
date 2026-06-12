@@ -155,7 +155,7 @@ def validate_drawing_data(
         for ref in f.related_dimensions:
             if ref not in dim_ids:
                 report.error(f"Feature {f.id} references unknown dimension {ref!r}.")
-        if f.depth_dimension_id is not None and f.depth_dimension_id not in dim_ids:
+        if f.depth_dimension_id and f.depth_dimension_id not in dim_ids:
             report.error(
                 f"Feature {f.id} depth_dimension_id {f.depth_dimension_id!r} does not exist."
             )

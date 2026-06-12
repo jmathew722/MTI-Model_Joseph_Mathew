@@ -1,44 +1,63 @@
 """Tests for pipeline.extractor with the Claude API mocked.
 
-Structured outputs guarantee schema validity, so the failure mode we guard
-against is no-parse / refusal rather than malformed JSON. We cover: a clean
-parse, a low-confidence re-query, refusal handling, and the missing-API-key path.
+Extraction is done via a forced tool call (not strict structured outputs — see
+extractor.py docstring), so the failure modes we guard against are: refusal,
+the model not calling the tool, and tool input that fails Pydantic validation
+(with a repair retry). We cover: a clean call, a low-confidence re-query,
+a validation-failure repair, refusal handling, and the missing-API-key path.
 """
 import pytest
 
 from pipeline import extractor
-from pipeline.extractor import ExtractionError, extract_drawing_data
+from pipeline.extractor import TOOL_NAME, ExtractionError, extract_drawing_data
 from pipeline.schema import DrawingData
 
 
-def make_drawing(confidence: float, n_dims: int = 2) -> DrawingData:
+def make_drawing_dict(confidence: float, n_dims: int = 2) -> dict:
     dims = [
         {"id": f"D00{i+1}", "type": "linear", "value": 10.0 + i, "unit": "mm",
          "applies_to": "length" if i == 0 else "width"}
         for i in range(n_dims)
     ]
-    return DrawingData.model_validate(
-        {
-            "part_name": "mock",
-            "units": "mm",
-            "confidence": confidence,
-            "dimensions": dims,
-            "features": [
-                {"id": "F001", "type": "extrude_boss", "description": "base",
-                 "related_dimensions": [d["id"] for d in dims]}
-            ],
-            "build_order": ["F001"],
-            "warnings": ["D002 was faint"] if confidence < 0.7 else [],
-        }
-    )
+    return {
+        "part_name": "mock",
+        "units": "mm",
+        "confidence": confidence,
+        "dimensions": dims,
+        "features": [
+            {"id": "F001", "type": "extrude_boss", "description": "base",
+             "related_dimensions": [d["id"] for d in dims]}
+        ],
+        "build_order": ["F001"],
+        "warnings": ["D002 was faint"] if confidence < 0.7 else [],
+    }
+
+
+class FakeToolUseBlock:
+    def __init__(self, input_dict, tool_id="tool_1", name=TOOL_NAME):
+        self.type = "tool_use"
+        self.id = tool_id
+        self.name = name
+        self.input = input_dict
 
 
 class FakeResponse:
-    def __init__(self, parsed, stop_reason=None):
-        self.parsed_output = parsed
+    def __init__(self, content, stop_reason=None):
+        self.content = content
         self.stop_reason = stop_reason
         self.stop_details = None
-        self.content = []  # echoed back into messages on re-query
+
+
+def tool_response(input_dict, **kw):
+    return FakeResponse([FakeToolUseBlock(input_dict, **kw)])
+
+
+def refusal_response():
+    return FakeResponse([], stop_reason="refusal")
+
+
+def no_tool_response():
+    return FakeResponse([], stop_reason="end_turn")
 
 
 class FakeMessages:
@@ -46,12 +65,11 @@ class FakeMessages:
         self._responses = list(responses)
         self.call_count = 0
 
-    def parse(self, **kwargs):
+    def create(self, **kwargs):
         self.call_count += 1
         if self._responses:
             return self._responses.pop(0)
-        # Repeat the last response if asked again.
-        return FakeResponse(make_drawing(0.95))
+        return tool_response(make_drawing_dict(0.95))
 
 
 class FakeClient:
@@ -71,8 +89,8 @@ def patch_client(monkeypatch):
 
 
 class TestHappyPath:
-    def test_valid_structured_output_returns_dict(self, patch_client):
-        client = patch_client([FakeResponse(make_drawing(0.95))])
+    def test_valid_tool_call_returns_dict(self, patch_client):
+        client = patch_client([tool_response(make_drawing_dict(0.95))])
         result = extract_drawing_data("ZmFrZQ==")  # base64 of "fake"
         assert isinstance(result, dict)
         assert result["confidence"] == 0.95
@@ -80,7 +98,7 @@ class TestHappyPath:
         assert client.messages.call_count == 1
 
     def test_prep_warnings_merged(self, patch_client):
-        patch_client([FakeResponse(make_drawing(0.95))])
+        patch_client([tool_response(make_drawing_dict(0.95))])
         result = extract_drawing_data("ZmFrZQ==", prep_warnings=["low contrast"])
         assert "low contrast" in result["warnings"]
 
@@ -88,7 +106,7 @@ class TestHappyPath:
 class TestLowConfidenceRequery:
     def test_low_confidence_triggers_second_call(self, patch_client):
         client = patch_client(
-            [FakeResponse(make_drawing(0.5)), FakeResponse(make_drawing(0.92))]
+            [tool_response(make_drawing_dict(0.5)), tool_response(make_drawing_dict(0.92))]
         )
         result = extract_drawing_data("ZmFrZQ==")
         # The re-query should have run and adopted the higher-confidence result.
@@ -96,14 +114,14 @@ class TestLowConfidenceRequery:
         assert result["confidence"] == 0.92
 
     def test_high_confidence_does_not_requery(self, patch_client):
-        client = patch_client([FakeResponse(make_drawing(0.95))])
+        client = patch_client([tool_response(make_drawing_dict(0.95))])
         extract_drawing_data("ZmFrZQ==")
         assert client.messages.call_count == 1
 
     def test_requery_failure_keeps_initial(self, patch_client):
-        # First call low confidence; second call refuses → keep the first result.
+        # First call low confidence; second call refuses -> keep the first result.
         client = patch_client(
-            [FakeResponse(make_drawing(0.5)), FakeResponse(None, stop_reason="refusal")]
+            [tool_response(make_drawing_dict(0.5)), refusal_response()]
         )
         result = extract_drawing_data("ZmFrZQ==")
         assert client.messages.call_count == 2
@@ -111,14 +129,33 @@ class TestLowConfidenceRequery:
         assert any("re-query failed" in w.lower() for w in result["warnings"])
 
 
+class TestValidationRepair:
+    def test_invalid_input_triggers_repair_retry(self, patch_client):
+        bad = make_drawing_dict(0.95)
+        bad["dimensions"][0]["value"] = -5.0  # fails value_must_be_positive
+        good = make_drawing_dict(0.95)
+        client = patch_client([tool_response(bad), tool_response(good)])
+        result = extract_drawing_data("ZmFrZQ==")
+        assert client.messages.call_count == 2
+        assert result["dimensions"][0]["value"] > 0
+
+    def test_repair_failure_raises(self, patch_client):
+        bad = make_drawing_dict(0.95)
+        bad["dimensions"][0]["value"] = -5.0
+        client = patch_client([tool_response(bad), tool_response(bad)])
+        with pytest.raises(ExtractionError):
+            extract_drawing_data("ZmFrZQ==")
+        assert client.messages.call_count == 2
+
+
 class TestRefusalAndErrors:
     def test_refusal_raises(self, patch_client):
-        patch_client([FakeResponse(None, stop_reason="refusal")])
+        patch_client([refusal_response()])
         with pytest.raises(ExtractionError):
             extract_drawing_data("ZmFrZQ==")
 
-    def test_none_parsed_output_raises(self, patch_client):
-        patch_client([FakeResponse(None, stop_reason="end_turn")])
+    def test_no_tool_call_raises(self, patch_client):
+        patch_client([no_tool_response()])
         with pytest.raises(ExtractionError):
             extract_drawing_data("ZmFrZQ==")
 

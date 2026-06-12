@@ -119,8 +119,13 @@ def main() -> int:
 
     # --- [5/6] Build the model ---
     console.print("[5/6] Building 3D model in SolidWorks...")
+    import os
+
+    template_path = os.getenv("SOLIDWORKS_TEMPLATE_PATH") or None
     try:
-        output_path, sw_doc = build_model(sw_app, validated, output_dir=args.output)
+        output_path, sw_doc = build_model(
+            sw_app, validated, output_dir=args.output, template_path=template_path
+        )
     except SolidWorksError as e:
         console.print(f"[red]Build failed:[/red] {e}")
         if e.partial_path:

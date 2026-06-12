@@ -91,14 +91,16 @@ class Dimension(BaseModel):
     type: DimensionType
     value: float = Field(description="Numeric magnitude only — never a string with units")
     unit: Units
-    tolerance_plus: Optional[float] = Field(default=None, description="Upper tolerance, e.g. 0.1")
-    tolerance_minus: Optional[float] = Field(default=None, description="Lower tolerance, e.g. 0.1")
-    tolerance_type: Optional[ToleranceType] = None
-    applies_to: Optional[str] = Field(
-        default=None, description="length/width/height/hole_diameter/fillet_radius/etc"
+    tolerance_plus: float = Field(default=0.0, description="Upper tolerance, e.g. 0.1 (0 if none)")
+    tolerance_minus: float = Field(default=0.0, description="Lower tolerance, e.g. 0.1 (0 if none)")
+    tolerance_type: ToleranceType = Field(
+        default=ToleranceType.REFERENCE, description="Use 'reference' if no tolerance is given"
     )
-    view: Optional[str] = Field(default=None, description="Which view this dimension is read from")
-    notes: Optional[str] = Field(default=None, description="Special callouts or notes")
+    applies_to: str = Field(
+        default="", description="length/width/height/hole_diameter/fillet_radius/etc, or empty if unknown"
+    )
+    view: str = Field(default="", description="Which view this dimension is read from, or empty if unclear")
+    notes: str = Field(default="", description="Special callouts or notes, or empty if none")
 
     @field_validator("value")
     @classmethod
@@ -118,9 +120,9 @@ class Feature(BaseModel):
     related_dimensions: list[str] = Field(
         default_factory=list, description="IDs of dimensions this feature consumes"
     )
-    sketch_plane: Optional[str] = Field(default=None, description="Front/Top/Right/custom")
-    depth_dimension_id: Optional[str] = Field(
-        default=None, description="ID of the dimension giving this feature's depth/length"
+    sketch_plane: str = Field(default="", description="Front/Top/Right/custom, or empty for default")
+    depth_dimension_id: str = Field(
+        default="", description="ID of the dimension giving this feature's depth/length, or empty if none"
     )
     quantity: int = Field(default=1, description="Instance count (for patterns)")
 
@@ -145,7 +147,7 @@ class GeometricTolerance(BaseModel):
 
     symbol: str = Field(description="flatness/perpendicularity/cylindricity/etc")
     value: float
-    datum: Optional[str] = Field(default=None, description="Datum reference, e.g. A")
+    datum: str = Field(default="", description="Datum reference, e.g. A, or empty if none")
 
 
 class DrawingData(BaseModel):
@@ -153,12 +155,12 @@ class DrawingData(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    part_name: Optional[str] = None
-    drawing_standard: Optional[str] = Field(default=None, description="ASME/ISO/DIN or null")
+    part_name: str = Field(default="", description="Part name/number, or empty if not given")
+    drawing_standard: str = Field(default="", description="ASME/ISO/DIN, or empty if not given")
     units: Units = Field(description="Drawing's declared unit system")
-    scale: Optional[str] = Field(default=None, description='e.g. "1:1" or "as shown"')
-    material: Optional[str] = None
-    finish: Optional[str] = None
+    scale: str = Field(default="", description='e.g. "1:1" or "as shown", or empty if not given')
+    material: str = Field(default="", description="Material, or empty if not given")
+    finish: str = Field(default="", description="Surface finish, or empty if not given")
     views: list[View] = Field(default_factory=list)
     dimensions: list[Dimension] = Field(default_factory=list)
     features: list[Feature] = Field(default_factory=list)
