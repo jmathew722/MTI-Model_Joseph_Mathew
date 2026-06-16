@@ -181,6 +181,39 @@ with `python main.py --from-json <part>_extraction.json --output ./output`.
 
 ---
 
+## v3 hardening — resolved code TODOs & new institutional guards (2026-06-16)
+
+These close the open code TODOs from E008/E010 and turn the per-error "generator
+rules" into automated guards that run on **every** package, not just on test
+fixtures.
+
+- **E008 resolved (code):** `main.py` now forces UTF-8 on stdout/stderr
+  (`_force_utf8_console`) and **always** persists the extraction into
+  `output/<part>/<part>_extraction.json` — READY or BLOCKED — via
+  `_save_extraction`. A paid extraction can no longer be lost to a console crash,
+  and any BLOCKED part is re-runnable with `--from-json` at no API cost.
+- **E010 resolved (code):** `pipeline/schema.canonicalize_applies_to()` maps the
+  verbose, view-qualified `applies_to` labels the extractor really emits
+  (e.g. `"width (top view, overall horizontal)"`, `"thru hole diameter (4 places)"`)
+  to canonical tokens, most-specific-first so `"counterbore depth"` resolves to
+  `cbore_depth`, not `depth`. `is_envelope_label()` accepts only OVERALL envelope
+  dims and rejects feature-local decoys like `"width (front view, small feature)"`,
+  so hole-centering and feasibility checks use the true envelope. Wired into
+  `_dims_map`, `_envelope`, the final-verify envelope, and the validator's
+  pattern-feasibility check. Test: `tests/test_reliability_hardening.py`.
+- **Static self-validation (Phase 7 / Phase 10):** `pipeline/macro_audit.py`
+  scans every generated `.vba` for banned/nonexistent APIs (E004
+  `GetModelBoundingBox`, E006 by-name sketch reselection) and structural defects
+  (unbalanced `Sub`/`End Sub` and `Function`/`End Function`, missing
+  `Option Explicit`, feature macros with no `LogResult` trail). `generate_macro_package`
+  **raises** on any error-severity finding, and writes `<part>_audit_report.json`
+  (also embedded in the build plan under `"audit"`). A known failure mode can no
+  longer ship even if a future generator change reintroduces it.
+- **Drawing completeness score (Phase 4):** the verification report now prints
+  geometry/dimension/consistency/feature sub-scores and an overall *macro
+  readiness* percentage (`compute_readiness`). Advisory by default; set
+  `MACRO_READINESS_THRESHOLD` (e.g. `0.95`) to hard-gate low-readiness drawings.
+
 ## Open watch-list (not yet seen at runtime)
 
 - `FullyDefineSketch` argument shape varies by SW version — currently wrapped

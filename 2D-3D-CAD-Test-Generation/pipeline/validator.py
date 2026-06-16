@@ -26,6 +26,7 @@ Public entry points: :func:`run_verification`, :func:`format_verification_report
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, Optional, Union
 
@@ -49,9 +50,6 @@ SKETCH_FEATURE_TYPES = {
 # Minimum number of dimensions needed to define a basic closed profile.
 MIN_PROFILE_DIMENSIONS = 1
 
-# applies_to labels treated as the part's overall envelope for feasibility checks.
-ENVELOPE_LABELS = {"length", "width", "height", "overall_length", "overall_width", "overall_height"}
-
 
 class DrawingValidationError(Exception):
     """Raised when extracted data fails build-readiness validation."""
@@ -71,6 +69,7 @@ class ValidationReport:
     feasibility_issues: list[str] = field(default_factory=list)
     unit_consistency_ok: bool = True
     view_consistency_ok: bool = True
+    readiness: dict[str, float] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -242,11 +241,7 @@ def _check_dimensional_closure(model: DrawingData, report: ValidationReport) -> 
 
 def _check_pattern_envelopes(model: DrawingData, report: ValidationReport) -> None:
     """v2: seed + (qty-1) x spacing must fit inside the part envelope."""
-    envelope_values = [
-        d.value
-        for d in model.dimensions
-        if (d.applies_to or "").lower().strip() in ENVELOPE_LABELS and not d.is_reference
-    ]
+    envelope_values = [d.value for d in model.dimensions if d.is_envelope]
     max_envelope = max(envelope_values, default=0.0)
 
     def _check(span: float, qty: int, spacing: float, label: str) -> None:
@@ -310,6 +305,62 @@ def _check_view_consistency(model: DrawingData, report: ValidationReport) -> Non
 # --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
+def compute_readiness(model: DrawingData, report: "ValidationReport") -> dict[str, float]:
+    """Phase-4 drawing-completeness score (0..1 sub-scores + overall).
+
+    Advisory and transparent — the authoritative gate is still ``report.ok``
+    (READY/BLOCKED). These scores quantify *how close* a drawing is so batches
+    can be triaged and an optional ``MACRO_READINESS_THRESHOLD`` can hard-gate.
+    """
+    dims = model.dimensions
+    clear = sum(1 for d in dims if not d.value_unclear and not d.resolution_required)
+    dimension_completeness = (clear / len(dims)) if dims else 0.0
+
+    # Geometry completeness: penalize each structural-error category present.
+    has_base = bool(model.build_order) and (
+        (model.feature_by_id(model.build_order[0]) or _NO_FEATURE).type in BASE_FEATURE_TYPES
+    )
+    geometry_completeness = 1.0
+    if not model.features:
+        geometry_completeness -= 0.5
+    if not model.build_order:
+        geometry_completeness -= 0.3
+    if not has_base:
+        geometry_completeness -= 0.2
+    if not report.unit_consistency_ok:
+        geometry_completeness -= 0.2
+    geometry_completeness = max(0.0, geometry_completeness)
+
+    consistency = 1.0
+    if report.failed_closure_chains:
+        consistency -= 0.5
+    if report.feasibility_issues:
+        consistency -= 0.5
+    consistency = max(0.0, consistency)
+
+    feature_confidence = float(model.confidence)
+    overall = (
+        0.30 * dimension_completeness
+        + 0.25 * geometry_completeness
+        + 0.20 * consistency
+        + 0.25 * feature_confidence
+    )
+    return {
+        "geometry_completeness": round(geometry_completeness, 3),
+        "dimension_completeness": round(dimension_completeness, 3),
+        "consistency": round(consistency, 3),
+        "feature_confidence": round(feature_confidence, 3),
+        "macro_readiness": round(overall, 3),
+    }
+
+
+class _NoFeature:
+    type = None
+
+
+_NO_FEATURE = _NoFeature()
+
+
 def run_verification(
     data: Union[DrawingData, dict[str, Any]],
 ) -> tuple[Optional[DrawingData], ValidationReport]:
@@ -342,6 +393,22 @@ def run_verification(
     _check_pattern_envelopes(model, report)
     _check_reference_dimensions(model, report)
     _check_view_consistency(model, report)
+
+    # Phase-4 readiness scoring (advisory; optional hard-gate via env var).
+    report.readiness = compute_readiness(model, report)
+    threshold_raw = os.getenv("MACRO_READINESS_THRESHOLD")
+    if threshold_raw:
+        try:
+            threshold = float(threshold_raw)
+        except ValueError:
+            report.warn(f"Ignoring non-numeric MACRO_READINESS_THRESHOLD={threshold_raw!r}.")
+        else:
+            score = report.readiness["macro_readiness"]
+            if score < threshold:
+                report.error(
+                    f"Macro readiness {score:.0%} is below the configured threshold "
+                    f"{threshold:.0%} (MACRO_READINESS_THRESHOLD) — build blocked."
+                )
 
     log.info("%s", report)
     return model, report
@@ -388,6 +455,17 @@ def format_verification_report(model: Optional[DrawingData], report: ValidationR
         f"Derived dimensions computed: {len(derived)}"
         + (f"  ->  {', '.join(derived)}" if derived else ""),
     ]
+    r = report.readiness
+    if r:
+        lines += [
+            "",
+            "DRAWING COMPLETENESS SCORE (Phase 4):",
+            f"  Geometry completeness:  {r['geometry_completeness']:.0%}",
+            f"  Dimension completeness: {r['dimension_completeness']:.0%}",
+            f"  Cross-view consistency: {r['consistency']:.0%}",
+            f"  Feature confidence:     {r['feature_confidence']:.0%}",
+            f"  Macro readiness:        {r['macro_readiness']:.0%}",
+        ]
     if report.errors:
         lines += ["", "ERRORS:"]
         lines += [f"  [ERROR] {e}" for e in report.errors]

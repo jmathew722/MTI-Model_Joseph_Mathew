@@ -48,6 +48,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from pipeline.macro_audit import audit_package, write_audit_report
 from pipeline.schema import (
     Dimension,
     DrawingData,
@@ -157,7 +158,10 @@ def _dims_map(model: DrawingData, feature: Feature) -> dict[str, float]:
         d = model.dimension_by_id(did)
         if d is None:
             continue
-        key = (d.applies_to or d.type.value).lower().strip()
+        # Prefer a canonical token from the (often verbose) applies_to label so
+        # "thru hole diameter (4 places)" still resolves to "hole_diameter"; fall
+        # back to the dimension type. Fixes failure class E010.
+        key = d.canonical_applies_to or (d.applies_to or d.type.value).lower().strip()
         out.setdefault(key, d.value)
     if feature.depth_dimension_id:
         d = model.dimension_by_id(feature.depth_dimension_id)
@@ -181,10 +185,12 @@ def _envelope(model: DrawingData) -> tuple[Optional[float], Optional[float]]:
     """The part's length/width envelope in drawing units (None when not extracted)."""
     length = width = None
     for d in model.dimensions:
-        key = (d.applies_to or "").lower().strip()
-        if key == "length" and length is None and not d.is_reference:
+        if not d.is_envelope:
+            continue
+        token = d.canonical_applies_to
+        if token == "length" and length is None:
             length = d.value
-        elif key == "width" and width is None and not d.is_reference:
+        elif token == "width" and width is None:
             width = d.value
     return length, width
 
@@ -789,11 +795,11 @@ def _setup_macro(model: DrawingData, unit_factor: float) -> str:
 
 
 def _final_verify_macro(model: DrawingData, unit_factor: float, n_features: int) -> str:
-    envelope_dims = [
-        d for d in model.dimensions
-        if (d.applies_to or "").lower() in ("length", "width", "height") and not d.is_reference
-    ]
-    expectations = "; ".join(f"{d.applies_to}={_v(d.value)}" for d in envelope_dims) or "none extracted"
+    envelope_dims = [d for d in model.dimensions if d.is_envelope]
+    expectations = (
+        "; ".join(f"{d.canonical_applies_to}={_v(d.value)}" for d in envelope_dims)
+        or "none extracted"
+    )
     header = _vba_header("ZZ_final_verify - rebuild, mass props, bbox, save", model.display_name, unit_factor)
     return header + f"""
     ' ---- FORCE REBUILD ----
@@ -1026,11 +1032,26 @@ def generate_macro_package(
     (macros_dir / "README.md").write_text(
         _MACROS_README.format(folder=name, name=name)
     )
+    # --- Static self-validation of the emitted macros (Phase 7 + Phase 10) ---
+    # Every E0xx lesson is enforced here over the WHOLE package, not just on test
+    # fixtures. Hard errors (banned/nonexistent APIs, unbalanced blocks) mean a
+    # generator regression — fail loudly so the bad macro can never ship.
+    audit = audit_package(macros_dir)
+    write_audit_report(audit, root / f"{name}_audit_report.json")
+    if not audit.ok:
+        detail = "; ".join(f"[{f.rule_id}] {f.file}: {f.message}" for f in audit.errors)
+        raise MacroGenerationError(
+            f"Generated macros failed static self-validation: {detail}"
+        )
+    for w in audit.warnings:
+        log.warning("macro audit [%s] %s: %s", w.rule_id, w.file, w.message)
+
     plan = {
         "part": model.display_name,
         "units": model.units.value,
         "unit_factor_to_meters": unit_factor,
         "confidence": model.confidence,
+        "audit": audit.to_dict(),
         "steps": [
             {
                 "seq": s.seq, "macro_file": s.macro_file, "feature_id": s.feature_id,

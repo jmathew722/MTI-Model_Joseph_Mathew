@@ -81,6 +81,79 @@ _FEATURE_ALIASES = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# applies_to canonicalization (fixes failure class E010)
+# --------------------------------------------------------------------------- #
+# In production, Claude emits verbose, view-qualified applies_to labels such as
+# "width (top view, overall horizontal)" or "thru hole diameter (4 places)".
+# The generator/validator key off canonical tokens (length/width/height/...), so
+# an exact-string match silently misses these and the build fails with
+# "profile needs a diameter or length+width". canonicalize_applies_to() maps the
+# free text to a canonical token. Rules are ordered MOST-SPECIFIC FIRST: compound
+# hole-feature labels (counterbore/countersink/drill) must win before the plain
+# "depth"/"diameter" rules, because e.g. "counterbore depth" contains "depth".
+CANONICAL_APPLIES_TO = (
+    "length", "width", "height", "thickness",
+    "hole_diameter", "diameter", "radius", "fillet_radius",
+    "chamfer", "depth", "spacing", "angle",
+    "cbore_diameter", "cbore_depth", "csink_diameter", "csink_angle",
+)
+
+_APPLIES_TO_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    # Compound hole features FIRST (these substrings also contain depth/diameter).
+    ("cbore_diameter", ("counterbore diameter", "counterbore dia", "cbore diameter", "cbore dia", "c'bore dia")),
+    ("cbore_depth", ("counterbore depth", "cbore depth", "c'bore depth")),
+    ("csink_diameter", ("countersink diameter", "countersink dia", "csink dia")),
+    ("csink_angle", ("countersink angle", "csink angle")),
+    ("hole_diameter", ("hole diameter", "thru hole dia", "through hole dia", "drill diameter",
+                       "drill dia", "bore diameter", "hole dia")),
+    ("fillet_radius", ("fillet radius", "fillet", "corner radius")),
+    ("chamfer", ("chamfer",)),
+    ("spacing", ("spacing", "pitch", "center-to-center", "center to center")),
+    ("thickness", ("thickness", "material thick", "plate thick")),
+    ("depth", ("drill depth", "hole depth", "blind depth", "depth")),
+    ("diameter", ("diameter", "dia")),
+    ("radius", ("radius",)),
+    ("angle", ("angle",)),
+    ("length", ("length",)),
+    ("width", ("width",)),
+    ("height", ("height",)),
+)
+
+
+def canonicalize_applies_to(label: str) -> str:
+    """Map a free-text applies_to label to a canonical token (or "" if none).
+
+    Exact canonical tokens pass through unchanged. Otherwise the first matching
+    (most-specific-first) substring rule wins. Returns "" when nothing matches,
+    so callers can distinguish "unknown" from a real token.
+    """
+    s = (label or "").lower().strip()
+    if not s:
+        return ""
+    if s in CANONICAL_APPLIES_TO:
+        return s
+    for token, needles in _APPLIES_TO_RULES:
+        if any(n in s for n in needles):
+            return token
+    return ""
+
+
+def is_envelope_label(label: str) -> bool:
+    """True for a label that denotes a part OVERALL envelope dimension.
+
+    Accepts the clean canonical tokens (length/width/height) and verbose labels
+    that say "overall" (e.g. "width (top view, overall horizontal)"), but NOT
+    feature-local sizes like "width (front view, small feature)" — those would
+    corrupt the envelope used for hole-centering and feasibility checks.
+    """
+    s = (label or "").lower().strip()
+    token = canonicalize_applies_to(s)
+    if token not in ("length", "width", "height"):
+        return False
+    return s == token or "overall" in s
+
+
 class HoleType(str, Enum):
     THRU = "thru"
     BLIND = "blind"
@@ -273,6 +346,16 @@ class Dimension(BaseModel):
         if v <= 0:
             raise ValueError(f"dimension value must be positive, got {v}")
         return v
+
+    @property
+    def canonical_applies_to(self) -> str:
+        """The applies_to label mapped to a canonical token ("" if unknown)."""
+        return canonicalize_applies_to(self.applies_to)
+
+    @property
+    def is_envelope(self) -> bool:
+        """True if this dimension denotes a part OVERALL envelope dimension."""
+        return is_envelope_label(self.applies_to) and not self.is_reference
 
 
 class Feature(BaseModel):

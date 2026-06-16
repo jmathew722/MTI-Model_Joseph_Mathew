@@ -65,7 +65,33 @@ def _prepare_and_extract(args) -> dict | None:
     return None
 
 
+def _force_utf8_console() -> None:
+    """Avoid UnicodeEncodeError on Windows cp1252 consoles (failure E008).
+
+    The verification report and rich panels emit non-ASCII ('->', box glyphs).
+    On a legacy code-page console that crashes the run AFTER a paid extraction.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
+def _save_extraction(output_dir: Path, folder_name: str, drawing_data: dict) -> Path:
+    """Persist the extraction into the output folder so a paid run is never lost,
+    READY or BLOCKED (failure E008). Returns the path written."""
+    part_dir = output_dir / (folder_name.replace(" ", "_") or "part")
+    part_dir.mkdir(parents=True, exist_ok=True)
+    path = part_dir / f"{folder_name.replace(' ', '_') or 'part'}_extraction.json"
+    path.write_text(json.dumps(drawing_data, indent=2), encoding="utf-8")
+    return path
+
+
 def main() -> int:
+    _force_utf8_console()
     parser = argparse.ArgumentParser(
         description="Convert a 2D engineering drawing into a SolidWorks 3D model."
     )
@@ -125,12 +151,21 @@ def main() -> int:
     console.print(verification_text)
 
     output_dir = Path(args.output)
+    # Folder name: prefer the validated model's display name; fall back to the
+    # raw extraction's part number/name so a BLOCKED run (model may be None) still
+    # lands somewhere sensible.
+    folder_name = (
+        model.display_name if model is not None
+        else (drawing_data.get("part_number") or drawing_data.get("part_name") or "part")
+    )
+    # Always persist BOTH the extraction and the verification report — READY or
+    # BLOCKED — so a paid extraction is never lost and BLOCKED is re-runnable via
+    # --from-json with no API cost (failure E008).
+    extraction_path = _save_extraction(output_dir, folder_name, drawing_data)
+    console.print(f"  Extraction saved to {extraction_path}")
     if model is not None:
-        # Always persist the verification report, READY or BLOCKED.
-        report_dir = output_dir / (model.display_name.replace(" ", "_") or "part")
-        report_dir.mkdir(parents=True, exist_ok=True)
-        report_path = report_dir / f"{model.display_name}_verification_report.txt"
-        report_path.write_text(verification_text)
+        report_path = extraction_path.parent / f"{folder_name}_verification_report.txt"
+        report_path.write_text(verification_text, encoding="utf-8")
         console.print(f"  Report written to {report_path}")
 
     if model is None or not report.ok:

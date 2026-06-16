@@ -63,12 +63,22 @@ Flags: `--drawing` or `--from-json` (one required), `--output`, `--page N`,
 
 ```
 output/<PartNumber>/
-├── <PartNumber>_extraction.json          # full Phase 1 extraction
-├── <PartNumber>_verification_report.txt  # READY TO BUILD / BLOCKED
-├── <PartNumber>_build_plan.json          # ordered steps + skipped/needs-review
+├── <PartNumber>_extraction.json          # full Phase 1 extraction (saved even when BLOCKED)
+├── <PartNumber>_verification_report.txt  # READY TO BUILD / BLOCKED + Phase-4 readiness score
+├── <PartNumber>_build_plan.json          # ordered steps + skipped/needs-review + audit summary
+├── <PartNumber>_audit_report.json        # static self-validation of the generated macros
 ├── macros/                               # 00_setup … ZZ_final_verify + README.md
 └── logs/                                 # build_log.txt appended by the macros
 ```
+
+The extraction JSON is written for **every** run, READY or BLOCKED, so a paid
+extraction is never lost — patch it against the drawing and regenerate with
+`--from-json` (no API cost). The verification report includes a **drawing
+completeness score** (geometry / dimension / consistency / feature confidence and
+an overall *macro readiness* %); set `MACRO_READINESS_THRESHOLD` (e.g. `0.95`) to
+hard-gate low-readiness drawings. Before any macro is written, every `.vba` is
+**statically self-validated** (`pipeline/macro_audit.py`): banned/nonexistent APIs
+and structural defects fail generation outright.
 
 Copy the folder to any SolidWorks machine (e.g. a school VDI — no installs
 needed) and follow `macros/README.md`: run the macros in numbered order; each
