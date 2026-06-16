@@ -217,8 +217,18 @@ fixtures.
   positions are never invented from free-text descriptions. Verified byte-identical
   on 116-C/117-C/135-A (none carry structured spacing for the affected holes).
   The broader multi-hole placement for those parts needs the extractor to emit
-  structured pattern geometry (rows/cols, two-axis spacing, bolt-circle radius) —
-  tracked as a schema/prompt follow-up.
+  structured per-instance positions (now implemented — see below).
+- **Explicit per-instance positions:** `HoleCallout.instance_positions` carries the
+  `[x, y]` center of every instance (edge-referenced, drawing frame). When present,
+  `_hole_positions` emits exactly those circles — the most reliable placement,
+  bypassing all spacing/centering heuristics — and the extraction prompt now asks
+  for it on every qty>1 callout. The validator advises (non-fatal) when the count
+  disagrees with `qty` or a position falls outside the envelope. Existing
+  extractions (empty list) are byte-identical; this lifts the 117-C-style
+  "14 holes collapse to stacked points" failure once a drawing is re-extracted.
+- **CI:** `.github/workflows/tests.yml` runs the full pytest suite on every push and
+  PR (Ubuntu, Python 3.11; pywin32 is Windows-guarded so the non-SolidWorks half
+  runs cleanly), so a regression can never merge silently.
 - **Batch mode (scale):** `--batch <dir>` (`pipeline/batch.py`) runs the full
   pipeline over every drawing / `*_extraction.json` in a folder and writes
   `batch_summary.csv` (part, status, readiness sub-scores, macro counts, blocking

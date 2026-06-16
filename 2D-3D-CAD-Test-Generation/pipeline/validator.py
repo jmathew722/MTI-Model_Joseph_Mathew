@@ -282,6 +282,31 @@ def _check_reference_dimensions(model: DrawingData, report: ValidationReport) ->
             )
 
 
+def _check_instance_positions(model: DrawingData, report: ValidationReport) -> None:
+    """Advisory: explicit per-instance hole positions should match qty and sit
+    inside the part envelope (drawing frame: corner at origin)."""
+    length = max((d.value for d in model.dimensions
+                  if d.is_envelope and d.canonical_applies_to == "length"), default=0.0)
+    width = max((d.value for d in model.dimensions
+                 if d.is_envelope and d.canonical_applies_to == "width"), default=0.0)
+    for h in model.hole_callouts:
+        if not h.instance_positions:
+            continue
+        if len(h.instance_positions) != h.qty:
+            report.warn(
+                f"Hole callout {h.id} has {len(h.instance_positions)} explicit position(s) "
+                f"but qty={h.qty}; using the listed positions."
+            )
+        if length > 0 and width > 0:
+            for x, y in ((p[0], p[1]) for p in h.instance_positions if len(p) == 2):
+                if not (0.0 <= x <= length and 0.0 <= y <= width):
+                    report.warn(
+                        f"Hole callout {h.id} instance ({x:g}, {y:g}) lies outside the "
+                        f"{length:g} x {width:g} envelope — verify the coordinate frame."
+                    )
+                    break
+
+
 def _check_view_consistency(model: DrawingData, report: ValidationReport) -> None:
     """v2 (advisory): views' dimension lists should reference real dimensions."""
     dim_ids = {d.id for d in model.dimensions}
@@ -392,6 +417,7 @@ def run_verification(
     _check_dimensional_closure(model, report)
     _check_pattern_envelopes(model, report)
     _check_reference_dimensions(model, report)
+    _check_instance_positions(model, report)
     _check_view_consistency(model, report)
 
     # Phase-4 readiness scoring (advisory; optional hard-gate via env var).

@@ -131,6 +131,11 @@ HOLE CALLOUTS:
   thread_spec (e.g. "1/4-20 UNC"), cbore/csink data, qty, pattern and spacing.
 - If the drawing dimensions the hole position from the part origin/center, set
   x_position/y_position and position_known=true. Otherwise leave position_known=false.
+- For multi-instance callouts (qty>1), fill instance_positions with the [x, y] center
+  of EVERY instance in drawing units, edge-referenced from the part's lower-left
+  corner (e.g. a 2x2 bolt pattern -> four [x,y] pairs). This is the most reliable way
+  to place patterns; len(instance_positions) should equal qty. Leave empty only when
+  the individual positions genuinely cannot be read.
 
 FEATURES & BUILD ORDER (F001, F002, ...):
 - Use ONLY these feature `type` values: extrude_boss, extrude_cut, revolve, hole,

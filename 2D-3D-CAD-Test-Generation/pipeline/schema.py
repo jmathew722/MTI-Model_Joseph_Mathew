@@ -218,8 +218,25 @@ class HoleCallout(BaseModel):
     )
     pattern: PatternKind = Field(default=PatternKind.NONE)
     pattern_spacing: float = Field(default=0.0, description="Pattern spacing in drawing units; 0.0 if no pattern")
+    instance_positions: list[list[float]] = Field(
+        default_factory=list,
+        description=(
+            "Explicit [x, y] center of EVERY instance in drawing units, edge-referenced "
+            "(measured from the part's lower-left corner), when the drawing dimensions them — "
+            "e.g. a 2x2 bolt pattern is [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]. Length should equal qty. "
+            "Most reliable way to place multi-hole patterns; leave empty only if positions are not readable."
+        ),
+    )
     feature_ref: str = Field(default="", description="Feature ID (F###) this callout corresponds to; empty if none")
     view: str = Field(default="", description="View the callout appears in")
+
+    @field_validator("instance_positions")
+    @classmethod
+    def positions_are_xy_pairs(cls, v: list[list[float]]) -> list[list[float]]:
+        for p in v:
+            if len(p) != 2:
+                raise ValueError(f"each instance position must be [x, y]; got {p}")
+        return v
 
     @field_validator("diameter")
     @classmethod

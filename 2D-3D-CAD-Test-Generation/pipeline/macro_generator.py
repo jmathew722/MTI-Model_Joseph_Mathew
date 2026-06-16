@@ -223,6 +223,10 @@ def _hole_positions(model: DrawingData, h: HoleCallout) -> list[tuple[float, flo
     placed at the envelope center and the macro flags POSITION ASSUMED — positions
     are never invented from free text.
     """
+    # Most reliable: explicit per-instance centers read straight from the drawing.
+    if h.instance_positions:
+        return [(p[0], p[1]) for p in h.instance_positions if len(p) == 2]
+
     length, width = _envelope(model)
     ecx = (length / 2.0) if length else 0.0
     ecy = (width / 2.0) if width else 0.0

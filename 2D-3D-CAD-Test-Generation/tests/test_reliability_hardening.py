@@ -124,6 +124,37 @@ def _equal_spacing_drawing() -> dict:
     }
 
 
+class TestExplicitInstancePositions:
+    def _grid(self) -> dict:
+        d = _equal_spacing_drawing()
+        d["relationships"] = {}
+        d["hole_callouts"][0]["qty"] = 4
+        d["hole_callouts"][0]["instance_positions"] = [[1, 0.5], [5, 0.5], [1, 1.5], [5, 1.5]]
+        return d
+
+    def test_explicit_positions_emitted_exactly(self, tmp_path):
+        data = self._grid()
+        model, report = run_verification(data)
+        assert report.ok, str(report)
+        pkg = generate_macro_package(model, data, format_verification_report(model, report), tmp_path)
+        hole = next(p for p in pkg.macros_dir.glob("02_*.vba")).read_text(encoding="utf-8")
+        assert hole.count("CreateCircleByRadius") == 4
+        for coord in ("1 * UNIT_FACTOR", "5 * UNIT_FACTOR", "0.5 * UNIT_FACTOR", "1.5 * UNIT_FACTOR"):
+            assert coord in hole, coord
+
+    def test_position_outside_envelope_warns(self):
+        data = self._grid()
+        data["hole_callouts"][0]["instance_positions"][0] = [99, 0.5]  # off the plate
+        _, report = run_verification(data)
+        assert any("outside" in w for w in report.warnings)
+
+    def test_count_mismatch_warns(self):
+        data = self._grid()
+        data["hole_callouts"][0]["qty"] = 5  # 5 declared, 4 positions listed
+        _, report = run_verification(data)
+        assert any("explicit position" in w for w in report.warnings)
+
+
 class TestPositionFromEqualSpacing:
     def test_three_holes_placed_as_centered_row(self, tmp_path):
         data = _equal_spacing_drawing()
