@@ -67,7 +67,7 @@ output/<PartNumber>/
 ├── <PartNumber>_verification_report.txt  # READY TO BUILD / BLOCKED + Phase-4 readiness score
 ├── <PartNumber>_build_plan.json          # ordered steps + skipped/needs-review + audit summary
 ├── <PartNumber>_audit_report.json        # static self-validation of the generated macros
-├── macros/                               # 00_setup … ZZ_final_verify + README.md
+├── macros/                               # 00_setup … ZZ_final_verify, RUN_ALL.vba, README.md
 └── logs/                                 # build_log.txt appended by the macros
 ```
 

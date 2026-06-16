@@ -7,6 +7,7 @@ Covers four failure classes from docs/solidworks-macro-error-log.md:
   * Phase-4 readiness scoring + optional hard-gate.
 """
 import json
+import re
 
 import pytest
 
@@ -128,6 +129,46 @@ class TestMacroAuditor:
         model, report = run_verification(data)
         with pytest.raises(MacroGenerationError, match="static self-validation"):
             generate_macro_package(model, data, "report", tmp_path)
+
+
+# --------------------------------------------------------------------------- #
+# RUN_ALL.vba — one-click, in-order build
+# --------------------------------------------------------------------------- #
+class TestRunAllMacro:
+    @pytest.fixture
+    def run_all(self, tmp_path):
+        data = _verbose_bracket()
+        model, report = run_verification(data)
+        pkg = generate_macro_package(model, data, format_verification_report(model, report), tmp_path)
+        return (pkg.macros_dir / "RUN_ALL.vba").read_text(encoding="utf-8"), pkg
+
+    def test_exists_and_passes_audit(self, run_all):
+        text, pkg = run_all
+        assert text
+        assert audit_package(pkg.macros_dir).ok
+
+    def test_shared_scaffolding_defined_once(self, run_all):
+        text, _ = run_all
+        assert text.count("Option Explicit") == 1
+        assert len(re.findall(r"Const UNIT_FACTOR", text)) == 1
+        # Helpers appear exactly once (not duplicated per step).
+        assert text.count("Function VerifySolidBody(") == 1
+        assert text.count("Function SelectRefPlane(") == 1
+        assert text.count("Function FindPartTemplate(") == 1
+
+    def test_main_runs_steps_in_order(self, run_all):
+        text, _ = run_all
+        main = re.search(r"^Sub main\(\).*?^End Sub", text, re.S | re.M).group(0)
+        calls = [ln.strip() for ln in main.splitlines()
+                 if ln.strip().startswith("Step")]
+        assert calls[0] == "Step00_Setup"
+        assert calls[-1] == "StepZZ_FinalVerify"
+        assert any(c.startswith("Step01_") for c in calls)
+
+    def test_blocks_balanced(self, run_all):
+        text, _ = run_all
+        assert len(re.findall(r"^\s*Sub\b", text, re.M)) == len(re.findall(r"^\s*End Sub\b", text, re.M))
+        assert len(re.findall(r"^\s*Function\b", text, re.M)) == len(re.findall(r"^\s*End Function\b", text, re.M))
 
 
 # --------------------------------------------------------------------------- #
