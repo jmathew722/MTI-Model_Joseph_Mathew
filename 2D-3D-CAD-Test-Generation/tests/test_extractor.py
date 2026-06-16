@@ -60,13 +60,24 @@ def no_tool_response():
     return FakeResponse([], stop_reason="end_turn")
 
 
+class FakeUsage:
+    def __init__(self, input_tokens=0, output_tokens=0,
+                 cache_creation_input_tokens=0, cache_read_input_tokens=0):
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.cache_creation_input_tokens = cache_creation_input_tokens
+        self.cache_read_input_tokens = cache_read_input_tokens
+
+
 class FakeMessages:
     def __init__(self, responses):
         self._responses = list(responses)
         self.call_count = 0
+        self.last_kwargs = None
 
     def create(self, **kwargs):
         self.call_count += 1
+        self.last_kwargs = kwargs
         if self._responses:
             return self._responses.pop(0)
         return tool_response(make_drawing_dict(0.95))
@@ -167,3 +178,86 @@ class TestMissingApiKey:
         # works even if the anthropic package is not installed.
         with pytest.raises(EnvironmentError):
             extractor._build_client(3)
+
+
+class TestPromptCaching:
+    def test_system_and_image_carry_cache_control(self, patch_client):
+        client = patch_client([tool_response(make_drawing_dict(0.95))])
+        extract_drawing_data("ZmFrZQ==")
+        kw = client.messages.last_kwargs
+        assert isinstance(kw["system"], list)
+        assert kw["system"][0]["cache_control"]["type"] == "ephemeral"
+        image_block = kw["messages"][0]["content"][0]
+        assert image_block["type"] == "image"
+        assert image_block.get("cache_control", {}).get("type") == "ephemeral"
+
+
+class TestUsageTracking:
+    def test_usage_accumulated_into_out_dict(self, patch_client):
+        resp = tool_response(make_drawing_dict(0.95))
+        resp.usage = FakeUsage(input_tokens=1200, output_tokens=300,
+                               cache_read_input_tokens=900)
+        patch_client([resp])
+        usage: dict = {}
+        extract_drawing_data("ZmFrZQ==", usage_out=usage)
+        assert usage["input_tokens"] == 1200
+        assert usage["output_tokens"] == 300
+        assert usage["cache_read_input_tokens"] == 900
+        assert usage["calls"] == 1
+
+
+class TestExtractionCache:
+    def test_cache_hit_skips_api(self, patch_client, tmp_path):
+        client = patch_client([tool_response(make_drawing_dict(0.95))])
+        extract_drawing_data("ZmFrZQ==", cache_dir=tmp_path)  # populates cache
+        assert client.messages.call_count == 1
+        # Second call, identical image+model: served from cache, no API call.
+        client2 = patch_client([])
+        usage: dict = {}
+        result = extract_drawing_data("ZmFrZQ==", cache_dir=tmp_path, usage_out=usage)
+        assert client2.messages.call_count == 0
+        assert result["confidence"] == 0.95
+        assert usage.get("cache_hits") == 1
+
+    def test_cache_miss_writes_file(self, patch_client, tmp_path):
+        patch_client([tool_response(make_drawing_dict(0.95))])
+        extract_drawing_data("ZmFrZQ==", cache_dir=tmp_path)
+        assert list(tmp_path.glob("*.json"))
+
+    def test_different_image_is_a_miss(self, patch_client, tmp_path):
+        client = patch_client([tool_response(make_drawing_dict(0.95)),
+                               tool_response(make_drawing_dict(0.9))])
+        extract_drawing_data("ZmFrZQ==", cache_dir=tmp_path)
+        extract_drawing_data("b3RoZXI=", cache_dir=tmp_path)  # different bytes
+        assert client.messages.call_count == 2
+
+
+class TestRequeryGate:
+    def test_low_confidence_without_focus_skips_requery(self, patch_client):
+        data = make_drawing_dict(0.5)
+        data["warnings"] = []  # nothing specific flagged to re-examine
+        client = patch_client([tool_response(data)])
+        extract_drawing_data("ZmFrZQ==")
+        assert client.messages.call_count == 1  # no token-doubling re-query
+
+    def test_low_confidence_with_warning_still_requeries(self, patch_client):
+        client = patch_client(
+            [tool_response(make_drawing_dict(0.5)), tool_response(make_drawing_dict(0.9))]
+        )
+        extract_drawing_data("ZmFrZQ==")
+        assert client.messages.call_count == 2
+
+
+def test_max_long_edge_env_override(monkeypatch):
+    import importlib
+
+    from utils import image_prep
+
+    monkeypatch.setenv("MAX_IMAGE_LONG_EDGE", "1568")
+    importlib.reload(image_prep)
+    try:
+        assert image_prep.MAX_LONG_EDGE == 1568
+    finally:
+        monkeypatch.delenv("MAX_IMAGE_LONG_EDGE", raising=False)
+        importlib.reload(image_prep)
+    assert image_prep.MAX_LONG_EDGE == 2576

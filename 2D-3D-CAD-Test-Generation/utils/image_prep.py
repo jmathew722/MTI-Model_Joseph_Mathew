@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import io
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -22,9 +23,14 @@ from utils.logger import get_logger
 
 log = get_logger()
 
-# Opus 4.8 supports high-resolution vision up to 2576px on the long edge; fine
-# dimension text on drawings benefits from the extra resolution.
-MAX_LONG_EDGE = 2576
+# High-resolution vision supports up to 2576px on the long edge; fine dimension
+# text on drawings benefits from extra resolution, but image tokens scale with
+# pixel count. Override with MAX_IMAGE_LONG_EDGE to A/B lower resolutions against
+# extraction accuracy + token usage (e.g. 1568, the effective-resolution ceiling).
+try:
+    MAX_LONG_EDGE = int(os.getenv("MAX_IMAGE_LONG_EDGE", "2576"))
+except ValueError:
+    MAX_LONG_EDGE = 2576
 MIN_DIMENSION = 100  # reject anything smaller than 100x100 px
 PDF_DPI = 300
 

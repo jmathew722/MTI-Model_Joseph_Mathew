@@ -15,6 +15,10 @@ output/*.SLDPRT
 debug_extraction.json
 *.log
 
+# Extraction cache (hashed API results)
+.extraction_cache/
+**/.extraction_cache/
+
 # OS
 .DS_Store
 Thumbs.db

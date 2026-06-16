@@ -93,6 +93,15 @@ logs PASS/FAIL and stops on failure.
   **forced tool call** validated against the Pydantic schema with one repair
   retry. (Strict structured outputs reject this schema's nested arrays — don't
   switch back.)
+- **Token economy:** the static system prompt + tool schema (~4.6k tokens) and the
+  image carry `cache_control`, so within a batch nearly every call reads the prefix
+  from cache (~10% cost) and a low-confidence re-query reads the image from cache.
+  An on-disk **extraction cache** (`<output>/.extraction_cache`, disable with
+  `--no-extract-cache`) returns an identical image+model result with **zero** API
+  calls. The low-confidence re-query only fires when something specific was flagged
+  to re-examine. Per-extraction token usage is logged. Image resolution is tunable
+  with `MAX_IMAGE_LONG_EDGE` (default 2576) to A/B accuracy vs. tokens; set
+  `EXTRACTION_CONFIDENCE_THRESHOLD` to tune the re-query gate.
 - **Units:** SolidWorks API works in meters. Python COM path: every value
   through `to_meters()` + `assert_meters()`. VBA path: every value written as
   `<drawing value> * UNIT_FACTOR` for traceability.

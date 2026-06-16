@@ -31,6 +31,13 @@ from rich.panel import Panel
 console = Console()
 
 
+def _extract_cache_dir(args) -> Path | None:
+    """The on-disk extraction cache dir, unless disabled with --no-extract-cache."""
+    if getattr(args, "no_extract_cache", False):
+        return None
+    return Path(args.output) / ".extraction_cache"
+
+
 def _prepare_and_extract(args) -> dict | None:
     """Stages 1-2: image prep + Claude extraction. Returns the extraction dict."""
     console.print("[1/4] Preparing drawing image...")
@@ -48,11 +55,14 @@ def _prepare_and_extract(args) -> dict | None:
     console.print("[2/4] Extracting drawing data with Claude Vision...")
     from pipeline.extractor import ExtractionError, extract_drawing_data
 
+    usage: dict[str, int] = {}
     try:
         return extract_drawing_data(
             prepared.base64,
             media_type=prepared.media_type,
             prep_warnings=prepared.warnings,
+            cache_dir=_extract_cache_dir(args),
+            usage_out=usage,
         )
     except EnvironmentError as e:
         console.print(f"[red]Extraction failed (configuration):[/red] {e}")
@@ -90,14 +100,15 @@ def _save_extraction(output_dir: Path, folder_name: str, drawing_data: dict) -> 
     return path
 
 
-def _extract_one_drawing(path: Path, page: int) -> dict:
+def _extract_one_drawing(path: Path, page: int, cache_dir: Path | None) -> dict:
     """Image-prep + Claude extraction for a single drawing file (used by batch)."""
     from utils.image_prep import prepare_image
     from pipeline.extractor import extract_drawing_data
 
     prepared = prepare_image(str(path), page=page, return_details=True)
     return extract_drawing_data(
-        prepared.base64, media_type=prepared.media_type, prep_warnings=prepared.warnings
+        prepared.base64, media_type=prepared.media_type, prep_warnings=prepared.warnings,
+        cache_dir=cache_dir,
     )
 
 
@@ -113,8 +124,10 @@ def _run_batch(args) -> int:
         return 2
 
     output_dir = Path(args.output)
+    cache_dir = _extract_cache_dir(args)
     rows, csv_path = run_batch(
-        directory, output_dir, extract_fn=lambda p: _extract_one_drawing(p, args.page)
+        directory, output_dir,
+        extract_fn=lambda p: _extract_one_drawing(p, args.page, cache_dir),
     )
     if not rows:
         console.print(f"[yellow]No drawings or *_extraction.json files found in[/yellow] {directory}")
@@ -154,6 +167,11 @@ def main() -> int:
     parser.add_argument("--output", default="./output", help="Output directory.")
     parser.add_argument("--page", type=int, default=1, help="Page to use for multi-page PDFs (default 1).")
     parser.add_argument("--debug", action="store_true", help="Save intermediate extraction JSON.")
+    parser.add_argument(
+        "--no-extract-cache",
+        action="store_true",
+        help="Disable the on-disk extraction cache (re-extract even if an identical image was seen).",
+    )
     parser.add_argument(
         "--engine",
         choices=("vba", "com"),

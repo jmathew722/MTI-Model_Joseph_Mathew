@@ -16,8 +16,11 @@ Public entry point: :func:`extract_drawing_data`.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 from dotenv import load_dotenv
 from pydantic import ValidationError
@@ -34,6 +37,64 @@ CONFIDENCE_THRESHOLD = 0.7  # below this, re-query once for a closer look
 SDK_MAX_RETRIES = 3  # SDK-level retries for transient API errors
 
 TOOL_NAME = "report_drawing_data"
+
+# Token usage fields summed across the (possibly several) calls of one extraction.
+_USAGE_FIELDS = (
+    "input_tokens", "output_tokens",
+    "cache_creation_input_tokens", "cache_read_input_tokens",
+)
+
+
+def _confidence_threshold() -> float:
+    raw = os.getenv("EXTRACTION_CONFIDENCE_THRESHOLD")
+    if raw:
+        try:
+            return float(raw)
+        except ValueError:
+            log.warning("Ignoring non-numeric EXTRACTION_CONFIDENCE_THRESHOLD=%r", raw)
+    return CONFIDENCE_THRESHOLD
+
+
+def _accumulate_usage(acc: dict[str, int], response: Any) -> None:
+    """Add one response's token usage into ``acc`` (no-op if absent, e.g. mocks)."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    for field in _USAGE_FIELDS:
+        acc[field] = acc.get(field, 0) + (getattr(usage, field, 0) or 0)
+    acc["calls"] = acc.get("calls", 0) + 1
+
+
+# --- Extraction cache: skip the API entirely for an already-seen image ------- #
+def _cache_key(image_b64: str, model: str) -> str:
+    h = hashlib.sha256()
+    h.update(model.encode("utf-8"))
+    h.update(b"\0")
+    h.update(image_b64.encode("utf-8"))
+    return h.hexdigest()
+
+
+def _cache_lookup(cache_dir: Optional[Union[str, Path]], key: str) -> Optional[dict]:
+    if not cache_dir:
+        return None
+    path = Path(cache_dir) / f"{key}.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _cache_store(cache_dir: Optional[Union[str, Path]], key: str, data: dict) -> None:
+    if not cache_dir:
+        return
+    try:
+        d = Path(cache_dir)
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{key}.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except OSError as e:
+        log.warning("Could not write extraction cache: %s", e)
 
 SYSTEM_PROMPT = """\
 You are a senior design engineer interpreting a 2D engineering drawing with exact \
@@ -123,11 +184,16 @@ def _build_client(max_retries: int):
     return anthropic.Anthropic(api_key=api_key, max_retries=max_retries)
 
 
-def _image_block(image_b64: str, media_type: str) -> dict[str, Any]:
-    return {
+def _image_block(image_b64: str, media_type: str, cache: bool = False) -> dict[str, Any]:
+    block: dict[str, Any] = {
         "type": "image",
         "source": {"type": "base64", "media_type": media_type, "data": image_b64},
     }
+    if cache:
+        # Cache the image so the low-confidence re-query reads it from cache
+        # (~90% cheaper) instead of re-paying full image input tokens.
+        block["cache_control"] = {"type": "ephemeral"}
+    return block
 
 
 def _drawing_data_tool() -> dict[str, Any]:
@@ -139,10 +205,15 @@ def _drawing_data_tool() -> dict[str, Any]:
 
 
 def _call(client, model: str, messages: list[dict[str, Any]]):
+    # cache_control on the system block caches the static prefix (tools + system
+    # ~4.6k tokens), which is byte-identical across every call and every drawing
+    # in a batch — so within the cache window nearly all calls read it at ~10%
+    # cost. The image carries its own cache breakpoint (see _image_block).
+    system = [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
     return client.messages.create(
         model=model,
         max_tokens=MAX_TOKENS,
-        system=SYSTEM_PROMPT,
+        system=system,
         messages=messages,
         tools=[_drawing_data_tool()],
         tool_choice={"type": "tool", "name": TOOL_NAME},
@@ -172,13 +243,18 @@ def _tool_result_message(tool_use_id: str, content: str, is_error: bool = False)
     }
 
 
-def _parse(client, model: str, messages: list[dict[str, Any]]) -> tuple[DrawingData, Any, Any]:
+def _parse(
+    client, model: str, messages: list[dict[str, Any]], usage: Optional[dict[str, int]] = None
+) -> tuple[DrawingData, Any, Any]:
     """Call the model and return (validated DrawingData, response, tool_use block).
 
     Raises ExtractionError if the model refused, didn't call the tool, or the
-    tool input fails Pydantic validation even after one repair retry.
+    tool input fails Pydantic validation even after one repair retry. Token usage
+    from every underlying call is accumulated into ``usage`` when provided.
     """
     response = _call(client, model, messages)
+    if usage is not None:
+        _accumulate_usage(usage, response)
     if getattr(response, "stop_reason", None) == "refusal":
         raise ExtractionError(
             "Model refused the extraction request "
@@ -200,6 +276,8 @@ def _parse(client, model: str, messages: list[dict[str, Any]]) -> tuple[DrawingD
             ),
         ]
         response2 = _call(client, model, repair_messages)
+        if usage is not None:
+            _accumulate_usage(usage, response2)
         if getattr(response2, "stop_reason", None) == "refusal":
             raise ExtractionError(
                 "Model refused the repair request "
@@ -217,15 +295,21 @@ def extract_drawing_data(
     media_type: str = "image/png",
     model: Optional[str] = None,
     prep_warnings: Optional[list[str]] = None,
+    cache_dir: Optional[Union[str, Path]] = None,
+    usage_out: Optional[dict[str, int]] = None,
 ) -> dict[str, Any]:
     """Extract structured drawing data from a base64 image.
 
     Args:
         image_b64: Base64-encoded image (from :func:`utils.image_prep.prepare_image`).
         media_type: MIME type of the image (default ``image/png``).
-        model: Model override; defaults to ``$EXTRACTION_MODEL`` or ``claude-opus-4-8``.
+        model: Model override; defaults to ``$EXTRACTION_MODEL`` or ``claude-sonnet-4-6``.
         prep_warnings: Warnings from image preparation, merged into the result so the
             operator sees them alongside the model's own warnings.
+        cache_dir: If given, an on-disk extraction cache keyed by image+model hash;
+            an exact re-run returns the cached result with NO API call (zero tokens).
+        usage_out: If given, a dict updated with summed token usage for this call
+            (``input_tokens``/``output_tokens``/cache fields/``calls``).
 
     Returns:
         A JSON-serializable dict conforming to :class:`DrawingData`.
@@ -235,20 +319,32 @@ def extract_drawing_data(
         ExtractionError: if the model refuses or returns unvalidatable output.
     """
     model = model or os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL
+
+    # --- Extraction cache: identical image+model returns the saved result free ---
+    key = _cache_key(image_b64, model)
+    cached = _cache_lookup(cache_dir, key)
+    if cached is not None:
+        log.info("Extraction cache HIT (%s…) — skipping API call.", key[:12])
+        if usage_out is not None:
+            usage_out.setdefault("cache_hits", 0)
+            usage_out["cache_hits"] += 1
+        return cached
+
     client = _build_client(SDK_MAX_RETRIES)
+    usage: dict[str, int] = {}
 
     log.info("Extracting drawing data with model %s", model)
     messages: list[dict[str, Any]] = [
         {
             "role": "user",
             "content": [
-                _image_block(image_b64, media_type),
+                _image_block(image_b64, media_type, cache=True),
                 {"type": "text", "text": INITIAL_USER_TEXT},
             ],
         }
     ]
 
-    data, response, tool_use = _parse(client, model, messages)
+    data, response, tool_use = _parse(client, model, messages, usage)
     log.info(
         "Initial extraction: %d dimensions, %d features, confidence=%.2f",
         len(data.dimensions),
@@ -257,11 +353,18 @@ def extract_drawing_data(
     )
 
     # --- Domain-specific re-query on low confidence (once) ---
-    if data.confidence < CONFIDENCE_THRESHOLD:
+    # Only re-query when the model flagged something specific to re-examine
+    # (unclear/resolution-required dims or warnings); a blind re-query with
+    # nothing to point at rarely helps and doubles the tokens.
+    threshold = _confidence_threshold()
+    has_focus = bool(data.warnings) or any(
+        d.value_unclear or d.resolution_required for d in data.dimensions
+    )
+    if data.confidence < threshold and has_focus:
         log.warning(
             "Confidence %.2f < %.2f — re-querying for a closer look.",
             data.confidence,
-            CONFIDENCE_THRESHOLD,
+            threshold,
         )
         unclear = "; ".join(data.warnings) or "any dimensions you were unsure about"
         messages.append({"role": "assistant", "content": response.content})
@@ -274,7 +377,7 @@ def extract_drawing_data(
                         "tool_use_id": tool_use.id,
                         "content": "Received. Take another look before finalizing.",
                     },
-                    _image_block(image_b64, media_type),
+                    _image_block(image_b64, media_type, cache=True),
                     {
                         "type": "text",
                         "text": (
@@ -289,7 +392,7 @@ def extract_drawing_data(
             }
         )
         try:
-            requeried, _, _ = _parse(client, model, messages)
+            requeried, _, _ = _parse(client, model, messages, usage)
             log.info(
                 "Re-query result: %d dimensions, confidence %.2f -> %.2f",
                 len(requeried.dimensions),
@@ -306,4 +409,17 @@ def extract_drawing_data(
     if prep_warnings:
         data.warnings.extend(prep_warnings)
 
-    return data.model_dump(mode="json")
+    if usage:
+        log.info(
+            "Token usage: %d calls, input=%d (cache read=%d, write=%d), output=%d",
+            usage.get("calls", 0), usage.get("input_tokens", 0),
+            usage.get("cache_read_input_tokens", 0),
+            usage.get("cache_creation_input_tokens", 0), usage.get("output_tokens", 0),
+        )
+    if usage_out is not None:
+        for k, v in usage.items():
+            usage_out[k] = usage_out.get(k, 0) + v
+
+    result = data.model_dump(mode="json")
+    _cache_store(cache_dir, key, result)
+    return result
