@@ -49,6 +49,9 @@ python main.py --drawing path/to/drawing.pdf --output ./output
 # Regenerate macros from a saved extraction (no API call):
 python main.py --from-json debug_extraction.json --output ./output
 
+# Batch a whole folder (drawings are extracted; *_extraction.json are free):
+python main.py --batch ./DrawingPDFs --output ./output   # writes output/batch_summary.csv
+
 # Direct COM build (Windows + SolidWorks 2024):
 python main.py --drawing path/to/drawing.pdf --engine com
 
@@ -56,8 +59,8 @@ python main.py --drawing path/to/drawing.pdf --engine com
 pytest tests/ -v
 ```
 
-Flags: `--drawing` or `--from-json` (one required), `--output`, `--page N`,
-`--debug`, `--engine vba|com` (default `vba`), `--validate-only`.
+Flags: `--drawing`, `--from-json`, or `--batch` (one required), `--output`,
+`--page N`, `--debug`, `--engine vba|com` (default `vba`), `--validate-only`.
 
 ## Output package (engine `vba`)
 

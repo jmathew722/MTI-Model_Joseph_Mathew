@@ -90,6 +90,52 @@ def _save_extraction(output_dir: Path, folder_name: str, drawing_data: dict) -> 
     return path
 
 
+def _extract_one_drawing(path: Path, page: int) -> dict:
+    """Image-prep + Claude extraction for a single drawing file (used by batch)."""
+    from utils.image_prep import prepare_image
+    from pipeline.extractor import extract_drawing_data
+
+    prepared = prepare_image(str(path), page=page, return_details=True)
+    return extract_drawing_data(
+        prepared.base64, media_type=prepared.media_type, prep_warnings=prepared.warnings
+    )
+
+
+def _run_batch(args) -> int:
+    """Process every input in a directory, print a summary table, write CSV."""
+    from rich.table import Table
+
+    from pipeline.batch import run_batch
+
+    directory = Path(args.batch)
+    if not directory.is_dir():
+        console.print(f"[red]--batch path is not a directory:[/red] {directory}")
+        return 2
+
+    output_dir = Path(args.output)
+    rows, csv_path = run_batch(
+        directory, output_dir, extract_fn=lambda p: _extract_one_drawing(p, args.page)
+    )
+    if not rows:
+        console.print(f"[yellow]No drawings or *_extraction.json files found in[/yellow] {directory}")
+        return 0
+
+    table = Table(title=f"Batch summary ({len(rows)} inputs)")
+    for col in ("Part", "Status", "Readiness", "Macros", "Review", "Skipped", "Detail"):
+        table.add_column(col, overflow="fold")
+    status_color = {"READY": "green", "BLOCKED": "red", "ERROR": "yellow"}
+    for r in rows:
+        color = status_color.get(r.status, "white")
+        table.add_row(
+            r.part, f"[{color}]{r.status}[/{color}]", f"{r.macro_readiness:.0%}",
+            str(r.n_macros), str(r.n_needs_review), str(r.n_skipped), r.detail[:60],
+        )
+    console.print(table)
+    n_ready = sum(1 for r in rows if r.status == "READY")
+    console.print(f"  Summary CSV: {csv_path}  ({n_ready}/{len(rows)} READY)")
+    return 0 if n_ready == len(rows) else 8
+
+
 def main() -> int:
     _force_utf8_console()
     parser = argparse.ArgumentParser(
@@ -100,6 +146,10 @@ def main() -> int:
     src.add_argument(
         "--from-json",
         help="Skip extraction: load a previously saved extraction JSON (e.g. debug_extraction.json).",
+    )
+    src.add_argument(
+        "--batch",
+        help="Process every drawing / *_extraction.json in a directory and write batch_summary.csv.",
     )
     parser.add_argument("--output", default="./output", help="Output directory.")
     parser.add_argument("--page", type=int, default=1, help="Page to use for multi-page PDFs (default 1).")
@@ -119,6 +169,10 @@ def main() -> int:
     args = parser.parse_args()
 
     console.print(Panel("2D -> 3D SolidWorks Pipeline", style="bold blue"))
+
+    # --- Batch mode: process a whole directory and write a triage CSV ---
+    if args.batch:
+        return _run_batch(args)
 
     # --- [1-2/4] Source the extraction ---
     if args.from_json:

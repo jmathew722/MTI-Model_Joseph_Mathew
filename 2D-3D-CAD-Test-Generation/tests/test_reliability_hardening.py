@@ -91,6 +91,63 @@ class TestVerboseLabelsStillBuild:
 
 
 # --------------------------------------------------------------------------- #
+# Position reconstruction from structured equal_spacing (no invented geometry)
+# --------------------------------------------------------------------------- #
+def _equal_spacing_drawing() -> dict:
+    """A plate with 3 holes whose spacing comes ONLY from a structured
+    equal_spacing relationship (no pattern_spacing, no positions)."""
+    return {
+        "part_number": "EQSP-1",
+        "units": "inch",
+        "confidence": 0.9,
+        "dimensions": [
+            {"id": "D001", "type": "linear", "value": 6.0, "unit": "inch", "applies_to": "length"},
+            {"id": "D002", "type": "linear", "value": 2.0, "unit": "inch", "applies_to": "width"},
+            {"id": "D003", "type": "depth", "value": 0.5, "unit": "inch", "applies_to": "height"},
+            {"id": "D004", "type": "diameter", "value": 0.25, "unit": "inch",
+             "applies_to": "hole_diameter", "feature_ref": "F002"},
+        ],
+        "hole_callouts": [
+            {"id": "H001", "type": "thru", "diameter": 0.25, "qty": 3, "feature_ref": "F002"},
+        ],
+        "features": [
+            {"id": "F001", "type": "extrude_boss", "description": "plate",
+             "related_dimensions": ["D001", "D002"], "depth_dimension_id": "D003", "sketch_plane": "Top"},
+            {"id": "F002", "type": "hole", "description": "row of holes", "related_dimensions": ["D004"]},
+        ],
+        "relationships": {
+            "equal_spacing": [
+                {"feature_ref": "F002", "qty": 3, "spacing_value": 1.5, "computed_from": "explicit"}
+            ]
+        },
+        "build_order": ["F001", "F002"],
+    }
+
+
+class TestPositionFromEqualSpacing:
+    def test_three_holes_placed_as_centered_row(self, tmp_path):
+        data = _equal_spacing_drawing()
+        model, report = run_verification(data)
+        assert report.ok, str(report)
+        pkg = generate_macro_package(model, data, format_verification_report(model, report), tmp_path)
+        hole_macro = next(p for p in pkg.macros_dir.glob("02_*.vba")).read_text(encoding="utf-8")
+        # qty=3 instances actually emitted (was collapsing to 1 before).
+        assert hole_macro.count("CreateCircleByRadius") == 3
+        # Centered row on the 6.0-wide envelope: x = 1.5, 3.0, 4.5.
+        for x in ("1.5 * UNIT_FACTOR", "3 * UNIT_FACTOR", "4.5 * UNIT_FACTOR"):
+            assert x in hole_macro, x
+
+    def test_no_spacing_means_single_instance_unchanged(self, tmp_path):
+        # Strip the relationship: with no grounded spacing, behavior is unchanged.
+        data = _equal_spacing_drawing()
+        data["relationships"] = {}
+        model, report = run_verification(data)
+        pkg = generate_macro_package(model, data, format_verification_report(model, report), tmp_path)
+        hole_macro = next(p for p in pkg.macros_dir.glob("02_*.vba")).read_text(encoding="utf-8")
+        assert hole_macro.count("CreateCircleByRadius") == 1  # no positions invented
+
+
+# --------------------------------------------------------------------------- #
 # E004/E006 — static auditor
 # --------------------------------------------------------------------------- #
 class TestMacroAuditor:
@@ -193,6 +250,45 @@ class TestReadiness:
         monkeypatch.setenv("MACRO_READINESS_THRESHOLD", "not-a-number")
         model, report = run_verification(_verbose_bracket())
         assert report.ok  # invalid threshold must not block a clean drawing
+
+
+# --------------------------------------------------------------------------- #
+# Batch mode
+# --------------------------------------------------------------------------- #
+class TestBatch:
+    def test_processes_json_inputs_and_writes_csv(self, tmp_path):
+        from pipeline.batch import run_batch
+
+        indir = tmp_path / "in"
+        indir.mkdir()
+        # One READY part and one BLOCKED part (resolution_required dimension).
+        ready = _equal_spacing_drawing()
+        (indir / "EQSP-1_extraction.json").write_text(json.dumps(ready), encoding="utf-8")
+        blocked = _verbose_bracket()
+        blocked["dimensions"].append({
+            "id": "D099", "type": "linear", "value": 1.0, "unit": "inch",
+            "applies_to": "length", "resolution_required": True, "value_unclear": True,
+            "ambiguity_reason": "smudge",
+        })
+        (indir / "BLK-1_extraction.json").write_text(json.dumps(blocked), encoding="utf-8")
+
+        rows, csv_path = run_batch(indir, tmp_path / "out")
+        assert csv_path.exists()
+        by_part = {r.part: r for r in rows}
+        assert by_part["EQSP-1"].status == "READY"
+        assert by_part["VERBOSE-1"].status == "BLOCKED"
+        assert by_part["VERBOSE-1"].detail  # carries the blocking reason
+        # CSV has a header + 2 data rows.
+        assert len(csv_path.read_text(encoding="utf-8").strip().splitlines()) == 3
+
+    def test_iter_inputs_classifies(self, tmp_path):
+        from pipeline.batch import iter_inputs
+
+        (tmp_path / "a_extraction.json").write_text("{}", encoding="utf-8")
+        (tmp_path / "b.pdf").write_text("x", encoding="utf-8")
+        (tmp_path / "notes.txt").write_text("x", encoding="utf-8")
+        items = dict((p.name, is_json) for p, is_json in iter_inputs(tmp_path))
+        assert items == {"a_extraction.json": True, "b.pdf": False}
 
 
 # --------------------------------------------------------------------------- #

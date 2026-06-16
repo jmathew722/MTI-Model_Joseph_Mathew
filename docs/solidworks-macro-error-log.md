@@ -209,6 +209,25 @@ fixtures.
   **raises** on any error-severity finding, and writes `<part>_audit_report.json`
   (also embedded in the build plan under `"audit"`). A known failure mode can no
   longer ship even if a future generator change reintroduces it.
+- **Position reconstruction (safe subset):** `_hole_positions` now lays out a
+  multi-instance hole callout as a centered row when a spacing can be GROUNDED in
+  extracted data — the callout's `pattern_spacing` or a structured
+  `equal_spacing` relationship keyed by feature_ref. With no such evidence it
+  falls back to the single flagged `POSITION ASSUMED` instance exactly as before;
+  positions are never invented from free-text descriptions. Verified byte-identical
+  on 116-C/117-C/135-A (none carry structured spacing for the affected holes).
+  The broader multi-hole placement for those parts needs the extractor to emit
+  structured pattern geometry (rows/cols, two-axis spacing, bolt-circle radius) —
+  tracked as a schema/prompt follow-up.
+- **Batch mode (scale):** `--batch <dir>` (`pipeline/batch.py`) runs the full
+  pipeline over every drawing / `*_extraction.json` in a folder and writes
+  `batch_summary.csv` (part, status, readiness sub-scores, macro counts, blocking
+  reason) for triage at thousands-of-drawings scale. One bad input never sinks the
+  batch.
+- **Golden snapshot tests:** `tests/test_golden_macros.py` snapshots the full text
+  of every generated file for a frozen fixture (generation is deterministic — no
+  baked-in timestamps/paths). Any unintended change to macro output fails the test;
+  `UPDATE_GOLDEN=1` accepts an intended change for PR review.
 - **Drawing completeness score (Phase 4):** the verification report now prints
   geometry/dimension/consistency/feature sub-scores and an overall *macro
   readiness* percentage (`compute_readiness`). Advisory by default; set

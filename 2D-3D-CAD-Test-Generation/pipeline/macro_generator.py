@@ -195,25 +195,50 @@ def _envelope(model: DrawingData) -> tuple[Optional[float], Optional[float]]:
     return length, width
 
 
+def _effective_spacing(model: DrawingData, h: HoleCallout) -> tuple[float, int]:
+    """Best available (spacing, qty) for a callout, in drawing units.
+
+    Prefer the callout's own ``pattern_spacing``; otherwise fall back to a
+    STRUCTURED ``equal_spacing`` relationship keyed by the callout's feature_ref.
+    Returns ``(0.0, qty)`` when no spacing can be grounded in extracted data — so
+    no positions are ever invented. Free-text descriptions are never parsed.
+    """
+    if h.pattern_spacing and h.pattern_spacing > 0:
+        return h.pattern_spacing, h.qty
+    if h.feature_ref:
+        for s in model.relationships.equal_spacing:
+            if s.feature_ref == h.feature_ref and s.spacing_value > 0:
+                return s.spacing_value, max(h.qty, s.qty)
+    return 0.0, h.qty
+
+
 def _hole_positions(model: DrawingData, h: HoleCallout) -> list[tuple[float, float]]:
     """Instance centers in the DRAWING FRAME (base plate lower-left corner at origin).
 
     Known positions are used as-is — drawings dimension hole centers from the
-    part edges, which is exactly this frame. Unknown positions are centered on
-    the plate envelope (when one was extracted), else at the origin. Linear
-    patterns march along +X from the first instance.
+    part edges, which is exactly this frame. When positions are unknown but a
+    spacing can be GROUNDED in extracted data (the callout's pattern_spacing or a
+    structured equal_spacing relationship), instances are laid out as a centered
+    row about the plate envelope. With no such evidence, a single instance is
+    placed at the envelope center and the macro flags POSITION ASSUMED — positions
+    are never invented from free text.
     """
     length, width = _envelope(model)
     ecx = (length / 2.0) if length else 0.0
     ecy = (width / 2.0) if width else 0.0
-    if h.pattern == PatternKind.LINEAR and h.qty > 1 and h.pattern_spacing > 0:
+    spacing, qty = _effective_spacing(model, h)
+    # A grounded spacing lays out a centered row for linear/unspecified patterns.
+    # Circular patterns lack a bolt-circle radius in the schema, so they are left
+    # to the single-instance fallback rather than guessed.
+    linear_like = h.pattern in (PatternKind.LINEAR, PatternKind.NONE)
+    if linear_like and qty > 1 and spacing > 0:
         if h.position_known:
             x0, y0 = h.x_position, h.y_position
         else:
-            span = (h.qty - 1) * h.pattern_spacing
+            span = (qty - 1) * spacing
             x0, y0 = ecx - span / 2.0, ecy
-        return [(x0 + i * h.pattern_spacing, y0) for i in range(h.qty)]
-    # Single position (or qty>1 with no usable spacing — macro comments flag it).
+        return [(x0 + i * spacing, y0) for i in range(qty)]
+    # Single position (or qty>1 with no grounded spacing — macro comments flag it).
     if h.position_known:
         return [(h.x_position, h.y_position)]
     return [(ecx, ecy)]
