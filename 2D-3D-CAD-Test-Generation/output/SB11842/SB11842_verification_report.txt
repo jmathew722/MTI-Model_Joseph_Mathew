@@ -1,0 +1,34 @@
+VERIFICATION REPORT
+===================
+Part: SB 11842    Units: inch    Standard: unknown    Confidence: 0.78
+Total dimensions extracted: 7
+Hole callouts extracted: 1
+Features identified: 5  (build order: 3)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (0 chain(s) checked)
+Unit consistency: PASS
+View consistency: FAIL
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     78%
+  Macro readiness:        94%
+
+WARNINGS:
+  [WARN]  extraction: SIDE VIEW: No single overall depth/length dimension is called out. Total part depth inferred as 0.88 (flange) + 0.50 (boss extension) = 1.38 inches — verify this interpretation.
+  [WARN]  extraction: HOLE CALLOUT H001: 'DR. & C'BORE AS SHOWN FOR .312 SOC. HD. SCR.' specifies screw size but does NOT state explicit drill diameter or counterbore diameter/depth. Standard values for 5/16 SHCS (clearance drill 0.3438", cbore 0.5625", cbore depth 0.344") have been assumed — a human should confirm.
+  [WARN]  extraction: FRONT VIEW: The 1.50 DIA concentric feature could be a BORE (extrude_cut) rather than a solid BOSS (extrude_boss). Side view dashed lines suggest a through-bore is likely — confirm whether this is a boss or a bore before building.
+  [WARN]  extraction: SIDE VIEW: Lower section shows hatching/lines near the 0.50 dimension that may indicate a threaded region. 'STAMP: SB 11842' appears to be a part number stamp, not a thread callout.
+  [WARN]  extraction: No material, finish, drawing standard, or general tolerance block was readable in either view.
+  [WARN]  extraction: Bolt circle dimension D001 is labeled as a radius (2.125 TYP from center to hole), not a bolt circle diameter. Confirm interpretation.
+  [WARN]  extraction: Could not classify view for SB11842.png; skipped.
+  [WARN]  Feature F005 is not in build_order and will not be built.
+  [WARN]  Feature F003 is not in build_order and will not be built.
+  [WARN]  Hole callout H001 has 4 explicit position(s) but qty=1; using the listed positions.
+  [WARN]  Dimension D003 cites view 'Side', which is not among the identified views.
+
+OVERALL STATUS: READY TO BUILD

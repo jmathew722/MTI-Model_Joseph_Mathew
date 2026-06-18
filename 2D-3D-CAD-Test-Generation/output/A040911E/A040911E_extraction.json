@@ -1,0 +1,399 @@
+{
+  "part_name": "A040911E",
+  "part_number": "A040911E",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front face of the part showing a circular flange with outer diameter, bore diameter, bolt-circle counterbore holes (3x), and overall flange width/height dimensions.",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D009"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003",
+        "F004"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Horizontal and vertical centerlines through part center; 3 bolt-circle holes visible on a bolt circle; inner bore centered on part center."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right) view showing the depth/length of the part, chamfers at both ends, surface finish callouts, and GD&T perpendicularity frame.",
+      "dimensions_shown": [
+        "D007",
+        "D008"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F005"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Vertical centerline implies revolved/cylindrical geometry; hatched regions at top and bottom indicate chamfered ends."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "diameter",
+      "value": 6.498,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.002,
+      "tolerance_type": "unilateral",
+      "applies_to": "outer_diameter",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "+.000 / -.002 tolerance"
+    },
+    {
+      "id": "D002",
+      "type": "diameter",
+      "value": 4.5,
+      "unit": "inch",
+      "tolerance_plus": 0.003,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "unilateral",
+      "applies_to": "bore_diameter",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "A",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "+.003 / -.000 tolerance; datum A"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 1.438,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "bore_depth_or_step_height",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "\u00b1.005 tolerance; vertical dimension inside bore area"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 2.875,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "bolt_circle_radius",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": true,
+      "ambiguity_reason": "Could be bolt-circle radius (BCD=5.750) or half-height of flange face from center to top edge; OD is 6.498 so either reading is geometrically plausible",
+      "possible_values": [
+        2.875
+      ],
+      "resolution_required": false,
+      "notes": "\u00b1.005; likely bolt-circle radius or half-height from center \u2014 human verification required"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 2.49,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "bolt_circle_width_or_partial_width",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": true,
+      "ambiguity_reason": "Could be bolt-circle diameter or a dimension of the flange neck width",
+      "possible_values": [
+        2.49
+      ],
+      "resolution_required": false,
+      "notes": "\u00b1.005; horizontal dimension at bottom of flange \u2014 may be bolt-circle diameter or partial width"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 2.75,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "overall_width",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall width of flange base; no explicit tolerance shown"
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 1.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "part_depth",
+      "feature_ref": "F001",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall depth/length of part from side view"
+    },
+    {
+      "id": "D008",
+      "type": "linear",
+      "value": 0.06,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "chamfer_size",
+      "feature_ref": "F005",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".06 x 45\u00b0 TYP chamfer both ends"
+    },
+    {
+      "id": "D009",
+      "type": "depth",
+      "value": 0.38,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "counterbore_depth",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "C'BORE .38 DP for .250 SOC HD CAP SCR"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "counterbore",
+      "diameter": 0.272,
+      "thru": false,
+      "depth": 0.38,
+      "thread_spec": "",
+      "cbore_diameter": 0.4375,
+      "cbore_depth": 0.38,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 1,
+      "x_position": 0.0,
+      "y_position": 0.0,
+      "position_known": false,
+      "pattern": "none",
+      "pattern_spacing": 0.0,
+      "instance_positions": [],
+      "feature_ref": "F003",
+      "view": "Front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base circular flange disc, OD 6.498 inch, depth 1.500 inch",
+      "related_dimensions": [
+        "D001",
+        "D006",
+        "D007"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D007",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "extrude_cut",
+      "description": "Central through bore, diameter 4.500 inch (datum A), through full depth of flange",
+      "related_dimensions": [
+        "D002",
+        "D003"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1
+    },
+    {
+      "id": "F003",
+      "type": "hole",
+      "description": "3x counterbore holes drilled and counterbored .38 deep for 1/4 socket head cap screws, on bolt circle",
+      "related_dimensions": [
+        "D004",
+        "D005",
+        "D009"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 3
+    },
+    {
+      "id": "F004",
+      "type": "pattern",
+      "description": "Circular pattern of 3 counterbore holes equally spaced 120\u00b0 apart on bolt circle",
+      "related_dimensions": [
+        "D004"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F003",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 3
+    },
+    {
+      "id": "F005",
+      "type": "chamfer",
+      "description": ".06 x 45\u00b0 chamfer, typical both ends of part (bore and OD edges)",
+      "related_dimensions": [
+        "D008"
+      ],
+      "sketch_plane": "side",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    }
+  ],
+  "geometric_tolerances": [
+    {
+      "symbol": "cylindricity",
+      "value": 0.001,
+      "datum": "A"
+    },
+    {
+      "symbol": "perpendicularity",
+      "value": 0.001,
+      "datum": "A"
+    }
+  ],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Front vertical centerline",
+        "feature_ids": [
+          "F003",
+          "F004"
+        ],
+        "description": "3 holes equally spaced at 120\u00b0 \u2014 rotationally symmetric about part axis"
+      }
+    ],
+    "concentric_groups": [
+      {
+        "feature_ids": [
+          "F001",
+          "F002",
+          "F003",
+          "F004"
+        ],
+        "description": "All features share the same central axis (part center)"
+      }
+    ],
+    "equal_spacing": [],
+    "dimension_chains": [],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": [
+      "D006",
+      "D007"
+    ]
+  },
+  "build_order": [
+    "F001",
+    "F002",
+    "F005"
+  ],
+  "warnings": [
+    "D004 (2.875 \u00b1.005): Labeled as distance from part center to top \u2014 likely bolt-circle radius (BCD = 5.750) OR flange half-height. OD is 6.498, so radius ~3.249. A bolt-circle radius of 2.875 would place holes well inside the flange. HUMAN MUST CONFIRM whether 2.875 is the bolt-circle radius.",
+    "D005 (2.490 \u00b1.005): Horizontal dimension at bottom of flange \u2014 may be bolt-circle diameter or flange neck/pilot width. HUMAN MUST CONFIRM.",
+    "H001: Pilot hole diameter for 1/4 SHCS standard clearance is ~0.272 (17/64); cbore diameter for 1/4 SHCS head is 7/16 (0.4375). These standard values were inferred \u2014 drawing does not explicitly call out these sub-dimensions. Confirm with standard chart.",
+    "D003 (1.438 \u00b1.005): The vertical dimension inside bore area \u2014 exact geometric role (step height, bore shoulder depth, or bore length) unclear from single front view. Human verification required.",
+    "Side view shows a hatched hub/shaft region \u2014 no explicit hub OD or hub length dimension is clearly readable. The 1.500 dimension may be the shaft/stem portion length above the flange, not the overall part length. Full side view interpretation requires clarification.",
+    "Multiple surface finish callouts noted: 63 \u00b5in (front view, two locations), 125 \u00b5in and 63 \u00b5in (side view). Not captured in single finish field due to multiple values.",
+    "GD&T: \u2299|A|.001 on front view interpreted as cylindricity 0.001 datum A (OD). \u22a5|A|.001 on side view interpreted as perpendicularity 0.001 datum A (face perpendicular to bore axis).",
+    "Datum A is the 4.500 bore based on the boxed 'A' callout adjacent to that dimension on front view.",
+    "Could not classify view for A040911E.png; skipped."
+  ],
+  "confidence": 0.82
+}

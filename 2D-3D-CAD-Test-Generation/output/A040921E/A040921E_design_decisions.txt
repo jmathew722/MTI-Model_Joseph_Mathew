@@ -1,0 +1,97 @@
+DESIGN DECISION & VERIFICATION REPORT — A040921E
+Generated 2026-06-18 by the automated 2D->3D SolidWorks pipeline.
+==============================================================================
+
+BUILD SUMMARY
+------------------------------------------------------------------------------
+  SolidWorks file:        C:\Users\JOMATHEW\MTI-Model\2D-3D-CAD-Test-Generation\output\A040921E\A040921E.sldprt
+  Features built:         2 (F001, F002)
+  Features skipped:       F004 (chamfer)
+  Features not attempted: F003
+  Extraction confidence:  72%
+  Model validation:       PASSED
+  Solid volume:           1,127,984.8 mm^3
+  Bounding box (mm):      [266.7, 266.7, 76.2]
+
+1. AUTOMATED DESIGN DECISIONS  (90%-confidence defaults — review before production)
+------------------------------------------------------------------------------
+  - Removed dimension chain D004 = D005: components sum to 0.75 but total is 3 inch. The component is a step WITHIN the overall dimension, not a closed loop; kept both as independent dimensions.
+  - Feature F003 (extrude_boss) has no diameter or length+width profile dimension (geometry ambiguous); omitted and left for manual modeling.
+
+2. EXTRACTED DIMENSIONS  (7)
+------------------------------------------------------------------------------
+  ID    Type      Value  Unit  Tol +/-    Applies To           Notes
+  ----  --------  -----  ----  ---------  -------------------  --------------------------------------------------
+  D001  diameter  10.5   inch  +0/-0      outer_diameter       10.50 DIA — outer disk diameter
+  D002  diameter  9.002  inch  +0.002/-0  bore_diameter        +.002/-.000  9.002 DIA — bore diameter with unilat
+  D003  linear    1.062  inch  +0/-0      hub_width            CENT. 1.062 — width of central hub/boss at top of
+  D004  linear    3      inch  +0/-0      length               Overall part length / depth
+  D005  linear    0.75   inch  +0/-0      shoulder_step_depth  .75 shoulder/step dimension from datum face to hub
+  D006  linear    0.09   inch  +0/-0      chamfer_size         .09×45° TYP — typical chamfer size on bore edges,
+  D007  angular   45     inch  +0/-0      chamfer_angle        45° chamfer angle, paired with D006
+
+  Geometric tolerances:
+    - perpendicularity 0.001 (datum A)
+
+  Hole callouts:
+    - H001: thru ø9.002 inch THRU, qty 1
+
+3. FEATURES
+------------------------------------------------------------------------------
+  F001   extrude_boss   BUILT              Base solid cylinder Ø10.50 extruded 3.000 inches (full part 
+  F002   extrude_cut    BUILT              Through bore Ø9.002 (+.002/-.000) concentric with outer cyli
+  F003   extrude_boss   NOT BUILT          Central hub/boss protruding from front face, width 1.062, st
+  F004   chamfer        SKIPPED            .09×45° chamfer, typical — applied to bore entry/exit edges 
+
+4. CONCERNS & ISSUES FOR HUMAN VERIFICATION
+------------------------------------------------------------------------------
+  - Extraction note: The central hub/boss (F003) at the top of the front view is partially cut off by the drawing boundary — its full height above the disk OD cannot be read. The 1.062 dimension is labeled 'CENT.' suggesting it may be the hub/stem diameter or a centered width.
+  - Extraction note: The '.09×45° TYP' chamfer callout appears on the right side of the front view (partially clipped) and is called out in full in the side view. It is applied TYP (typical, all similar edges). Exact count of chamfered edges not fully confirmed.
+  - Extraction note: The side view shows section hatching at both ends of the bore — confirms chamfers at both bore openings.
+  - Extraction note: Datum A is established at the top face of the part (datum label -A- in side view). Perpendicularity ||A|0.001 applies to the OD relative to datum A face.
+  - Extraction note: The asterisk (*) symbol near datum A in the side view may indicate a surface finish or special callout — meaning is ambiguous.
+  - Extraction note: No title block information (part name, number, revision, material, finish, scale) is visible.
+  - Extraction note: The outer diameter 10.50 DIA. has no explicit tolerance — general tolerance block not provided.
+  - Extraction note: F003 hub/boss geometry is ambiguous: top of side view is cropped. The .75 depth and 1.062 width are read but hub height above the disk face is unknown — resolution required.
+  - Extraction note: Units inferred as inches based on dimension magnitudes (9.002, 10.50, 3.000 are consistent with a bearing ring or bushing).
+  - Extraction note: Could not classify view for A040921E.png; skipped.
+  - VERIFY/ADD feature F003 (extrude_boss) manually — ambiguous profile.
+  - Feature F004 (chamfer) was SKIPPED during the build: InsertFeatureChamfer returned None for F004.
+
+==============================================================================
+APPENDIX — full Phase-1 verification report
+==============================================================================
+VERIFICATION REPORT
+===================
+Part: A040921E    Units: inch    Standard: unknown    Confidence: 0.72
+Total dimensions extracted: 7
+Hole callouts extracted: 1
+Features identified: 4  (build order: 3)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (0 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     72%
+  Macro readiness:        93%
+
+WARNINGS:
+  [WARN]  extraction: The central hub/boss (F003) at the top of the front view is partially cut off by the drawing boundary — its full height above the disk OD cannot be read. The 1.062 dimension is labeled 'CENT.' suggesting it may be the hub/stem diameter or a centered width.
+  [WARN]  extraction: The '.09×45° TYP' chamfer callout appears on the right side of the front view (partially clipped) and is called out in full in the side view. It is applied TYP (typical, all similar edges). Exact count of chamfered edges not fully confirmed.
+  [WARN]  extraction: The side view shows section hatching at both ends of the bore — confirms chamfers at both bore openings.
+  [WARN]  extraction: Datum A is established at the top face of the part (datum label -A- in side view). Perpendicularity ||A|0.001 applies to the OD relative to datum A face.
+  [WARN]  extraction: The asterisk (*) symbol near datum A in the side view may indicate a surface finish or special callout — meaning is ambiguous.
+  [WARN]  extraction: No title block information (part name, number, revision, material, finish, scale) is visible.
+  [WARN]  extraction: The outer diameter 10.50 DIA. has no explicit tolerance — general tolerance block not provided.
+  [WARN]  extraction: F003 hub/boss geometry is ambiguous: top of side view is cropped. The .75 depth and 1.062 width are read but hub height above the disk face is unknown — resolution required.
+  [WARN]  extraction: Units inferred as inches based on dimension magnitudes (9.002, 10.50, 3.000 are consistent with a bearing ring or bushing).
+  [WARN]  extraction: Could not classify view for A040921E.png; skipped.
+  [WARN]  Feature F003 is not in build_order and will not be built.
+
+OVERALL STATUS: READY TO BUILD

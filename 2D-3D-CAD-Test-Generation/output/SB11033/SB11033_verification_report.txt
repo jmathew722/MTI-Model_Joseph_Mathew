@@ -1,0 +1,33 @@
+VERIFICATION REPORT
+===================
+Part: SB-11033    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 15
+Hole callouts extracted: 1
+Features identified: 7  (build order: 6)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (1 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        96%
+
+WARNINGS:
+  [WARN]  extraction: D001 and D002 both read as 0.781 +/-.005 — one appears above the front view and one to the right. Both likely control the same pilot boss OD; verify that neither is a different feature.
+  [WARN]  extraction: The central bore is stepped: 0.6860 precision bore in the pilot boss section, opening to 1.000 DIA for 0.375 depth on the flange side. The exact axial extent of the 0.6860 bore (beyond 1.781 total vs. the 0.375 step) needs confirmation from a full-scale drawing.
+  [WARN]  extraction: Overall length chain: 1.781 + 0.190 = 1.971 REF — arithmetic verified.
+  [WARN]  extraction: Bolt hole instance_positions are computed from 1.562/2 = 0.781 radius at 0/90/180/270 degrees, centered on part origin — derived, not individually dimensioned.
+  [WARN]  extraction: No title block found with scale, material, finish, or general tolerance block. Part number SB-11033 read from STAMP callout in section view.
+  [WARN]  extraction: The .015 MAX R. appears to be a maximum allowable corner radius at the bore shoulder undercut, not a standard fillet. The .094 R. is the blend fillet at the flange-to-boss transition.
+  [WARN]  extraction: Part appears to be a machined flanged bushing or adapter. No explicit material or surface finish callout visible.
+  [WARN]  extraction: Could not classify view for SB11033.png; skipped.
+  [WARN]  Feature F004 is not in build_order and will not be built.
+  [WARN]  Hole callout H001 has 4 explicit position(s) but qty=1; using the listed positions.
+
+OVERALL STATUS: READY TO BUILD

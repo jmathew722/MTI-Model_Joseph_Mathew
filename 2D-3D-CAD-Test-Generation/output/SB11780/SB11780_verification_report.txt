@@ -1,0 +1,39 @@
+VERIFICATION REPORT
+===================
+Part: SB11780    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 12
+Hole callouts extracted: 0
+Features identified: 5  (build order: 1)
+Dimensions flagged ambiguous: 2  ->  D002, D004
+Dimensional closure: PASS  (0 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 83%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        90%
+
+WARNINGS:
+  [WARN]  extraction: BUILD ORDER NOTE: F001 is listed as revolve (base solid) but the schema requires the first feature to be extrude_boss. This part is clearly a turned/revolved shaft — the revolve IS the base. A revolve is used as the base feature here per geometry; treat F001 as the base revolve.
+  [WARN]  extraction: DIMENSION CHAIN DOES NOT CLOSE: D004 (76.88) vs D005 (75.125) + D006 (0.88) = 76.005. Gap of ~0.875 is unaccounted for. Likely an additional shoulder width or the 75.125 references a different datum than the overall. Human review recommended.
+  [WARN]  extraction: D002/D009 (2.218): It is unclear whether this is the flange OD (which appears larger than 1.734 in the front view circle) or a separate measurement. The front view shows a large circle dimensioned as 1.734Ø but the 2.218 dimension extends further. Could be the flange OD while 1.734 is the shaft body OD.
+  [WARN]  extraction: D003 (.500 CENT.): Interpreted as a .500 diameter centrally-located feature (possibly a center bore or datum zone) with +.002/-.000 tolerance. Context suggests it is the central journal/datum surface diameter.
+  [WARN]  extraction: 2.4985 Ø REF ±.0015: The tolerance value of ±.0015 is applied to a REF dimension, which is unusual. May be a limit dimension or a reference to an actual measured range. Human review recommended.
+  [WARN]  extraction: CFS note (Clean, Finish, Stone) applies to the shaft surface in the side view — recorded as finish.
+  [WARN]  extraction: MACHINE CENTERS PERMITTED note at right end — center drill holes are allowable at both ends.
+  [WARN]  extraction: Drawing is hand-drawn/sketched; some dimension values may be slightly misread. Confidence set to 0.82.
+  [WARN]  extraction: Units assumed to be inches based on dimension magnitudes and typical shaft proportions. The 76.88 overall length makes this a very long shaft (~6.4 ft) if in inches — may be mm. If mm, all dimensions should be scaled accordingly. Resolution required from title block.
+  [WARN]  extraction: Could not classify view for SB11780.png; skipped.
+  [WARN]  Feature F005 is not in build_order and will not be built.
+  [WARN]  Feature F002 is not in build_order and will not be built.
+  [WARN]  Feature F004 is not in build_order and will not be built.
+  [WARN]  Feature F003 is not in build_order and will not be built.
+  [WARN]  Dimension D002 value is unclear (Could be flange OD or an offset dimension; reads 2.218 horizontally under the flange circle); using best guess 2.218.
+  [WARN]  Dimension D004 value is unclear (Value reads 76.88 but given typical shaft proportions this may be in mm or a very long shaft in inches; likely inches per drawing unit declaration); using best guess 76.88.
+
+OVERALL STATUS: READY TO BUILD

@@ -35,11 +35,17 @@ log = get_logger()
 AUTOSAVE_EVERY = 3  # auto-save the part every N features
 OUTPUT_DIR_DEFAULT = Path(__file__).resolve().parent.parent / "output"
 
-# Plane names as SolidWorks exposes them for SelectByID2.
+# Plane names as SolidWorks exposes them for SelectByID2. Aligned with
+# pipeline.view_ingest.VIEW_PLANES so a feature read in a side/bottom view lands
+# on the right reference plane (second_side/bottom reuse the orthogonal plane —
+# through-cuts are direction-proof).
 _PLANE_NAMES = {
     "front": "Front Plane",
     "top": "Top Plane",
     "right": "Right Plane",
+    "side": "Right Plane",
+    "second_side": "Right Plane",
+    "bottom": "Top Plane",
 }
 
 
@@ -244,9 +250,17 @@ def get_dimensions_for_feature(model: DrawingData, feature: Feature) -> dict[str
             )
         key = (dim.applies_to or dim.type.value).lower().strip()
         if dim.type.value == "angular":
-            resolved[key] = to_radians(dim.value)
+            value = to_radians(dim.value)
         else:
-            resolved[key] = assert_meters(to_meters(dim.value, dim.unit.value), f"{feature.id}.{key}")
+            value = assert_meters(to_meters(dim.value, dim.unit.value), f"{feature.id}.{key}")
+        resolved[key] = value
+        # Also expose the value under its canonical geometric type so the feature
+        # builders find a diameter/radius regardless of its descriptive applies_to
+        # label (e.g. "outer_diameter"/"bore_diameter" -> reachable as "diameter").
+        if dim.type.value == "diameter":
+            resolved.setdefault("diameter", value)
+        elif dim.type.value == "radial":
+            resolved.setdefault("radius", value)
 
     # Also expose the depth explicitly under "depth" for builders that need it.
     if feature.depth_dimension_id:
@@ -334,16 +348,26 @@ def check_rebuild_errors(sw_doc) -> bool:
 
 
 def _solid_body_exists(sw_doc) -> bool:
-    """True if the part currently contains at least one solid body with volume."""
+    """True if the part currently contains at least one solid body.
+
+    Uses ``IPartDoc.GetBodies2(swSolidBody, visibleOnly=False)`` which is reliable
+    under late-bound dispatch. (The mass-property objects — ``CreateMassProperty``/
+    ``CreateMassProperty2`` — are not resolvable without early binding here and
+    raise DISP_E_MEMBERNOTFOUND, so they must not gate the build.)
+    """
     try:
-        mass = sw_doc.Extension.CreateMassProperty()
-        if mass is None:
-            return False
-        mass.UseSystemUnits = True  # meters
-        return float(mass.Volume) > 0.0
+        # swBodyType_e.swSolidBody = 0
+        bodies = sw_doc.GetBodies2(0, False)
     except Exception as e:
-        log.warning("Could not query mass properties: %s", e)
+        log.warning("Could not enumerate solid bodies: %s", e)
         return False
+    if bodies is None:
+        return False
+    try:
+        return len(bodies) > 0
+    except TypeError:
+        # A single body may come back as a bare COM object rather than a tuple.
+        return True
 
 
 # --------------------------------------------------------------------------- #
@@ -428,9 +452,12 @@ def build_extrude_cut(sw_doc, feature: Feature, dims: dict[str, float]):
     through_all = depth is None  # no depth → cut through everything
     if depth:
         assert_meters(depth, f"{feature.id}.cut_depth")
-    # FeatureCut4 with through-all flag when no blind depth is given.
+    # FeatureCut4 with through-all flag when no blind depth is given. Dir=True:
+    # the cut must advance INTO the body, which extrudes on the +normal side of
+    # the sketch plane (with Dir=False the cut runs the opposite way, removes no
+    # material, and FeatureCut4 returns None).
     feat = sw_doc.FeatureManager.FeatureCut4(
-        True, False, False,
+        True, False, True,
         0 if not through_all else 1,  # endCondition: 0=Blind, 1=ThroughAll
         0, depth or 0.0, 0.01,
         False, False, False, False,
@@ -567,7 +594,9 @@ def save_model(sw_doc, name: str, output_dir: Optional[Path] = None) -> str:
     output_dir = Path(output_dir) if output_dir else OUTPUT_DIR_DEFAULT
     output_dir.mkdir(parents=True, exist_ok=True)
     safe = "".join(c for c in (name or "output_part") if c.isalnum() or c in ("_", "-")).strip("_") or "output_part"
-    path = output_dir / f"{safe}.sldprt"
+    # MUST be absolute: SaveAs3 resolves a relative path against SolidWorks' own
+    # working directory (not Python's), silently scattering files elsewhere.
+    path = (output_dir / f"{safe}.sldprt").resolve()
 
     # SaveAs3(Name, Version, Options) → returns error/warning ints via SaveAs.
     errors = 0
@@ -591,16 +620,28 @@ def build_model(
     drawing_data: Union[DrawingData, dict[str, Any]],
     output_dir: Optional[Union[str, Path]] = None,
     template_path: Optional[str] = None,
+    strict: bool = True,
+    skipped_out: Optional[list[tuple[str, str, str]]] = None,
 ):
     """Build the complete 3D model from validated drawing data.
+
+    Args:
+        strict: when True (default) a non-fragile feature failure saves a partial
+            model and aborts the build (fail-fast). When False, ANY feature that
+            fails is demoted to a warning and skipped so the build runs to
+            completion — used by the batch driver, which then documents every
+            skipped feature for human review.
+        skipped_out: if provided, every skipped feature is appended as
+            ``(feature_id, feature_type, reason)`` for the caller's report.
 
     Returns:
         (output_path, sw_doc): path to the saved .sldprt and the live document
         (so the caller can run model validation against it).
 
     Raises:
-        SolidWorksError: on any build failure. The exception carries the path to
-            a saved partial model (``partial_path``) for debugging.
+        SolidWorksError: on any build failure (strict mode), or if the build
+            produced no solid body at all. The exception carries the path to a
+            saved partial model (``partial_path``) for debugging.
     """
     _require_windows()
     model = _coerce(drawing_data)
@@ -649,9 +690,21 @@ def build_model(
                 # Fillets/chamfers are demoted to warnings — do not abort the build.
                 log.warning("  ! %s (%s) failed and was SKIPPED: %s", feature_id, feature.type.value, e)
                 model.warnings.append(f"{feature_id} ({feature.type.value}) skipped: {e}")
+                if skipped_out is not None:
+                    skipped_out.append((feature_id, feature.type.value, str(e)))
                 continue
 
-            # Non-fragile failure: save a partial model and abort with context.
+            if not strict:
+                # Non-strict batch mode: skip any failing feature so the build
+                # completes; the driver records it for human verification.
+                log.warning("  ! %s (%s) FAILED and was SKIPPED (non-strict): %s",
+                            feature_id, feature.type.value, e)
+                model.warnings.append(f"{feature_id} ({feature.type.value}) skipped: {e}")
+                if skipped_out is not None:
+                    skipped_out.append((feature_id, feature.type.value, str(e)))
+                continue
+
+            # Non-fragile failure (strict): save a partial model and abort with context.
             partial_path = None
             try:
                 partial_path = save_model(sw_doc, f"PARTIAL_{feature_id}", output_dir)
@@ -670,6 +723,11 @@ def build_model(
     except Exception as e:
         log.warning("ForceRebuild3 failed: %s", e)
     check_rebuild_errors(sw_doc)
+
+    # A completed run with no solid body is still a failure (e.g. the base boss
+    # was skipped in non-strict mode) — surface it rather than save an empty part.
+    if not _solid_body_exists(sw_doc):
+        raise SolidWorksError("Build produced no solid body (all body-creating features were skipped).")
 
     output_path = save_model(sw_doc, model.part_name or "output_part", output_dir)
     return output_path, sw_doc

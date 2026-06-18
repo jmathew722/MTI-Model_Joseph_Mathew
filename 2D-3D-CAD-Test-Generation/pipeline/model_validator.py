@@ -60,20 +60,37 @@ def validate_model(sw_doc, drawing_data: Union[DrawingData, dict[str, Any]]) -> 
     report: dict[str, Any] = {"passed": [], "failed": [], "warnings": []}
 
     # --- Mass properties: confirms a solid body exists ---
+    # The document-level mass-property objects (CreateMassProperty/2) are not
+    # resolvable under late-bound dispatch (DISP_E_MEMBERNOTFOUND), so read mass
+    # properties from the solid body itself: IBody2.GetMassProperties(density)
+    # returns [comX, comY, comZ, Volume, SurfaceArea, Mass, ...] in SI units.
     try:
-        mass = sw_doc.Extension.CreateMassProperty()
+        bodies = sw_doc.GetBodies2(0, True)  # swBodyType_e.swSolidBody = 0
     except Exception as e:
-        report["failed"].append(f"Could not create mass property object: {e}")
+        report["failed"].append(f"Could not enumerate solid bodies: {e}")
         return report
-    if mass is None:
-        report["failed"].append("CreateMassProperty returned None — no body to measure.")
+    if not bodies:
+        report["failed"].append("CRITICAL: no solid body exists — no body was created.")
         return report
-    mass.UseSystemUnits = False  # report in the document's units; Volume still in SI here
 
+    # Measure the LARGEST solid body so a stray/disjoint body can't mask the part.
+    def _body_volume(b) -> float:
+        try:
+            return float(b.GetMassProperties(1000.0)[3])
+        except Exception:
+            return 0.0
+
+    body = max(bodies, key=_body_volume)
+    if len(bodies) > 1:
+        report["warnings"].append(
+            f"{len(bodies)} disjoint solid bodies present — measuring the largest. "
+            "Verify the part is a single connected body."
+        )
     try:
-        volume_m3 = float(mass.Volume)
+        mp = body.GetMassProperties(1000.0)  # density irrelevant to volume/area
+        volume_m3 = float(mp[3])
     except Exception as e:
-        report["failed"].append(f"Could not read volume: {e}")
+        report["failed"].append(f"Could not read volume from body: {e}")
         return report
 
     if volume_m3 <= 0:
@@ -82,7 +99,7 @@ def validate_model(sw_doc, drawing_data: Union[DrawingData, dict[str, Any]]) -> 
     report["passed"].append("Solid body exists (volume > 0).")
     report["volume_mm3"] = volume_m3 * 1e9
     try:
-        report["surface_area_mm2"] = float(mass.SurfaceArea) * 1e6
+        report["surface_area_mm2"] = float(mp[4]) * 1e6
     except Exception:
         report["warnings"].append("Could not read surface area.")
 
@@ -90,8 +107,7 @@ def validate_model(sw_doc, drawing_data: Union[DrawingData, dict[str, Any]]) -> 
     # IModelDoc2 has no GetModelBoundingBox; read the box from the solid body
     # itself (IBody2::GetBodyBox). [xmin,ymin,zmin,xmax,ymax,zmax] in meters.
     try:
-        bodies = sw_doc.GetBodies2(0, True)  # swBodyType_e.swSolidBody = 0
-        bbox = bodies[0].GetBodyBox() if bodies else None
+        bbox = body.GetBodyBox()
         if bbox is None:
             report["warnings"].append("No solid body found to read a bounding box from.")
     except Exception as e:

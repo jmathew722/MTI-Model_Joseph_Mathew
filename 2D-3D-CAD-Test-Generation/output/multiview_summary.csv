@@ -1,0 +1,2 @@
+source,part,status,macro_readiness,geometry_completeness,dimension_completeness,consistency,feature_confidence,n_macros,n_needs_review,n_skipped,detail
+A040921E,A040921E,BLOCKED,0.83,1.0,1.0,0.5,0.72,0,0,0,Dimensional closure FAILED: D004 = D005 → 0.75 != 3 (allowed slack 0.003 inch).

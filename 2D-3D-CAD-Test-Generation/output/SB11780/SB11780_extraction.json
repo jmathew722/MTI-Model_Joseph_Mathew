@@ -1,0 +1,443 @@
+{
+  "part_name": "SB11780",
+  "part_number": "SB11780",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "CFS (Clean, Finish, and Stone per note)",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "End-on view of the large flange end (left end) showing the circular profile, centerlines, and datum A callout",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003"
+      ],
+      "visible_features": [
+        "F001",
+        "F002"
+      ],
+      "hidden_features": [
+        "F003"
+      ],
+      "centerline_notes": "Crossed centerlines indicate a revolved/cylindrical part. The dashed circle represents the main shaft diameter behind the flange face."
+    },
+    {
+      "view_type": "Side",
+      "description": "Full-length side (right-plane) view showing the entire shaft with left flange, main shaft body, right end journal, chamfers/fillets, and all axial dimensions",
+      "dimensions_shown": [
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D008",
+        "D009",
+        "D010",
+        "D011",
+        "D012"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003",
+        "F004",
+        "F005"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Horizontal centerline through the entire length confirms fully revolved/cylindrical geometry. Break line in the middle indicates a foreshortened view of a long shaft."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "diameter",
+      "value": 1.734,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "flange_outer_diameter",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Large flange OD shown in front view"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 2.218,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "flange_outer_diameter_check",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": true,
+      "ambiguity_reason": "Could be flange OD or an offset dimension; reads 2.218 horizontally under the flange circle",
+      "possible_values": [
+        2.218
+      ],
+      "resolution_required": false,
+      "notes": "Horizontal linear dimension across flange, likely the full OD or flange face width measured differently; may be the flange OD"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 0.5,
+      "unit": "inch",
+      "tolerance_plus": 0.002,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "bilateral",
+      "applies_to": "datum_A_diameter_zone",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".500 CENT. with +.002/-.000 tolerance referencing Datum A \u2014 central journal diameter zone"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 76.88,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "overall_length",
+      "feature_ref": "F001",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": true,
+      "ambiguity_reason": "Value reads 76.88 but given typical shaft proportions this may be in mm or a very long shaft in inches; likely inches per drawing unit declaration",
+      "possible_values": [
+        76.88
+      ],
+      "resolution_required": false,
+      "notes": "Overall length of the part"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 75.125,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "secondary_length",
+      "feature_ref": "F002",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Secondary overall length dimension, slightly shorter than D004 \u2014 likely to a shoulder or step"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 0.88,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "left_flange_width",
+      "feature_ref": "F001",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Axial width of the left flange / boss"
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 1.016,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "shoulder_step_offset",
+      "feature_ref": "F002",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "1.016 TYP \u2014 typical axial spacing of a shoulder or step feature"
+    },
+    {
+      "id": "D008",
+      "type": "diameter",
+      "value": 1.734,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "flange_OD",
+      "feature_ref": "F001",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Flange OD labeled in side view, consistent with D001"
+    },
+    {
+      "id": "D009",
+      "type": "linear",
+      "value": 2.218,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "flange_face_width_or_OD",
+      "feature_ref": "F001",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "2.218 dimension repeated in side view, consistent with D002"
+    },
+    {
+      "id": "D010",
+      "type": "diameter",
+      "value": 2.4985,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0015,
+      "tolerance_type": "bilateral",
+      "applies_to": "right_journal_diameter",
+      "feature_ref": "F003",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": true,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "2.4985 \u00d8 REF \u00b1.0015 \u2014 right end journal/flange diameter, reference dimension"
+    },
+    {
+      "id": "D011",
+      "type": "radial",
+      "value": 0.125,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "fillet_radius_max",
+      "feature_ref": "F004",
+      "view": "Side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".125 R MAX TYP \u2014 maximum fillet/undercut radius at shoulders, typical"
+    },
+    {
+      "id": "D012",
+      "type": "radial",
+      "value": 0.06,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "chamfer_radius_both_ends",
+      "feature_ref": "F005",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".06 C/R BOTH ENDS \u2014 0.06 chamfer or radius on both ends of the shaft"
+    }
+  ],
+  "hole_callouts": [],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base shaft body \u2014 full-length revolved solid about the centerline axis. Outer profile includes the left flange (\u00d81.734, 0.88 wide), main shaft body, and right end journal (\u00d82.4985 REF). Total length 76.88 inches.",
+      "related_dimensions": [
+        "D010",
+        "D004"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D004",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "extrude_boss",
+      "description": "Left end flange boss \u2014 the large circular flange visible in the front view, \u00d81.734, axial width 0.88. Datum A surface established here.",
+      "related_dimensions": [
+        "D001",
+        "D003",
+        "D006"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F003",
+      "type": "extrude_boss",
+      "description": "Right end journal/flange \u2014 \u00d82.4985 REF shoulder at right end of shaft. 'Machine Centers Permitted' note applies here.",
+      "related_dimensions": [
+        "D010"
+      ],
+      "sketch_plane": "side",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F004",
+      "type": "fillet",
+      "description": "Shoulder fillets at all diameter transitions \u2014 .125 R MAX TYP per note in side view.",
+      "related_dimensions": [
+        "D011"
+      ],
+      "sketch_plane": "side",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F005",
+      "type": "chamfer",
+      "description": ".06 C/R BOTH ENDS \u2014 0.06 chamfer or corner radius applied to both ends of the shaft.",
+      "related_dimensions": [
+        "D012"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    }
+  ],
+  "geometric_tolerances": [
+    {
+      "symbol": "perpendicularity",
+      "value": 0.002,
+      "datum": "A"
+    },
+    {
+      "symbol": "perpendicularity",
+      "value": 0.002,
+      "datum": "A"
+    },
+    {
+      "symbol": "parallelism",
+      "value": 0.002,
+      "datum": "B"
+    }
+  ],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Front",
+        "feature_ids": [
+          "F001",
+          "F002",
+          "F003"
+        ],
+        "description": "Part is fully axisymmetric about the horizontal centerline axis"
+      }
+    ],
+    "concentric_groups": [
+      {
+        "feature_ids": [
+          "F001",
+          "F002",
+          "F003"
+        ],
+        "description": "All diameters are coaxial about the shaft centerline"
+      }
+    ],
+    "equal_spacing": [],
+    "dimension_chains": [],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": [
+      "D010"
+    ]
+  },
+  "build_order": [
+    "F001"
+  ],
+  "warnings": [
+    "BUILD ORDER NOTE: F001 is listed as revolve (base solid) but the schema requires the first feature to be extrude_boss. This part is clearly a turned/revolved shaft \u2014 the revolve IS the base. A revolve is used as the base feature here per geometry; treat F001 as the base revolve.",
+    "DIMENSION CHAIN DOES NOT CLOSE: D004 (76.88) vs D005 (75.125) + D006 (0.88) = 76.005. Gap of ~0.875 is unaccounted for. Likely an additional shoulder width or the 75.125 references a different datum than the overall. Human review recommended.",
+    "D002/D009 (2.218): It is unclear whether this is the flange OD (which appears larger than 1.734 in the front view circle) or a separate measurement. The front view shows a large circle dimensioned as 1.734\u00d8 but the 2.218 dimension extends further. Could be the flange OD while 1.734 is the shaft body OD.",
+    "D003 (.500 CENT.): Interpreted as a .500 diameter centrally-located feature (possibly a center bore or datum zone) with +.002/-.000 tolerance. Context suggests it is the central journal/datum surface diameter.",
+    "2.4985 \u00d8 REF \u00b1.0015: The tolerance value of \u00b1.0015 is applied to a REF dimension, which is unusual. May be a limit dimension or a reference to an actual measured range. Human review recommended.",
+    "CFS note (Clean, Finish, Stone) applies to the shaft surface in the side view \u2014 recorded as finish.",
+    "MACHINE CENTERS PERMITTED note at right end \u2014 center drill holes are allowable at both ends.",
+    "Drawing is hand-drawn/sketched; some dimension values may be slightly misread. Confidence set to 0.82.",
+    "Units assumed to be inches based on dimension magnitudes and typical shaft proportions. The 76.88 overall length makes this a very long shaft (~6.4 ft) if in inches \u2014 may be mm. If mm, all dimensions should be scaled accordingly. Resolution required from title block.",
+    "Could not classify view for SB11780.png; skipped."
+  ],
+  "confidence": 0.82
+}

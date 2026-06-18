@@ -1,0 +1,109 @@
+DESIGN DECISION & VERIFICATION REPORT — SB-11033
+Generated 2026-06-18 by the automated 2D->3D SolidWorks pipeline.
+==============================================================================
+
+BUILD SUMMARY
+------------------------------------------------------------------------------
+  SolidWorks file:        C:\Users\JOMATHEW\MTI-Model\2D-3D-CAD-Test-Generation\output\SB11033\SB-11033.sldprt
+  Features built:         3 (F001, F003, F002)
+  Features skipped:       F007 (fillet), F005 (chamfer), F006 (chamfer)
+  Features not attempted: F004
+  Extraction confidence:  82%
+  Model validation:       PASSED
+  Solid volume:           19,403.2 mm^3
+  Bounding box (mm):      [49.2252, 49.2252, 45.2374]
+
+1. AUTOMATED DESIGN DECISIONS  (90%-confidence defaults — review before production)
+------------------------------------------------------------------------------
+  - Circular/angular spacing for H001 (4 instances @ 90 deg) recorded as a NOTE only — not used for linear feasibility or auto-patterning.
+  - Hole pattern H001 (4 holes) recorded as a note; holes are NOT auto-placed (bolt-circle position + circular pattern need manual placement).
+  - Feature F004 (hole): drilled/patterned holes are not auto-placed (bolt-circle position + circular pattern need manual placement); omitted.
+
+2. EXTRACTED DIMENSIONS  (15)
+------------------------------------------------------------------------------
+  ID    Type      Value  Unit  Tol +/-        Applies To                 Notes
+  ----  --------  -----  ----  -------------  -------------------------  --------------------------------------------------
+  D001  diameter  0.781  inch  +0.005/-0.005  pilot_boss_OD              Upper dimension arrow labeled +/-.005 / .781 — pil
+  D002  diameter  0.781  inch  +0.005/-0.005  pilot_boss_OD              Right side dimension +/-.005 / .781 — same pilot b
+  D003  diameter  1.562  inch  +0/-0          bolt_circle_diameter       1.562 DIA. REF. B.C. — bolt circle reference dimen
+  D004  linear    1.971  inch  +0/-0          overall_length             1.971 REF — overall length of part (reference)
+  D005  linear    1.781  inch  +0/-0          pilot_boss_length          1.781 dimension spanning pilot boss in section vie
+  D006  linear    0.375  inch  +0/-0          counterbore_step_length    .375 — step/shoulder length in section
+  D007  linear    0.19   inch  +0/-0          flange_thickness           .190 dimension at top left of section indicating f
+  D008  diameter  1.938  inch  +0/-0          flange_OD                  1.938 DIA. — outer diameter of flange
+  D009  diameter  0.686  inch  +0/-0.001      central_bore_diameter      .6860 DIA. +.0000/-.0010 — precision bore through
+  D010  diameter  1      inch  +0/-0          counterbore_step_diameter  1.000 DIA. — step/counterbore diameter on right si
+  D011  radial    0.015  inch  +0/-0          corner_radius_max          .015 MAX. R. — maximum radius at undercut/corner
+  D012  radial    0.094  inch  +0/-0          fillet_radius              .094 R. — fillet radius at base of pilot boss
+  D013  linear    0.06   inch  +0/-0          chamfer_size               .06 x 45 deg CHAM. — chamfer on right/bore side
+  D014  linear    0.03   inch  +0/-0          chamfer_size               .03 x 45 deg CHAM. — chamfer on left/flange side
+  D015  diameter  0.218  inch  +0/-0          bolt_hole_diameter         .218 DRILL THRU — 4 holes equally spaced
+
+  Geometric tolerances:
+    - radius 0.015
+
+  Hole callouts:
+    - H001: thru ø0.218 inch THRU, qty 1
+
+3. FEATURES
+------------------------------------------------------------------------------
+  F001   extrude_boss   BUILT              Base flange — circular disk OD 1.938, flange thickness 0.190
+  F003   extrude_boss   BUILT              Pilot boss — cylindrical protrusion OD 0.781 +/-.005, length
+  F002   extrude_cut    BUILT              Central bore: precision diameter 0.6860 +.0000/-.0010 throug
+  F004   hole           NOT BUILT          4x 0.218 DRILL THRU holes equally spaced on 1.562 DIA. REF b
+  F005   chamfer        SKIPPED            .06 x 45 deg chamfer on bore/right side edge
+  F006   chamfer        SKIPPED            .03 x 45 deg chamfer on left/flange outer edge
+  F007   fillet         SKIPPED            .094 R. fillet at base of pilot boss; .015 MAX R. at undercu
+
+4. CONCERNS & ISSUES FOR HUMAN VERIFICATION
+------------------------------------------------------------------------------
+  - Extraction note: D001 and D002 both read as 0.781 +/-.005 — one appears above the front view and one to the right. Both likely control the same pilot boss OD; verify that neither is a different feature.
+  - Extraction note: The central bore is stepped: 0.6860 precision bore in the pilot boss section, opening to 1.000 DIA for 0.375 depth on the flange side. The exact axial extent of the 0.6860 bore (beyond 1.781 total vs. the 0.375 step) needs confirmation from a full-scale drawing.
+  - Extraction note: Overall length chain: 1.781 + 0.190 = 1.971 REF — arithmetic verified.
+  - Extraction note: Bolt hole instance_positions are computed from 1.562/2 = 0.781 radius at 0/90/180/270 degrees, centered on part origin — derived, not individually dimensioned.
+  - Extraction note: No title block found with scale, material, finish, or general tolerance block. Part number SB-11033 read from STAMP callout in section view.
+  - Extraction note: The .015 MAX R. appears to be a maximum allowable corner radius at the bore shoulder undercut, not a standard fillet. The .094 R. is the blend fillet at the flange-to-boss transition.
+  - Extraction note: Part appears to be a machined flanged bushing or adapter. No explicit material or surface finish callout visible.
+  - Extraction note: Could not classify view for SB11033.png; skipped.
+  - Feature F003 (boss) was built coaxially from its sketch plane; any axial OFFSET from the base face is not modeled — verify it isn't embedded in the base.
+  - ADD the holes for F004 manually per the drawing callouts.
+  - Feature F007 (fillet) was SKIPPED during the build: FeatureFillet3 returned None for F007 (no edges selected?).
+  - Feature F005 (chamfer) was SKIPPED during the build: InsertFeatureChamfer returned None for F005.
+  - Feature F006 (chamfer) was SKIPPED during the build: InsertFeatureChamfer returned None for F006.
+
+==============================================================================
+APPENDIX — full Phase-1 verification report
+==============================================================================
+VERIFICATION REPORT
+===================
+Part: SB-11033    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 15
+Hole callouts extracted: 1
+Features identified: 7  (build order: 6)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (1 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        96%
+
+WARNINGS:
+  [WARN]  extraction: D001 and D002 both read as 0.781 +/-.005 — one appears above the front view and one to the right. Both likely control the same pilot boss OD; verify that neither is a different feature.
+  [WARN]  extraction: The central bore is stepped: 0.6860 precision bore in the pilot boss section, opening to 1.000 DIA for 0.375 depth on the flange side. The exact axial extent of the 0.6860 bore (beyond 1.781 total vs. the 0.375 step) needs confirmation from a full-scale drawing.
+  [WARN]  extraction: Overall length chain: 1.781 + 0.190 = 1.971 REF — arithmetic verified.
+  [WARN]  extraction: Bolt hole instance_positions are computed from 1.562/2 = 0.781 radius at 0/90/180/270 degrees, centered on part origin — derived, not individually dimensioned.
+  [WARN]  extraction: No title block found with scale, material, finish, or general tolerance block. Part number SB-11033 read from STAMP callout in section view.
+  [WARN]  extraction: The .015 MAX R. appears to be a maximum allowable corner radius at the bore shoulder undercut, not a standard fillet. The .094 R. is the blend fillet at the flange-to-boss transition.
+  [WARN]  extraction: Part appears to be a machined flanged bushing or adapter. No explicit material or surface finish callout visible.
+  [WARN]  extraction: Could not classify view for SB11033.png; skipped.
+  [WARN]  Feature F004 is not in build_order and will not be built.
+  [WARN]  Hole callout H001 has 4 explicit position(s) but qty=1; using the listed positions.
+
+OVERALL STATUS: READY TO BUILD
