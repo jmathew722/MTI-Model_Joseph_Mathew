@@ -295,6 +295,128 @@ def _parse(
             raise ExtractionError(f"Tool input failed validation after repair retry: {e2}") from e2
 
 
+MULTIVIEW_USER_TEXT = (
+    "You are given the SEPARATE orthographic views of ONE part — one image per "
+    "view, labeled above in build order (front, top, side, second side, bottom). "
+    "Build a SINGLE combined extraction by calling the tool:\n"
+    "- The FRONT view defines the base profile; extrude it to the part depth read "
+    "from the TOP or SIDE view. The FIRST build_order feature MUST be an "
+    "extrude_boss with sketch_plane \"front\".\n"
+    "- For EACH feature, set sketch_plane to the view it is seen/dimensioned in, "
+    "using EXACTLY one of these words: \"front\", \"top\", \"side\", "
+    "\"second_side\", \"bottom\".\n"
+    "- A hole or cut visible in several views is the SAME feature — extract it "
+    "ONCE, on the plane where its position is best dimensioned; never double-count.\n"
+    "- Read dimensions, hole callouts, and per-instance positions from whichever "
+    "view shows them; set instance_positions when a view dimensions every hole.\n"
+    "- build_order: base extrude first, then cuts/holes in view order, fillets and "
+    "chamfers last, patterns after their seed.\n"
+    "Extract everything; be honest about uncertainty (confidence, value_unclear, warnings)."
+)
+
+
+def _multiview_cache_key(views: list[tuple[str, str, str]], model: str) -> str:
+    h = hashlib.sha256()
+    h.update(model.encode("utf-8"))
+    for view_type, b64, _ in views:
+        h.update(b"\0")
+        h.update(view_type.encode("utf-8"))
+        h.update(b"\0")
+        h.update(b64.encode("utf-8"))
+    return h.hexdigest()
+
+
+def extract_drawing_data_multiview(
+    views: list[tuple[str, str, str]],
+    model: Optional[str] = None,
+    prep_warnings: Optional[list[str]] = None,
+    cache_dir: Optional[Union[str, Path]] = None,
+    usage_out: Optional[dict[str, int]] = None,
+) -> dict[str, Any]:
+    """Extract one combined part from SEPARATE per-view images.
+
+    Args:
+        views: ordered ``(view_type, image_b64, media_type)`` — one per view,
+            in canonical order (front, top, side, second_side, bottom).
+        Other args mirror :func:`extract_drawing_data`.
+
+    Each view image is labeled with its sketch plane so the model sets every
+    feature's ``sketch_plane`` from the view it came from. Returns a dict
+    conforming to :class:`DrawingData`.
+    """
+    from pipeline.view_ingest import VIEW_PLANES  # local import: avoids any cycle
+
+    model = model or os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL
+    if not views:
+        raise ExtractionError("No view images supplied for multi-view extraction.")
+
+    key = _multiview_cache_key(views, model)
+    cached = _cache_lookup(cache_dir, key)
+    if cached is not None:
+        log.info("Multi-view extraction cache HIT (%s…) — skipping API call.", key[:12])
+        if usage_out is not None:
+            usage_out["cache_hits"] = usage_out.get("cache_hits", 0) + 1
+        return cached
+
+    client = _build_client(SDK_MAX_RETRIES)
+    usage: dict[str, int] = {}
+
+    content: list[dict[str, Any]] = []
+    for view_type, b64, media_type in views:
+        plane = VIEW_PLANES.get(view_type, "Front Plane")
+        label = view_type.upper().replace("_", " ")
+        content.append({"type": "text", "text": f"=== {label} VIEW — sketch on {plane} ==="})
+        content.append(_image_block(b64, media_type, cache=True))
+    content.append({"type": "text", "text": MULTIVIEW_USER_TEXT})
+
+    log.info("Multi-view extraction: %d views, model %s", len(views), model)
+    messages: list[dict[str, Any]] = [{"role": "user", "content": content}]
+    data, response, tool_use = _parse(client, model, messages, usage)
+    log.info(
+        "Multi-view extraction: %d dimensions, %d features, confidence=%.2f",
+        len(data.dimensions), len(data.features), data.confidence,
+    )
+
+    threshold = _confidence_threshold()
+    has_focus = bool(data.warnings) or any(
+        d.value_unclear or d.resolution_required for d in data.dimensions
+    )
+    if data.confidence < threshold and has_focus:
+        log.warning("Confidence %.2f < %.2f — re-querying the views.", data.confidence, threshold)
+        unclear = "; ".join(data.warnings) or "any dimensions you were unsure about"
+        requery = list(content)
+        requery.append({
+            "type": "text",
+            "text": (
+                f"Re-examine the views, paying special attention to: {unclear}. "
+                "Produce a corrected, complete combined extraction by calling the tool again."
+            ),
+        })
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({"role": "user", "content": requery})
+        try:
+            data, _, _ = _parse(client, model, messages, usage)
+        except ExtractionError as e:
+            log.warning("Re-query failed (%s); keeping initial extraction.", e)
+            data.warnings.append(f"Low-confidence re-query failed: {e}")
+
+    if prep_warnings:
+        data.warnings.extend(prep_warnings)
+    if usage:
+        log.info(
+            "Token usage: %d calls, input=%d (cache read=%d), output=%d",
+            usage.get("calls", 0), usage.get("input_tokens", 0),
+            usage.get("cache_read_input_tokens", 0), usage.get("output_tokens", 0),
+        )
+    if usage_out is not None:
+        for k, v in usage.items():
+            usage_out[k] = usage_out.get(k, 0) + v
+
+    result = data.model_dump(mode="json")
+    _cache_store(cache_dir, key, result)
+    return result
+
+
 def extract_drawing_data(
     image_b64: str,
     media_type: str = "image/png",

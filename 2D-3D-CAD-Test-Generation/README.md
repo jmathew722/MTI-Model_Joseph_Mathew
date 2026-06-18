@@ -52,6 +52,9 @@ python main.py --from-json debug_extraction.json --output ./output
 # Batch a whole folder (drawings are extracted; *_extraction.json are free):
 python main.py --batch ./DrawingPDFs --output ./output   # writes output/batch_summary.csv
 
+# Multi-view: each part is a folder of SEPARATE per-view images, built per plane:
+python main.py --views-folder ./Drawings --output ./output  # writes output/multiview_summary.csv
+
 # Direct COM build (Windows + SolidWorks 2024):
 python main.py --drawing path/to/drawing.pdf --engine com
 
@@ -59,7 +62,37 @@ python main.py --drawing path/to/drawing.pdf --engine com
 pytest tests/ -v
 ```
 
-Flags: `--drawing`, `--from-json`, or `--batch` (one required), `--output`,
+## Multi-view input (separate image per view)
+
+When each orthographic view is a **separate image**, use `--views-folder`. Each
+part is a subfolder of view images; every view is sketched on its own SolidWorks
+plane and the part is built from them:
+
+```
+Drawings/
+├── 115-C/                     ← one part = one folder
+│   ├── 01_front.png           front      → Front Plane (base profile + depth)
+│   ├── 02_top.png             top        → Top Plane
+│   ├── 03_side.png            side/right → Right Plane
+│   ├── 04_second_side.png     left       → Right Plane (opposite face)   [optional]
+│   └── 05_bottom.png          bottom     → Top Plane (opposite face)     [optional]
+├── 116-C/
+│   └── ...
+```
+
+- **Views are always processed in this exact order:** front, top, side,
+  second_side, bottom. Only the **front** view is required (it defines the base
+  profile, extruded to the depth read from the top/side view); the rest are optional.
+- **Naming is flexible** — the view is detected from keywords in the filename
+  (`front`/`top`/`side`/`right`/`left`/`second`/`bottom`, or a leading `01`–`05`).
+- All of a part's views go to Claude in **one** call, labeled by view, so each
+  feature's sketch plane comes from the view it was read in. A feature visible in
+  several views is extracted once (no double-counting).
+- If the folder holds images directly (no subfolders), it's treated as one part.
+- Output per part is the usual `output/<Part>/` package (extraction, verification,
+  per-plane `macros/` incl. `RUN_ALL.vba`), plus `output/multiview_summary.csv`.
+
+Flags: `--drawing`, `--from-json`, `--batch`, or `--views-folder` (one required), `--output`,
 `--page N`, `--debug`, `--engine vba|com` (default `vba`), `--validate-only`.
 
 ## Output package (engine `vba`)

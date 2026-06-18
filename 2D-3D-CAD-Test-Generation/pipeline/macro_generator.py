@@ -69,7 +69,21 @@ UNIT_SYSTEM_ENUM = {  # document unit system, by drawing units
     Units.CM: "swUnitSystem_e.swUnitSystem_MMGS",
     Units.INCH: "swUnitSystem_e.swUnitSystem_IPS",
 }
-PLANE_NAMES = {"front": "Front Plane", "top": "Top Plane", "right": "Right Plane"}
+# Sketch-plane names keyed by a feature's sketch_plane / source-view label.
+# side & second_side build on the Right Plane; bottom on the Top Plane (opposite
+# face) — through-cuts are direction-proof, so the cut reaches material either way.
+PLANE_NAMES = {
+    "front": "Front Plane",
+    "top": "Top Plane",
+    "right": "Right Plane",
+    "side": "Right Plane",
+    "second_side": "Right Plane",
+    "second side": "Right Plane",
+    "left": "Right Plane",
+    "bottom": "Top Plane",
+    "back": "Front Plane",
+    "rear": "Front Plane",
+}
 # 1-based position of each standard plane in a default template's feature tree
 # (used as a name-independent fallback when selecting by name fails).
 PLANE_INDEX = {"Front Plane": 1, "Top Plane": 2, "Right Plane": 3}

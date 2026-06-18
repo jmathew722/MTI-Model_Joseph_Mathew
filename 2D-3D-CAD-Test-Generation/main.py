@@ -163,6 +163,88 @@ def _run_batch(args) -> int:
     return 0 if n_ready == len(rows) else 8
 
 
+def _extract_part_views(part, page: int, cache_dir, usage: dict) -> dict:
+    """Prepare each view image and run one combined multi-view extraction."""
+    from utils.image_prep import prepare_image
+    from pipeline.extractor import extract_drawing_data_multiview
+
+    views = []
+    for view_type, path in part.ordered_views:
+        prepared = prepare_image(str(path), page=page, return_details=True)
+        views.append((view_type, prepared.base64, prepared.media_type))
+    data = extract_drawing_data_multiview(
+        views, cache_dir=cache_dir, usage_out=usage, prep_warnings=part.warnings
+    )
+    # Stamp the part number from the folder name when the model didn't read one.
+    if not data.get("part_number") and not data.get("part_name"):
+        data["part_number"] = part.name
+    return data
+
+
+def _run_views_folder(args) -> int:
+    """Multi-view mode: each part is a folder of per-view images, built per plane."""
+    import os as _os
+
+    from rich.table import Table
+
+    from pipeline.batch import process_drawing_data, write_batch_csv
+    from pipeline.extractor import DEFAULT_MODEL
+    from pipeline.usage_log import record_run
+    from pipeline.view_ingest import VIEW_ORDER, discover_parts
+
+    folder = Path(args.views_folder)
+    if not folder.is_dir():
+        console.print(f"[red]--views-folder path is not a directory:[/red] {folder}")
+        return 2
+
+    parts = discover_parts(folder)
+    if not parts:
+        console.print(f"[yellow]No part folders or images found in[/yellow] {folder}")
+        return 0
+
+    output_dir = Path(args.output)
+    cache_dir = _extract_cache_dir(args)
+    model = _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL
+    console.print(
+        f"Multi-view build: {len(parts)} part(s); views processed in order "
+        f"{', '.join(VIEW_ORDER)}."
+    )
+
+    rows = []
+    for part in parts:
+        present = ", ".join(v for v, _ in part.ordered_views) or "none"
+        console.print(f"[1/2] {part.name}: extracting views ({present})...")
+        for w in part.warnings:
+            console.print(f"  [yellow]warning:[/yellow] {w}")
+        usage: dict = {}
+        try:
+            data = _extract_part_views(part, args.page, cache_dir, usage)
+        except Exception as e:
+            console.print(f"  [red]Extraction failed:[/red] {type(e).__name__}: {e}")
+            from pipeline.batch import BatchRow
+
+            rows.append(BatchRow(part.name, part.name, "ERROR", 0, 0, 0, 0, 0, 0, 0, 0,
+                                 f"{type(e).__name__}: {e}"[:300]))
+            continue
+        record_run(output_dir, data.get("part_number") or part.name, model, usage)
+        console.print("[2/2] verifying + generating per-plane macros...")
+        rows.append(process_drawing_data(data, part.name, output_dir))
+
+    table = Table(title=f"Multi-view summary ({len(rows)} part(s))")
+    for col in ("Part", "Status", "Readiness", "Macros", "Review", "Skipped", "Detail"):
+        table.add_column(col, overflow="fold")
+    status_color = {"READY": "green", "BLOCKED": "red", "ERROR": "yellow"}
+    for r in rows:
+        color = status_color.get(r.status, "white")
+        table.add_row(r.part, f"[{color}]{r.status}[/{color}]", f"{r.macro_readiness:.0%}",
+                      str(r.n_macros), str(r.n_needs_review), str(r.n_skipped), r.detail[:60])
+    console.print(table)
+    csv_path = write_batch_csv(rows, output_dir, name="multiview_summary.csv")
+    n_ready = sum(1 for r in rows if r.status == "READY")
+    console.print(f"  Summary CSV: {csv_path}  ({n_ready}/{len(rows)} READY)")
+    return 0 if n_ready == len(rows) else 8
+
+
 def main() -> int:
     _force_utf8_console()
     parser = argparse.ArgumentParser(
@@ -177,6 +259,11 @@ def main() -> int:
     src.add_argument(
         "--batch",
         help="Process every drawing / *_extraction.json in a directory and write batch_summary.csv.",
+    )
+    src.add_argument(
+        "--views-folder",
+        help="Multi-view mode: a folder of parts, each a subfolder of SEPARATE per-view "
+        "images (front/top/side/second_side/bottom). Each view is built on its own plane.",
     )
     parser.add_argument("--output", default="./output", help="Output directory.")
     parser.add_argument("--page", type=int, default=1, help="Page to use for multi-page PDFs (default 1).")
@@ -205,6 +292,9 @@ def main() -> int:
     # --- Batch mode: process a whole directory and write a triage CSV ---
     if args.batch:
         return _run_batch(args)
+
+    if args.views_folder:
+        return _run_views_folder(args)
 
     # --- [1-2/4] Source the extraction ---
     if args.from_json:

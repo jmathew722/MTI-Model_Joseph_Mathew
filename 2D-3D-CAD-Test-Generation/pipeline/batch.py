@@ -139,12 +139,20 @@ def run_batch(
             rows.append(BatchRow(path.name, path.stem, "ERROR", 0, 0, 0, 0, 0,
                                  0, 0, 0, f"{type(e).__name__}: {e}"[:300]))
 
-    csv_path = output_dir / "batch_summary.csv"
+    csv_path = write_batch_csv(rows, output_dir)
+    log.info("batch: wrote %s (%d rows)", csv_path, len(rows))
+    return rows, csv_path
+
+
+def write_batch_csv(rows: list[BatchRow], output_dir: Path, name: str = "batch_summary.csv") -> Path:
+    """Write a list of BatchRow to ``<output_dir>/<name>`` and return the path."""
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = output_dir / name
+    fields = list(asdict(BatchRow("", "", "", 0, 0, 0, 0, 0, 0, 0, 0, "")).keys())
     with csv_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=[fld for fld in asdict(BatchRow(
-            "", "", "", 0, 0, 0, 0, 0, 0, 0, 0, "")).keys()])
+        writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         for row in rows:
             writer.writerow(asdict(row))
-    log.info("batch: wrote %s (%d rows)", csv_path, len(rows))
-    return rows, csv_path
+    return csv_path
