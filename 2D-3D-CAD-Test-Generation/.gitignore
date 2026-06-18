@@ -19,6 +19,11 @@ debug_extraction.json
 .extraction_cache/
 **/.extraction_cache/
 
+# Token & cost ledger (run artifacts)
+token_usage_log.txt
+token_usage_log.jsonl
+**/token_usage_log.*
+
 # OS
 .DS_Store
 Thumbs.db

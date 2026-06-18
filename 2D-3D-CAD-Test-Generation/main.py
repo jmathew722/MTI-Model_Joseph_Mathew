@@ -55,15 +55,29 @@ def _prepare_and_extract(args) -> dict | None:
     console.print("[2/4] Extracting drawing data with Claude Vision...")
     from pipeline.extractor import ExtractionError, extract_drawing_data
 
+    import os as _os
+    from pipeline.extractor import DEFAULT_MODEL
+
     usage: dict[str, int] = {}
     try:
-        return extract_drawing_data(
+        data = extract_drawing_data(
             prepared.base64,
             media_type=prepared.media_type,
             prep_warnings=prepared.warnings,
             cache_dir=_extract_cache_dir(args),
             usage_out=usage,
         )
+        # Record tokens + cost for this API run into the output-root ledger.
+        from pipeline.usage_log import record_run
+
+        model = _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL
+        part = data.get("part_number") or data.get("part_name") or "part"
+        ledger = record_run(Path(args.output), part, model, usage)
+        console.print(
+            f"  Tokens: in={usage.get('input_tokens', 0)} out={usage.get('output_tokens', 0)} "
+            f"cache_read={usage.get('cache_read_input_tokens', 0)} -> ledger {ledger}"
+        )
+        return data
     except EnvironmentError as e:
         console.print(f"[red]Extraction failed (configuration):[/red] {e}")
     except ExtractionError as e:
