@@ -1,0 +1,423 @@
+{
+  "part_name": "",
+  "part_number": "A001591E",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front face of the flat plate showing overall width, height, hole bolt-circle pattern, corner radii, and edge margins",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D008"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "8 hole crosshairs visible \u2014 4 corner holes and 4 mid-edge holes arranged on a 7.500 x 6.500 bolt pattern rectangle. Center marks indicate thru-holes."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right-plane) view showing the part thickness (12 GA = 0.105 in) and confirming the hole callout",
+      "dimensions_shown": [
+        "D009"
+      ],
+      "visible_features": [
+        "F001"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Thin plate profile; thickness confirmed as 12 GA (.105 in)."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 8.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "width",
+      "feature_ref": "F001",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall outer width of plate"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 7.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "height",
+      "feature_ref": "F001",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall outer height of plate"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 7.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "bolt_pattern_width",
+      "feature_ref": "F002",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Horizontal bolt-pattern spacing center-to-center"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 3.75,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "bolt_pattern_half_width",
+      "feature_ref": "F002",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Half of horizontal bolt-pattern"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 6.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "bolt_pattern_height",
+      "feature_ref": "F002",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical bolt-pattern spacing center-to-center"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 3.25,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "bolt_pattern_half_height",
+      "feature_ref": "F002",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Half of vertical bolt-pattern"
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 0.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "edge_margin",
+      "feature_ref": "F002",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Edge margin from plate edge to hole center"
+    },
+    {
+      "id": "D008",
+      "type": "radial",
+      "value": 0.12,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "corner_radius",
+      "feature_ref": "F003",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".12 R. TYP \u2014 typical corner radius on all four corners"
+    },
+    {
+      "id": "D009",
+      "type": "linear",
+      "value": 0.105,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "thickness",
+      "feature_ref": "F001",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "12 GA (.105) sheet metal thickness"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "thru",
+      "diameter": 0.218,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 8,
+      "x_position": 0.25,
+      "y_position": 0.25,
+      "position_known": true,
+      "pattern": "linear",
+      "pattern_spacing": 0.0,
+      "instance_positions": [
+        [
+          0.25,
+          0.25
+        ],
+        [
+          4.0,
+          0.25
+        ],
+        [
+          7.75,
+          0.25
+        ],
+        [
+          0.25,
+          3.5
+        ],
+        [
+          7.75,
+          3.5
+        ],
+        [
+          0.25,
+          6.75
+        ],
+        [
+          4.0,
+          6.75
+        ],
+        [
+          7.75,
+          6.75
+        ]
+      ],
+      "feature_ref": "F002",
+      "view": "front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flat plate 8.00 x 7.00 in, extruded to 12 GA (0.105 in) thickness",
+      "related_dimensions": [
+        "D001",
+        "D002",
+        "D009"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D009",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": "8x .218 dia thru holes on 7.500 x 6.500 bolt pattern \u2014 4 corners plus 4 mid-edge",
+      "related_dimensions": [
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 0.25,
+      "offset_y": 0.25,
+      "position_known": true,
+      "quantity": 8
+    },
+    {
+      "id": "F003",
+      "type": "fillet",
+      "description": ".12 R. TYP corner radii on all four corners of base plate profile",
+      "related_dimensions": [
+        "D008"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 4
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Vertical center plane X=4.00 in from left edge",
+        "feature_ids": [
+          "F002"
+        ],
+        "description": "Hole pattern symmetric left-to-right about vertical centerline"
+      },
+      {
+        "plane": "Horizontal center plane Y=3.50 in from bottom edge",
+        "feature_ids": [
+          "F002"
+        ],
+        "description": "Hole pattern symmetric top-to-bottom about horizontal centerline"
+      }
+    ],
+    "concentric_groups": [],
+    "equal_spacing": [
+      {
+        "feature_ref": "H001",
+        "qty": 3,
+        "spacing_value": 3.75,
+        "computed_from": "7.500 horizontal span / 2 gaps = 3.750 per gap"
+      },
+      {
+        "feature_ref": "H001",
+        "qty": 3,
+        "spacing_value": 3.25,
+        "computed_from": "6.500 vertical span / 2 gaps = 3.250 per gap"
+      }
+    ],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D001",
+        "component_dimension_ids": [
+          "D007",
+          "D003",
+          "D007"
+        ],
+        "description": "Overall width 8.00 = left margin 0.25 + bolt-pattern width 7.50 + right margin 0.25"
+      },
+      {
+        "total_dimension_id": "D002",
+        "component_dimension_ids": [
+          "D007",
+          "D005",
+          "D007"
+        ],
+        "description": "Overall height 7.00 = bottom margin 0.25 + bolt-pattern height 6.50 + top margin 0.25"
+      },
+      {
+        "total_dimension_id": "D003",
+        "component_dimension_ids": [
+          "D004",
+          "D004"
+        ],
+        "description": "Full bolt-pattern width 7.500 = 2x half-width 3.750"
+      },
+      {
+        "total_dimension_id": "D005",
+        "component_dimension_ids": [
+          "D006",
+          "D006"
+        ],
+        "description": "Full bolt-pattern height 6.500 = 2x half-height 3.250"
+      }
+    ],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": []
+  },
+  "build_order": [
+    "F001",
+    "F002",
+    "F003"
+  ],
+  "warnings": [
+    "Title block partially cut off \u2014 part name, number, revision, material, and finish are not legible. McMaster-Carr part reference '#1117A11 OR EQUIV' is noted in the upper-right header, suggesting this is a purchased stock plate.",
+    "The 8 holes comprise 4 corner positions and 4 mid-edge positions (centered on each side). Mid-edge centering inferred from front-view center marks; verify that mid-edge holes are truly centered.",
+    "The 0.25 in edge margin is explicitly shown on left and bottom edges only; by symmetry and confirmed by dimension chains it applies to all four edges.",
+    "Section references '1/1', '2/2 7.00 IN.', '3/2 6.00 IN.' appear in the legend below the front view but the corresponding section-cut detail views were not provided. The 7.00 IN. and 6.00 IN. annotations may refer to alternate bolt-pattern dimensions or section extents not captured here.",
+    "12 GA (.105 in) nominal thickness; actual tolerance follows applicable sheet metal standard (e.g. ASTM A480).",
+    "Could not classify view for A001591E.png; skipped."
+  ],
+  "confidence": 0.82
+}

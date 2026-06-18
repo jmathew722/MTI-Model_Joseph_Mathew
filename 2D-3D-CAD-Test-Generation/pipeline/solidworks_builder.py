@@ -254,6 +254,14 @@ def get_dimensions_for_feature(model: DrawingData, feature: Feature) -> dict[str
         else:
             value = assert_meters(to_meters(dim.value, dim.unit.value), f"{feature.id}.{key}")
         resolved[key] = value
+        # Also expose the value under its CANONICAL applies_to token so the feature
+        # builders find width/length/height/diameter regardless of the descriptive
+        # label (e.g. "overall_width"->"width", "inside_height"->"height"). This
+        # mirrors the VBA generator's _dims_map and fixes empty-body builds where
+        # the base profile was labeled "overall_*"/"inside_*".
+        canon = getattr(dim, "canonical_applies_to", "") or ""
+        if canon:
+            resolved.setdefault(canon, value)
         # Also expose the value under its canonical geometric type so the feature
         # builders find a diameter/radius regardless of its descriptive applies_to
         # label (e.g. "outer_diameter"/"bore_diameter" -> reachable as "diameter").
@@ -273,6 +281,26 @@ def get_dimensions_for_feature(model: DrawingData, feature: Feature) -> dict[str
                 ),
             )
     return resolved
+
+
+def _rect_sides(dims: dict[str, float]) -> tuple[Optional[float], Optional[float]]:
+    """Pick two distinct in-plane rectangle sides from the resolved dims.
+
+    Prefers length/width/height (the in-plane envelope) over the extrude axis
+    (depth/thickness). Returns the two largest distinct values; falls back to a
+    square when only one in-plane size is known, or (None, None) when none is.
+    """
+    seen: list[float] = []
+    for k in ("length", "width", "height"):
+        v = dims.get(k)
+        if v and v > 0 and v not in seen:
+            seen.append(v)
+    if len(seen) >= 2:
+        seen.sort(reverse=True)
+        return seen[0], seen[1]
+    if len(seen) == 1:
+        return seen[0], seen[0]
+    return None, None
 
 
 def _select_plane(sw_doc, sketch_plane: Optional[str]) -> None:
@@ -381,27 +409,28 @@ def build_extrude_boss(sw_doc, feature: Feature, dims: dict[str, float]):
         raise SolidWorksError("Failed to enter sketch mode for extrude_boss.")
 
     diameter = dims.get("diameter") or dims.get("hole_diameter")
-    length = dims.get("length") or dims.get("width")
-    width = dims.get("width") or dims.get("length")
+    side_u, side_v = _rect_sides(dims)
 
     if diameter:
         r = diameter / 2.0
         # Circle centered at origin.
         if sw_doc.SketchManager.CreateCircleByRadius(0, 0, 0, r) is None:
             raise SolidWorksError("CreateCircleByRadius returned None for extrude_boss.")
-    elif length and width:
-        # Center rectangle around the origin.
-        hl, hw = length / 2.0, width / 2.0
+    elif side_u and side_v:
+        # Center rectangle around the origin (two distinct in-plane sides).
+        hl, hw = side_u / 2.0, side_v / 2.0
         if sw_doc.SketchManager.CreateCenterRectangle(0, 0, 0, hl, hw, 0) is None:
             raise SolidWorksError("CreateCenterRectangle returned None for extrude_boss.")
     else:
         raise SolidWorksError(
-            f"extrude_boss {feature.id} needs either a diameter or length+width; got {dims}."
+            f"extrude_boss {feature.id} needs either a diameter or two in-plane sides; got {dims}."
         )
     _origin_relation_for_rectangle(sw_doc)
     _verify_sketch_fully_defined(sw_doc)
 
-    depth = dims.get("depth") or dims.get("height") or dims.get("thickness")
+    # Prefer the explicit extrude axis (depth/thickness) over height, which is
+    # usually an in-plane rectangle side rather than the extrude distance.
+    depth = dims.get("depth") or dims.get("thickness") or dims.get("height")
     if not depth:
         raise SolidWorksError(f"extrude_boss {feature.id} has no depth/height dimension.")
     assert_meters(depth, f"{feature.id}.extrude_depth")
@@ -435,16 +464,15 @@ def build_extrude_cut(sw_doc, feature: Feature, dims: dict[str, float]):
         raise SolidWorksError("Failed to enter sketch mode for extrude_cut.")
 
     diameter = dims.get("diameter") or dims.get("hole_diameter")
-    length = dims.get("length")
-    width = dims.get("width")
+    side_u, side_v = _rect_sides(dims)
     if diameter:
         if sw_doc.SketchManager.CreateCircleByRadius(0, 0, 0, diameter / 2.0) is None:
             raise SolidWorksError("CreateCircleByRadius returned None for extrude_cut.")
-    elif length and width:
-        if sw_doc.SketchManager.CreateCenterRectangle(0, 0, 0, length / 2.0, width / 2.0, 0) is None:
+    elif side_u and side_v:
+        if sw_doc.SketchManager.CreateCenterRectangle(0, 0, 0, side_u / 2.0, side_v / 2.0, 0) is None:
             raise SolidWorksError("CreateCenterRectangle returned None for extrude_cut.")
     else:
-        raise SolidWorksError(f"extrude_cut {feature.id} needs diameter or length+width; got {dims}.")
+        raise SolidWorksError(f"extrude_cut {feature.id} needs diameter or two in-plane sides; got {dims}.")
     _verify_sketch_fully_defined(sw_doc)
     sw_doc.SketchManager.InsertSketch(True)
 

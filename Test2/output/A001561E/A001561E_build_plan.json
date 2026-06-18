@@ -1,0 +1,85 @@
+{
+  "part": "A001561E",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_flat_sheet_metal_panel_11_00_in_wid.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flat sheet-metal panel: 11.00 in wide x 6.50 in tall x 0.105 in thick (12 GA)",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 11.0,
+        "width": 11.0,
+        "depth": 10.0
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing."
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F003_Semi_circular_cutout_on_the_bottom_edge_.vba",
+      "feature_id": "F003",
+      "type": "extrude_cut",
+      "description": "Semi-circular cutout on the bottom edge of the panel, centered on panel width; diameter 3.062 in",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 3.062
+      },
+      "notes": "Position read from drawing."
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F002_218_in_diameter_through_holes_7_total_ar.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": ".218 in diameter through holes \u2014 7 total arranged in perimeter pattern on panel face",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.218,
+        "qty": 7.0
+      },
+      "notes": "Hole positions read from drawing."
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection."
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

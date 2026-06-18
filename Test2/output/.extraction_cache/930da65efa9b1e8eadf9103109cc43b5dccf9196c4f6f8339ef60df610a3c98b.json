@@ -1,0 +1,460 @@
+{
+  "part_name": "",
+  "part_number": "",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "\u00b1.005",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front view showing the flat plate profile with a notch/slot cut at upper-left and six hole locations (three per vertical column, left and right sides)",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D008",
+        "D009",
+        "D012"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003",
+        "F004"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Six small circle symbols with centerlines indicate the six through holes (3 left column, 3 right column). Centerlines also indicate the notch/slot feature symmetry."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right) view showing the part thickness as 12 GA (.105) sheet metal. Two hole symbols visible indicating hole depth (thru). Overall height dimension 6.25 in also noted.",
+      "dimensions_shown": [
+        "D010",
+        "D011"
+      ],
+      "visible_features": [
+        "F001",
+        "F003"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Two hole centerlines visible confirming thru holes in this view."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 11.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "overall_width",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall width of part"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 1.56,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "notch_left_offset",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Horizontal offset from left edge to left side of notch"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 1.62,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "notch_width",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Width of the notch/slot cut"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 1.88,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "notch_depth",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Depth (vertical) of the notch/slot cut from top edge"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 5.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_vertical_span",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical distance between top and bottom hole rows 5.500 plus-minus .005"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 2.75,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_vertical_middle_spacing",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical distance from middle hole row to bottom hole row 2.750 plus-minus .005"
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 0.375,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_bottom_margin",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical distance from bottom edge to bottom hole row"
+    },
+    {
+      "id": "D008",
+      "type": "linear",
+      "value": 0.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "left_edge_setback",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Horizontal setback of inner face from outer left edge"
+    },
+    {
+      "id": "D009",
+      "type": "linear",
+      "value": 10.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_column_span",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Horizontal distance between left and right hole columns 10.500 plus-minus .005"
+    },
+    {
+      "id": "D010",
+      "type": "linear",
+      "value": 6.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "height",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall height of part"
+    },
+    {
+      "id": "D011",
+      "type": "linear",
+      "value": 0.105,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "thickness",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "12 GA sheet metal thickness = .105 inch"
+    },
+    {
+      "id": "D012",
+      "type": "radial",
+      "value": 0.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "fillet_radius",
+      "feature_ref": "F004",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".25 R TYP - typical fillet radius on notch corners"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "thru",
+      "diameter": 0.218,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 6,
+      "x_position": 0.25,
+      "y_position": 0.375,
+      "position_known": true,
+      "pattern": "linear",
+      "pattern_spacing": 0.0,
+      "instance_positions": [
+        [
+          0.25,
+          0.375
+        ],
+        [
+          0.25,
+          3.125
+        ],
+        [
+          0.25,
+          5.875
+        ],
+        [
+          10.75,
+          0.375
+        ],
+        [
+          10.75,
+          3.125
+        ],
+        [
+          10.75,
+          5.875
+        ]
+      ],
+      "feature_ref": "F003",
+      "view": "Front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flat plate: 11.00 wide x 6.25 tall x 0.105 thick (12 GA sheet metal)",
+      "related_dimensions": [
+        "D001",
+        "D010",
+        "D011"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D011",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "extrude_cut",
+      "description": "Rectangular notch/slot cut from top edge, offset 1.56 from left, 1.62 wide, 1.88 deep with .25R typical fillets",
+      "related_dimensions": [
+        "D002",
+        "D003",
+        "D004"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 1.56,
+      "offset_y": 4.36,
+      "position_known": true,
+      "quantity": 1
+    },
+    {
+      "id": "F003",
+      "type": "hole",
+      "description": ".218 diameter thru holes, 6 total - 3 on left column, 3 on right column",
+      "related_dimensions": [
+        "D005",
+        "D006",
+        "D007",
+        "D009"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 0.25,
+      "offset_y": 0.375,
+      "position_known": true,
+      "quantity": 6
+    },
+    {
+      "id": "F004",
+      "type": "fillet",
+      "description": ".25 R TYP fillets on notch corners",
+      "related_dimensions": [
+        "D012"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F002",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Right",
+        "feature_ids": [
+          "F003"
+        ],
+        "description": "Left and right hole columns are symmetrically placed: 0.25 from each vertical edge, with 10.500 center-to-center span"
+      }
+    ],
+    "concentric_groups": [],
+    "equal_spacing": [
+      {
+        "feature_ref": "H001",
+        "qty": 3,
+        "spacing_value": 2.75,
+        "computed_from": "Vertical: bottom hole at 0.375, middle at 3.125 (0.375+2.750), top at 5.875 (3.125+2.750); total span = 5.500"
+      }
+    ],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D005",
+        "component_dimension_ids": [
+          "D006",
+          "D006"
+        ],
+        "description": "Vertical hole span: D005=5.500 = D006(2.750) + D006(2.750) equal spacing between three rows"
+      }
+    ],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": []
+  },
+  "build_order": [
+    "F001",
+    "F002",
+    "F003",
+    "F004"
+  ],
+  "warnings": [
+    "Sheet metal part (12 GA, 0.105 inch thick) - the extrude_boss depth is very thin representing a sheet metal flat plate.",
+    "The .25 dimension on the left side (D008) may indicate a flange lip or edge setback visible in side view end brackets; exact meaning is slightly ambiguous - could be a hem/return edge. Human review recommended.",
+    "Notch position D002 (1.56) measured from the outer left edge; combined with D003 (1.62 wide), the right edge of notch lands at 3.18 from left edge.",
+    "Hole vertical chain: D007 (0.375 bottom margin) + D006 (2.750 mid spacing) + 2.750 (top spacing) = 5.875 top hole from bottom; D005 (5.500) spans top-to-bottom hole, consistent: 0.375 + 5.500 = 5.875 from bottom edge. Arithmetic checks out.",
+    "6.25 IN label appears in side view alongside hole annotation confirming overall height.",
+    "No title block data visible (part name, number, revision, material, finish) in the provided images.",
+    "Instance positions for H001 are edge-referenced from lower-left corner of part: left column x=0.25, right column x=10.75 (=10.500+0.25), rows at y=0.375, 3.125, 5.875.",
+    "Could not classify view for A001581E.png; skipped."
+  ],
+  "confidence": 0.82
+}

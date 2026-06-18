@@ -1,0 +1,35 @@
+VERIFICATION REPORT
+===================
+Part: A001601E    Units: inch    Standard: unknown    Confidence: 0.82
+Total dimensions extracted: 10
+Hole callouts extracted: 1
+Features identified: 2  (build order: 2)
+Dimensions flagged ambiguous: 1  ->  D003
+Dimensional closure: FAIL  ->  failed: D001 = D008
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 90%
+  Cross-view consistency: 50%
+  Feature confidence:     82%
+  Macro readiness:        82%
+
+ERRORS:
+  [ERROR] Dimensional closure FAILED: D001 = D008 → 18 != 22 (allowed slack 0.022 inch).
+
+WARNINGS:
+  [WARN]  extraction: Hole spacing is NOT uniform: holes at X=2.00, 4.50, 9.00, 13.50, 18.00. Gaps are 2.50, 4.50, 4.50, 4.50. First hole is only 2.50 from second; all others are 4.50 apart. May be intentional or a drafting omission — human review recommended.
+  [WARN]  extraction: D003 (0.440) on the right side is ambiguous: could be the distance from top edge to hole centerline (leaving 0.31 to bottom), or an unrelated callout. Bar total height is 0.75; true mid-height is 0.375. Resolution: verify whether 0.440 is a step feature height or simply indicates the hole CL offset.
+  [WARN]  extraction: D004 (2.00) appears to lack the +/-0.005 tolerance annotation present on D005–D008. Verify if intentional.
+  [WARN]  extraction: Y-positions of holes set to 0.375 (half of 0.75 bar height) by inference from centerline — not directly dimensioned.
+  [WARN]  extraction: Side view dimension 0.188 read as bar depth; limited geometry in that view. Confirm against material stock.
+  [WARN]  extraction: No title block data (part name, number, material, finish, drawing standard) visible in provided images.
+  [WARN]  extraction: Could not classify view for A001601E.png; skipped.
+  [WARN]  Dimension D003 value is unclear (Could be from top edge to hole centerline or another reference; bar total height is 0.75); using best guess 0.44.
+  [WARN]  Hole callout H001 instance (2, 0.375) lies outside the 22 x 0.188 envelope — verify the coordinate frame.
+
+OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST

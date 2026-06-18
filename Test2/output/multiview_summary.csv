@@ -1,0 +1,15 @@
+source,part,status,macro_readiness,geometry_completeness,dimension_completeness,consistency,feature_confidence,n_macros,n_needs_review,n_skipped,detail
+0014630E,0014630E,READY,0.955,1.0,1.0,1.0,0.82,5,0,0,
+16247,16247,BLOCKED,0.83,1.0,1.0,0.5,0.72,0,0,0,Dimensional closure FAILED: D001 = D002 + D003 → 17.5 != 19.25 (allowed slack 0.01925 inch).; Dimensional closure FAILED: D005 = D003 + D004 → 1.75 != 2 (allowed slack 0.002 inch).
+A001211E,A001211E,BLOCKED,0.839,1.0,0.947,0.5,0.82,0,0,0,"Dimension D019 requires human resolution (Front view shows 4.50 overall height, side view shows 5.50; these may represent different dimensions or the part height with boss included.). Candidate values: 5.5, 4.5.; Dimensional closure FAILED: D012 = D002 + D001 → 6.26 != 6.88 (allowed slack 0.00688 in"
+A001271E,A001271E,BLOCKED,0.855,1.0,1.0,0.5,0.82,0,0,0,Dimensional closure FAILED: D003 = D006 + D004 → 12 != 14 (allowed slack 0.014 inch).
+A001291E,1E 357,BLOCKED,0.855,1.0,1.0,0.5,0.82,0,0,0,Dimensional closure FAILED: D001 = D003 + D008 → 6.563 != 4.375 (allowed slack 0.01 inch).
+A001551E,A001551E,BLOCKED,0.835,1.0,0.933,0.5,0.82,0,0,0,Dimensional closure FAILED: D001 = D010 + D013 + D010 → 20.75 != 21 (allowed slack 0.021 inch).; Dimensional closure FAILED: D001 = D003 + D004 → 13.5 != 21 (allowed slack 0.021 inch).
+A001561E,A001561E,READY,0.955,1.0,1.0,1.0,0.82,6,0,0,
+A001581E,A001581E,READY,0.955,1.0,1.0,1.0,0.82,7,0,0,
+A001591E,A001591E,READY,0.955,1.0,1.0,1.0,0.82,6,0,0,
+A001601E,A001601E,BLOCKED,0.825,1.0,0.9,0.5,0.82,0,0,0,Dimensional closure FAILED: D001 = D008 → 18 != 22 (allowed slack 0.022 inch).
+A001611E,A001611E,READY,0.955,1.0,1.0,1.0,0.82,6,0,0,
+A001621E,A001621E,READY,0.955,1.0,1.0,1.0,0.82,6,0,0,
+A001821M,A001821M,BLOCKED,0.855,1.0,1.0,0.5,0.82,0,0,0,Dimensional closure FAILED: D012 = D008 + D009 + D013 + D014 → 6.758 != 6.25 (allowed slack 0.00625 inch).
+A001901E,A001901E,BLOCKED,0.83,1.0,1.0,0.5,0.72,0,0,0,Dimensional closure FAILED: D009 = D010 + D008 → 81.5 != 83 (allowed slack 0.083 inch).

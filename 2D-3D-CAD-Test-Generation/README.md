@@ -93,12 +93,16 @@ Drawings/
   per-plane `macros/` incl. `RUN_ALL.vba`), plus `output/multiview_summary.csv`.
 
 Flags: `--drawing`, `--from-json`, `--batch`, or `--views-folder` (one required), `--output`,
-`--page N`, `--debug`, `--engine vba|com` (default `vba`), `--validate-only`.
+`--page N`, `--debug`, `--engine vba|com` (default `vba`), `--validate-only`,
+`--no-sldprt` (skip the default `.sldprt` build; emit macros + text only),
+`--no-export` (skip copying outputs to `~/Downloads/SolidWorksModel_Parts`).
 
 ## Output package (engine `vba`)
 
 ```
 output/<PartNumber>/
+├── <PartNumber>.sldprt                   # the 3D model — built by default when SolidWorks is available
+├── <PartNumber>_model_check.txt          # mass/bounding-box validation + any skipped features
 ├── <PartNumber>_extraction.json          # full Phase 1 extraction (saved even when BLOCKED)
 ├── <PartNumber>_verification_report.txt  # READY TO BUILD / BLOCKED + Phase-4 readiness score
 ├── <PartNumber>_build_plan.json          # ordered steps + skipped/needs-review + audit summary
@@ -106,6 +110,24 @@ output/<PartNumber>/
 ├── macros/                               # 00_setup … ZZ_final_verify, RUN_ALL.vba, README.md
 └── logs/                                 # build_log.txt appended by the macros
 ```
+
+**The `.sldprt` is a required output of every run.** Whenever the pipeline runs
+on a machine with SolidWorks 2024 available over COM (any mode: `--drawing`,
+`--batch`, `--views-folder`), each READY part is built into a real `.sldprt` in
+its own folder, alongside the text reports and VBA macros — no separate step. The
+build is non-strict: a fragile feature (e.g. a fillet without selectable edges) is
+skipped and recorded in `<PartNumber>_model_check.txt` rather than failing the
+part. If SolidWorks is unavailable (non-Windows, not installed, no license) the
+run still produces the text reports + macros and prints why the `.sldprt` was
+skipped. Pass `--no-sldprt` to opt out and emit macros only. BLOCKED parts are
+never built (verification gate).
+
+**Final step — Downloads delivery.** As the last step of every run, all part
+outputs (the `.sldprt` models and the text files) are copied into
+`~/Downloads/SolidWorksModel_Parts` (Windows: `C:\Users\<you>\Downloads\SolidWorksModel_Parts`)
+so the deliverables always land in one well-known place. The folder is created if
+absent and updated in place on re-runs (the internal extraction cache is not
+copied). Pass `--no-export` to skip this step.
 
 The extraction JSON is written for **every** run, READY or BLOCKED, so a paid
 extraction is never lost — patch it against the drawing and regenerate with

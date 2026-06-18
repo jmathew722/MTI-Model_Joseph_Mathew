@@ -1,0 +1,33 @@
+VERIFICATION REPORT
+===================
+Part: A001611E    Units: inch    Standard: unknown    Confidence: 0.82
+Total dimensions extracted: 9
+Hole callouts extracted: 1
+Features identified: 3  (build order: 3)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (1 chain(s) checked)
+Unit consistency: PASS
+View consistency: FAIL
+Feature feasibility: PASS
+Derived dimensions computed: 1  ->  D003
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        96%
+
+WARNINGS:
+  [WARN]  extraction: Hole quantity and spacing for H001 (.218 DR. THRU) are explicitly left undefined ('SPACING & QUANTITY OF HOLES TO SUIT') — a human must determine these before building.
+  [WARN]  extraction: D005 is an angular dimension (15 deg) but stored under unit 'inch' due to schema constraints — it represents degrees, not inches.
+  [WARN]  extraction: The part appears to be a sheet-metal formed/rolled duct or shroud (16 GA, 0.060 in wall). A shell feature at 0.060 in wall thickness may be needed for accurate thin-walled representation.
+  [WARN]  extraction: D009 (APPX. DEVELOPED LGTH. = 85.68) is a reference/informational note for flat-pattern development, not a controlling dimension.
+  [WARN]  extraction: No title block data (part name, number, revision, material, finish, scale, or tolerance block) is visible in the provided views.
+  [WARN]  extraction: The fillet (F003) is part of the base profile sketch geometry, not a traditional post-extrusion SolidWorks fillet feature.
+  [WARN]  extraction: 14.00 is labeled (INSIDE) confirming it is the inner clear dimension. Outer height = 14.00 + 2x0.060 = 14.12 in when modeled as thin shell.
+  [WARN]  extraction: Only two hole centers visible near the right end in the side view; actual hole pattern extent along the 32.25-in length is unspecified.
+  [WARN]  extraction: Could not classify view for A001611E.png; skipped.
+  [WARN]  Dimension D006 cites view 'side', which is not among the identified views.
+
+OVERALL STATUS: READY TO BUILD

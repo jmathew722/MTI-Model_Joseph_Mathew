@@ -1,0 +1,85 @@
+{
+  "part": "A001591E",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_flat_plate_8_00_x_7_00_in_extruded_.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flat plate 8.00 x 7.00 in, extruded to 12 GA (0.105 in) thickness",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 8.0,
+        "width": 8.0,
+        "depth": 0.105
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing."
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_8x_218_dia_thru_holes_on_7_500_x_6_500_b.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "8x .218 dia thru holes on 7.500 x 6.500 bolt pattern \u2014 4 corners plus 4 mid-edge",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.218,
+        "qty": 8.0
+      },
+      "notes": "Hole positions read from drawing."
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_fillets_chamfers.vba",
+      "feature_id": "F003",
+      "type": "fillet/chamfer",
+      "description": "Interactive: select edges, run, repeat",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "F003_radius": 0.12
+      },
+      "notes": "Run last. Interactive edge selection (values from the drawing are baked in)."
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection."
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

@@ -1062,12 +1062,12 @@ def generate_macro_package(
     )
 
     # --- Traceability artifacts ---
-    pkg.extraction_json.write_text(json.dumps(raw_extraction, indent=2))
-    pkg.verification_report.write_text(verification_text)
-    (logs_dir / ".gitkeep").write_text("")
+    pkg.extraction_json.write_text(json.dumps(raw_extraction, indent=2), encoding="utf-8")
+    pkg.verification_report.write_text(verification_text, encoding="utf-8")
+    (logs_dir / ".gitkeep").write_text("", encoding="utf-8")
 
     # --- 00 setup ---
-    (macros_dir / "00_setup.vba").write_text(_setup_macro(model, unit_factor))
+    (macros_dir / "00_setup.vba").write_text(_setup_macro(model, unit_factor), encoding="utf-8")
     pkg.steps.append(
         BuildStep(0, "00_setup.vba", "-", "setup", "New part, units, save-as", "generated")
     )
@@ -1144,7 +1144,7 @@ def generate_macro_package(
     LogResult "WARN", "{step_name}", "Not scripted: {msg}"
 """
 
-        (macros_dir / fname).write_text(header + body + _vba_footer())
+        (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
         run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}", body))
         step = BuildStep(seq, fname, feature.id, feature.type.value, feature.description,
                          status, dimensions=used, notes=notes)
@@ -1158,7 +1158,7 @@ def generate_macro_package(
         fname = f"{seq:02d}_fillets_chamfers.vba"
         header = _vba_header(f"{seq:02d}_fillets_chamfers - applied LAST", model.display_name, unit_factor)
         body, used = _macro_fillet_chamfer(model, deferred, f"{seq:02d}_fillets_chamfers")
-        (macros_dir / fname).write_text(header + body + _vba_footer())
+        (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
         run_all_subs.append((f"Step{seq:02d}_FilletsChamfers", body))
         step = BuildStep(
             seq, fname, ",".join(f.id for f in deferred), "fillet/chamfer",
@@ -1170,14 +1170,14 @@ def generate_macro_package(
     # --- Final verify ---
     n_solid = sum(1 for s in pkg.steps if s.status == "generated" and s.seq > 0)
     (macros_dir / "ZZ_final_verify.vba").write_text(
-        _final_verify_macro(model, unit_factor, n_solid)
+        _final_verify_macro(model, unit_factor, n_solid), encoding="utf-8"
     )
     pkg.steps.append(BuildStep(999, "ZZ_final_verify.vba", "-", "verify",
                                "Rebuild, mass properties, bounding box, save", "generated"))
 
     # --- RUN_ALL.vba: one-click, in-order build (no installs on the SW machine) ---
     (macros_dir / "RUN_ALL.vba").write_text(
-        _build_run_all(model, unit_factor, run_all_subs)
+        _build_run_all(model, unit_factor, run_all_subs), encoding="utf-8"
     )
     pkg.steps.append(BuildStep(1000, "RUN_ALL.vba", "-", "run_all",
                                "One macro that runs every step in order (paste once, F5)",
@@ -1187,7 +1187,7 @@ def generate_macro_package(
 
     # --- README + build plan ---
     (macros_dir / "README.md").write_text(
-        _MACROS_README.format(folder=name, name=name)
+        _MACROS_README.format(folder=name, name=name), encoding="utf-8"
     )
     # --- Static self-validation of the emitted macros (Phase 7 + Phase 10) ---
     # Every E0xx lesson is enforced here over the WHOLE package, not just on test
@@ -1220,7 +1220,7 @@ def generate_macro_package(
         "skipped_prohibited": [s.feature_id for s in pkg.skipped],
         "needs_review": [s.feature_id for s in pkg.needs_review],
     }
-    pkg.build_plan_json.write_text(json.dumps(plan, indent=2))
+    pkg.build_plan_json.write_text(json.dumps(plan, indent=2), encoding="utf-8")
 
     log.info(
         "Macro package written to %s (%d macros, %d skipped, %d need review)",

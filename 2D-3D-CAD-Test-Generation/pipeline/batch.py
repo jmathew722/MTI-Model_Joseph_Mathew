@@ -33,6 +33,68 @@ log = get_logger()
 DRAWING_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
 ExtractFn = Callable[[Path], dict]
 
+# Common SolidWorks 2024 part templates, used if SOLIDWORKS_TEMPLATE_PATH is unset.
+_TEMPLATE_FALLBACKS = (
+    r"C:\ProgramData\SolidWorks\SOLIDWORKS 2024\templates\Part.PRTDOT",
+    r"C:\ProgramData\SOLIDWORKS\SOLIDWORKS 2024\templates\Part.PRTDOT",
+)
+
+
+def resolve_part_template(template_path: Optional[str] = None) -> Optional[str]:
+    """Resolve a usable .prtdot template: explicit arg > env > known fallbacks."""
+    import os
+
+    cand = template_path or os.getenv("SOLIDWORKS_TEMPLATE_PATH")
+    if cand and Path(cand).exists():
+        return cand
+    for fb in _TEMPLATE_FALLBACKS:
+        if Path(fb).exists():
+            return fb
+    return cand  # may be None / nonexistent; create_new_part will report clearly
+
+
+def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
+                          template_path: Optional[str] = None) -> str:
+    """Build one validated part into ``<part_dir>/<name>.sldprt`` over COM and
+    write a ``<name>_model_check.txt``. Non-strict: a fragile feature is skipped
+    (and documented) rather than aborting the build. Returns the saved path."""
+    from pipeline.model_validator import validate_model
+    from pipeline.solidworks_builder import build_model, save_model
+
+    if not model.part_name:
+        model.part_name = name
+    template = resolve_part_template(template_path)
+
+    skipped: list[tuple[str, str, str]] = []
+    _, sw_doc = build_model(
+        sw_app, model, output_dir=part_dir, template_path=template,
+        strict=False, skipped_out=skipped,
+    )
+    sldprt = save_model(sw_doc, name, part_dir)
+
+    vreport = validate_model(sw_doc, model)
+    lines = [f"MODEL CHECK — {name}", "=" * 40, f"Saved: {sldprt}", ""]
+    for p in vreport.get("passed", []):
+        lines.append(f"[PASS] {p}")
+    for f in vreport.get("failed", []):
+        lines.append(f"[FAIL] {f}")
+    for w in vreport.get("warnings", []):
+        lines.append(f"[WARN] {w}")
+    if skipped:
+        lines.append("")
+        lines.append("Skipped features (build non-strict — verify manually):")
+        for fid, ftype, reason in skipped:
+            lines.append(f"  - {fid} ({ftype}): {reason}")
+    lines.append("")
+    lines.append(f"Overall model validation: {'PASSED' if vreport.get('ok') else 'completed with issues'}.")
+    (part_dir / f"{name}_model_check.txt").write_text("\n".join(lines), encoding="utf-8")
+
+    try:
+        sw_app.CloseDoc(sw_doc.GetTitle())
+    except Exception:
+        pass
+    return sldprt
+
 
 @dataclass
 class BatchRow:
@@ -75,8 +137,14 @@ def _scores(readiness: dict) -> dict:
     return {k: float(readiness.get(k, 0.0)) for k in keys}
 
 
-def process_drawing_data(drawing_data: dict, source: str, output_dir: Path) -> BatchRow:
-    """Verify + (if READY) generate macros for one already-loaded extraction."""
+def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
+                         sw_app=None, template_path: Optional[str] = None) -> BatchRow:
+    """Verify + (if READY) generate macros for one already-loaded extraction.
+
+    When ``sw_app`` is provided (a connected SolidWorks application), a real
+    ``.sldprt`` is also built into the part folder — making the 3D model a
+    standard output of every run, not just the VBA macros.
+    """
     model, report = run_verification(drawing_data)
     scores = _scores(report.readiness or {})
     part = model.display_name if model is not None else (
@@ -103,19 +171,34 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path) -> B
         return BatchRow(source, part, "ERROR", **scores, n_macros=0, n_needs_review=0,
                         n_skipped=0, detail=str(e)[:300])
     n_macros = sum(1 for s in pkg.steps if s.macro_file.endswith(".vba"))
+
+    # Build the real .sldprt into the part folder whenever SolidWorks is available,
+    # so the 3D model is a required output of every run alongside the text files.
+    detail = ""
+    if sw_app is not None:
+        try:
+            sldprt = build_sldprt_for_part(sw_app, model, part_dir, part_dir.name, template_path)
+            log.info("Built .sldprt for %s: %s", part, sldprt)
+        except Exception as e:  # a build failure must not lose the macros/text output
+            detail = f"sldprt build failed: {type(e).__name__}: {e}"[:300]
+            log.warning("%s: %s", part, detail)
+
     return BatchRow(source, part, "READY", **scores, n_macros=n_macros,
-                    n_needs_review=len(pkg.needs_review), n_skipped=len(pkg.skipped), detail="")
+                    n_needs_review=len(pkg.needs_review), n_skipped=len(pkg.skipped), detail=detail)
 
 
 def run_batch(
     directory: Path,
     output_dir: Path,
     extract_fn: Optional[ExtractFn] = None,
+    sw_app=None,
+    template_path: Optional[str] = None,
 ) -> tuple[list[BatchRow], Path]:
     """Process every input in ``directory`` and write ``batch_summary.csv``.
 
     ``extract_fn`` is required only if drawing files (not just ``*_extraction.json``)
-    are present; it maps a drawing path to an extraction dict.
+    are present; it maps a drawing path to an extraction dict. When ``sw_app`` is
+    given, each READY part is also built into a real ``.sldprt``.
     """
     directory = Path(directory)
     output_dir = Path(output_dir)
@@ -133,7 +216,8 @@ def run_batch(
                                          0, 0, 0, "No extractor provided for a drawing file."))
                     continue
                 drawing_data = extract_fn(path)
-            rows.append(process_drawing_data(drawing_data, path.name, output_dir))
+            rows.append(process_drawing_data(drawing_data, path.name, output_dir,
+                                             sw_app=sw_app, template_path=template_path))
         except Exception as e:  # one bad drawing must not sink the whole batch
             log.warning("batch: %s failed: %s", path.name, e)
             rows.append(BatchRow(path.name, path.stem, "ERROR", 0, 0, 0, 0, 0,

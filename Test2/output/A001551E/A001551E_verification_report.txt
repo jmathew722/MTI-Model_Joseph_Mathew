@@ -1,0 +1,36 @@
+VERIFICATION REPORT
+===================
+Part: A001551E    Units: inch    Standard: unknown    Confidence: 0.82
+Total dimensions extracted: 15
+Hole callouts extracted: 2
+Features identified: 4  (build order: 4)
+Dimensions flagged ambiguous: 1  ->  D015
+Dimensional closure: FAIL  ->  failed: D001 = D010 + D013 + D010; D001 = D003 + D004
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 93%
+  Cross-view consistency: 50%
+  Feature confidence:     82%
+  Macro readiness:        84%
+
+ERRORS:
+  [ERROR] Dimensional closure FAILED: D001 = D010 + D013 + D010 → 20.75 != 21 (allowed slack 0.021 inch).
+  [ERROR] Dimensional closure FAILED: D001 = D003 + D004 → 13.5 != 21 (allowed slack 0.021 inch).
+
+WARNINGS:
+  [WARN]  extraction: R. TYP label on slot ends has no explicit numeric value; inferred as 0.515/2 = 0.2575 in. Confirm with designer.
+  [WARN]  extraction: '.515 CENT (2)' and '.515 CENT (4)' callout meaning: interpreted as the slot width (0.515 in) with CENT indicating centroid/centerline reference. If 'CENT' means something else (e.g. a count or tolerance zone), resolution required.
+  [WARN]  extraction: DIMENSION CHAIN DISCREPANCY: 0.75 + 19.25 + 0.75 = 20.75 ≠ 21.00 overall length. The 19.25 dimension may be edge-to-edge of slots rather than center-to-center, or one of the edge offsets may differ from 0.75. Human review required before build.
+  [WARN]  extraction: Side view shows only 0.50 thickness with no additional features — assumed part is a uniform flat plate with no bosses or steps on the depth face.
+  [WARN]  extraction: General tolerance block not visible in the provided views; no general tolerance recorded.
+  [WARN]  extraction: Title block data (part name, number, material, finish, scale) not visible in the provided images.
+  [WARN]  extraction: The 4 corner slots (H001) are described as 'oval' (oblong) slots — not simple circular holes. The diameter field (0.515) represents the slot width; length is 1.00 in per D011.
+  [WARN]  extraction: Could not classify view for A001551E.png; skipped.
+  [WARN]  Dimension D015 value is unclear (Only 'R. TYP' label given; no explicit numeric value — inferred as half of 0.515 slot width); using best guess 0.2575.
+
+OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST

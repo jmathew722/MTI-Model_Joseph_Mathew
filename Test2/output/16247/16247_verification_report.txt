@@ -1,0 +1,36 @@
+VERIFICATION REPORT
+===================
+Part: 16247    Units: inch    Standard: unknown    Confidence: 0.72
+Total dimensions extracted: 7
+Hole callouts extracted: 0
+Features identified: 3  (build order: 3)
+Dimensions flagged ambiguous: 0
+Dimensional closure: FAIL  ->  failed: D001 = D002 + D003; D005 = D003 + D004
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 50%
+  Feature confidence:     72%
+  Macro readiness:        83%
+
+ERRORS:
+  [ERROR] Dimensional closure FAILED: D001 = D002 + D003 → 17.5 != 19.25 (allowed slack 0.01925 inch).
+  [ERROR] Dimensional closure FAILED: D005 = D003 + D004 → 1.75 != 2 (allowed slack 0.002 inch).
+
+WARNINGS:
+  [WARN]  extraction: No title block information found (part name, number, revision, material, finish, scale all unknown).
+  [WARN]  extraction: Drawing standard not identified — assumed ASME based on dimension style.
+  [WARN]  extraction: Dimension chain D005 = D003 + D004 does not close: 1.00 + 0.75 = 1.75, not 2.00. The 0.25 gap is unexplained — possible additional web thickness or a separate dimension not clearly shown. Human resolution required.
+  [WARN]  extraction: Dimension chain D001 = D002 + (top flange height) + (bottom flange height): overall 19.25 minus web 16.500 = 2.75 total for both flanges, implying ~1.375 each. No explicit flange thickness dimension is given in either view — human should confirm.
+  [WARN]  extraction: The side view depth tolerance note reads '+.010 / -.000 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y' — this implies the nominal .280 gap plus the +.010 tolerance creates the assembly clearance. Verify nominal dimension intent.
+  [WARN]  extraction: Fillet radius .531 R TYP appears at both the top and bottom flange-to-web corners; verify whether both inside corners on both flanges receive this radius (up to 4 fillets possible).
+  [WARN]  extraction: The exact cross-sectional profile of the C-channel (step geometry at top vs bottom) is partially ambiguous from the front view alone — a third view or section would clarify whether the flanges are symmetric.
+  [WARN]  extraction: Confidence reduced due to missing flange thickness dimensions, unclear dimension chain closure, and absence of title block data.
+  [WARN]  extraction: Could not classify view for 16247.png; skipped.
+
+OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST

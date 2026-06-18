@@ -1,0 +1,35 @@
+VERIFICATION REPORT
+===================
+Part: A001821M    Units: inch    Standard: unknown    Confidence: 0.82
+Total dimensions extracted: 18
+Hole callouts extracted: 2
+Features identified: 5  (build order: 5)
+Dimensions flagged ambiguous: 0
+Dimensional closure: FAIL  ->  failed: D012 = D008 + D009 + D013 + D014
+Unit consistency: PASS
+View consistency: FAIL
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 50%
+  Feature confidence:     82%
+  Macro readiness:        86%
+
+ERRORS:
+  [ERROR] Dimensional closure FAILED: D012 = D008 + D009 + D013 + D014 → 6.758 != 6.25 (allowed slack 0.00625 inch).
+
+WARNINGS:
+  [WARN]  extraction: DIMENSIONAL CHAIN DOES NOT CLOSE: D008+D009+D013+D014 = 0.375+1.988+1.465+2.930 = 6.758 but D012 (overall hole field) = 6.250. Discrepancy of 0.508 inch — human resolution required before machining.
+  [WARN]  extraction: The part profile is stepped/L-shaped; the exact step geometry must be verified. D010=2.750 (upper height) + D011=2.125 (sub-height) + an unlabeled middle segment should total 7.000. 2.750+2.125=4.875, leaving ~2.125 unaccounted — possible the two 2.125 sections plus 2.750 = 7.000.
+  [WARN]  extraction: 7 M6x1 tapped holes callout: the exact row/column arrangement (appears Row1:3, Row2:3, Row3:1) should be confirmed against a cleaner scan.
+  [WARN]  extraction: No title block data (part name, number, revision, material, scale) is visible in the provided images.
+  [WARN]  extraction: CFS noted in side view = Clean Finish both Sides (surface finish requirement).
+  [WARN]  extraction: Lower section step: the width changes from 3.875 to 4.500 at a ledge; exact Y-position of the step transition needs verification against D010/D011 relationship.
+  [WARN]  extraction: Part depth is only 0.312 inch (very thin plate/bracket).
+  [WARN]  extraction: Could not classify view for A001821M.png; skipped.
+  [WARN]  Dimension D003 cites view 'side', which is not among the identified views.
+
+OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST

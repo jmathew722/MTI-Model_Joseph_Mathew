@@ -1,0 +1,547 @@
+{
+  "part_name": "",
+  "part_number": "",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front view showing the full length profile of the part with 9 counterbore holes along its length. Steps/shoulders visible at various x-positions. Stacked horizontal dimensions locate hole positions from the left edge.",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D008",
+        "D009",
+        "D010",
+        "D011",
+        "D012"
+      ],
+      "visible_features": [
+        "F001",
+        "F002"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "9 hole centerlines visible along the horizontal centerline of the part, indicating 9 counterbore holes through the part thickness."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right) view showing the cross-section profile with a tall vertical web above a wide base flange. Height 7.250 total. Flange width 1.750 with \u00b10.001 tolerance. Web width 2\u00d70.250 from center. Datum A and GD&T callouts visible.",
+      "dimensions_shown": [
+        "D013",
+        "D014",
+        "D015",
+        "D016"
+      ],
+      "visible_features": [
+        "F001"
+      ],
+      "hidden_features": [
+        "F002"
+      ],
+      "centerline_notes": "Centerlines on the web indicate symmetry about the vertical axis. Horizontal centerlines on the flange suggest hole or slot features."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 10.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_position_x_1",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left edge to 10.000 position"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 20.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_position_x_2",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left edge to 20.000 position"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 30.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_position_x_3",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left edge to 30.000 position"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 40.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_position_x_4",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left edge to 40.000 position"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 50.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_position_x_5",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left edge to 50.000 position"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 60.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_position_x_6",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left edge to 60.000 position"
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 70.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_position_x_7",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left edge to 70.000 position"
+    },
+    {
+      "id": "D008",
+      "type": "linear",
+      "value": 80.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "overall_length_steps",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Stepped dimension to 80.000 from left"
+    },
+    {
+      "id": "D009",
+      "type": "linear",
+      "value": 83.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "overall_length",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall part length 83.00 inches"
+    },
+    {
+      "id": "D010",
+      "type": "linear",
+      "value": 1.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "left_end_offset",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "1.500 left end offset"
+    },
+    {
+      "id": "D011",
+      "type": "linear",
+      "value": 4.375,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_vertical_offset",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "4.375 vertical dimension \u2014 hole offset from bottom edge or row spacing"
+    },
+    {
+      "id": "D012",
+      "type": "linear",
+      "value": 6.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "right_end_hole_spacing",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "6.000 dimension at right end \u2014 spacing of last two holes"
+    },
+    {
+      "id": "D013",
+      "type": "linear",
+      "value": 7.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "height",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall part height 7.250 inches"
+    },
+    {
+      "id": "D014",
+      "type": "linear",
+      "value": 2.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "flange_half_width_or_height",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "2.50 \u2014 left flange width or flange section height in side view"
+    },
+    {
+      "id": "D015",
+      "type": "linear",
+      "value": 0.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "web_half_width",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "0.250 web half-width from centerline (appears on both sides)"
+    },
+    {
+      "id": "D016",
+      "type": "linear",
+      "value": 1.75,
+      "unit": "inch",
+      "tolerance_plus": 0.001,
+      "tolerance_minus": 0.001,
+      "tolerance_type": "bilateral",
+      "applies_to": "flange_thickness_or_width",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "1.750 \u00b10.001 \u2014 flange thickness or base width"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "counterbore",
+      "diameter": 1.125,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 1.625,
+      "cbore_depth": 1.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 9,
+      "x_position": 0.0,
+      "y_position": 0.0,
+      "position_known": true,
+      "pattern": "linear",
+      "pattern_spacing": 0.0,
+      "instance_positions": [
+        [
+          1.5,
+          4.375
+        ],
+        [
+          10.0,
+          4.375
+        ],
+        [
+          20.0,
+          4.375
+        ],
+        [
+          30.0,
+          4.375
+        ],
+        [
+          40.0,
+          4.375
+        ],
+        [
+          50.0,
+          4.375
+        ],
+        [
+          60.0,
+          4.375
+        ],
+        [
+          70.0,
+          4.375
+        ],
+        [
+          77.0,
+          4.375
+        ]
+      ],
+      "feature_ref": "F002",
+      "view": "Front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base T-section / I-section extrusion. Front view shows a long horizontal plate 83.00 long with stepped shoulders. Side view confirms a T or channel cross-section: tall vertical web (7.250 high, 0.500 wide total) above a wide base flange (1.750 wide).",
+      "related_dimensions": [
+        "D008",
+        "D009",
+        "D010",
+        "D013",
+        "D014",
+        "D015",
+        "D016"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D009",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": "9x counterbore holes: 1.125 dia thru with 1.625 dia x 1.00 deep counterbore. Arrayed linearly along the length of the part. Datum B is the hole axis.",
+      "related_dimensions": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D011",
+        "D012"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 9
+    }
+  ],
+  "geometric_tolerances": [
+    {
+      "symbol": "parallelism",
+      "value": 0.002,
+      "datum": "A"
+    },
+    {
+      "symbol": "perpendicularity",
+      "value": 0.001,
+      "datum": "A"
+    },
+    {
+      "symbol": "perpendicularity",
+      "value": 0.002,
+      "datum": "A"
+    }
+  ],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Right",
+        "feature_ids": [
+          "F001"
+        ],
+        "description": "Web is symmetric about the vertical centerline in the side view (0.250 each side)"
+      }
+    ],
+    "concentric_groups": [],
+    "equal_spacing": [
+      {
+        "feature_ref": "H001",
+        "qty": 9,
+        "spacing_value": 10.0,
+        "computed_from": "Interior holes at 10-unit increments from 10.000 to 70.000; first hole near left end at ~1.5 and last at ~77.0 with 6.000 spacing"
+      }
+    ],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D009",
+        "component_dimension_ids": [
+          "D010",
+          "D008"
+        ],
+        "description": "Overall length 83.00 = left offset 1.500 + 80.000 stepped + ~1.5 right remainder"
+      }
+    ],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": []
+  },
+  "build_order": [
+    "F001",
+    "F002"
+  ],
+  "warnings": [
+    "The 9 hole instance positions are estimated from the stacked dimensions (10, 20, 30, 40, 50, 60, 70, 80) plus 1.500 left offset and 6.000 right-end spacing. The first and last hole positions require human verification \u2014 some dimension leaders may point to step edges rather than hole centers.",
+    "The 2.50 dimension in the side view may be the flange half-width (total 5.00) or an overall flange height \u2014 interpretation is ambiguous without a top view. Resolution required before building.",
+    "The cross-sectional profile (T, I, or channel) cannot be fully confirmed from two views alone. The side view shows a stepped T-shaped profile but exact base flange dimensions are uncertain.",
+    "GD&T frames in side view show perpendicularity and parallelism to Datum A with values 0.001 and 0.002 \u2014 exact symbol/datum pairings may differ; human review recommended.",
+    "Datum A appears to be the base flange bottom surface; Datum B is referenced on the 1.125 hole diameter. No Datum C identified.",
+    "The 4.375 vertical dimension likely represents the distance from the part bottom to the hole centerline. Verify this is consistent with the 7.250 total height (4.375 offset from bottom would place holes above mid-height).",
+    "Units assumed to be inches based on decimal values (1.125, 1.625, 4.375, 1.750). No explicit unit declaration found in the provided views.",
+    "The 9th hole x-position (~77.0) is inferred from 83.00 overall - 6.000 spacing - last hole; exact position requires confirmation from the drawing.",
+    "Could not classify view for A001901E.png; skipped."
+  ],
+  "confidence": 0.72
+}

@@ -1,0 +1,86 @@
+{
+  "part": "A001621E",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Rectangular_plate_base_body_6_00_long_si.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Rectangular plate base body \u2014 6.00 long (side view), 3.50 tall, width spans from front view profile",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 6.0,
+        "width": 3.0,
+        "depth": 6.0
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing."
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F003_1_090_dia_through_hole_at_part_vertical_.vba",
+      "feature_id": "F003",
+      "type": "hole",
+      "description": "1.090 dia through-hole at part vertical and horizontal centerline intersection, datum B",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 1.09,
+        "qty": 1.0
+      },
+      "notes": "Hole positions read from drawing."
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F002_Two_0_406_dia_through_holes_on_horizonta.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "Two 0.406 dia through-holes on horizontal centerline, spaced 5.000 BSC apart (2.500 BSC from part center each side), datum B, true position \u23000.010",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.406,
+        "qty": 2.0
+      },
+      "notes": "Hole positions read from drawing."
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection."
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

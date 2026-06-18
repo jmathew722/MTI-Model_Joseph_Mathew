@@ -1,0 +1,366 @@
+{
+  "part_name": "",
+  "part_number": "",
+  "revision": "",
+  "drawing_standard": "",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front view showing the diamond/lens-shaped profile of the part with overall width, inside height, half-height, fillet radii, and 15-degree angled flats at top and bottom.",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005"
+      ],
+      "visible_features": [
+        "F001",
+        "F003"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Horizontal and vertical centerlines cross at part centroid, implying bilateral symmetry about both axes."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right-plane) view showing the part as a thin flat strip, giving wall thickness (16 GA / 0.060 in), overall height of 4.00, bottom offset of 0.50, the .218 DR THRU hole callout with spacing/qty to suit, and approximate developed length note.",
+      "dimensions_shown": [
+        "D006",
+        "D007",
+        "D008",
+        "D009"
+      ],
+      "visible_features": [
+        "F001",
+        "F002"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Horizontal centerline through the holes; two hole centers visible at mid-height of the strip."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 32.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "overall_length",
+      "feature_ref": "F001",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall width of the lens/diamond profile"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 14.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "inside_height",
+      "feature_ref": "F001",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Inside dimension (height) labeled 14.00 (INSIDE)"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 7.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "half_height",
+      "feature_ref": "F001",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Half-height 7.00 from centerline to outer edge; derived from D002 by symmetry"
+    },
+    {
+      "id": "D004",
+      "type": "radial",
+      "value": 3.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "fillet_radius",
+      "feature_ref": "F003",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "3.00 R. TYP corner fillet radius on diamond profile corners"
+    },
+    {
+      "id": "D005",
+      "type": "angular",
+      "value": 15.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "angled_flat_angle",
+      "feature_ref": "F001",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "15 deg TYP angle of the angled flat faces at top and bottom of the diamond profile"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 0.06,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "wall_thickness",
+      "feature_ref": "F001",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "16 GA (0.060) sheet metal gauge thickness"
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 4.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "depth",
+      "feature_ref": "F001",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall depth of the part in side view"
+    },
+    {
+      "id": "D008",
+      "type": "linear",
+      "value": 0.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_row_offset",
+      "feature_ref": "F002",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "0.50 offset from bottom edge to the hole centerline row"
+    },
+    {
+      "id": "D009",
+      "type": "linear",
+      "value": 85.68,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "developed_length",
+      "feature_ref": "F001",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": true,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "APPX. DEVELOPED LGTH. = 85.68, approximate flat-pattern developed length; reference only"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "thru",
+      "diameter": 0.218,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 1,
+      "x_position": 0.0,
+      "y_position": 0.5,
+      "position_known": false,
+      "pattern": "linear",
+      "pattern_spacing": 0.0,
+      "instance_positions": [],
+      "feature_ref": "F002",
+      "view": "side"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base extrusion of the lens/diamond-shaped closed profile. Overall width 32.25 in, inside height 14.00 in (7.00 per half), angled flats at 15 deg TYP, extruded to 4.00 in depth. Sheet metal wall 0.060 in (16 GA) suggests thin-walled shell construction.",
+      "related_dimensions": [
+        "D001",
+        "D002",
+        "D003",
+        "D005",
+        "D007"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D007",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": ".218 DR. THRU holes along a row at 0.50 in from bottom edge on the side face. Spacing and quantity to suit \u2014 not specified in drawing.",
+      "related_dimensions": [
+        "D008"
+      ],
+      "sketch_plane": "side",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F003",
+      "type": "fillet",
+      "description": "3.00 R. TYP fillet on the corners of the diamond/lens profile sketch. Applied to all sharp corners of the base profile.",
+      "related_dimensions": [
+        "D004"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Horizontal centerline (Front view)",
+        "feature_ids": [
+          "F001",
+          "F002",
+          "F003"
+        ],
+        "description": "Part is symmetric about the horizontal centerline; top and bottom halves are mirrors (7.00 each side)."
+      },
+      {
+        "plane": "Vertical centerline (Front view)",
+        "feature_ids": [
+          "F001",
+          "F003"
+        ],
+        "description": "Diamond profile appears symmetric about the vertical centerline as well."
+      }
+    ],
+    "concentric_groups": [],
+    "equal_spacing": [
+      {
+        "feature_ref": "H001",
+        "qty": 1,
+        "spacing_value": 0.0,
+        "computed_from": "Spacing and quantity of holes to suit \u2014 not specified in drawing"
+      }
+    ],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D002",
+        "component_dimension_ids": [
+          "D003",
+          "D003"
+        ],
+        "description": "Inside height 14.00 = 2 x half-height 7.00"
+      }
+    ],
+    "derived_dimension_ids": [
+      "D003"
+    ],
+    "reference_dimension_ids": [
+      "D009"
+    ]
+  },
+  "build_order": [
+    "F001",
+    "F003",
+    "F002"
+  ],
+  "warnings": [
+    "Hole quantity and spacing for H001 (.218 DR. THRU) are explicitly left undefined ('SPACING & QUANTITY OF HOLES TO SUIT') \u2014 a human must determine these before building.",
+    "D005 is an angular dimension (15 deg) but stored under unit 'inch' due to schema constraints \u2014 it represents degrees, not inches.",
+    "The part appears to be a sheet-metal formed/rolled duct or shroud (16 GA, 0.060 in wall). A shell feature at 0.060 in wall thickness may be needed for accurate thin-walled representation.",
+    "D009 (APPX. DEVELOPED LGTH. = 85.68) is a reference/informational note for flat-pattern development, not a controlling dimension.",
+    "No title block data (part name, number, revision, material, finish, scale, or tolerance block) is visible in the provided views.",
+    "The fillet (F003) is part of the base profile sketch geometry, not a traditional post-extrusion SolidWorks fillet feature.",
+    "14.00 is labeled (INSIDE) confirming it is the inner clear dimension. Outer height = 14.00 + 2x0.060 = 14.12 in when modeled as thin shell.",
+    "Only two hole centers visible near the right end in the side view; actual hole pattern extent along the 32.25-in length is unspecified.",
+    "Could not classify view for A001611E.png; skipped."
+  ],
+  "confidence": 0.82
+}

@@ -1,0 +1,12 @@
+MODEL CHECK — A001561E
+========================================
+Saved: C:\Users\JOMATHEW\Downloads\TestDrawings-20260618T163658Z-3-001\TestDrawings\0014630E\MTI-Model_Joseph_Mathew\Test2\output\A001561E\A001561E.SLDPRT
+
+[PASS] Solid body exists (volume > 0).
+[PASS] width: a model extent matches drawing value(s) [279.4] mm.
+[PASS] height: a model extent matches drawing value(s) [165.1] mm.
+
+Skipped features (build non-strict — verify manually):
+  - F002 (hole): hole F002 has no diameter dimension.
+
+Overall model validation: PASSED.

@@ -1,0 +1,431 @@
+{
+  "part_name": "",
+  "part_number": "",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "2:1",
+  "material": "12 GA. steel (0.105\" thick), #1117A11 or equiv.",
+  "finish": "Adhesive (partial title block note)",
+  "general_tolerance": "\u00b1.005",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front face of the flat sheet-metal panel showing overall width, height, hole pattern, and semi-circular cutout",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D008",
+        "D011"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Vertical center line bisects the panel width at 5.500 in. Horizontal center lines mark each hole location row. Semi-circular cutout centered on bottom edge center line."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right) profile of the flat panel showing material thickness 12 GA = 0.105 in and overall length/depth 10.00 in",
+      "dimensions_shown": [
+        "D009",
+        "D010"
+      ],
+      "visible_features": [
+        "F001"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Part appears as a long thin rectangle; thickness confirmed as 12 GA (0.105 in)."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 11.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "width",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall panel width"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 10.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_pattern_width",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall span of hole pattern left-column to right-column centers"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 5.25,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_pattern_half_width",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Left-edge to center column of holes half of 10.500"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 6.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "height",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall panel height"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 5.875,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_row_upper_from_bottom",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical distance from bottom edge to upper row of holes"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 2.875,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_row_middle_from_bottom",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical distance from bottom edge to middle row of holes"
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 0.375,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_row_lower_from_bottom",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical distance from bottom edge to lower row of holes"
+    },
+    {
+      "id": "D008",
+      "type": "diameter",
+      "value": 3.062,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "semi_circular_cutout_diameter",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Diameter of the semi-circular cutout on bottom edge centered on panel"
+    },
+    {
+      "id": "D009",
+      "type": "linear",
+      "value": 0.105,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "thickness",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Material thickness 12 GA = 0.105 in"
+    },
+    {
+      "id": "D010",
+      "type": "linear",
+      "value": 10.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "depth",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall panel depth length into page scale note 2/1 = 10.00 IN"
+    },
+    {
+      "id": "D011",
+      "type": "linear",
+      "value": 0.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "left_edge_to_first_hole_column",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": true,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left edge of panel to left column of holes derived: (11.00 - 10.500)/2 = 0.25 in"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "thru",
+      "diameter": 0.218,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 7,
+      "x_position": 0.0,
+      "y_position": 0.0,
+      "position_known": true,
+      "pattern": "linear",
+      "pattern_spacing": 0.0,
+      "instance_positions": [
+        [
+          0.25,
+          5.875
+        ],
+        [
+          5.5,
+          5.875
+        ],
+        [
+          10.75,
+          5.875
+        ],
+        [
+          0.25,
+          2.875
+        ],
+        [
+          10.75,
+          2.875
+        ],
+        [
+          0.25,
+          0.375
+        ],
+        [
+          10.75,
+          0.375
+        ]
+      ],
+      "feature_ref": "F002",
+      "view": "Front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flat sheet-metal panel: 11.00 in wide x 6.50 in tall x 0.105 in thick (12 GA)",
+      "related_dimensions": [
+        "D001",
+        "D004",
+        "D009",
+        "D010"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D009",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": ".218 in diameter through holes \u2014 7 total arranged in perimeter pattern on panel face",
+      "related_dimensions": [
+        "D002",
+        "D003",
+        "D005",
+        "D006",
+        "D007",
+        "D011"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 7
+    },
+    {
+      "id": "F003",
+      "type": "extrude_cut",
+      "description": "Semi-circular cutout on the bottom edge of the panel, centered on panel width; diameter 3.062 in",
+      "related_dimensions": [
+        "D008"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 5.5,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Vertical center plane at X = 5.50 in",
+        "feature_ids": [
+          "F002",
+          "F003"
+        ],
+        "description": "Hole pattern columns and semi-circular cutout are symmetric about the vertical centerline of the panel"
+      }
+    ],
+    "concentric_groups": [],
+    "equal_spacing": [],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D001",
+        "component_dimension_ids": [
+          "D011",
+          "D002",
+          "D011"
+        ],
+        "description": "Overall width = left margin + hole span + right margin: 0.25 + 10.50 + 0.25 = 11.00 in"
+      }
+    ],
+    "derived_dimension_ids": [
+      "D011"
+    ],
+    "reference_dimension_ids": [
+      "D001",
+      "D004",
+      "D008",
+      "D009",
+      "D010",
+      "D011"
+    ]
+  },
+  "build_order": [
+    "F001",
+    "F003",
+    "F002"
+  ],
+  "warnings": [
+    "Title block is partially cut off; part name, part number, and revision could not be read.",
+    "Material partially visible as #1117A11 OR EQUIV. at top of drawing \u2014 likely a steel bar stock or sheet specification consistent with 12 GA.",
+    "The 7-hole layout was inferred from visible crosshair marks: 3 holes in top row (left, center, right columns), 2 in middle row (left and right columns only), and 2 in bottom row (left and right columns only) \u2014 total 7. Verify exact arrangement from original drawing.",
+    "Scale indicators '1/1' and '2/2' shown as circled fractions at bottom of front view may be detail/section view scale references; drawing scale interpreted as 2:1 from the side view note.",
+    "Side view scale note '2/1 \u2014 10.00 IN.' interpreted as the panel being 10.00 in long (depth). Confirm this is not a 2:1 scaled view where actual depth would be 5.00 in.",
+    "Semi-circular cutout diameter 3.062 in is an unusual value \u2014 possible misread of 3.063 in (close to a standard drill size). Verify before fabrication.",
+    "Left-edge margin of 0.25 in (D011) is derived from symmetry and overall width, not directly dimensioned \u2014 flagged as derived dimension.",
+    "Adhesive finish note in title block is partially visible; full specification not readable.",
+    "Could not classify view for A001561E.png; skipped."
+  ],
+  "confidence": 0.82
+}

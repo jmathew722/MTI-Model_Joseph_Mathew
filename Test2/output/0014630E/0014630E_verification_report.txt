@@ -1,0 +1,30 @@
+VERIFICATION REPORT
+===================
+Part: 0014630E    Units: inch    Standard: unknown    Confidence: 0.82
+Total dimensions extracted: 3
+Hole callouts extracted: 1
+Features identified: 2  (build order: 2)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (0 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        96%
+
+WARNINGS:
+  [WARN]  extraction: No title block present — part name, part number, revision, material, finish, drawing standard, and scale are all unknown.
+  [WARN]  extraction: No explicit tolerances given on any dimension; general tolerance block absent. All dimensions treated as reference-only tolerances pending a tolerance block.
+  [WARN]  extraction: Outer diameter reads '1.12 DIA' — value could conceivably be 1.125 (1-1/8 inch nominal); flagged as possible ambiguity but 1.12 taken as written.
+  [WARN]  extraction: Inner diameter reads '.656 DIA' — likely 21/32 inch (0.65625); value taken as 0.656 as written.
+  [WARN]  extraction: Length reads '.312' — likely 5/16 inch (0.3125); taken as 0.312 as written.
+  [WARN]  extraction: Part appears to be a simple washer or spacer bushing based on geometry.
+  [WARN]  extraction: Could not classify view for 0014630E.png; skipped.
+
+OVERALL STATUS: READY TO BUILD

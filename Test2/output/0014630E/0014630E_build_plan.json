@@ -1,0 +1,72 @@
+{
+  "part": "0014630E",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Cylindrical_base_boss_outer_diameter_1_1.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Cylindrical base boss, outer diameter 1.12 inch, extruded 0.312 inch deep",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 1.12,
+        "depth": 0.312
+      },
+      "notes": "Position read from drawing."
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_Concentric_through_hole_diameter_0_656_i.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "Concentric through-hole, diameter 0.656 inch, thru the full 0.312 inch depth",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.656,
+        "qty": 1.0
+      },
+      "notes": "Hole positions read from drawing."
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": ""
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection."
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

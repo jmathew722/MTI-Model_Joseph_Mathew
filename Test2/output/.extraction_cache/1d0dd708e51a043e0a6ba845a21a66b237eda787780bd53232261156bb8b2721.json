@@ -1,0 +1,424 @@
+{
+  "part_name": "",
+  "part_number": "",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front face of the rectangular plate showing overall width, hole pattern centerline distances, large center bore, and two small through-holes on the horizontal centerline",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Horizontal centerline bisects the plate height; two small holes (F002) symmetric about vertical centerline at 2.500 BSC half-spacing; large center bore (F003) on intersection of both centerlines"
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right-plane) view showing part length (depth into page from front view) and stock thickness",
+      "dimensions_shown": [
+        "D008",
+        "D009"
+      ],
+      "visible_features": [
+        "F001"
+      ],
+      "hidden_features": [
+        "F002",
+        "F003"
+      ],
+      "centerline_notes": "Vertical centerlines visible at each hole location confirm through-hole positions"
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 5.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "width_hole_spacing",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "BSC (basic) \u2014 hole-to-hole span full width"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 2.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "half_width_centerline_offset",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "BSC (basic) \u2014 from left edge (or left hole) to part vertical centerline"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 3.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "width",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Lower portion width dimension \u2014 appears to be partial width or step"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 1.75,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "height_upper",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical dimension on right side \u2014 upper portion height"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 3.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "height",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Stock tolerance \u2014 overall height of part in front view"
+    },
+    {
+      "id": "D006",
+      "type": "diameter",
+      "value": 0.406,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_diameter",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "B",
+      "gdt_symbol": "true_position",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Two small through-holes, datum B; GD&T true position 0.010 dia at MMC"
+    },
+    {
+      "id": "D007",
+      "type": "diameter",
+      "value": 1.09,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_diameter",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "B",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Large center bore, datum B"
+    },
+    {
+      "id": "D008",
+      "type": "linear",
+      "value": 6.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "length",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Part length (extrusion depth) read from side view"
+    },
+    {
+      "id": "D009",
+      "type": "linear",
+      "value": 0.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "thickness_or_step_height",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Stock tolerance \u2014 smaller thickness dimension visible at bottom-left of side view"
+    },
+    {
+      "id": "D010",
+      "type": "linear",
+      "value": 0.01,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "bilateral",
+      "applies_to": "true_position_tolerance",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "B",
+      "gdt_symbol": "true_position",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Position tolerance dia 0.010 for the 2x .406 holes"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "thru",
+      "diameter": 0.406,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 2,
+      "x_position": -2.5,
+      "y_position": 0.0,
+      "position_known": true,
+      "pattern": "linear",
+      "pattern_spacing": 5.0,
+      "instance_positions": [
+        [
+          0.5,
+          1.75
+        ],
+        [
+          5.5,
+          1.75
+        ]
+      ],
+      "feature_ref": "F002",
+      "view": "Front"
+    },
+    {
+      "id": "H002",
+      "type": "thru",
+      "diameter": 1.09,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 1,
+      "x_position": 0.0,
+      "y_position": 0.0,
+      "position_known": true,
+      "pattern": "none",
+      "pattern_spacing": 0.0,
+      "instance_positions": [
+        [
+          3.0,
+          1.75
+        ]
+      ],
+      "feature_ref": "F003",
+      "view": "Front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Rectangular plate base body \u2014 6.00 long (side view), 3.50 tall, width spans from front view profile",
+      "related_dimensions": [
+        "D003",
+        "D005",
+        "D008",
+        "D009"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D008",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": "Two 0.406 dia through-holes on horizontal centerline, spaced 5.000 BSC apart (2.500 BSC from part center each side), datum B, true position \u23000.010",
+      "related_dimensions": [
+        "D001",
+        "D002",
+        "D006",
+        "D010"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 2.5,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 2
+    },
+    {
+      "id": "F003",
+      "type": "hole",
+      "description": "1.090 dia through-hole at part vertical and horizontal centerline intersection, datum B",
+      "related_dimensions": [
+        "D007"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1
+    }
+  ],
+  "geometric_tolerances": [
+    {
+      "symbol": "true_position",
+      "value": 0.01,
+      "datum": "B"
+    }
+  ],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Front vertical centerline (X=0)",
+        "feature_ids": [
+          "F002"
+        ],
+        "description": "Two .406 holes are symmetric about the vertical centerline, each 2.500 BSC from center"
+      }
+    ],
+    "concentric_groups": [
+      {
+        "feature_ids": [
+          "F003"
+        ],
+        "description": "Center bore F003 is concentric with the part's front-face centroid"
+      }
+    ],
+    "equal_spacing": [
+      {
+        "feature_ref": "H001",
+        "qty": 2,
+        "spacing_value": 5.0,
+        "computed_from": "5.000 BSC overall span / 1 gap = 5.000"
+      }
+    ],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D001",
+        "component_dimension_ids": [
+          "D002",
+          "D002"
+        ],
+        "description": "Full hole spacing 5.000 = 2 \u00d7 2.500 BSC half-spacing"
+      }
+    ],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": []
+  },
+  "build_order": [
+    "F001",
+    "F003",
+    "F002"
+  ],
+  "warnings": [
+    "D003 (3.00) appears in the lower portion of the front view and may indicate a step or shelf feature not fully resolved \u2014 possibly the lower flange width. Verify whether the plate is a uniform rectangle or has a stepped profile.",
+    "D005 (3.50 STOCK TOL.) and D009 (0.50 STOCK TOL.) are called out as stock tolerances \u2014 their exact tolerance values are not stated numerically; a general stock tolerance block is implied but not shown.",
+    "D004 (1.75) is the upper vertical dimension; it is unclear whether this is from the bottom edge to the horizontal centerline (i.e., half of 3.50) or to the top of an upper step. If 3.50 total height / 2 = 1.75, these are consistent and the plate is symmetric in height \u2014 likely correct.",
+    "Dimension chain check: 1.75 \u00d7 2 = 3.50 \u2014 consistent, suggesting the horizontal centerline bisects the 3.50 height.",
+    "The side view shows internal centerlines suggesting the through-holes are visible as hidden features, but no additional dimensions specific to depth of holes are given \u2014 assumed THRU for all holes.",
+    "Instance positions for H001 are estimated: with overall width spanning 5.000 BSC and the part appearing roughly 6.00 wide total, the holes at X\u22480.5 and X\u22485.5 from left edge are approximate and should be verified against the actual edge datum.",
+    "Datum B is referenced for all hole features; the primary datum (A) is not explicitly shown in these views \u2014 likely the back face or bottom face, not labeled.",
+    "Could not classify view for A001621E.png; skipped."
+  ],
+  "confidence": 0.82
+}

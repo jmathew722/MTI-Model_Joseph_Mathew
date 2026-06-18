@@ -1,0 +1,31 @@
+VERIFICATION REPORT
+===================
+Part: A001581E    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 12
+Hole callouts extracted: 1
+Features identified: 4  (build order: 4)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (1 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        96%
+
+WARNINGS:
+  [WARN]  extraction: Sheet metal part (12 GA, 0.105 inch thick) - the extrude_boss depth is very thin representing a sheet metal flat plate.
+  [WARN]  extraction: The .25 dimension on the left side (D008) may indicate a flange lip or edge setback visible in side view end brackets; exact meaning is slightly ambiguous - could be a hem/return edge. Human review recommended.
+  [WARN]  extraction: Notch position D002 (1.56) measured from the outer left edge; combined with D003 (1.62 wide), the right edge of notch lands at 3.18 from left edge.
+  [WARN]  extraction: Hole vertical chain: D007 (0.375 bottom margin) + D006 (2.750 mid spacing) + 2.750 (top spacing) = 5.875 top hole from bottom; D005 (5.500) spans top-to-bottom hole, consistent: 0.375 + 5.500 = 5.875 from bottom edge. Arithmetic checks out.
+  [WARN]  extraction: 6.25 IN label appears in side view alongside hole annotation confirming overall height.
+  [WARN]  extraction: No title block data visible (part name, number, revision, material, finish) in the provided images.
+  [WARN]  extraction: Instance positions for H001 are edge-referenced from lower-left corner of part: left column x=0.25, right column x=10.75 (=10.500+0.25), rows at y=0.375, 3.125, 5.875.
+  [WARN]  extraction: Could not classify view for A001581E.png; skipped.
+
+OVERALL STATUS: READY TO BUILD

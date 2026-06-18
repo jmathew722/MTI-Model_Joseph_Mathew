@@ -1,0 +1,372 @@
+{
+  "part_name": "",
+  "part_number": "A001601E",
+  "revision": "",
+  "drawing_standard": "",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front view showing the flat bar profile: overall length 22.00, height 0.75, with 5 equally spaced through holes along the centerline. Horizontal dimensions 2.00, 4.500, 9.000, 13.500, 18.000 locate holes from the left end. Height dimension 0.440 and 0.75 visible on right side.",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D008",
+        "D010"
+      ],
+      "visible_features": [
+        "F001",
+        "F002"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Horizontal centerline runs through all 5 holes, implying holes are centered vertically on the bar thickness."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right) view showing the cross-section of the flat bar: width (depth) dimension 0.188 inch visible. A small rectangle below the centerline represents the bar cross-section.",
+      "dimensions_shown": [
+        "D009"
+      ],
+      "visible_features": [
+        "F001"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Centerline indicates the hole is through the width."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 22.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "length",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall length of the bar"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 0.75,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "height",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall height (thickness) of the bar"
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 0.44,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "height",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": true,
+      "ambiguity_reason": "Could be from top edge to hole centerline or another reference; bar total height is 0.75",
+      "possible_values": [
+        0.44,
+        0.375
+      ],
+      "resolution_required": false,
+      "notes": "Partial height dimension on right side; relationship to 0.75 overall height unclear"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 2.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_position_x",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left end to first hole centerline; no tolerance annotation visible"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 4.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_position_x",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left end to second hole centerline"
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 9.0,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_position_x",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left end to third hole centerline"
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 13.5,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_position_x",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left end to fourth hole centerline"
+    },
+    {
+      "id": "D008",
+      "type": "linear",
+      "value": 18.0,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_position_x",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Distance from left end to fifth hole centerline"
+    },
+    {
+      "id": "D009",
+      "type": "linear",
+      "value": 0.188,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "width",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Depth (width) of the bar as seen in the side view"
+    },
+    {
+      "id": "D010",
+      "type": "diameter",
+      "value": 0.281,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_diameter",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Drill diameter for 5 THRU holes per callout .281 DR. THRU"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "thru",
+      "diameter": 0.281,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 5,
+      "x_position": 0.0,
+      "y_position": 0.0,
+      "position_known": true,
+      "pattern": "linear",
+      "pattern_spacing": 0.0,
+      "instance_positions": [
+        [
+          2.0,
+          0.375
+        ],
+        [
+          4.5,
+          0.375
+        ],
+        [
+          9.0,
+          0.375
+        ],
+        [
+          13.5,
+          0.375
+        ],
+        [
+          18.0,
+          0.375
+        ]
+      ],
+      "feature_ref": "F002",
+      "view": "Front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flat bar: 22.00 long x 0.75 tall, extruded 0.188 deep",
+      "related_dimensions": [
+        "D001",
+        "D002",
+        "D009"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D009",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": "5x .281 diameter through holes along bar length",
+      "related_dimensions": [
+        "D004",
+        "D005",
+        "D006",
+        "D007",
+        "D008",
+        "D010"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 2.0,
+      "offset_y": 0.375,
+      "position_known": true,
+      "quantity": 5
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [],
+    "concentric_groups": [],
+    "equal_spacing": [
+      {
+        "feature_ref": "H001",
+        "qty": 5,
+        "spacing_value": 4.5,
+        "computed_from": "Holes at 4.50, 9.00, 13.50, 18.00 share 4.50 spacing; first hole at 2.00 has only 2.50 gap to second"
+      }
+    ],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D001",
+        "component_dimension_ids": [
+          "D008"
+        ],
+        "description": "Overall length 22.00 vs last hole at 18.00; 4.00 remaining to right end"
+      }
+    ],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": []
+  },
+  "build_order": [
+    "F001",
+    "F002"
+  ],
+  "warnings": [
+    "Hole spacing is NOT uniform: holes at X=2.00, 4.50, 9.00, 13.50, 18.00. Gaps are 2.50, 4.50, 4.50, 4.50. First hole is only 2.50 from second; all others are 4.50 apart. May be intentional or a drafting omission \u2014 human review recommended.",
+    "D003 (0.440) on the right side is ambiguous: could be the distance from top edge to hole centerline (leaving 0.31 to bottom), or an unrelated callout. Bar total height is 0.75; true mid-height is 0.375. Resolution: verify whether 0.440 is a step feature height or simply indicates the hole CL offset.",
+    "D004 (2.00) appears to lack the +/-0.005 tolerance annotation present on D005\u2013D008. Verify if intentional.",
+    "Y-positions of holes set to 0.375 (half of 0.75 bar height) by inference from centerline \u2014 not directly dimensioned.",
+    "Side view dimension 0.188 read as bar depth; limited geometry in that view. Confirm against material stock.",
+    "No title block data (part name, number, material, finish, drawing standard) visible in provided images.",
+    "Could not classify view for A001601E.png; skipped."
+  ],
+  "confidence": 0.82
+}

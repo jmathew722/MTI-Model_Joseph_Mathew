@@ -1,0 +1,36 @@
+VERIFICATION REPORT
+===================
+Part: A001211E    Units: inch    Standard: unknown    Confidence: 0.82
+Total dimensions extracted: 19
+Hole callouts extracted: 2
+Features identified: 5  (build order: 5)
+Dimensions flagged ambiguous: 1  ->  D019
+Dimensional closure: FAIL  ->  failed: D012 = D002 + D001
+Unit consistency: PASS
+View consistency: FAIL
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 95%
+  Cross-view consistency: 50%
+  Feature confidence:     82%
+  Macro readiness:        84%
+
+ERRORS:
+  [ERROR] Dimension D019 requires human resolution (Front view shows 4.50 overall height, side view shows 5.50; these may represent different dimensions or the part height with boss included.). Candidate values: 5.5, 4.5.
+  [ERROR] Dimensional closure FAILED: D012 = D002 + D001 → 6.26 != 6.88 (allowed slack 0.00688 inch).
+
+WARNINGS:
+  [WARN]  extraction: HEIGHT DISCREPANCY: Front view shows overall height 4.50 in, but right/side view shows 5.50 in. These may be measuring different things (e.g., 4.50 is body only, 5.50 includes the boss height added on top), but resolution by a human is required before building.
+  [WARN]  extraction: BOSS HEIGHT: The height of the raised boss (F002) above the base plate is not explicitly dimensioned — only the 4.38 width and 1.88 horizontal offset are given. Boss height must be inferred or resolved.
+  [WARN]  extraction: 10-24 TAP callout says '(2) HLs. (3) PLs.' — interpreted as 2 hole columns x 3 row placements = 6 total tapped holes. Instance positions are estimates based on 1.156 TYP and 2.344 TYP spacings; exact anchor positions should be verified.
+  [WARN]  extraction: The 5.375 dimension in the front view may be the overall span from left body edge to the rightmost hole column, not from the part origin — positional interpretation of D011 is uncertain.
+  [WARN]  extraction: D007 (0.375) small horizontal offset purpose is ambiguous — may relate to a slot or step not clearly visible in the sketch.
+  [WARN]  extraction: No material, finish, part number, or drawing standard found in the provided views.
+  [WARN]  extraction: 10-24 tap drill diameter used as 0.138 in (standard minor diameter for #10-24); nominal drill size is typically #25 (0.1495 in) — verify thread drill size.
+  [WARN]  extraction: Could not classify view for A001211E.png; skipped.
+  [WARN]  Dimension D018 cites view 'side', which is not among the identified views.
+
+OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST

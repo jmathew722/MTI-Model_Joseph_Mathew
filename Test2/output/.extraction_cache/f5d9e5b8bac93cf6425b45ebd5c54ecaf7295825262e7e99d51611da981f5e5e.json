@@ -1,0 +1,291 @@
+{
+  "part_name": "",
+  "part_number": "",
+  "revision": "",
+  "drawing_standard": "",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front view showing the overall channel/U-profile cross-section with vertical height, flange widths, and fillet radii. Defines the base extrusion profile.",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Centerlines at top and bottom radii indicate tangent arc transitions (fillets) at the flange-to-web junction, typical both locations."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right) view showing the part depth/thickness dimension with tolerance callout. Notes that the .280 thickness allows .030-.040 stock to fit at assembly.",
+      "dimensions_shown": [
+        "D006"
+      ],
+      "visible_features": [
+        "F001"
+      ],
+      "hidden_features": [],
+      "centerline_notes": ""
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "linear",
+      "value": 19.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "overall_height",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Overall vertical height of the part from top flange to bottom flange outer face."
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 16.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "web_height",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Vertical height dimension 16.500 \u2014 inside span between flanges, or web height."
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 1.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "flange_width",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Horizontal flange width dimension 1.00 at the bottom (and implied top) flange."
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 0.75,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "web_thickness",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Horizontal dimension .750 \u2014 web thickness or inner offset of flange step."
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 2.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "total_flange_width",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Horizontal dimension 2.00 \u2014 total flange/base width at the bottom."
+    },
+    {
+      "id": "D006",
+      "type": "linear",
+      "value": 0.28,
+      "unit": "inch",
+      "tolerance_plus": 0.01,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "bilateral",
+      "applies_to": "depth",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "+.010 / -.000 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y. Nominal depth is .280 inch."
+    },
+    {
+      "id": "D007",
+      "type": "radial",
+      "value": 0.531,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "fillet_radius",
+      "feature_ref": "F003",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".531 R. TYP \u2014 typical fillet radius at flange-to-web junctions, both top and bottom."
+    }
+  ],
+  "hole_callouts": [],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base extrusion of the channel/C-profile cross-section. Profile is a C-channel shape with two flanges and a web as read from the front view. Extruded to depth of .280 inch (D006) in the side direction.",
+      "related_dimensions": [
+        "D001",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D006"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D006",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F002",
+      "type": "extrude_cut",
+      "description": "Stepped notch/relief cut visible at the top flange in the front view \u2014 creates the flange step geometry distinguishing the flange from the web.",
+      "related_dimensions": [
+        "D003",
+        "D004"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 1
+    },
+    {
+      "id": "F003",
+      "type": "fillet",
+      "description": "Typical fillet radius of .531 R at the flange-to-web inside corners, both top and bottom junctions.",
+      "related_dimensions": [
+        "D007"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": false,
+      "quantity": 2
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Horizontal mid-plane (implied)",
+        "feature_ids": [
+          "F002",
+          "F003"
+        ],
+        "description": "The C-channel flange steps and fillets appear symmetrical top and bottom based on the TYP callout for the fillet radius."
+      }
+    ],
+    "concentric_groups": [],
+    "equal_spacing": [],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D001",
+        "component_dimension_ids": [
+          "D002",
+          "D003"
+        ],
+        "description": "Overall height (19.25) should equal web height (16.500) plus one flange height at top plus one flange height at bottom. Note: flange thicknesses not explicitly given \u2014 D001 vs D002 differ by 2.75 inch suggesting ~1.375 per flange. Resolution may be required."
+      },
+      {
+        "total_dimension_id": "D005",
+        "component_dimension_ids": [
+          "D003",
+          "D004"
+        ],
+        "description": "Total flange width (2.00) = flange overhang (1.00) + web thickness (0.75) + possible gap. Note 1.00 + 0.75 = 1.75 \u2260 2.00; a 0.25 discrepancy exists \u2014 may indicate web thickness is the inner step only, not a full additive chain."
+      }
+    ],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": []
+  },
+  "build_order": [
+    "F001",
+    "F002",
+    "F003"
+  ],
+  "warnings": [
+    "No title block information found (part name, number, revision, material, finish, scale all unknown).",
+    "Drawing standard not identified \u2014 assumed ASME based on dimension style.",
+    "Dimension chain D005 = D003 + D004 does not close: 1.00 + 0.75 = 1.75, not 2.00. The 0.25 gap is unexplained \u2014 possible additional web thickness or a separate dimension not clearly shown. Human resolution required.",
+    "Dimension chain D001 = D002 + (top flange height) + (bottom flange height): overall 19.25 minus web 16.500 = 2.75 total for both flanges, implying ~1.375 each. No explicit flange thickness dimension is given in either view \u2014 human should confirm.",
+    "The side view depth tolerance note reads '+.010 / -.000 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y' \u2014 this implies the nominal .280 gap plus the +.010 tolerance creates the assembly clearance. Verify nominal dimension intent.",
+    "Fillet radius .531 R TYP appears at both the top and bottom flange-to-web corners; verify whether both inside corners on both flanges receive this radius (up to 4 fillets possible).",
+    "The exact cross-sectional profile of the C-channel (step geometry at top vs bottom) is partially ambiguous from the front view alone \u2014 a third view or section would clarify whether the flanges are symmetric.",
+    "Confidence reduced due to missing flange thickness dimensions, unclear dimension chain closure, and absence of title block data.",
+    "Could not classify view for 16247.png; skipped."
+  ],
+  "confidence": 0.72
+}

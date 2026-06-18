@@ -1,0 +1,11 @@
+MODEL CHECK — A001611E
+========================================
+Saved: C:\Users\JOMATHEW\Downloads\TestDrawings-20260618T163658Z-3-001\TestDrawings\0014630E\MTI-Model_Joseph_Mathew\Test2\output\A001611E\A001611E.SLDPRT
+
+[PASS] Solid body exists (volume > 0).
+
+Skipped features (build non-strict — verify manually):
+  - F003 (fillet): FeatureFillet3 returned None for F003 (no edges selected?).
+  - F002 (hole): hole F002 has no diameter dimension.
+
+Overall model validation: PASSED.

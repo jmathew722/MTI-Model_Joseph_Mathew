@@ -1,0 +1,30 @@
+VERIFICATION REPORT
+===================
+Part: A001591E    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 9
+Hole callouts extracted: 1
+Features identified: 3  (build order: 3)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (4 chain(s) checked)
+Unit consistency: PASS
+View consistency: FAIL
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        96%
+
+WARNINGS:
+  [WARN]  extraction: Title block partially cut off — part name, number, revision, material, and finish are not legible. McMaster-Carr part reference '#1117A11 OR EQUIV' is noted in the upper-right header, suggesting this is a purchased stock plate.
+  [WARN]  extraction: The 8 holes comprise 4 corner positions and 4 mid-edge positions (centered on each side). Mid-edge centering inferred from front-view center marks; verify that mid-edge holes are truly centered.
+  [WARN]  extraction: The 0.25 in edge margin is explicitly shown on left and bottom edges only; by symmetry and confirmed by dimension chains it applies to all four edges.
+  [WARN]  extraction: Section references '1/1', '2/2 7.00 IN.', '3/2 6.00 IN.' appear in the legend below the front view but the corresponding section-cut detail views were not provided. The 7.00 IN. and 6.00 IN. annotations may refer to alternate bolt-pattern dimensions or section extents not captured here.
+  [WARN]  extraction: 12 GA (.105 in) nominal thickness; actual tolerance follows applicable sheet metal standard (e.g. ASTM A480).
+  [WARN]  extraction: Could not classify view for A001591E.png; skipped.
+  [WARN]  Dimension D009 cites view 'side', which is not among the identified views.
+
+OVERALL STATUS: READY TO BUILD

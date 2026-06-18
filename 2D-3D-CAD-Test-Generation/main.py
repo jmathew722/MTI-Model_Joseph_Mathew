@@ -31,6 +31,65 @@ from rich.panel import Panel
 console = Console()
 
 
+def _export_to_downloads(args, output_dir: Path, folder_name: str = "SolidWorksModel_Parts"):
+    """Final pipeline step: copy every part's outputs (models + text files) into
+    ``~/Downloads/<folder_name>`` so the deliverables land in one well-known place.
+
+    Skips the internal extraction cache. Merges into any existing folder (updates
+    files in place) rather than wiping it. Disabled with --no-export.
+    """
+    if getattr(args, "no_export", False):
+        return None
+    import shutil
+
+    try:
+        dest = Path.home() / "Downloads" / folder_name
+        dest.mkdir(parents=True, exist_ok=True)
+        copied = 0
+        for item in Path(output_dir).iterdir():
+            if item.name == ".extraction_cache":
+                continue  # internal cache, not a deliverable
+            target = dest / item.name
+            if item.is_dir():
+                shutil.copytree(item, target, dirs_exist_ok=True)
+            else:
+                shutil.copy2(item, target)
+            copied += 1
+        console.print(f"  [green]Final step:[/green] {copied} item(s) copied to {dest}")
+        return dest
+    except Exception as e:
+        console.print(f"  [yellow]Could not export to Downloads:[/yellow] {type(e).__name__}: {e}")
+        return None
+
+
+def _connect_solidworks_optional(args):
+    """Connect to SolidWorks so .sldprt models are produced, unless --no-sldprt.
+
+    Returns the SolidWorks app, or None when disabled or unavailable (off Windows,
+    not installed, no license). A None result is non-fatal: the text reports and
+    VBA macros are still produced; only the .sldprt is skipped (with a reason).
+    """
+    if getattr(args, "no_sldprt", False):
+        return None
+    from pipeline.solidworks_builder import (
+        PlatformError,
+        SolidWorksError,
+        connect_to_solidworks,
+    )
+
+    try:
+        app = connect_to_solidworks()
+        console.print("  [green]SolidWorks connected[/green] — .sldprt models will be built each run.")
+        return app
+    except PlatformError as e:
+        console.print(f"  [yellow]No .sldprt this run:[/yellow] {e}")
+    except SolidWorksError as e:
+        console.print(f"  [yellow]No .sldprt this run (SolidWorks unavailable):[/yellow] {e}")
+    except Exception as e:
+        console.print(f"  [yellow]No .sldprt this run:[/yellow] {type(e).__name__}: {e}")
+    return None
+
+
 def _extract_cache_dir(args) -> Path | None:
     """The on-disk extraction cache dir, unless disabled with --no-extract-cache."""
     if getattr(args, "no_extract_cache", False):
@@ -139,9 +198,14 @@ def _run_batch(args) -> int:
 
     output_dir = Path(args.output)
     cache_dir = _extract_cache_dir(args)
+    import os as _os
+
+    sw_app = _connect_solidworks_optional(args)
+    template = _os.getenv("SOLIDWORKS_TEMPLATE_PATH")
     rows, csv_path = run_batch(
         directory, output_dir,
         extract_fn=lambda p: _extract_one_drawing(p, args.page, cache_dir),
+        sw_app=sw_app, template_path=template,
     )
     if not rows:
         console.print(f"[yellow]No drawings or *_extraction.json files found in[/yellow] {directory}")
@@ -160,6 +224,7 @@ def _run_batch(args) -> int:
     console.print(table)
     n_ready = sum(1 for r in rows if r.status == "READY")
     console.print(f"  Summary CSV: {csv_path}  ({n_ready}/{len(rows)} READY)")
+    _export_to_downloads(args, output_dir)
     return 0 if n_ready == len(rows) else 8
 
 
@@ -209,6 +274,9 @@ def _run_views_folder(args) -> int:
         f"Multi-view build: {len(parts)} part(s); views processed in order "
         f"{', '.join(VIEW_ORDER)}."
     )
+    # Connect to SolidWorks once so every READY part is built into a .sldprt.
+    sw_app = _connect_solidworks_optional(args)
+    template = _os.getenv("SOLIDWORKS_TEMPLATE_PATH")
 
     rows = []
     for part in parts:
@@ -227,8 +295,9 @@ def _run_views_folder(args) -> int:
                                  f"{type(e).__name__}: {e}"[:300]))
             continue
         record_run(output_dir, data.get("part_number") or part.name, model, usage)
-        console.print("[2/2] verifying + generating per-plane macros...")
-        rows.append(process_drawing_data(data, part.name, output_dir))
+        console.print("[2/2] verifying + generating per-plane macros + .sldprt...")
+        rows.append(process_drawing_data(data, part.name, output_dir,
+                                         sw_app=sw_app, template_path=template))
 
     table = Table(title=f"Multi-view summary ({len(rows)} part(s))")
     for col in ("Part", "Status", "Readiness", "Macros", "Review", "Skipped", "Detail"):
@@ -242,11 +311,20 @@ def _run_views_folder(args) -> int:
     csv_path = write_batch_csv(rows, output_dir, name="multiview_summary.csv")
     n_ready = sum(1 for r in rows if r.status == "READY")
     console.print(f"  Summary CSV: {csv_path}  ({n_ready}/{len(rows)} READY)")
+    _export_to_downloads(args, output_dir)
     return 0 if n_ready == len(rows) else 8
 
 
 def main() -> int:
     _force_utf8_console()
+    # Load .env from this script's directory so ANTHROPIC_API_KEY and
+    # SOLIDWORKS_TEMPLATE_PATH resolve regardless of the current working dir.
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(Path(__file__).resolve().parent / ".env")
+    except Exception:
+        pass
     parser = argparse.ArgumentParser(
         description="Convert a 2D engineering drawing into a SolidWorks 3D model."
     )
@@ -284,6 +362,19 @@ def main() -> int:
         "--validate-only",
         action="store_true",
         help="Extract and verify only; do not generate macros or touch SolidWorks.",
+    )
+    parser.add_argument(
+        "--no-sldprt",
+        action="store_true",
+        help="Do NOT build .sldprt files. By default every READY part is built into "
+        "a real SolidWorks .sldprt (requires Windows + SolidWorks) alongside the "
+        "text reports and VBA macros.",
+    )
+    parser.add_argument(
+        "--no-export",
+        action="store_true",
+        help="Do NOT copy the outputs to ~/Downloads/SolidWorksModel_Parts. By "
+        "default the final step gathers all part outputs there.",
     )
     args = parser.parse_args()
 
@@ -370,6 +461,21 @@ def main() -> int:
             f"  {n_macros} macros in {pkg.macros_dir}",
             f"  Build plan: {pkg.build_plan_json}",
         ]
+        # Build the real .sldprt into the part folder (required output unless --no-sldprt).
+        import os as _os
+
+        sw_app = _connect_solidworks_optional(args)
+        if sw_app is not None:
+            from pipeline.batch import build_sldprt_for_part
+
+            try:
+                sldprt = build_sldprt_for_part(
+                    sw_app, model, pkg.root, pkg.root.name,
+                    _os.getenv("SOLIDWORKS_TEMPLATE_PATH"),
+                )
+                lines.append(f"  [green]Model built:[/green] {sldprt}")
+            except Exception as e:
+                lines.append(f"  [yellow].sldprt build failed:[/yellow] {type(e).__name__}: {e}")
         if pkg.skipped:
             lines.append(
                 f"  [yellow]{len(pkg.skipped)} feature(s) skipped (prohibited):[/yellow] "
@@ -382,6 +488,7 @@ def main() -> int:
             )
         lines.append("  Next: copy the package folder to a SolidWorks machine and follow macros/README.md.")
         console.print(Panel("\n".join(lines), style="green"))
+        _export_to_downloads(args, output_dir)
         return 0
 
     # --- engine == "com": direct COM build (Windows + SolidWorks) ---
@@ -435,6 +542,7 @@ def main() -> int:
             style=style,
         )
     )
+    _export_to_downloads(args, output_dir)
     return 0 if vreport.get("ok") else 7
 
 

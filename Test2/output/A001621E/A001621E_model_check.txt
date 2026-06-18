@@ -1,0 +1,13 @@
+MODEL CHECK — A001621E
+========================================
+Saved: C:\Users\JOMATHEW\Downloads\TestDrawings-20260618T163658Z-3-001\TestDrawings\0014630E\MTI-Model_Joseph_Mathew\Test2\output\A001621E\A001621E.SLDPRT
+
+[PASS] Solid body exists (volume > 0).
+[PASS] length: a model extent matches drawing value(s) [152.4] mm.
+[PASS] height: a model extent matches drawing value(s) [88.9] mm.
+[FAIL] width: drawing value(s) [76.2] mm not found among model extents [152.4, 152.4, 88.9] mm (tolerance 5%).
+
+Skipped features (build non-strict — verify manually):
+  - F002 (hole): FeatureCut4 returned None for F002.
+
+Overall model validation: completed with issues.

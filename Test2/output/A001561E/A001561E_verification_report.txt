@@ -1,0 +1,33 @@
+VERIFICATION REPORT
+===================
+Part: A001561E    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 11
+Hole callouts extracted: 1
+Features identified: 3  (build order: 3)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (1 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 1  ->  D011
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        96%
+
+WARNINGS:
+  [WARN]  extraction: Title block is partially cut off; part name, part number, and revision could not be read.
+  [WARN]  extraction: Material partially visible as #1117A11 OR EQUIV. at top of drawing — likely a steel bar stock or sheet specification consistent with 12 GA.
+  [WARN]  extraction: The 7-hole layout was inferred from visible crosshair marks: 3 holes in top row (left, center, right columns), 2 in middle row (left and right columns only), and 2 in bottom row (left and right columns only) — total 7. Verify exact arrangement from original drawing.
+  [WARN]  extraction: Scale indicators '1/1' and '2/2' shown as circled fractions at bottom of front view may be detail/section view scale references; drawing scale interpreted as 2:1 from the side view note.
+  [WARN]  extraction: Side view scale note '2/1 — 10.00 IN.' interpreted as the panel being 10.00 in long (depth). Confirm this is not a 2:1 scaled view where actual depth would be 5.00 in.
+  [WARN]  extraction: Semi-circular cutout diameter 3.062 in is an unusual value — possible misread of 3.063 in (close to a standard drill size). Verify before fabrication.
+  [WARN]  extraction: Left-edge margin of 0.25 in (D011) is derived from symmetry and overall width, not directly dimensioned — flagged as derived dimension.
+  [WARN]  extraction: Adhesive finish note in title block is partially visible; full specification not readable.
+  [WARN]  extraction: Could not classify view for A001561E.png; skipped.
+  [WARN]  Feature F001 is driven by REF dimension D009 — reference dimensions are non-controlling; verify a driving dimension exists.
+
+OVERALL STATUS: READY TO BUILD
