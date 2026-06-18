@@ -1,0 +1,111 @@
+DESIGN DECISION & VERIFICATION REPORT — SB11780
+Generated 2026-06-18 by the automated 2D->3D SolidWorks pipeline.
+==============================================================================
+
+BUILD SUMMARY
+------------------------------------------------------------------------------
+  SolidWorks file:        C:\Users\JOMATHEW\MTI-Model\2D-3D-CAD-Test-Generation\output\SB11780\SB11780.sldprt
+  Features built:         1 (F001)
+  Features not attempted: F002, F003, F004, F005
+  Extraction confidence:  82%
+  Model validation:       PASSED
+  Solid volume:           6,176,793.9 mm^3
+  Bounding box (mm):      [1952.752, 63.4619, 63.4619]
+
+1. AUTOMATED DESIGN DECISIONS  (90%-confidence defaults — review before production)
+------------------------------------------------------------------------------
+  - Removed dimension chain D004 = D005 + D006: components sum to 76.005 but total is 76.88 inch. The component is a step WITHIN the overall dimension, not a closed loop; kept both as independent dimensions.
+  - Part is a turned/revolved shaft. The automated builder cannot revolve an arbitrary profile, so F001 was approximated as a BOUNDING CYLINDER ø2.4985 x 76.88 inch (largest OD x overall length).
+  - Feature F002 (extrude_boss) omitted — part built as a single bounding cylinder pending a manual revolve.
+  - Feature F003 (extrude_boss) omitted — part built as a single bounding cylinder pending a manual revolve.
+  - Feature F004 (fillet) omitted — part built as a single bounding cylinder pending a manual revolve.
+  - Feature F005 (chamfer) omitted — part built as a single bounding cylinder pending a manual revolve.
+
+2. EXTRACTED DIMENSIONS  (12)
+------------------------------------------------------------------------------
+  ID    Type      Value   Unit  Tol +/-     Applies To                   Notes
+  ----  --------  ------  ----  ----------  ---------------------------  --------------------------------------------------
+  D001  diameter  1.734   inch  +0/-0       flange_outer_diameter        Large flange OD shown in front view
+  D002  linear    2.218   inch  +0/-0       flange_outer_diameter_check  Horizontal linear dimension across flange, likely
+  D003  linear    0.5     inch  +0.002/-0   datum_A_diameter_zone        .500 CENT. with +.002/-.000 tolerance referencing
+  D004  linear    76.88   inch  +0/-0       overall_length               Overall length of the part
+  D005  linear    75.125  inch  +0/-0       secondary_length             Secondary overall length dimension, slightly short
+  D006  linear    0.88    inch  +0/-0       left_flange_width            Axial width of the left flange / boss
+  D007  linear    1.016   inch  +0/-0       shoulder_step_offset         1.016 TYP — typical axial spacing of a shoulder or
+  D008  diameter  1.734   inch  +0/-0       flange_OD                    Flange OD labeled in side view, consistent with D0
+  D009  linear    2.218   inch  +0/-0       flange_face_width_or_OD      2.218 dimension repeated in side view, consistent
+  D010  diameter  2.4985  inch  +0/-0.0015  right_journal_diameter       2.4985 Ø REF ±.0015 — right end journal/flange dia
+  D011  radial    0.125   inch  +0/-0       fillet_radius_max            .125 R MAX TYP — maximum fillet/undercut radius at
+  D012  radial    0.06    inch  +0/-0       chamfer_radius_both_ends     .06 C/R BOTH ENDS — 0.06 chamfer or radius on both
+
+  Geometric tolerances:
+    - perpendicularity 0.002 (datum A)
+    - perpendicularity 0.002 (datum A)
+    - parallelism 0.002 (datum B)
+
+3. FEATURES
+------------------------------------------------------------------------------
+  F001   extrude_boss   BUILT              Base shaft body — full-length revolved solid about the cente
+  F002   extrude_boss   NOT BUILT          Left end flange boss — the large circular flange visible in 
+  F003   extrude_boss   NOT BUILT          Right end journal/flange — Ø2.4985 REF shoulder at right end
+  F004   fillet         NOT BUILT          Shoulder fillets at all diameter transitions — .125 R MAX TY
+  F005   chamfer        NOT BUILT          .06 C/R BOTH ENDS — 0.06 chamfer or corner radius applied to
+
+4. CONCERNS & ISSUES FOR HUMAN VERIFICATION
+------------------------------------------------------------------------------
+  - Extraction note: BUILD ORDER NOTE: F001 is listed as revolve (base solid) but the schema requires the first feature to be extrude_boss. This part is clearly a turned/revolved shaft — the revolve IS the base. A revolve is used as the base feature here per geometry; treat F001 as the base revolve.
+  - Extraction note: DIMENSION CHAIN DOES NOT CLOSE: D004 (76.88) vs D005 (75.125) + D006 (0.88) = 76.005. Gap of ~0.875 is unaccounted for. Likely an additional shoulder width or the 75.125 references a different datum than the overall. Human review recommended.
+  - Extraction note: D002/D009 (2.218): It is unclear whether this is the flange OD (which appears larger than 1.734 in the front view circle) or a separate measurement. The front view shows a large circle dimensioned as 1.734Ø but the 2.218 dimension extends further. Could be the flange OD while 1.734 is the shaft body OD.
+  - Extraction note: D003 (.500 CENT.): Interpreted as a .500 diameter centrally-located feature (possibly a center bore or datum zone) with +.002/-.000 tolerance. Context suggests it is the central journal/datum surface diameter.
+  - Extraction note: 2.4985 Ø REF ±.0015: The tolerance value of ±.0015 is applied to a REF dimension, which is unusual. May be a limit dimension or a reference to an actual measured range. Human review recommended.
+  - Extraction note: CFS note (Clean, Finish, Stone) applies to the shaft surface in the side view — recorded as finish.
+  - Extraction note: MACHINE CENTERS PERMITTED note at right end — center drill holes are allowable at both ends.
+  - Extraction note: Drawing is hand-drawn/sketched; some dimension values may be slightly misread. Confidence set to 0.82.
+  - Extraction note: Units assumed to be inches based on dimension magnitudes and typical shaft proportions. The 76.88 overall length makes this a very long shaft (~6.4 ft) if in inches — may be mm. If mm, all dimensions should be scaled accordingly. Resolution required from title block.
+  - Extraction note: Could not classify view for SB11780.png; skipped.
+  - VERIFY dimension D002=2.218 inch — printed value was unclear (Could be flange OD or an offset dimension; reads 2.218 horizontally under the flange circle).
+  - VERIFY dimension D004=76.88 inch — printed value was unclear (Value reads 76.88 but given typical shaft proportions this may be in mm or a very long shaft in inches; likely inches per drawing unit declaration).
+  - MAJOR: F001 is a simplified bounding cylinder, NOT the real stepped shaft/flange profile. Model the part as a revolve manually.
+
+==============================================================================
+APPENDIX — full Phase-1 verification report
+==============================================================================
+VERIFICATION REPORT
+===================
+Part: SB11780    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 12
+Hole callouts extracted: 0
+Features identified: 5  (build order: 1)
+Dimensions flagged ambiguous: 2  ->  D002, D004
+Dimensional closure: PASS  (0 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 83%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        90%
+
+WARNINGS:
+  [WARN]  extraction: BUILD ORDER NOTE: F001 is listed as revolve (base solid) but the schema requires the first feature to be extrude_boss. This part is clearly a turned/revolved shaft — the revolve IS the base. A revolve is used as the base feature here per geometry; treat F001 as the base revolve.
+  [WARN]  extraction: DIMENSION CHAIN DOES NOT CLOSE: D004 (76.88) vs D005 (75.125) + D006 (0.88) = 76.005. Gap of ~0.875 is unaccounted for. Likely an additional shoulder width or the 75.125 references a different datum than the overall. Human review recommended.
+  [WARN]  extraction: D002/D009 (2.218): It is unclear whether this is the flange OD (which appears larger than 1.734 in the front view circle) or a separate measurement. The front view shows a large circle dimensioned as 1.734Ø but the 2.218 dimension extends further. Could be the flange OD while 1.734 is the shaft body OD.
+  [WARN]  extraction: D003 (.500 CENT.): Interpreted as a .500 diameter centrally-located feature (possibly a center bore or datum zone) with +.002/-.000 tolerance. Context suggests it is the central journal/datum surface diameter.
+  [WARN]  extraction: 2.4985 Ø REF ±.0015: The tolerance value of ±.0015 is applied to a REF dimension, which is unusual. May be a limit dimension or a reference to an actual measured range. Human review recommended.
+  [WARN]  extraction: CFS note (Clean, Finish, Stone) applies to the shaft surface in the side view — recorded as finish.
+  [WARN]  extraction: MACHINE CENTERS PERMITTED note at right end — center drill holes are allowable at both ends.
+  [WARN]  extraction: Drawing is hand-drawn/sketched; some dimension values may be slightly misread. Confidence set to 0.82.
+  [WARN]  extraction: Units assumed to be inches based on dimension magnitudes and typical shaft proportions. The 76.88 overall length makes this a very long shaft (~6.4 ft) if in inches — may be mm. If mm, all dimensions should be scaled accordingly. Resolution required from title block.
+  [WARN]  extraction: Could not classify view for SB11780.png; skipped.
+  [WARN]  Feature F005 is not in build_order and will not be built.
+  [WARN]  Feature F002 is not in build_order and will not be built.
+  [WARN]  Feature F004 is not in build_order and will not be built.
+  [WARN]  Feature F003 is not in build_order and will not be built.
+  [WARN]  Dimension D002 value is unclear (Could be flange OD or an offset dimension; reads 2.218 horizontally under the flange circle); using best guess 2.218.
+  [WARN]  Dimension D004 value is unclear (Value reads 76.88 but given typical shaft proportions this may be in mm or a very long shaft in inches; likely inches per drawing unit declaration); using best guess 76.88.
+
+OVERALL STATUS: READY TO BUILD

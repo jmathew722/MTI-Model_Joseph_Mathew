@@ -1,0 +1,112 @@
+DESIGN DECISION & VERIFICATION REPORT — A040911E
+Generated 2026-06-18 by the automated 2D->3D SolidWorks pipeline.
+==============================================================================
+
+BUILD SUMMARY
+------------------------------------------------------------------------------
+  SolidWorks file:        C:\Users\JOMATHEW\MTI-Model\2D-3D-CAD-Test-Generation\output\A040911E\A040911E.sldprt
+  Features built:         2 (F001, F002)
+  Features skipped:       F005 (chamfer)
+  Features not attempted: F003, F004
+  Extraction confidence:  82%
+  Model validation:       PASSED
+  Solid volume:           424,220.3 mm^3
+  Bounding box (mm):      [165.0492, 165.0492, 38.1]
+
+1. AUTOMATED DESIGN DECISIONS  (90%-confidence defaults — review before production)
+------------------------------------------------------------------------------
+  - Dimension D004 (bolt_circle_radius=2.875) was flagged 'resolution required' (Could be bolt-circle radius (BCD=5.750) or half-height of flange face from center to top edge; OD is 6.498 so either reading is geometrically plausible); proceeded with best guess 2.875. Candidates: 2.875.
+  - Dimension D005 (bolt_circle_width_or_partial_width=2.49) was flagged 'resolution required' (Could be bolt-circle diameter or a dimension of the flange neck width); proceeded with best guess 2.49. Candidates: 2.49.
+  - Removed dimension chain D006 = D005: components sum to 2.49 but total is 2.75 inch. The component is a step WITHIN the overall dimension, not a closed loop; kept both as independent dimensions.
+  - Circular/angular spacing for F004 (3 instances @ 120 deg) recorded as a NOTE only — not used for linear feasibility or auto-patterning.
+  - Hole pattern H001 (3 holes) recorded as a note; holes are NOT auto-placed (bolt-circle position + circular pattern need manual placement).
+  - Feature F003 (hole): drilled/patterned holes are not auto-placed (bolt-circle position + circular pattern need manual placement); omitted.
+  - Feature F004 (pattern): drilled/patterned holes are not auto-placed (bolt-circle position + circular pattern need manual placement); omitted.
+
+2. EXTRACTED DIMENSIONS  (9)
+------------------------------------------------------------------------------
+  ID    Type      Value  Unit  Tol +/-        Applies To                          Notes
+  ----  --------  -----  ----  -------------  ----------------------------------  --------------------------------------------------
+  D001  diameter  6.498  inch  +0/-0.002      outer_diameter                      +.000 / -.002 tolerance
+  D002  diameter  4.5    inch  +0.003/-0      bore_diameter                       +.003 / -.000 tolerance; datum A
+  D003  linear    1.438  inch  +0.005/-0.005  bore_depth_or_step_height           ±.005 tolerance; vertical dimension inside bore ar
+  D004  linear    2.875  inch  +0.005/-0.005  bolt_circle_radius                  ±.005; likely bolt-circle radius or half-height fr
+  D005  linear    2.49   inch  +0.005/-0.005  bolt_circle_width_or_partial_width  ±.005; horizontal dimension at bottom of flange —
+  D006  linear    2.75   inch  +0/-0          overall_width                       Overall width of flange base; no explicit toleranc
+  D007  linear    1.5    inch  +0/-0          part_depth                          Overall depth/length of part from side view
+  D008  linear    0.06   inch  +0/-0          chamfer_size                        .06 x 45° TYP chamfer both ends
+  D009  depth     0.38   inch  +0/-0          counterbore_depth                   C'BORE .38 DP for .250 SOC HD CAP SCR
+
+  Geometric tolerances:
+    - cylindricity 0.001 (datum A)
+    - perpendicularity 0.001 (datum A)
+
+  Hole callouts:
+    - H001: counterbore ø0.272 inch depth 0.38, qty 1  [POSITION ASSUMED]
+
+3. FEATURES
+------------------------------------------------------------------------------
+  F001   extrude_boss   BUILT              Base circular flange disc, OD 6.498 inch, depth 1.500 inch
+  F002   extrude_cut    BUILT              Central through bore, diameter 4.500 inch (datum A), through
+  F003   hole           NOT BUILT          3x counterbore holes drilled and counterbored .38 deep for 1
+  F004   pattern        NOT BUILT          Circular pattern of 3 counterbore holes equally spaced 120° 
+  F005   chamfer        SKIPPED            .06 x 45° chamfer, typical both ends of part (bore and OD ed
+
+4. CONCERNS & ISSUES FOR HUMAN VERIFICATION
+------------------------------------------------------------------------------
+  - Extraction note: D004 (2.875 ±.005): Labeled as distance from part center to top — likely bolt-circle radius (BCD = 5.750) OR flange half-height. OD is 6.498, so radius ~3.249. A bolt-circle radius of 2.875 would place holes well inside the flange. HUMAN MUST CONFIRM whether 2.875 is the bolt-circle radius.
+  - Extraction note: D005 (2.490 ±.005): Horizontal dimension at bottom of flange — may be bolt-circle diameter or flange neck/pilot width. HUMAN MUST CONFIRM.
+  - Extraction note: H001: Pilot hole diameter for 1/4 SHCS standard clearance is ~0.272 (17/64); cbore diameter for 1/4 SHCS head is 7/16 (0.4375). These standard values were inferred — drawing does not explicitly call out these sub-dimensions. Confirm with standard chart.
+  - Extraction note: D003 (1.438 ±.005): The vertical dimension inside bore area — exact geometric role (step height, bore shoulder depth, or bore length) unclear from single front view. Human verification required.
+  - Extraction note: Side view shows a hatched hub/shaft region — no explicit hub OD or hub length dimension is clearly readable. The 1.500 dimension may be the shaft/stem portion length above the flange, not the overall part length. Full side view interpretation requires clarification.
+  - Extraction note: Multiple surface finish callouts noted: 63 µin (front view, two locations), 125 µin and 63 µin (side view). Not captured in single finish field due to multiple values.
+  - Extraction note: GD&T: ⊙|A|.001 on front view interpreted as cylindricity 0.001 datum A (OD). ⊥|A|.001 on side view interpreted as perpendicularity 0.001 datum A (face perpendicular to bore axis).
+  - Extraction note: Datum A is the 4.500 bore based on the boxed 'A' callout adjacent to that dimension on front view.
+  - Extraction note: Could not classify view for A040911E.png; skipped.
+  - VERIFY dimension D004=2.875 inch — extractor was unsure (Could be bolt-circle radius (BCD=5.750) or half-height of flange face from center to top edge; OD is 6.498 so either reading is geometrically plausible).
+  - VERIFY dimension D005=2.49 inch — extractor was unsure (Could be bolt-circle diameter or a dimension of the flange neck width).
+  - ADD the holes for F003 manually per the drawing callouts.
+  - ADD the holes for F004 manually per the drawing callouts.
+  - Feature F005 (chamfer) was SKIPPED during the build: InsertFeatureChamfer returned None for F005.
+
+==============================================================================
+APPENDIX — full Phase-1 verification report
+==============================================================================
+VERIFICATION REPORT
+===================
+Part: A040911E    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 9
+Hole callouts extracted: 1
+Features identified: 5  (build order: 3)
+Dimensions flagged ambiguous: 2  ->  D004, D005
+Dimensional closure: PASS  (0 chain(s) checked)
+Unit consistency: PASS
+View consistency: FAIL
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 78%
+  Cross-view consistency: 100%
+  Feature confidence:     82%
+  Macro readiness:        89%
+
+WARNINGS:
+  [WARN]  extraction: D004 (2.875 ±.005): Labeled as distance from part center to top — likely bolt-circle radius (BCD = 5.750) OR flange half-height. OD is 6.498, so radius ~3.249. A bolt-circle radius of 2.875 would place holes well inside the flange. HUMAN MUST CONFIRM whether 2.875 is the bolt-circle radius.
+  [WARN]  extraction: D005 (2.490 ±.005): Horizontal dimension at bottom of flange — may be bolt-circle diameter or flange neck/pilot width. HUMAN MUST CONFIRM.
+  [WARN]  extraction: H001: Pilot hole diameter for 1/4 SHCS standard clearance is ~0.272 (17/64); cbore diameter for 1/4 SHCS head is 7/16 (0.4375). These standard values were inferred — drawing does not explicitly call out these sub-dimensions. Confirm with standard chart.
+  [WARN]  extraction: D003 (1.438 ±.005): The vertical dimension inside bore area — exact geometric role (step height, bore shoulder depth, or bore length) unclear from single front view. Human verification required.
+  [WARN]  extraction: Side view shows a hatched hub/shaft region — no explicit hub OD or hub length dimension is clearly readable. The 1.500 dimension may be the shaft/stem portion length above the flange, not the overall part length. Full side view interpretation requires clarification.
+  [WARN]  extraction: Multiple surface finish callouts noted: 63 µin (front view, two locations), 125 µin and 63 µin (side view). Not captured in single finish field due to multiple values.
+  [WARN]  extraction: GD&T: ⊙|A|.001 on front view interpreted as cylindricity 0.001 datum A (OD). ⊥|A|.001 on side view interpreted as perpendicularity 0.001 datum A (face perpendicular to bore axis).
+  [WARN]  extraction: Datum A is the 4.500 bore based on the boxed 'A' callout adjacent to that dimension on front view.
+  [WARN]  extraction: Could not classify view for A040911E.png; skipped.
+  [WARN]  Feature F004 is not in build_order and will not be built.
+  [WARN]  Feature F003 is not in build_order and will not be built.
+  [WARN]  Dimension D004 value is unclear (Could be bolt-circle radius (BCD=5.750) or half-height of flange face from center to top edge; OD is 6.498 so either reading is geometrically plausible); using best guess 2.875.
+  [WARN]  Dimension D005 value is unclear (Could be bolt-circle diameter or a dimension of the flange neck width); using best guess 2.49.
+  [WARN]  Feature F001 is driven by REF dimension D007 — reference dimensions are non-controlling; verify a driving dimension exists.
+  [WARN]  Dimension D007 cites view 'Side', which is not among the identified views.
+
+OVERALL STATUS: READY TO BUILD
