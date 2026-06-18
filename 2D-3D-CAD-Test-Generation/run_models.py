@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -31,28 +32,71 @@ from pipeline.extractor import DEFAULT_MODEL, extract_drawing_data_multiview
 from pipeline.schema import DrawingData
 from pipeline.usage_log import record_run
 from pipeline.validator import format_verification_report, run_verification
-from pipeline.view_ingest import PartViews, discover_parts
+from pipeline.view_ingest import IMAGE_SUFFIXES, PartViews, discover_parts
 from utils.image_prep import prepare_image
 
 
 # --------------------------------------------------------------------------- #
 # Part discovery
 # --------------------------------------------------------------------------- #
-def find_parts(root: Path) -> list[PartViews]:
-    """Find part(s) under ``root``, descending through one wrapper dir if needed.
+# Recognize a "<part>_<view>_view"/"<part>_<view>" suffix in a flat filename.
+_VIEW_SUFFIX = re.compile(
+    r"_(front|side|top|bottom|rear|back|second[ _]?side)(?:[ _]?view)?$", re.IGNORECASE
+)
+_VIEW_KW = {"front": "front", "side": "side", "top": "top", "bottom": "bottom",
+            "rear": "second_side", "back": "second_side", "secondside": "second_side"}
 
-    Handles three layouts: ``root`` holds images directly; ``root`` holds part
-    subfolders; or ``root`` holds a single "<Part>-<timestamp>" wrapper that
-    holds the part subfolder.
-    """
-    parts = discover_parts(root)
-    if parts:
-        return parts
-    # Descend one level into wrapper directories (the download layout).
+
+def _flat_part_view(path: Path) -> tuple[str, str]:
+    """Split a flat filename into (part_name, view). A bare part name (no view
+    suffix) is the FULL/overview view; '<part>_front_view' etc. map to the view."""
+    stem = re.sub(r"\s*\(\d+\)\s*$", "", path.stem).strip()  # drop trailing " (1)"
+    m = _VIEW_SUFFIX.search(stem)
+    if m:
+        kw = m.group(1).lower().replace(" ", "").replace("_", "")
+        return stem[: m.start()].rstrip("_ ").strip(), _VIEW_KW.get(kw, kw)
+    return stem, "full"
+
+
+def discover_parts_flat(folder: Path) -> list[PartViews]:
+    """Group images that live DIRECTLY in a folder into parts by filename prefix,
+    keeping the bare-name image as the 'full' (overview) view."""
+    imgs = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES]
+    groups: dict[str, PartViews] = {}
+    for p in sorted(imgs):
+        part_name, view = _flat_part_view(p)
+        g = groups.setdefault(part_name, PartViews(name=part_name))
+        if view in g.views:
+            g.warnings.append(
+                f"Multiple images map to the {view} view ({g.views[view].name}, {p.name}); keeping the first."
+            )
+            continue
+        g.views[view] = p
+    for g in groups.values():
+        if "front" not in g.views and "full" not in g.views:
+            g.warnings.append("No FRONT or FULL view found — the base profile may be unreliable.")
+    return list(groups.values())
+
+
+def find_parts(root: Path) -> list[PartViews]:
+    """Find part(s) under ``root`` for several layouts: images grouped flat by
+    filename prefix; part subfolders; or a "<Part>-<timestamp>" wrapper dir."""
+    direct = [p for p in root.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES]
+    if direct:
+        return discover_parts_flat(root)
     found: list[PartViews] = []
     for sub in sorted(p for p in root.iterdir() if p.is_dir()):
-        found.extend(discover_parts(sub))
-    return found
+        subdirect = [p for p in sub.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES]
+        found.extend(discover_parts_flat(sub) if subdirect else discover_parts(sub))
+    return found or discover_parts(root)
+
+
+def _ordered_views_with_full(part: PartViews) -> list[tuple[str, Path]]:
+    """Orthographic views in canonical order, plus the full/overview view last."""
+    ordered = list(part.ordered_views)  # front, top, side, ... (per VIEW_ORDER)
+    if "full" in part.views:
+        ordered.append(("full", part.views["full"]))
+    return ordered
 
 
 # --------------------------------------------------------------------------- #
@@ -60,7 +104,7 @@ def find_parts(root: Path) -> list[PartViews]:
 # --------------------------------------------------------------------------- #
 def extract_part(part: PartViews, cache_dir: Path, usage: dict) -> dict:
     views = []
-    for view_type, path in part.ordered_views:
+    for view_type, path in _ordered_views_with_full(part):
         prepared = prepare_image(str(path), return_details=True)
         views.append((view_type, prepared.base64, prepared.media_type))
     data = extract_drawing_data_multiview(
@@ -430,7 +474,7 @@ def process_part(part: PartViews, output_root: Path, sw_app, template_path: str 
     part_dir.mkdir(parents=True, exist_ok=True)
     cache_dir = output_root / ".extraction_cache"
     print(f"\n=== {name} ===")
-    print(f"  [1/4] extracting views: {', '.join(v for v, _ in part.ordered_views) or 'none'}")
+    print(f"  [1/4] extracting views: {', '.join(v for v, _ in _ordered_views_with_full(part)) or 'none'}")
 
     usage: dict = {}
     data = extract_part(part, cache_dir, usage)

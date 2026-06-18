@@ -361,11 +361,22 @@ def extract_drawing_data_multiview(
     client = _build_client(SDK_MAX_RETRIES)
     usage: dict[str, int] = {}
 
+    # Overview/pictorial views (a full assembly or isometric shot) carry the whole
+    # part for context but don't define a single sketch plane — label them so the
+    # model still reads every dimension/feature there yet assigns each feature's
+    # sketch_plane from the orthographic view it appears in.
+    overview_views = {"full", "isometric", "iso", "overview", "pictorial", "3d"}
     content: list[dict[str, Any]] = []
     for view_type, b64, media_type in views:
-        plane = VIEW_PLANES.get(view_type, "Front Plane")
         label = view_type.upper().replace("_", " ")
-        content.append({"type": "text", "text": f"=== {label} VIEW — sketch on {plane} ==="})
+        if view_type.lower() in overview_views:
+            content.append({"type": "text", "text": (
+                f"=== {label} VIEW (OVERVIEW — whole-part context; read every dimension and "
+                f"feature visible here too, but assign each feature's sketch_plane from the "
+                f"orthographic view it appears in) ===")})
+        else:
+            plane = VIEW_PLANES.get(view_type, "Front Plane")
+            content.append({"type": "text", "text": f"=== {label} VIEW — sketch on {plane} ==="})
         content.append(_image_block(b64, media_type, cache=True))
     content.append({"type": "text", "text": MULTIVIEW_USER_TEXT})
 
