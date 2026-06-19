@@ -97,6 +97,45 @@ def _extract_cache_dir(args) -> Path | None:
     return Path(args.output) / ".extraction_cache"
 
 
+def _resolve_stage(args, drawing_data: dict):
+    """Stage 2.5: resolve every ambiguity to a numeric value (chief-engineer pass).
+
+    Returns ``(resolved_data, resolution)``. When --no-resolve is set, returns the
+    data unchanged and ``None`` (the legacy v2 BLOCKED-gate behavior). Otherwise the
+    returned ``resolved_data`` has every dimension carrying a ``resolved_value`` and
+    every feature marked ``build_status='build'``; the resolution summary is printed.
+    """
+    if getattr(args, "no_resolve", False):
+        return drawing_data, None
+    from pipeline.resolver import resolve_extraction
+
+    console.print("[2.5/4] Resolving ambiguities (chief-engineer pass)...")
+    resolution = resolve_extraction(drawing_data)
+    _print_resolution_summary(resolution)
+    # clean_extraction (resolved values, schema-valid) drives verification + build;
+    # resolution.resolved_extraction (rich, annotated) is written to disk.
+    return resolution.clean_extraction, resolution
+
+
+def _print_resolution_summary(resolution) -> None:
+    """Print the Stage 2.5 resolution summary + every MEDIUM/LOW/CRITICAL flag."""
+    s = resolution.summary
+    console.print(
+        f"  Resolved {s.total_dimensions} dimension(s): "
+        f"{s.total_dimensions - s.assumptions_made} confirmed, {s.assumptions_made} assumed "
+        f"({s.critical_flags} critical, {s.low_flags} low, {s.medium_flags} medium). "
+        f"Rebuild confidence {s.rebuild_confidence:.0%}."
+    )
+    surfaced = [f for f in resolution.flags if f.get("flag_tier") in ("MEDIUM", "LOW", "CRITICAL")]
+    color = {"CRITICAL": "red", "LOW": "yellow", "MEDIUM": "cyan"}
+    for f in surfaced:
+        tier = f.get("flag_tier", "")
+        console.print(
+            f"    [{color.get(tier, 'white')}]{tier}[/] {f.get('dimension_id', '')}: "
+            f"{f.get('human_note', '')}"
+        )
+
+
 def _prepare_and_extract(args) -> dict | None:
     """Stages 1-2: image prep + Claude extraction. Returns the extraction dict."""
     console.print("[1/4] Preparing drawing image...")
@@ -206,6 +245,8 @@ def _run_batch(args) -> int:
         directory, output_dir,
         extract_fn=lambda p: _extract_one_drawing(p, args.page, cache_dir),
         sw_app=sw_app, template_path=template,
+        resolve=not getattr(args, "no_resolve", False),
+        strict_gate=getattr(args, "strict_gate", False),
     )
     if not rows:
         console.print(f"[yellow]No drawings or *_extraction.json files found in[/yellow] {directory}")
@@ -295,9 +336,11 @@ def _run_views_folder(args) -> int:
                                  f"{type(e).__name__}: {e}"[:300]))
             continue
         record_run(output_dir, data.get("part_number") or part.name, model, usage)
-        console.print("[2/2] verifying + generating per-plane macros + .sldprt...")
+        console.print("[2.5/2] resolving ambiguities + verifying + per-plane macros + .sldprt...")
         rows.append(process_drawing_data(data, part.name, output_dir,
-                                         sw_app=sw_app, template_path=template))
+                                         sw_app=sw_app, template_path=template,
+                                         resolve=not getattr(args, "no_resolve", False),
+                                         strict_gate=getattr(args, "strict_gate", False)))
 
     table = Table(title=f"Multi-view summary ({len(rows)} part(s))")
     for col in ("Part", "Status", "Readiness", "Macros", "Review", "Skipped", "Detail"):
@@ -364,6 +407,20 @@ def main() -> int:
         help="Extract and verify only; do not generate macros or touch SolidWorks.",
     )
     parser.add_argument(
+        "--no-resolve",
+        action="store_true",
+        help="Skip the Stage 2.5 ambiguity resolver. By default every ambiguous/under-"
+        "dimensioned value is resolved to a defensible number and annotated, so the "
+        "build never blocks on ambiguity (chief-engineer mode).",
+    )
+    parser.add_argument(
+        "--strict-gate",
+        action="store_true",
+        help="Restore the v2 hard gate: a BLOCKED verification stops the run with no "
+        "macros. By default (resolver on) verification is advisory and the build "
+        "proceeds with annotated assumptions.",
+    )
+    parser.add_argument(
         "--no-sldprt",
         action="store_true",
         help="Do NOT build .sldprt files. By default every READY part is built into "
@@ -409,7 +466,12 @@ def main() -> int:
         debug_path.write_text(json.dumps(drawing_data, indent=2))
         console.print(f"  Debug: extraction saved to {debug_path}")
 
-    # --- [3/4] Verification (Phase 1 gate) ---
+    # The raw extraction is kept verbatim for traceability (saved as _extraction.json);
+    # Stage 2.5 produces the resolved copy that actually drives verification + build.
+    raw_extraction = drawing_data
+    drawing_data, resolution = _resolve_stage(args, raw_extraction)
+
+    # --- [3/4] Verification (advisory by default; hard gate only with --strict-gate) ---
     console.print("[3/4] Verifying extracted data...")
     from pipeline.validator import format_verification_report, run_verification
 
@@ -425,25 +487,38 @@ def main() -> int:
         model.display_name if model is not None
         else (drawing_data.get("part_number") or drawing_data.get("part_name") or "part")
     )
-    # Always persist BOTH the extraction and the verification report — READY or
-    # BLOCKED — so a paid extraction is never lost and BLOCKED is re-runnable via
+    # Always persist the RAW extraction + the verification report — READY or
+    # BLOCKED — so a paid extraction is never lost and a run is re-runnable via
     # --from-json with no API cost (failure E008).
-    extraction_path = _save_extraction(output_dir, folder_name, drawing_data)
+    extraction_path = _save_extraction(output_dir, folder_name, raw_extraction)
     console.print(f"  Extraction saved to {extraction_path}")
+    if resolution is not None:
+        resolved_path = extraction_path.parent / f"{folder_name}_resolved_extraction.json"
+        resolved_path.write_text(json.dumps(resolution.resolved_extraction, indent=2), encoding="utf-8")
+        console.print(f"  Resolved extraction saved to {resolved_path}")
     if model is not None:
         report_path = extraction_path.parent / f"{folder_name}_verification_report.txt"
         report_path.write_text(verification_text, encoding="utf-8")
         console.print(f"  Report written to {report_path}")
 
-    if model is None or not report.ok:
+    # Model can't be coerced at all → genuinely unbuildable, always stop.
+    # Otherwise: --strict-gate restores the v2 hard block; default mode proceeds
+    # with annotated assumptions ("an incomplete model is always the wrong outcome").
+    if model is None or (not report.ok and args.strict_gate):
         console.print(
             Panel(
                 "[red]BLOCKED — resolve the issues above, then re-run.[/red]\n"
-                "Nothing was sent to SolidWorks and no macros were generated.",
+                "Nothing was sent to SolidWorks and no macros were generated."
+                + ("" if model is None else "\n(Re-run without --strict-gate to build with assumptions.)"),
                 style="red",
             )
         )
         return 4
+    if not report.ok:
+        console.print(
+            "[yellow]Verification raised issues; building anyway with annotated "
+            "assumptions (chief-engineer mode). Use --strict-gate to block instead.[/yellow]"
+        )
 
     if args.validate_only:
         console.print(Panel("[green]READY TO BUILD. Exiting (--validate-only).[/green]", style="green"))
@@ -454,7 +529,8 @@ def main() -> int:
         console.print("[4/4] Generating SolidWorks VBA macro package...")
         from pipeline.macro_generator import generate_macro_package
 
-        pkg = generate_macro_package(model, drawing_data, verification_text, output_dir)
+        pkg = generate_macro_package(model, raw_extraction, verification_text, output_dir,
+                                     resolution=resolution)
         n_macros = sum(1 for s in pkg.steps if s.macro_file.endswith(".vba"))
         lines = [
             f"[green]Macro package complete:[/green] {pkg.root}",

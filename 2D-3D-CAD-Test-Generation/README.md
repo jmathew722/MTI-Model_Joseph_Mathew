@@ -6,17 +6,24 @@ part in two phases:
 - **Phase 1 — Extraction & Verification** (runs on any OS): extract every
   dimension, tolerance, view, hole callout, and geometric relationship with the
   Claude Vision API, then arithmetically verify it (dimensional closure, pattern
-  envelopes, unit consistency, ambiguity flags). Output: a `VERIFICATION REPORT`
-  with **READY TO BUILD / BLOCKED** status. BLOCKED = nothing gets built.
+  envelopes, unit consistency, ambiguity flags). Output: a `VERIFICATION REPORT`.
+- **Stage 2.5 — Ambiguity Resolution** (the *chief-engineer pass*, any OS, on by
+  default): every ambiguous or under-dimensioned value is resolved to the best
+  defensible number (arithmetic-chain closure → geometric validity → conservative
+  geometry → last resort), and every feature is marked **build**. Nothing is left
+  unresolved and the build no longer blocks on ambiguity — instead each assumption
+  is annotated with a confidence **flag tier** (HIGH/MEDIUM/LOW/CRITICAL) and an
+  actionable human note. *A complete approximate model beats an incomplete one.*
 - **Phase 2 — Build**: generate numbered **SolidWorks VBA macros** (default) that
   you run inside SolidWorks on any machine — *no Python needed there* — or drive
-  SolidWorks directly over COM (`--engine com`, Windows only).
+  SolidWorks directly over COM (`--engine com`, Windows only). Each macro surfaces
+  its assumption flags (NOTE / MsgBox / confirmation dialog) by tier.
 
 ## Pipeline
 
 ```
-drawing → image_prep → extractor (Claude) → verification gate → macro generator → macros/*.vba
-                                                  │                                    (run in SolidWorks)
+drawing → image_prep → extractor (Claude) → resolver (Stage 2.5) → verification → macro generator → macros/*.vba
+                                                  │                                                       (run in SolidWorks)
                                                   └→ (--engine com) solidworks_builder → .sldprt
 ```
 
@@ -25,7 +32,8 @@ drawing → image_prep → extractor (Claude) → verification gate → macro ge
 | Image prep | `utils/image_prep.py` | any OS |
 | Extraction | `pipeline/extractor.py` (`claude-sonnet-4-6`, forced tool call) | any OS |
 | Schema | `pipeline/schema.py` (Pydantic v2; views, hole callouts, relationships, ambiguity) | any OS |
-| Verification | `pipeline/validator.py` (closure, envelopes, READY/BLOCKED report) | any OS |
+| **Ambiguity resolution** | `pipeline/resolver.py` (resolved_value + flag tier per dim; never blocks) | any OS |
+| Verification | `pipeline/validator.py` (closure, envelopes, advisory report) | any OS |
 | **VBA macros** | `pipeline/macro_generator.py` | any OS (macros run on any SolidWorks machine) |
 | COM build | `pipeline/solidworks_builder.py` | Windows + SolidWorks 2024 |
 | Model check | `pipeline/model_validator.py` | Windows + SolidWorks 2024 |
@@ -95,20 +103,60 @@ Drawings/
 Flags: `--drawing`, `--from-json`, `--batch`, or `--views-folder` (one required), `--output`,
 `--page N`, `--debug`, `--engine vba|com` (default `vba`), `--validate-only`,
 `--no-sldprt` (skip the default `.sldprt` build; emit macros + text only),
-`--no-export` (skip copying outputs to `~/Downloads/SolidWorksModel_Parts`).
+`--no-export` (skip copying outputs to `~/Downloads/SolidWorksModel_Parts`),
+`--no-resolve` (skip Stage 2.5 and use the legacy verification behavior),
+`--strict-gate` (restore the v2 hard gate: a failing verification BLOCKS the run).
+
+## Stage 2.5 — Ambiguity resolution (chief-engineer pass)
+
+The owner's directive: **a complete approximate model is always the correct
+outcome; an incomplete model is always the wrong outcome.** So by default the
+pipeline never blocks on ambiguity. `pipeline/resolver.py` works through every
+value flagged `value_unclear` / `resolution_required` / unknown-position and
+resolves it with a deterministic decision tree:
+
+1. **Arithmetic chain** — pick the only candidate reading that closes a dimension
+   chain within tolerance → tier **HIGH**.
+2. **Geometric validity** — eliminate readings that don't fit the part envelope
+   (wall thickness, cut depth ≤ solid, fits inside parent) → tier **MEDIUM**.
+3. **Conservative geometry** — among survivors prefer the smallest/shallowest →
+   tier **LOW**.
+4. **Last resort** — derive from an adjacent dimension, default a missing depth to
+   through-all, a missing radius to the general tolerance, or center on the parent
+   → tier **CRITICAL**.
+
+Every dimension ends with a numeric `resolved_value`; every feature is marked
+`build_status: build`. Each assumption carries `assumption_basis`,
+`assumption_confidence`, `flag_tier`, and an ID-naming `human_note`. The numbers
+are **chosen from what was extracted** (candidate readings, chains, adjacent
+dimensions) — never fabricated. The macro generator turns each flag into VBA by
+tier: **HIGH** → a `' NOTE` comment, **MEDIUM** → `MsgBox vbInformation`, **LOW**
+→ `MsgBox vbExclamation`, **CRITICAL** → a banner + a confirmation dialog the
+operator must acknowledge (Cancel logs and stops the macro).
+
+The `build_plan.json` is **self-contained**: a header states the coordinate
+convention (`lower_left_corner_of_base_solid`, +X right, +Y up,
+`unit_factor_to_meters`), every step carries its dimensions in *both* drawing
+units and meters, hole/pattern `positions_xy` in both, its `flags[]`,
+`requires_input` / `auto_select_strategy` / `expected_edge_count` for
+fillets/chamfers, and per-step `assumption_made` / `assumption_confidence` /
+`flag_tier`. A `resolution_summary` block gives the counts and a plain-English
+narrative — so a macro generator can build any step without reading the
+extraction JSON.
 
 ## Output package (engine `vba`)
 
 ```
 output/<PartNumber>/
-├── <PartNumber>.sldprt                   # the 3D model — built by default when SolidWorks is available
-├── <PartNumber>_model_check.txt          # mass/bounding-box validation + any skipped features
-├── <PartNumber>_extraction.json          # full Phase 1 extraction (saved even when BLOCKED)
-├── <PartNumber>_verification_report.txt  # READY TO BUILD / BLOCKED + Phase-4 readiness score
-├── <PartNumber>_build_plan.json          # ordered steps + skipped/needs-review + audit summary
-├── <PartNumber>_audit_report.json        # static self-validation of the generated macros
-├── macros/                               # 00_setup … ZZ_final_verify, RUN_ALL.vba, README.md
-└── logs/                                 # build_log.txt appended by the macros
+├── <PartNumber>.sldprt                     # the 3D model — built by default when SolidWorks is available
+├── <PartNumber>_model_check.txt            # mass/bounding-box validation + any skipped features
+├── <PartNumber>_extraction.json            # RAW Phase 1 extraction, verbatim (saved even when BLOCKED)
+├── <PartNumber>_resolved_extraction.json   # Stage 2.5: every dim's resolved_value + flag tier + human note
+├── <PartNumber>_verification_report.txt    # verification report + Phase-4 readiness score
+├── <PartNumber>_build_plan.json            # SELF-CONTAINED steps (drawing+meters dims, positions_xy, flags) + resolution summary
+├── <PartNumber>_audit_report.json          # static self-validation of the generated macros
+├── macros/                                 # 00_setup … ZZ_final_verify, RUN_ALL.vba, README.md
+└── logs/                                   # build_log.txt appended by the macros
 ```
 
 **The `.sldprt` is a required output of every run.** Whenever the pipeline runs
@@ -160,8 +208,10 @@ logs PASS/FAIL and stops on failure.
 - **Units:** SolidWorks API works in meters. Python COM path: every value
   through `to_meters()` + `assert_meters()`. VBA path: every value written as
   `<drawing value> * UNIT_FACTOR` for traceability.
-- **Verification gate:** ambiguous dimensions (`resolution_required`),
-  non-closing dimension chains, and infeasible patterns **block** the build.
+- **Verification gate:** advisory by default — ambiguous dimensions, non-closing
+  chains and infeasible patterns are reported but Stage 2.5 resolves them and the
+  build proceeds with annotated assumptions. `--strict-gate` (or `--no-resolve`)
+  restores the v2 behavior where these **block** the build.
 - **Macro discipline:** one macro per feature, named features, per-step
   PASS/FAIL logging, stop-on-first-failure, fillets/chamfers last (interactive
   edge selection with extracted values baked in).
@@ -172,8 +222,12 @@ logs PASS/FAIL and stops on failure.
 ## Limitations
 
 - Feature/hole **positions** are only as good as the drawing callouts: when a
-  position isn't dimensioned from the origin, macros center geometry and mark it
-  `POSITION ASSUMED` — verify before trusting the model.
+  position isn't dimensioned from the origin, Stage 2.5 centers the geometry and
+  flags it `POSITION ASSUMED` (tier LOW) — verify before trusting the model.
+- Stage 2.5 **resolves rather than blocks**: a CRITICAL-tier value is a defensible
+  default, not a confirmed reading. Always review the `resolution_summary` and any
+  MEDIUM/LOW/CRITICAL flags (the build plan lists them; the macros prompt for
+  CRITICAL) before relying on the model.
 - Revolves and feature-level patterns are emitted as TODO-marked skeletons
   (`needs_review` in the build plan) rather than guessed API calls.
 - The COM build path (`--engine com`) and `ZZ_final_verify` macro are exercised

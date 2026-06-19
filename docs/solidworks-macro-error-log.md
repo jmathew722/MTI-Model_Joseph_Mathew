@@ -243,6 +243,41 @@ fixtures.
   readiness* percentage (`compute_readiness`). Advisory by default; set
   `MACRO_READINESS_THRESHOLD` (e.g. `0.95`) to hard-gate low-readiness drawings.
 
+## E011 — Drawings BLOCKED on ambiguity never produced a model
+
+- **Date:** 2026-06-19 · **Parts:** 117-C-RevB (D030/D031), and any drawing with
+  illegible/under-dimensioned callouts.
+- **Symptom:** the v2 verification gate hard-BLOCKED on `resolution_required`
+  dimensions, non-closing chains, or unknown positions. A drawing with a single
+  smudged dimension produced *no model at all* — the worst outcome for the shop
+  ("an incomplete model is always the wrong outcome").
+- **Root cause:** the gate treated ambiguity as fatal rather than as something a
+  design engineer resolves with a defensible assumption.
+- **Fix:** new **Stage 2.5 resolver** (`pipeline/resolver.py`) runs between
+  extraction and verification. It resolves every flagged value to a numeric
+  `resolved_value` via a deterministic decision tree (arithmetic chain → geometric
+  validity → conservative geometry → last resort), marks every feature
+  `build_status="build"`, and annotates each assumption with a confidence
+  `flag_tier` (HIGH/MEDIUM/LOW/CRITICAL) + an ID-naming `human_note`. Verification
+  is now advisory by default; `--strict-gate` / `--no-resolve` restore v2.
+- **Generator rule:** never block on ambiguity — resolve to the best defensible
+  number, build, and annotate the assumption for human review. Surface the
+  assumption in the macro by tier (NOTE / MsgBox info / MsgBox exclamation /
+  confirmation dialog). Numbers are chosen from extracted candidates/chains/
+  adjacent dims, never fabricated.
+- **Schema rule:** the resolver-added fields (`resolved_value`, `flag_tier`, …)
+  must NOT leak into the strict (`extra="forbid"`) extraction schema — keep a
+  `schema_clean()` twin for verification/model building and write the rich
+  annotated copy to `<Part>_resolved_extraction.json`.
+- **Build-plan rule:** `build_plan.json` is now self-contained — a header states
+  the coordinate convention; every step carries dims in drawing units AND meters,
+  `positions_xy` in both, `flags[]`, and the fillet/chamfer edge-selection
+  contract — so the macro generator never cross-references the extraction.
+- **Tests:** `tests/test_resolver.py` (prime directive, Step 1–4 algorithm,
+  schema-clean validates, self-contained build plan, CRITICAL→confirmation VBA);
+  `tests/test_reliability_hardening.py::TestBatch` (resolver default builds an
+  ambiguous part; `--strict-gate`+`--no-resolve` still blocks it).
+
 ## Open watch-list (not yet seen at runtime)
 
 - `FullyDefineSketch` argument shape varies by SW version — currently wrapped

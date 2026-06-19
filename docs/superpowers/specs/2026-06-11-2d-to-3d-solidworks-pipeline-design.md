@@ -1,8 +1,44 @@
 # 2D → 3D SolidWorks Pipeline — Design
 
-**Date:** 2026-06-11 (v1) · **Updated:** 2026-06-12 (v2 — two-phase + VBA macro generation)
+**Date:** 2026-06-11 (v1) · **Updated:** 2026-06-12 (v2 — two-phase + VBA macro generation) · 2026-06-19 (v3 — Stage 2.5 ambiguity resolver + self-contained build plan)
 **Owner:** Joe Mathew — iNDustry Labs / MTI Welding
 **Target runtime:** SolidWorks 2024, Python 3.10+ (Phase 1 + macro generation run on any OS; macros run on any SolidWorks machine with zero installs)
+
+## v3 summary (2026-06-19 — never block on ambiguity)
+
+Adds **Stage 2.5 — Ambiguity Resolution** (`pipeline/resolver.py`) between
+extraction and verification, inverting the v2 BLOCKED philosophy per the owner's
+directive: *a complete approximate model is always the correct outcome; an
+incomplete model is always the wrong outcome.*
+
+- **Resolver (deterministic, any OS):** every dimension flagged
+  `value_unclear`/`resolution_required`/unknown-position is resolved to a numeric
+  `resolved_value` via a fixed decision tree — (1) arithmetic-chain closure, (2)
+  geometric validity vs the part envelope, (3) conservative geometry (smallest/
+  shallowest), (4) last resort (adjacent dim / through-all / general-tol radius /
+  parent-center). Every feature is marked `build_status="build"`. Each assumption
+  carries `assumption_basis`, `assumption_confidence`, a `flag_tier`
+  (HIGH/MEDIUM/LOW/CRITICAL) and an ID-naming `human_note`. Numbers are chosen
+  from extracted candidates — never fabricated. Implemented deterministically (not
+  a second LLM call): the algorithm is fully specified and a CAD pipeline needs
+  reproducible, testable, value-by-rule resolution.
+- **Gate is advisory by default.** Verification still runs and reports, but the
+  resolver clears the soft-block conditions so the build proceeds.
+  `--strict-gate` / `--no-resolve` restore v2 hard-blocking.
+- **Schema discipline.** The resolver writes a rich annotated
+  `<Part>_resolved_extraction.json` but keeps a `schema_clean()` twin (canonical
+  fields only) so the strict `extra="forbid"` `DrawingData` still validates the
+  data that drives verification + build. The raw `<Part>_extraction.json` is
+  preserved verbatim.
+- **Self-contained build plan.** `build_plan.json` gains a coordinate-convention
+  header and, per step, dims in drawing units AND meters, `positions_xy` in both,
+  `flags[]` with per-tier `macro_behavior`, the fillet/chamfer edge-selection
+  contract, and per-step assumption metadata, plus a top-level
+  `resolution_summary`. A macro generator can build any step from the step object
+  alone.
+- **Macro behavior by tier.** HIGH → `' NOTE` comment; MEDIUM → `MsgBox
+  vbInformation`; LOW → `MsgBox vbExclamation`; CRITICAL → banner comment + a
+  `vbOKCancel` confirmation dialog that exits the macro on Cancel.
 
 ## v2 summary (approved 2026-06-12)
 

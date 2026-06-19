@@ -1,0 +1,751 @@
+"""Stage 2.5 — Ambiguity Resolver (the "chief design engineer" pass).
+
+Philosophy (carried from the project owner's directive):
+
+    A complete approximate model is always the correct outcome.
+    An incomplete model is always the wrong outcome.
+
+Where :mod:`pipeline.validator` would *block* on an ambiguous or under-dimensioned
+drawing, this stage makes the best defensible engineering decision from the data
+in front of it, records exactly what it assumed, and lets the build proceed. The
+human verifies the annotated assumptions in SolidWorks afterwards.
+
+Hard guarantees this module enforces (the "prime directive"):
+
+  * **Every dimension ends with a numeric** ``resolved_value`` — never null, never
+    a string, never absent. There is no exit path that produces a non-number.
+  * **Every feature gets** ``build_status == "build"``. No "skip"/"defer"/"omit".
+  * Every assumption carries ``assumption_basis``, ``assumption_confidence``,
+    ``flag_tier`` (HIGH/MEDIUM/LOW/CRITICAL) and an actionable, ID-naming
+    ``human_note``.
+
+This is implemented **deterministically** (not via a second LLM call): the
+resolution algorithm in the spec is a fully specified decision tree with exact
+numeric thresholds, and for a CAD pipeline a reproducible, testable, value-by-rule
+resolver is far safer than free-form generation that could invent a wrong number.
+Candidate values come from what Claude already extracted (``possible_values``,
+dimension chains, adjacent dimensions) — numbers are chosen, never fabricated.
+
+Public entry point: :func:`resolve_extraction`.
+"""
+from __future__ import annotations
+
+import copy
+from dataclasses import dataclass, field
+from typing import Any, Optional
+
+from pipeline.schema import (
+    DrawingData,
+    canonicalize_applies_to,
+    is_envelope_label,
+)
+from utils.logger import get_logger
+
+log = get_logger()
+
+# Flag tiers, ordered most-severe-last so ``max`` by index gives the worst tier.
+FLAG_TIERS = ("HIGH", "MEDIUM", "LOW", "CRITICAL")
+_TIER_RANK = {t: i for i, t in enumerate(FLAG_TIERS)}
+
+# Confidence band per tier (used when a step does not get a more specific value).
+_TIER_CONFIDENCE = {
+    "HIGH": 0.95,
+    "MEDIUM": 0.72,
+    "LOW": 0.50,
+    "CRITICAL": 0.30,
+}
+
+# Geometric-validity constants (inches; the spec is written in inch terms — values
+# are compared in DRAWING units, which for these parts are inches).
+MIN_WALL = 0.010          # minimum wall / edge clearance margin
+MIN_HOLE_EDGE_CLEARANCE = 0.010  # extra clearance beyond radius from an edge
+
+# A base extrude_boss that the drawing never dimensioned for thickness still has to
+# become a solid (an empty .sldprt is the worst outcome). When no thickness can be
+# read, Stage 2.5 synthesizes one — at least this nominal, and always thicker than
+# the deepest known sub-feature cut so those cuts stay blind. Flagged CRITICAL.
+NOMINAL_THICKNESS = {"inch": 0.5, "mm": 12.0, "cm": 1.2}
+_DEPTH_TOKENS = ("depth", "thickness", "height")
+
+
+def worst_tier(*tiers: str) -> str:
+    """Return the most severe (closest-to-CRITICAL) of the given tiers."""
+    valid = [t for t in tiers if t in _TIER_RANK]
+    if not valid:
+        return "HIGH"
+    return max(valid, key=lambda t: _TIER_RANK[t])
+
+
+@dataclass
+class DimResolution:
+    """The resolution record added to one dimension object."""
+
+    dimension_id: str
+    resolved_value: float
+    assumption_made: bool
+    assumption_basis: str          # arithmetic_chain | explicit_callout | geometric_reasonableness | ...
+    chain_ids_used: list[str]
+    assumption_confidence: float
+    flag_tier: str                 # HIGH | MEDIUM | LOW | CRITICAL
+    human_note: str
+
+    def as_fields(self) -> dict[str, Any]:
+        return {
+            "resolved_value": self.resolved_value,
+            "assumption_made": self.assumption_made,
+            "assumption_basis": self.assumption_basis,
+            "chain_ids_used": list(self.chain_ids_used),
+            "assumption_confidence": round(self.assumption_confidence, 3),
+            "flag_tier": self.flag_tier,
+            "human_note": self.human_note,
+        }
+
+
+@dataclass
+class FeatureResolution:
+    """The resolution record added to one feature object."""
+
+    feature_id: str
+    build_status: str              # always "build"
+    position_resolved: bool
+    position_assumption: str
+    flag_tier: str
+    human_note: str
+
+    def as_fields(self) -> dict[str, Any]:
+        return {
+            "build_status": self.build_status,
+            "position_resolved": self.position_resolved,
+            "position_assumption": self.position_assumption,
+            "flag_tier": self.flag_tier,
+            "human_note": self.human_note,
+        }
+
+
+@dataclass
+class ResolutionSummary:
+    total_dimensions: int = 0
+    assumptions_made: int = 0
+    critical_flags: int = 0
+    low_flags: int = 0
+    medium_flags: int = 0
+    high_flags: int = 0
+    rebuild_confidence: float = 1.0
+    plain_english: str = ""
+
+
+@dataclass
+class ResolutionResult:
+    """Everything Stage 2.5 produces.
+
+    ``resolved_extraction`` is the rich annotated dict (every dimension carries
+    ``resolved_value`` + flag tier + human note) — this is the on-disk deliverable.
+    ``clean_extraction`` is the same data reduced to the canonical schema fields
+    (resolved values written into ``value``, soft-block flags cleared, NO extra
+    keys) so it validates against the strict ``extra='forbid'`` schema and can drive
+    verification + the build.
+    """
+
+    resolved_extraction: dict
+    clean_extraction: dict = field(default_factory=dict)
+    dim_resolutions: dict[str, DimResolution] = field(default_factory=dict)
+    feature_resolutions: dict[str, FeatureResolution] = field(default_factory=dict)
+    summary: ResolutionSummary = field(default_factory=ResolutionSummary)
+    # Flags that should surface in the build plan / stdout (MEDIUM and worse).
+    flags: list[dict[str, Any]] = field(default_factory=list)
+
+    def dim(self, dim_id: str) -> Optional[DimResolution]:
+        return self.dim_resolutions.get(dim_id)
+
+    def feature(self, feature_id: str) -> Optional[FeatureResolution]:
+        return self.feature_resolutions.get(feature_id)
+
+
+# --------------------------------------------------------------------------- #
+# Candidate enumeration & geometric checks
+# --------------------------------------------------------------------------- #
+def _candidates(dim: dict) -> list[float]:
+    """All plausible numeric readings for a dimension, best-guess first.
+
+    Always includes the extracted ``value`` (the model's best guess). Adds any
+    ``possible_values`` the model offered for an unclear reading. De-duplicated,
+    positive-only, never empty when a value exists.
+    """
+    out: list[float] = []
+    val = dim.get("value")
+    if isinstance(val, (int, float)) and not isinstance(val, bool) and val > 0:
+        out.append(float(val))
+    for pv in dim.get("possible_values", []) or []:
+        if isinstance(pv, (int, float)) and not isinstance(pv, bool) and pv > 0:
+            if float(pv) not in out:
+                out.append(float(pv))
+    return out
+
+
+def _general_tolerance_value(model: DrawingData) -> float:
+    """A coarse numeric tolerance from the general-tolerance block text.
+
+    Used only as a closure slack / last-resort radius. Falls back to a small
+    fraction when the block can't be parsed — never blocks.
+    """
+    import re
+
+    text = model.general_tolerance or ""
+    # Match only the numeric magnitude (e.g. "0.005" out of "±0.005"); ".XXX" has
+    # no digits after the point and is correctly ignored.
+    nums = [abs(float(m)) for m in re.findall(r"\d*\.\d+", text)]
+    nums = [n for n in nums if n > 0]
+    return min(nums) if nums else 0.01
+
+
+def _envelope(model: DrawingData) -> tuple[float, float, float]:
+    """Part overall (length, width, thickness/height) in drawing units; 0 if absent."""
+    length = width = thickness = 0.0
+    for d in model.dimensions:
+        token = d.canonical_applies_to
+        if is_envelope_label(d.applies_to) and not d.is_reference:
+            if token == "length" and length == 0.0:
+                length = d.value
+            elif token == "width" and width == 0.0:
+                width = d.value
+            elif token == "height" and thickness == 0.0:
+                thickness = d.value
+        if token in ("thickness", "depth") and thickness == 0.0:
+            thickness = d.value
+    return length, width, thickness
+
+
+def _passes_geometry(value: float, dim: dict, model: DrawingData) -> bool:
+    """Apply the spec's Step-2 geometric-validity checks to a candidate value.
+
+    Only the checks that can be GROUNDED in extracted data are applied; when the
+    data needed for a check is absent, that check passes (we never block on
+    missing context). Returns True if the candidate is geometrically defensible.
+    """
+    length, width, thickness = _envelope(model)
+    token = canonicalize_applies_to(dim.get("applies_to", ""))
+
+    # Cut depth must not exceed the solid's thickness (else use through-all later).
+    if token in ("depth",) and thickness > 0 and value > thickness + 1e-9:
+        return False
+
+    # A diameter/length feature must fit inside the part envelope.
+    largest_env = max(length, width, thickness)
+    if token in ("diameter", "hole_diameter", "length", "width") and largest_env > 0:
+        if value > largest_env + 1e-9:
+            return False
+
+    # Wall/clearance: a positive feature smaller than the minimum wall is suspect.
+    if value < MIN_WALL and token in ("thickness",):
+        return False
+
+    return True
+
+
+def _closing_candidate(
+    dim_id: str, cands: list[float], model: DrawingData
+) -> tuple[Optional[float], list[str], float]:
+    """Step 1 — does exactly one candidate close a chain this dim belongs to?
+
+    Returns ``(value_or_None, chain_ids_used, residual)``. ``value`` is set when
+    a single candidate makes some chain close within slack; ``residual`` is the
+    smallest absolute mismatch seen (for the broken-chain fallback).
+    """
+    chains = [
+        c for c in model.relationships.dimension_chains
+        if dim_id == c.total_dimension_id or dim_id in c.component_dimension_ids
+    ]
+    if not chains:
+        return None, [], float("inf")
+
+    best_resid = float("inf")
+    for chain in chains:
+        total = model.dimension_by_id(chain.total_dimension_id)
+        comps = [model.dimension_by_id(cid) for cid in chain.component_dimension_ids]
+        if total is None or any(c is None for c in comps):
+            continue
+        tol = sum(abs(c.tolerance_plus) + abs(c.tolerance_minus) for c in comps) \
+            + abs(total.tolerance_plus) + abs(total.tolerance_minus)
+        slack = max(tol, 1e-3 * abs(total.value), _general_tolerance_value(model))
+        chain_ids = [total.id, *chain.component_dimension_ids]
+
+        closing = []
+        for cand in cands:
+            # Substitute the candidate in whichever role this dim plays.
+            if dim_id == total.id:
+                comp_sum = sum(c.value for c in comps)
+                resid = abs(comp_sum - cand)
+            else:
+                comp_sum = sum((cand if c.id == dim_id else c.value) for c in comps)
+                resid = abs(comp_sum - total.value)
+            best_resid = min(best_resid, resid)
+            if resid <= slack:
+                closing.append(cand)
+        if len(closing) == 1:
+            return closing[0], chain_ids, best_resid
+    return None, [], best_resid
+
+
+# --------------------------------------------------------------------------- #
+# Per-dimension resolution (the Step 1-4 decision tree)
+# --------------------------------------------------------------------------- #
+def _needs_resolution(dim: dict) -> bool:
+    return bool(
+        dim.get("value_unclear")
+        or dim.get("resolution_required")
+        or (dim.get("ambiguity_reason") or "").strip()
+    )
+
+
+def _resolve_dimension(dim: dict, model: DrawingData) -> DimResolution:
+    dim_id = dim.get("id", "?")
+    applies = dim.get("applies_to", "") or dim.get("type", "value")
+    cands = _candidates(dim)
+
+    # A clear, unambiguous dimension is confirmed as-is (HIGH); note whether a
+    # chain corroborates it so the human_note is meaningful.
+    if not _needs_resolution(dim) and cands:
+        closing, chain_ids, _ = _closing_candidate(dim_id, cands, model)
+        if closing is not None and chain_ids:
+            note = (
+                f"Confirmed: {dim_id} ({_fmt(cands[0])}) closes chain "
+                f"{'+'.join(chain_ids)} within tolerance — no action needed."
+            )
+            return DimResolution(dim_id, cands[0], False, "arithmetic_chain",
+                                 chain_ids, 0.97, "HIGH", note)
+        note = f"{dim_id} ({_fmt(cands[0])}) read directly from the drawing callout — no action needed."
+        return DimResolution(dim_id, cands[0], False, "explicit_callout", [], 0.92, "HIGH", note)
+
+    # Did the model offer genuine ALTERNATIVE readings to choose between?
+    has_alternatives = len(cands) >= 2
+
+    # --- STEP 1: arithmetic chain check ---
+    if cands:
+        closing, chain_ids, residual = _closing_candidate(dim_id, cands, model)
+        if closing is not None:
+            note = (
+                f"Resolved {dim_id} to {_fmt(closing)} — the only reading that closes chain "
+                f"{'+'.join(chain_ids)}; verify against the drawing callout."
+            )
+            return DimResolution(dim_id, closing, True, "arithmetic_chain",
+                                 chain_ids, 0.88, "HIGH", note)
+
+    # An illegible reading with NOTHING to cross-check (no closing chain, no
+    # alternative candidates) is the most dangerous case: we keep the single best
+    # guess but flag it CRITICAL — a human must verify before rebuild. This is the
+    # schema-bound analog of the spec's "value truly absent" Step-4 outcome.
+    if cands and not has_alternatives:
+        applies = dim.get("applies_to", "") or dim.get("type", "value")
+        note = (
+            f"{dim_id} reading ({_fmt(cands[0])}) is illegible/ambiguous with no alternative or "
+            f"chain to confirm it; kept as a best guess for {applies} — MUST verify before rebuild."
+        )
+        return DimResolution(dim_id, cands[0], True, "unverifiable_reading", [], 0.30, "CRITICAL", note)
+
+    # --- STEP 2: geometric validity check ---
+    if cands:
+        passing = [c for c in cands if _passes_geometry(c, dim, model)]
+        if len(passing) == 1:
+            note = (
+                f"Assumed {dim_id} = {_fmt(passing[0])} on geometric grounds (only reading that fits "
+                f"the part envelope); verify the {applies} callout in SolidWorks."
+            )
+            return DimResolution(dim_id, passing[0], True, "geometric_reasonableness",
+                                 [], 0.70, "MEDIUM", note)
+        if len(passing) > 1:
+            # --- STEP 3: conservative geometry — smallest passing candidate ---
+            chosen = min(passing)
+            note = (
+                f"Multiple readings of {dim_id} are valid; chose the most conservative "
+                f"({_fmt(chosen)}, smallest) for {applies} — verify before relying on this feature."
+            )
+            return DimResolution(dim_id, chosen, True, "conservative_geometry",
+                                 [], 0.50, "LOW", note)
+        # No candidate passes geometry: take the smallest-residual / smallest value,
+        # relaxing the constraint, and flag LOW.
+        chosen = min(cands)
+        note = (
+            f"No reading of {dim_id} fully satisfies geometric checks; used the most conservative "
+            f"({_fmt(chosen)}) and relaxed the constraint — human must verify {applies} before rebuild."
+        )
+        return DimResolution(dim_id, chosen, True, "conservative_geometry",
+                             [], 0.45, "LOW", note)
+
+    # --- STEP 4: last resort — no candidate value at all ---
+    return _last_resort(dim, model)
+
+
+def _last_resort(dim: dict, model: DrawingData) -> DimResolution:
+    """Step 4: dimension truly has no readable value. Derive a defensible number."""
+    dim_id = dim.get("id", "?")
+    token = canonicalize_applies_to(dim.get("applies_to", ""))
+    length, width, thickness = _envelope(model)
+    gtol = _general_tolerance_value(model)
+
+    if token in ("depth",):
+        # Missing depth -> through-all (use thickness if known, else a nominal).
+        value = thickness if thickness > 0 else max(length, width, 1.0)
+        note = (f"{dim_id} depth missing from drawing — defaulted to THROUGH-ALL "
+                f"({_fmt(value)}); verify the blind depth in SolidWorks before rebuild.")
+        return DimResolution(dim_id, value, True, "default_through_all", [], 0.30, "CRITICAL", note)
+
+    if token in ("radius", "fillet_radius"):
+        note = (f"{dim_id} radius missing — defaulted to the general tolerance value "
+                f"({_fmt(gtol)}); confirm the intended radius before rebuild.")
+        return DimResolution(dim_id, gtol, True, "default_general_tolerance", [], 0.30, "CRITICAL", note)
+
+    # Generic: derive from the nearest adjacent dimension of the same token, else envelope.
+    adjacent = [
+        d.value for d in model.dimensions
+        if d.id != dim_id and d.canonical_applies_to == token and d.value > 0
+    ]
+    if adjacent:
+        value = adjacent[0]
+        note = (f"{dim_id} missing — derived from adjacent {token} dimension ({_fmt(value)}); "
+                f"verify against the drawing before rebuild.")
+        return DimResolution(dim_id, value, True, "derived_from_adjacent", [], 0.35, "CRITICAL", note)
+
+    value = max(length, width, thickness, gtol, 1.0)
+    note = (f"{dim_id} missing with no adjacent reference — placed at a nominal envelope-derived "
+            f"value ({_fmt(value)}); MUST be corrected in SolidWorks before rebuild.")
+    return DimResolution(dim_id, value, True, "placed_at_parent_center", [], 0.20, "CRITICAL", note)
+
+
+# --------------------------------------------------------------------------- #
+# Per-feature resolution
+# --------------------------------------------------------------------------- #
+def _resolve_feature(feat: dict, model: DrawingData) -> FeatureResolution:
+    fid = feat.get("id", "?")
+    position_known = bool(feat.get("position_known"))
+    has_offset = bool(feat.get("offset_x") or feat.get("offset_y"))
+
+    # A hole/thread feature is positioned by its callout: if the callout carries
+    # explicit instance positions or position_known, the location IS resolved.
+    ftype = (feat.get("type") or "").lower()
+    if ftype in ("hole", "thread"):
+        h = model.hole_callout_for_feature(fid)
+        if h is not None and (h.instance_positions or h.position_known):
+            position_known = True
+
+    if position_known or has_offset:
+        return FeatureResolution(
+            fid, "build", True, "",
+            "HIGH",
+            f"{fid} position read from the drawing — no action needed.",
+        )
+    # Position not dimensioned -> centered on the parent/part. Always buildable.
+    return FeatureResolution(
+        fid, "build", True,
+        "centered_on_parent",
+        "LOW",
+        f"POSITION ASSUMED for {fid}: centered on the parent feature because the drawing "
+        f"did not dimension its location — verify placement in SolidWorks.",
+    )
+
+
+def _feature_has_depth(feat: dict, dims_by_id: dict[str, dict]) -> bool:
+    """True if an extrude feature already has a usable extrude-axis dimension."""
+    did = feat.get("depth_dimension_id")
+    if did and did in dims_by_id:
+        d = dims_by_id[did]
+        if (d.get("type") or "").lower() != "angular":
+            return True  # builder exposes depth_dimension_id directly as "depth"
+    for rid in feat.get("related_dimensions", []) or []:
+        d = dims_by_id.get(rid)
+        if d and canonicalize_applies_to(d.get("applies_to", "")) in _DEPTH_TOKENS:
+            return True
+    return False
+
+
+def _next_dim_id(resolved: dict) -> str:
+    """A fresh D### id not already used by any dimension."""
+    import re
+
+    used = {d.get("id", "") for d in resolved.get("dimensions", []) or []}
+    n = 900
+    while f"D{n}" in used:
+        n += 1
+    return f"D{n}"
+
+
+def _ensure_buildable_extrudes(resolved: dict, model: DrawingData, result: "ResolutionResult") -> None:
+    """Guarantee every base solid has a thickness so the part can never build empty.
+
+    For each ``extrude_boss`` with no readable extrude-axis dimension, synthesize a
+    thickness (≥ the nominal for the unit system, and thicker than the deepest known
+    sub-feature cut so those cuts stay blind), attach it to the feature, and flag it
+    CRITICAL. The number is a defensible default, NOT a drawing reading — the human
+    must confirm it. ``extrude_cut`` with no depth is left for the builder's
+    through-all default (more correct than guessing a blind depth)."""
+    units = (resolved.get("units") or "inch").lower()
+    nominal = NOMINAL_THICKNESS.get(units, NOMINAL_THICKNESS["inch"])
+    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+
+    # Deepest known sub-feature depth (counterbore/blind/step), in drawing units.
+    sub_depths = [
+        d.value for d in model.dimensions
+        if (d.canonical_applies_to in _DEPTH_TOKENS or d.type.value == "depth") and d.value > 0
+    ]
+    deepest = max(sub_depths, default=0.0)
+    thickness = round(max(nominal, deepest + nominal), 4)
+
+    for feat in resolved.get("features", []) or []:
+        if (feat.get("type") or "").lower() != "extrude_boss":
+            continue
+        if _feature_has_depth(feat, dims_by_id):
+            continue
+        new_id = _next_dim_id(resolved)
+        fid = feat.get("id", "?")
+        note = (
+            f"THICKNESS ASSUMED for base {fid}: the drawing does not dimension the part "
+            f"thickness, so {new_id}={_fmt(thickness)} {units} was synthesized so a solid "
+            f"could be built — MUST set the real thickness in SolidWorks before rebuild."
+        )
+        new_dim = {
+            "id": new_id, "type": "depth", "value": thickness, "unit": units,
+            "applies_to": "thickness", "feature_ref": fid,
+            "notes": "Synthesized by Stage 2.5 — thickness not dimensioned on the drawing.",
+        }
+        dres = DimResolution(new_id, thickness, True, "default_base_thickness", [], 0.25,
+                             "CRITICAL", note)
+        new_dim.update(dres.as_fields())
+        resolved.setdefault("dimensions", []).append(new_dim)
+        dims_by_id[new_id] = new_dim
+        result.dim_resolutions[new_id] = dres
+        feat["depth_dimension_id"] = new_id
+        rel = feat.setdefault("related_dimensions", [])
+        if new_id not in rel:
+            rel.append(new_id)
+
+
+def _resolve_hole_position_flag(hole: dict, fid_note: str) -> Optional[dict]:
+    """A hole callout with unknown positions contributes a build-plan flag."""
+    if hole.get("instance_positions") or hole.get("position_known"):
+        return None
+    hid = hole.get("id", "?")
+    return {
+        "dimension_id": hid,
+        "flag_tier": "LOW",
+        "human_note": (
+            f"POSITION ASSUMED for hole {hid}: centered/laid-out from the envelope because the "
+            f"drawing did not dimension each instance — verify hole locations in SolidWorks."
+        ),
+        "macro_behavior": "msgbox_on_run",
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Helpers
+# --------------------------------------------------------------------------- #
+def _fmt(v: float) -> str:
+    return f"{v:.6g}"
+
+
+_BEHAVIOR_BY_TIER = {
+    "HIGH": "comment_only",
+    "MEDIUM": "msgbox_on_run",
+    "LOW": "msgbox_on_run",
+    "CRITICAL": "confirm_on_run",
+}
+
+
+def behavior_for_tier(tier: str) -> str:
+    """Macro behavior keyword for a flag tier (read by the macro generator)."""
+    return _BEHAVIOR_BY_TIER.get(tier, "comment_only")
+
+
+# Keys the resolver adds on top of the canonical schema — stripped to make a
+# schema-valid (extra='forbid') copy for verification / model building.
+_DIM_EXTRA_KEYS = (
+    "resolved_value", "assumption_made", "assumption_basis", "chain_ids_used",
+    "assumption_confidence", "flag_tier", "human_note",
+)
+_FEATURE_EXTRA_KEYS = (
+    "build_status", "position_resolved", "position_assumption", "flag_tier", "human_note",
+)
+_TOP_EXTRA_KEYS = ("resolution",)
+
+
+def schema_clean(resolved: dict) -> dict:
+    """A schema-valid copy of a resolved extraction: resolved values are kept (in
+    ``value``) but the Stage-2.5 annotation keys are removed so the strict
+    ``extra='forbid'`` :class:`~pipeline.schema.DrawingData` accepts it."""
+    clean = copy.deepcopy(resolved)
+    for k in _TOP_EXTRA_KEYS:
+        clean.pop(k, None)
+    for dim in clean.get("dimensions", []) or []:
+        for k in _DIM_EXTRA_KEYS:
+            dim.pop(k, None)
+    for feat in clean.get("features", []) or []:
+        for k in _FEATURE_EXTRA_KEYS:
+            feat.pop(k, None)
+    return clean
+
+
+# --------------------------------------------------------------------------- #
+# Public entry point
+# --------------------------------------------------------------------------- #
+def resolve_extraction(raw: dict) -> ResolutionResult:
+    """Run the Stage 2.5 resolution pass over a raw extraction dict.
+
+    Returns a :class:`ResolutionResult` carrying the enriched
+    ``resolved_extraction`` dict (every dimension has ``resolved_value`` and a
+    flag tier; every feature has ``build_status == "build"``), the structured
+    resolution records, the surfaced flags, and a plain-English summary.
+
+    Never raises on ambiguity — that is the whole point. If the raw dict cannot
+    even be coerced into the schema, the original dict is returned unchanged with
+    a single CRITICAL summary note so the caller can still proceed/report.
+    """
+    resolved = copy.deepcopy(raw)
+    result = ResolutionResult(resolved_extraction=resolved)
+
+    try:
+        model = DrawingData.model_validate(raw)
+    except Exception as e:  # shape is wrong; resolve what we trivially can
+        log.warning("resolver: extraction did not validate (%s); applying value-only resolution", e)
+        _value_only_resolution(resolved, result)
+        return result
+
+    # --- Dimensions ---
+    dims = resolved.get("dimensions", []) or []
+    for dim in dims:
+        res = _resolve_dimension(dim, model)
+        result.dim_resolutions[res.dimension_id] = res
+        dim.update(res.as_fields())
+        # Once resolved, the value becomes the resolved value and the soft-block
+        # flags are cleared so downstream verification reads it as READY.
+        dim["value"] = res.resolved_value
+        dim["resolution_required"] = False
+        # Keep value_unclear=True visible ONLY as history is not needed; clearing it
+        # lets the existing validator pass. The assumption is preserved in the new
+        # fields + human_note.
+        if res.assumption_made:
+            dim["value_unclear"] = False
+
+    # --- Features ---
+    feats = resolved.get("features", []) or []
+    for feat in feats:
+        fres = _resolve_feature(feat, model)
+        result.feature_resolutions[fres.feature_id] = fres
+        feat.update(fres.as_fields())
+
+    # Guarantee a buildable base: synthesize a thickness for any extrude_boss the
+    # drawing never dimensioned, so the part can never produce an empty solid.
+    _ensure_buildable_extrudes(resolved, model, result)
+
+    # --- Surface flags (MEDIUM and worse) for the build plan & stdout ---
+    for res in result.dim_resolutions.values():
+        if res.flag_tier in ("MEDIUM", "LOW", "CRITICAL"):
+            result.flags.append({
+                "dimension_id": res.dimension_id,
+                "flag_tier": res.flag_tier,
+                "human_note": res.human_note,
+                "macro_behavior": behavior_for_tier(res.flag_tier),
+            })
+    for fres in result.feature_resolutions.values():
+        if fres.flag_tier in ("MEDIUM", "LOW", "CRITICAL"):
+            result.flags.append({
+                "dimension_id": fres.feature_id,
+                "flag_tier": fres.flag_tier,
+                "human_note": fres.human_note,
+                "macro_behavior": behavior_for_tier(fres.flag_tier),
+            })
+    for hole in resolved.get("hole_callouts", []) or []:
+        flag = _resolve_hole_position_flag(hole, "")
+        if flag:
+            result.flags.append(flag)
+
+    _summarize(result)
+    # Stamp the summary onto the resolved extraction for traceability.
+    resolved["resolution"] = _summary_dict(result.summary)
+    # The schema-valid twin that drives verification + the build.
+    result.clean_extraction = schema_clean(resolved)
+    return result
+
+
+def _summary_dict(s: ResolutionSummary) -> dict:
+    return {
+        "total_dimensions": s.total_dimensions,
+        "assumptions_made": s.assumptions_made,
+        "critical_flags": s.critical_flags,
+        "low_flags": s.low_flags,
+        "medium_flags": s.medium_flags,
+        "high_flags": s.high_flags,
+        "rebuild_confidence": round(s.rebuild_confidence, 3),
+        "plain_english": s.plain_english,
+    }
+
+
+def _value_only_resolution(resolved: dict, result: ResolutionResult) -> None:
+    """Fallback when the extraction can't be schema-validated: still guarantee a
+    numeric ``resolved_value`` on every dimension and ``build_status`` on features."""
+    for dim in resolved.get("dimensions", []) or []:
+        val = dim.get("value")
+        if not (isinstance(val, (int, float)) and not isinstance(val, bool) and val > 0):
+            pvs = [p for p in (dim.get("possible_values") or [])
+                   if isinstance(p, (int, float)) and not isinstance(p, bool) and p > 0]
+            val = float(pvs[0]) if pvs else 1.0
+        res = DimResolution(dim.get("id", "?"), float(val), True, "value_only_fallback",
+                            [], 0.30, "CRITICAL",
+                            f"{dim.get('id', '?')} resolved by value-only fallback (extraction did "
+                            f"not validate) — verify everything in SolidWorks before rebuild.")
+        result.dim_resolutions[res.dimension_id] = res
+        dim.update(res.as_fields())
+        dim["value"] = res.resolved_value
+        dim["resolution_required"] = False
+        dim["value_unclear"] = False
+    for feat in resolved.get("features", []) or []:
+        fres = FeatureResolution(feat.get("id", "?"), "build", False, "value_only_fallback",
+                                "CRITICAL", f"{feat.get('id', '?')} build forced by fallback — verify.")
+        result.feature_resolutions[fres.feature_id] = fres
+        feat.update(fres.as_fields())
+    _summarize(result)
+    resolved["resolution"] = _summary_dict(result.summary)
+    result.clean_extraction = schema_clean(resolved)
+
+
+def _summarize(result: ResolutionResult) -> None:
+    s = result.summary
+    dims = list(result.dim_resolutions.values())
+    s.total_dimensions = len(dims)
+    s.assumptions_made = sum(1 for d in dims if d.assumption_made)
+
+    all_tiers = [d.flag_tier for d in dims] + [f.flag_tier for f in result.feature_resolutions.values()]
+    s.critical_flags = sum(1 for t in all_tiers if t == "CRITICAL")
+    s.low_flags = sum(1 for t in all_tiers if t == "LOW")
+    s.medium_flags = sum(1 for t in all_tiers if t == "MEDIUM")
+    s.high_flags = sum(1 for t in all_tiers if t == "HIGH")
+
+    # Rebuild confidence: mean of per-dimension confidences, floored by the worst
+    # flag tier so a single CRITICAL assumption can't read as a confident model.
+    if dims:
+        mean_conf = sum(d.assumption_confidence for d in dims) / len(dims)
+    else:
+        mean_conf = 1.0
+    ceiling = 1.0
+    if s.critical_flags:
+        ceiling = 0.55
+    elif s.low_flags:
+        ceiling = 0.75
+    elif s.medium_flags:
+        ceiling = 0.88
+    s.rebuild_confidence = min(mean_conf, ceiling)
+
+    # Plain-English narrative naming the most severe assumption(s).
+    worst = [d for d in dims if d.flag_tier == "CRITICAL"] or \
+            [d for d in dims if d.flag_tier == "LOW"] or \
+            [d for d in dims if d.flag_tier == "MEDIUM"]
+    if not worst:
+        s.plain_english = (
+            "All dimensions confirmed by arithmetic chain or explicit callout. "
+            "Model is complete and buildable as-is."
+        )
+    else:
+        lead = worst[0]
+        s.plain_english = (
+            f"{lead.human_note} "
+            f"{s.assumptions_made} of {s.total_dimensions} dimension(s) required an engineering "
+            f"assumption ({s.critical_flags} critical, {s.low_flags} low, {s.medium_flags} medium). "
+            f"Model is complete and buildable as-is; verify flagged items in SolidWorks."
+        )

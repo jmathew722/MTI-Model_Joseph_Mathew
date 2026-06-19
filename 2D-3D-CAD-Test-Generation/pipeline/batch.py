@@ -138,35 +138,55 @@ def _scores(readiness: dict) -> dict:
 
 
 def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
-                         sw_app=None, template_path: Optional[str] = None) -> BatchRow:
-    """Verify + (if READY) generate macros for one already-loaded extraction.
+                         sw_app=None, template_path: Optional[str] = None,
+                         resolve: bool = True, strict_gate: bool = False) -> BatchRow:
+    """Verify + (unless blocked) generate macros for one already-loaded extraction.
+
+    By default the Stage 2.5 resolver runs first, so an ambiguous/under-dimensioned
+    drawing is resolved to a defensible model rather than blocked ("an incomplete
+    model is always the wrong outcome"). Pass ``resolve=False`` for the legacy v2
+    behavior and ``strict_gate=True`` to restore the hard BLOCKED gate.
 
     When ``sw_app`` is provided (a connected SolidWorks application), a real
     ``.sldprt`` is also built into the part folder — making the 3D model a
     standard output of every run, not just the VBA macros.
     """
+    raw_extraction = drawing_data
+    resolution = None
+    if resolve:
+        from pipeline.resolver import resolve_extraction
+
+        resolution = resolve_extraction(raw_extraction)
+        drawing_data = resolution.clean_extraction
+
     model, report = run_verification(drawing_data)
     scores = _scores(report.readiness or {})
     part = model.display_name if model is not None else (
         drawing_data.get("part_number") or drawing_data.get("part_name") or "part"
     )
 
-    # Always persist the extraction + report (READY or BLOCKED), like the single path.
+    # Always persist the RAW extraction + report (READY or BLOCKED), like the single path.
     part_dir = output_dir / (part.replace(" ", "_") or "part")
     part_dir.mkdir(parents=True, exist_ok=True)
     (part_dir / f"{part.replace(' ', '_') or 'part'}_extraction.json").write_text(
-        json.dumps(drawing_data, indent=2), encoding="utf-8"
+        json.dumps(raw_extraction, indent=2), encoding="utf-8"
     )
+    if resolution is not None:
+        (part_dir / f"{part.replace(' ', '_') or 'part'}_resolved_extraction.json").write_text(
+            json.dumps(resolution.resolved_extraction, indent=2), encoding="utf-8"
+        )
     verification_text = format_verification_report(model, report)
     (part_dir / f"{part.replace(' ', '_') or 'part'}_verification_report.txt").write_text(
         verification_text, encoding="utf-8"
     )
 
-    if model is None or not report.ok:
+    # Genuinely uncoercible data always blocks; otherwise only --strict-gate blocks.
+    if model is None or (not report.ok and strict_gate):
         return BatchRow(source, part, "BLOCKED", **scores, n_macros=0, n_needs_review=0,
                         n_skipped=0, detail="; ".join(report.errors)[:300])
     try:
-        pkg = generate_macro_package(model, drawing_data, verification_text, output_dir)
+        pkg = generate_macro_package(model, raw_extraction, verification_text, output_dir,
+                                     resolution=resolution)
     except MacroGenerationError as e:
         return BatchRow(source, part, "ERROR", **scores, n_macros=0, n_needs_review=0,
                         n_skipped=0, detail=str(e)[:300])
@@ -193,12 +213,15 @@ def run_batch(
     extract_fn: Optional[ExtractFn] = None,
     sw_app=None,
     template_path: Optional[str] = None,
+    resolve: bool = True,
+    strict_gate: bool = False,
 ) -> tuple[list[BatchRow], Path]:
     """Process every input in ``directory`` and write ``batch_summary.csv``.
 
     ``extract_fn`` is required only if drawing files (not just ``*_extraction.json``)
     are present; it maps a drawing path to an extraction dict. When ``sw_app`` is
-    given, each READY part is also built into a real ``.sldprt``.
+    given, each READY part is also built into a real ``.sldprt``. ``resolve`` /
+    ``strict_gate`` are forwarded to :func:`process_drawing_data`.
     """
     directory = Path(directory)
     output_dir = Path(output_dir)
@@ -217,7 +240,8 @@ def run_batch(
                     continue
                 drawing_data = extract_fn(path)
             rows.append(process_drawing_data(drawing_data, path.name, output_dir,
-                                             sw_app=sw_app, template_path=template_path))
+                                             sw_app=sw_app, template_path=template_path,
+                                             resolve=resolve, strict_gate=strict_gate))
         except Exception as e:  # one bad drawing must not sink the whole batch
             log.warning("batch: %s failed: %s", path.name, e)
             rows.append(BatchRow(path.name, path.stem, "ERROR", 0, 0, 0, 0, 0,

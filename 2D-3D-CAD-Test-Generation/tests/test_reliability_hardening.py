@@ -287,23 +287,29 @@ class TestReadiness:
 # Batch mode
 # --------------------------------------------------------------------------- #
 class TestBatch:
-    def test_processes_json_inputs_and_writes_csv(self, tmp_path):
-        from pipeline.batch import run_batch
-
+    def _two_part_indir(self, tmp_path):
         indir = tmp_path / "in"
         indir.mkdir()
-        # One READY part and one BLOCKED part (resolution_required dimension).
         ready = _equal_spacing_drawing()
         (indir / "EQSP-1_extraction.json").write_text(json.dumps(ready), encoding="utf-8")
-        blocked = _verbose_bracket()
-        blocked["dimensions"].append({
+        # A part with a smudged, resolution_required dimension.
+        ambiguous = _verbose_bracket()
+        ambiguous["dimensions"].append({
             "id": "D099", "type": "linear", "value": 1.0, "unit": "inch",
             "applies_to": "length", "resolution_required": True, "value_unclear": True,
             "ambiguity_reason": "smudge",
         })
-        (indir / "BLK-1_extraction.json").write_text(json.dumps(blocked), encoding="utf-8")
+        (indir / "BLK-1_extraction.json").write_text(json.dumps(ambiguous), encoding="utf-8")
+        return indir
 
-        rows, csv_path = run_batch(indir, tmp_path / "out")
+    def test_strict_gate_blocks_ambiguous_part(self, tmp_path):
+        """v2 behavior, opt-in: with the resolver OFF, --strict-gate BLOCKS a
+        resolution_required dim (the legacy gate). (With the resolver ON the
+        ambiguity is fixed before the gate sees it — see the next test.)"""
+        from pipeline.batch import run_batch
+
+        indir = self._two_part_indir(tmp_path)
+        rows, csv_path = run_batch(indir, tmp_path / "out", resolve=False, strict_gate=True)
         assert csv_path.exists()
         by_part = {r.part: r for r in rows}
         assert by_part["EQSP-1"].status == "READY"
@@ -311,6 +317,24 @@ class TestBatch:
         assert by_part["VERBOSE-1"].detail  # carries the blocking reason
         # CSV has a header + 2 data rows.
         assert len(csv_path.read_text(encoding="utf-8").strip().splitlines()) == 3
+
+    def test_resolver_default_builds_ambiguous_part(self, tmp_path):
+        """New default (chief-engineer mode): the smudged dim is RESOLVED, not blocked,
+        and a resolved_extraction.json is written alongside the raw extraction."""
+        from pipeline.batch import run_batch
+
+        indir = self._two_part_indir(tmp_path)
+        out = tmp_path / "out"
+        rows, _ = run_batch(indir, out)  # resolve=True by default
+        by_part = {r.part: r for r in rows}
+        assert by_part["EQSP-1"].status == "READY"
+        assert by_part["VERBOSE-1"].status == "READY"  # resolved, not blocked
+        resolved = out / "VERBOSE-1" / "VERBOSE-1_resolved_extraction.json"
+        assert resolved.exists()
+        data = json.loads(resolved.read_text(encoding="utf-8"))
+        d099 = next(d for d in data["dimensions"] if d["id"] == "D099")
+        assert isinstance(d099["resolved_value"], (int, float))
+        assert d099["flag_tier"] in ("HIGH", "MEDIUM", "LOW", "CRITICAL")
 
     def test_iter_inputs_classifies(self, tmp_path):
         from pipeline.batch import iter_inputs

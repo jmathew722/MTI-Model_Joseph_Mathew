@@ -117,6 +117,21 @@ class BuildStep:
     status: str  # generated | needs_review | skipped_prohibited | merged
     dimensions: dict[str, float] = field(default_factory=dict)
     notes: str = ""
+    # --- Stage 2.5 / self-contained build-plan fields (zero cross-referencing) ---
+    dimensions_meters: dict[str, float] = field(default_factory=dict)
+    positions_xy: list[list[float]] = field(default_factory=list)        # drawing units
+    positions_xy_meters: list[list[float]] = field(default_factory=list)
+    sketch_plane: str = ""
+    parent_feature_id: str = ""
+    depth_type: str = ""           # blind | through_all | ""
+    flags: list[dict] = field(default_factory=list)
+    requires_input: bool = False
+    auto_select_strategy: str = ""
+    expected_edge_count: int = 0
+    edge_selection_note: str = ""
+    assumption_made: bool = False
+    assumption_confidence: float = 1.0
+    flag_tier: str = "HIGH"
 
 
 @dataclass
@@ -126,6 +141,7 @@ class MacroPackage:
     extraction_json: Path
     verification_report: Path
     build_plan_json: Path
+    resolved_extraction_json: Optional[Path] = None
     steps: list[BuildStep] = field(default_factory=list)
     skipped: list[BuildStep] = field(default_factory=list)
     needs_review: list[BuildStep] = field(default_factory=list)
@@ -260,6 +276,244 @@ def _hole_positions(model: DrawingData, h: HoleCallout) -> list[tuple[float, flo
     if h.position_known:
         return [(h.x_position, h.y_position)]
     return [(ecx, ecy)]
+
+
+# --------------------------------------------------------------------------- #
+# Stage 2.5 flags → VBA, and self-contained build-plan enrichment
+# --------------------------------------------------------------------------- #
+def _to_meters(value: float, units: Units) -> float:
+    """Drawing-unit value → meters using this part's unit factor."""
+    return round(value * UNIT_FACTORS[units], 9)
+
+
+def _dims_in_meters(dims: dict[str, float], units: Units) -> dict[str, float]:
+    """Convert a drawing-unit dims map to meters, leaving counts (qty) alone."""
+    out: dict[str, float] = {}
+    for k, v in dims.items():
+        if k == "qty":
+            out[k] = v
+        else:
+            out[k] = _to_meters(v, units)
+    return out
+
+
+def _collect_step_flags(model: DrawingData, feature: Feature, resolution) -> list[dict]:
+    """Build-plan flags affecting this feature's macro: the feature's own
+    position flag, every flag on a dimension the feature consumes, and (for hole
+    features) any unknown-position hole flags. Empty list when nothing applies."""
+    if resolution is None:
+        return []
+    flags: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    def _add(flag: dict) -> None:
+        key = (flag.get("dimension_id", ""), flag.get("human_note", ""))
+        if key not in seen:
+            seen.add(key)
+            flags.append(flag)
+
+    fres = resolution.feature(feature.id)
+    if fres is not None and fres.flag_tier in ("MEDIUM", "LOW", "CRITICAL"):
+        from pipeline.resolver import behavior_for_tier
+
+        _add({
+            "dimension_id": feature.id, "flag_tier": fres.flag_tier,
+            "human_note": fres.human_note, "macro_behavior": behavior_for_tier(fres.flag_tier),
+        })
+
+    dim_ids = set(feature.related_dimensions)
+    if feature.depth_dimension_id:
+        dim_ids.add(feature.depth_dimension_id)
+    for did in dim_ids:
+        dres = resolution.dim(did)
+        if dres is not None and dres.flag_tier in ("MEDIUM", "LOW", "CRITICAL"):
+            from pipeline.resolver import behavior_for_tier
+
+            _add({
+                "dimension_id": did, "flag_tier": dres.flag_tier,
+                "human_note": dres.human_note, "macro_behavior": behavior_for_tier(dres.flag_tier),
+            })
+
+    if feature.type in (FeatureType.HOLE, FeatureType.THREAD):
+        h = model.hole_callout_for_feature(feature.id)
+        if h is not None and not h.instance_positions and not h.position_known:
+            _add({
+                "dimension_id": h.id, "flag_tier": "LOW",
+                "human_note": (
+                    f"POSITION ASSUMED for hole {h.id}: centered/laid-out from the envelope; "
+                    f"verify hole locations in SolidWorks."
+                ),
+                "macro_behavior": "msgbox_on_run",
+            })
+    return flags
+
+
+def _flag_vba_block(step_name: str, flags: list[dict]) -> str:
+    """Emit the VBA the spec mandates per flag tier, run at the TOP of a macro.
+
+    HIGH      → a ' NOTE comment only (no interruption).
+    MEDIUM    → MsgBox vbInformation ("Review recommended").
+    LOW       → MsgBox vbExclamation ("Verify before continuing").
+    CRITICAL  → a banner comment block + a confirmation dialog the user must
+                acknowledge (Cancel logs and exits the macro).
+    """
+    if not flags:
+        return ""
+    lines: list[str] = ["    ' --- Stage 2.5 assumption flags ---"]
+    for fl in flags:
+        tier = fl.get("flag_tier", "HIGH")
+        note = _vba_str(fl.get("human_note", ""), limit=240)
+        did = fl.get("dimension_id", "")
+        if tier == "HIGH":
+            lines.append(f"    ' NOTE [{did}]: {note}")
+        elif tier == "MEDIUM":
+            lines.append(f'    MsgBox "{note}", vbInformation, "Review recommended ({did})"')
+        elif tier == "LOW":
+            lines.append(f'    MsgBox "{note}", vbExclamation, "Verify before continuing ({did})"')
+        else:  # CRITICAL
+            lines.append(f"    ' !! CRITICAL ASSUMPTION [{did}] — VERIFY BEFORE REBUILD")
+            lines.append(f"    ' !! {note}")
+            lines.append(
+                f'    If MsgBox("CRITICAL ASSUMPTION [{did}]:" & vbCrLf & "{note}" & vbCrLf & vbCrLf '
+                f'& "Click OK to build with this assumption, or Cancel to stop.", '
+                f'vbOKCancel + vbExclamation, "Critical assumption — {did}") = vbCancel Then'
+            )
+            lines.append(f'        LogResult "STOP", "{step_name}", "User cancelled at critical assumption {did}"')
+            lines.append("        Exit Sub")
+            lines.append("    End If")
+    return "\n".join(lines) + "\n"
+
+
+def _depth_type_for(model: DrawingData, feature: Feature, dims: dict[str, float]) -> str:
+    """Classify a cut/hole's depth as ``through_all`` or ``blind`` for the plan."""
+    if feature.type in (FeatureType.HOLE, FeatureType.THREAD):
+        h = model.hole_callout_for_feature(feature.id)
+        if h is not None:
+            return "through_all" if h.thru else "blind"
+    if feature.type == FeatureType.EXTRUDE_CUT:
+        return "blind" if _depth_of(dims) else "through_all"
+    return ""
+
+
+def _worst_resolution(model: DrawingData, feature: Feature, resolution) -> tuple[bool, float, str]:
+    """(assumption_made, confidence, flag_tier) for a feature: the worst across
+    the feature's own resolution and every dimension it consumes."""
+    if resolution is None:
+        return False, 1.0, "HIGH"
+    from pipeline.resolver import worst_tier
+
+    tiers: list[str] = []
+    confs: list[float] = []
+    assumed = False
+    fres = resolution.feature(feature.id)
+    if fres is not None:
+        tiers.append(fres.flag_tier)
+    dim_ids = set(feature.related_dimensions)
+    if feature.depth_dimension_id:
+        dim_ids.add(feature.depth_dimension_id)
+    for did in dim_ids:
+        dres = resolution.dim(did)
+        if dres is not None:
+            tiers.append(dres.flag_tier)
+            confs.append(dres.assumption_confidence)
+            assumed = assumed or dres.assumption_made
+    tier = worst_tier(*tiers) if tiers else "HIGH"
+    conf = min(confs) if confs else (0.95 if tier == "HIGH" else 0.6)
+    return assumed, conf, tier
+
+
+def _enrich_feature_step(step: BuildStep, model: DrawingData, feature: Feature,
+                         resolution, step_flags: list[dict]) -> None:
+    """Populate the self-contained build-plan fields on a feature step."""
+    step.dimensions_meters = _dims_in_meters(step.dimensions, model.units)
+    step.sketch_plane = (feature.sketch_plane or "front").lower().strip() or "front"
+    step.parent_feature_id = feature.parent_feature or ""
+    step.depth_type = _depth_type_for(model, feature, step.dimensions)
+    step.flags = step_flags
+
+    if feature.type in (FeatureType.HOLE, FeatureType.THREAD):
+        h = model.hole_callout_for_feature(feature.id)
+        if h is not None:
+            pts = _hole_positions(model, h)
+            step.positions_xy = [[round(x, 6), round(y, 6)] for x, y in pts]
+            step.positions_xy_meters = [
+                [_to_meters(x, model.units), _to_meters(y, model.units)] for x, y in pts
+            ]
+
+    step.assumption_made, step.assumption_confidence, step.flag_tier = \
+        _worst_resolution(model, feature, resolution)
+
+
+def _step_to_dict(s: BuildStep) -> dict[str, Any]:
+    """One build-plan step as a fully self-contained dict.
+
+    Carries every legacy key (so existing consumers/tests keep working) plus the
+    self-contained Stage-2.5 fields: a macro generator can produce this step's
+    ``.vba`` from this object alone — no cross-referencing the extraction JSON.
+    """
+    return {
+        # --- legacy keys (unchanged) ---
+        "seq": s.seq,
+        "macro_file": s.macro_file,
+        "feature_id": s.feature_id,
+        "type": s.feature_type,
+        "description": s.description,
+        "status": s.status,
+        "dimensions_drawing_units": s.dimensions,
+        "notes": s.notes,
+        # --- self-contained additions ---
+        "dimensions_meters": s.dimensions_meters,
+        "positions_xy": s.positions_xy,
+        "positions_xy_meters": s.positions_xy_meters,
+        "sketch_plane": s.sketch_plane,
+        "parent_feature_id": s.parent_feature_id,
+        "depth_type": s.depth_type,
+        "flags": s.flags,
+        "requires_input": s.requires_input,
+        "auto_select_strategy": s.auto_select_strategy,
+        "expected_edge_count": s.expected_edge_count,
+        "edge_selection_note": s.edge_selection_note,
+        "assumption_made": s.assumption_made,
+        "assumption_confidence": round(s.assumption_confidence, 3),
+        "flag_tier": s.flag_tier,
+    }
+
+
+def _build_plan_dict(model: DrawingData, pkg: MacroPackage, unit_factor: float,
+                     audit, resolution) -> dict[str, Any]:
+    """Assemble the self-contained ``build_plan.json`` (superset of the v2 schema).
+
+    The header states the coordinate convention explicitly so a downstream macro
+    generator never has to infer the origin. When a Stage-2.5 ``resolution`` is
+    present, a ``resolution_summary`` block is included; otherwise the plan is the
+    backward-compatible v2 shape with the extra per-step fields defaulted.
+    """
+    plan: dict[str, Any] = {
+        "part": model.display_name,
+        "units": model.units.value,
+        "unit_factor_to_meters": unit_factor,
+        "coordinate_origin": "lower_left_corner_of_base_solid",
+        "x_direction": "positive_right",
+        "y_direction": "positive_up",
+        "confidence": model.confidence,
+        "audit": audit.to_dict(),
+    }
+    if resolution is not None:
+        sm = resolution.summary
+        plan["resolution_summary"] = {
+            "total_dimensions": sm.total_dimensions,
+            "assumptions_made": sm.assumptions_made,
+            "critical_flags": sm.critical_flags,
+            "low_flags": sm.low_flags,
+            "medium_flags": sm.medium_flags,
+            "high_flags": sm.high_flags,
+            "rebuild_confidence": round(sm.rebuild_confidence, 3),
+            "plain_english": sm.plain_english,
+        }
+    plan["steps"] = [_step_to_dict(s) for s in pkg.steps]
+    plan["skipped_prohibited"] = [s.feature_id for s in pkg.skipped]
+    plan["needs_review"] = [s.feature_id for s in pkg.needs_review]
+    return plan
 
 
 # --------------------------------------------------------------------------- #
@@ -1033,6 +1287,7 @@ def generate_macro_package(
     raw_extraction: dict[str, Any],
     verification_text: str,
     output_dir: Path | str,
+    resolution: Any = None,
 ) -> MacroPackage:
     """Generate the complete macro package for a verified drawing.
 
@@ -1041,6 +1296,12 @@ def generate_macro_package(
         raw_extraction: the extraction dict (saved verbatim for traceability).
         verification_text: the formatted verification report text.
         output_dir: base output directory (package goes in a subfolder).
+        resolution: optional :class:`pipeline.resolver.ResolutionResult` from
+            Stage 2.5. When provided, each feature macro emits the appropriate
+            assumption-flag behavior (NOTE/MsgBox/confirmation) and the
+            ``build_plan.json`` is the fully self-contained schema (drawing +
+            meters dims, positions_xy, flags[], edge-selection strategy, and a
+            resolution summary). When None, behavior is unchanged from v2.
 
     Returns:
         A :class:`MacroPackage` describing everything written.
@@ -1065,6 +1326,12 @@ def generate_macro_package(
     pkg.extraction_json.write_text(json.dumps(raw_extraction, indent=2), encoding="utf-8")
     pkg.verification_report.write_text(verification_text, encoding="utf-8")
     (logs_dir / ".gitkeep").write_text("", encoding="utf-8")
+    # Stage 2.5 resolved extraction (every dimension carries resolved_value + flags).
+    if resolution is not None:
+        pkg.resolved_extraction_json = root / f"{name}_resolved_extraction.json"
+        pkg.resolved_extraction_json.write_text(
+            json.dumps(resolution.resolved_extraction, indent=2), encoding="utf-8"
+        )
 
     # --- 00 setup ---
     (macros_dir / "00_setup.vba").write_text(_setup_macro(model, unit_factor), encoding="utf-8")
@@ -1144,10 +1411,16 @@ def generate_macro_package(
     LogResult "WARN", "{step_name}", "Not scripted: {msg}"
 """
 
+        # Stage 2.5: emit assumption-flag behavior (NOTE/MsgBox/confirmation) at
+        # the top of the macro body, then the feature body itself.
+        step_flags = _collect_step_flags(model, feature, resolution)
+        body = _flag_vba_block(step_name, step_flags) + body
+
         (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
         run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}", body))
         step = BuildStep(seq, fname, feature.id, feature.type.value, feature.description,
                          status, dimensions=used, notes=notes)
+        _enrich_feature_step(step, model, feature, resolution, step_flags)
         pkg.steps.append(step)
         if status == "needs_review":
             pkg.needs_review.append(step)
@@ -1158,6 +1431,10 @@ def generate_macro_package(
         fname = f"{seq:02d}_fillets_chamfers.vba"
         header = _vba_header(f"{seq:02d}_fillets_chamfers - applied LAST", model.display_name, unit_factor)
         body, used = _macro_fillet_chamfer(model, deferred, f"{seq:02d}_fillets_chamfers")
+        fc_flags = []
+        for f in deferred:
+            fc_flags.extend(_collect_step_flags(model, f, resolution))
+        body = _flag_vba_block(f"{seq:02d}_fillets_chamfers", fc_flags) + body
         (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
         run_all_subs.append((f"Step{seq:02d}_FilletsChamfers", body))
         step = BuildStep(
@@ -1165,6 +1442,18 @@ def generate_macro_package(
             "Interactive: select edges, run, repeat", "generated", dimensions=used,
             notes="Run last. Interactive edge selection (values from the drawing are baked in).",
         )
+        # Self-contained edge-selection contract for the macro generator/consumer.
+        step.dimensions_meters = _dims_in_meters(used, model.units)
+        step.requires_input = True
+        step.auto_select_strategy = "parent_feature_sketch_edges"
+        step.parent_feature_id = next((f.parent_feature for f in deferred if f.parent_feature), "")
+        step.expected_edge_count = 0  # unknown from a 2D drawing; selection is interactive
+        step.edge_selection_note = (
+            "Select the edge(s) for each fillet/chamfer in the graphics area, then run. "
+            "The macro applies the exact radius/chamfer values baked in from the drawing; "
+            "if no edges are selected it prompts and skips that value."
+        )
+        step.flags = fc_flags
         pkg.steps.append(step)
 
     # --- Final verify ---
@@ -1203,23 +1492,7 @@ def generate_macro_package(
     for w in audit.warnings:
         log.warning("macro audit [%s] %s: %s", w.rule_id, w.file, w.message)
 
-    plan = {
-        "part": model.display_name,
-        "units": model.units.value,
-        "unit_factor_to_meters": unit_factor,
-        "confidence": model.confidence,
-        "audit": audit.to_dict(),
-        "steps": [
-            {
-                "seq": s.seq, "macro_file": s.macro_file, "feature_id": s.feature_id,
-                "type": s.feature_type, "description": s.description, "status": s.status,
-                "dimensions_drawing_units": s.dimensions, "notes": s.notes,
-            }
-            for s in pkg.steps
-        ],
-        "skipped_prohibited": [s.feature_id for s in pkg.skipped],
-        "needs_review": [s.feature_id for s in pkg.needs_review],
-    }
+    plan = _build_plan_dict(model, pkg, unit_factor, audit, resolution)
     pkg.build_plan_json.write_text(json.dumps(plan, indent=2), encoding="utf-8")
 
     log.info(
