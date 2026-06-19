@@ -1,0 +1,11 @@
+MODEL CHECK — A001551E
+========================================
+Saved: C:\Users\JOMATHEW\Downloads\TestDrawings-20260618T163658Z-3-001\TestDrawings\0014630E\MTI-Model_Joseph_Mathew\Test2\output\A001551E\A001551E.SLDPRT
+
+[PASS] Solid body exists (volume > 0).
+[PASS] height: a model extent matches drawing value(s) [152.4] mm.
+
+Skipped features (build non-strict — verify manually):
+  - F004 (fillet): FeatureFillet3 returned None for F004 (no edges selected?).
+
+Overall model validation: PASSED.

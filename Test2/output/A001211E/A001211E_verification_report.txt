@@ -1,10 +1,10 @@
 VERIFICATION REPORT
 ===================
 Part: A001211E    Units: inch    Standard: unknown    Confidence: 0.82
-Total dimensions extracted: 19
+Total dimensions extracted: 20
 Hole callouts extracted: 2
 Features identified: 5  (build order: 5)
-Dimensions flagged ambiguous: 1  ->  D019
+Dimensions flagged ambiguous: 0
 Dimensional closure: FAIL  ->  failed: D012 = D002 + D001
 Unit consistency: PASS
 View consistency: FAIL
@@ -13,13 +13,12 @@ Derived dimensions computed: 0
 
 DRAWING COMPLETENESS SCORE (Phase 4):
   Geometry completeness:  100%
-  Dimension completeness: 95%
+  Dimension completeness: 100%
   Cross-view consistency: 50%
   Feature confidence:     82%
-  Macro readiness:        84%
+  Macro readiness:        86%
 
 ERRORS:
-  [ERROR] Dimension D019 requires human resolution (Front view shows 4.50 overall height, side view shows 5.50; these may represent different dimensions or the part height with boss included.). Candidate values: 5.5, 4.5.
   [ERROR] Dimensional closure FAILED: D012 = D002 + D001 → 6.26 != 6.88 (allowed slack 0.00688 inch).
 
 WARNINGS:

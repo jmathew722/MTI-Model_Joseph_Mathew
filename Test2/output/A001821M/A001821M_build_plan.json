@@ -1,0 +1,318 @@
+{
+  "part": "A001821M",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 18,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 5,
+    "medium_flags": 0,
+    "high_flags": 18,
+    "rebuild_confidence": 0.75,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_plate_stepped_L_shaped_profile_extr.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base plate \u2014 stepped/L-shaped profile extruded to 0.312 inch depth; overall envelope 4.500 W x 7.000 H x 0.312 D",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 4.5,
+        "width": 4.5,
+        "depth": 0.312
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.1143,
+        "width": 0.1143,
+        "depth": 0.0079248
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "F001",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_Step_cut_removing_the_upper_right_corner.vba",
+      "feature_id": "F002",
+      "type": "extrude_cut",
+      "description": "Step cut removing the upper-right corner to form the L/stepped profile (width reduction from 4.500 to 3.875 over the upper 2.750 height zone)",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 3.875,
+        "width": 3.875,
+        "depth": 2.75
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.098425,
+        "width": 0.098425,
+        "depth": 0.06985
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "blind",
+      "flags": [
+        {
+          "dimension_id": "F002",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F003_M6x1_tapped_through_holes_7_total_arrang.vba",
+      "feature_id": "F003",
+      "type": "hole",
+      "description": "M6x1 tapped through holes \u2014 7 total, arranged in upper/middle rows: Row1: 3 holes at Y=0.375 from top; Row2: 3 holes at Y=0.375+1.988; Row3: 1 hole at Y=0.375+1.988+1.465",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.236,
+        "qty": 7.0
+      },
+      "notes": "HOLE POSITIONS ASSUMED (centered on the plate envelope) - verify against the drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0059944,
+        "qty": 7.0
+      },
+      "positions_xy": [
+        [
+          0.0,
+          2.25
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0,
+          0.05715
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "through_all",
+      "flags": [
+        {
+          "dimension_id": "F003",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        },
+        {
+          "dimension_id": "H001",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for hole H001: centered/laid-out from the envelope; verify hole locations in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 4,
+      "macro_file": "04_F004_Dia_0_422_clearance_through_holes_6_tota.vba",
+      "feature_id": "F004",
+      "type": "hole",
+      "description": "Dia 0.422 clearance through holes \u2014 6 total in lower section, 3x2 grid; horizontal spacing 2.750 (1.375 half), positioned per D015/D016/D017",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.422,
+        "qty": 6.0
+      },
+      "notes": "HOLE POSITIONS ASSUMED (centered on the plate envelope) - verify against the drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0107188,
+        "qty": 6.0
+      },
+      "positions_xy": [
+        [
+          0.0,
+          2.25
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0,
+          0.05715
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "through_all",
+      "flags": [
+        {
+          "dimension_id": "F004",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        },
+        {
+          "dimension_id": "H002",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for hole H002: centered/laid-out from the envelope; verify hole locations in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 5,
+      "macro_file": "05_F005_M6x1_internal_thread_applied_to_the_7_ta.vba",
+      "feature_id": "F005",
+      "type": "thread",
+      "description": "M6x1 internal thread applied to the 7 tapped holes",
+      "status": "needs_review",
+      "dimensions_drawing_units": {},
+      "notes": "Cosmetic thread step requires manual verification.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "F003",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "F005",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F005: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.6,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": [
+    "F005"
+  ]
+}

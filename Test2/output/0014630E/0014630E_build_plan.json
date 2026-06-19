@@ -2,12 +2,25 @@
   "part": "0014630E",
   "units": "inch",
   "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
   "confidence": 0.82,
   "audit": {
     "ok": true,
     "error_count": 0,
     "warning_count": 0,
     "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 3,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 0,
+    "medium_flags": 0,
+    "high_flags": 5,
+    "rebuild_confidence": 0.92,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
   },
   "steps": [
     {
@@ -18,7 +31,21 @@
       "description": "New part, units, save-as",
       "status": "generated",
       "dimensions_drawing_units": {},
-      "notes": ""
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
     },
     {
       "seq": 1,
@@ -31,7 +58,24 @@
         "diameter": 1.12,
         "depth": 0.312
       },
-      "notes": "Position read from drawing."
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.028448,
+        "depth": 0.0079248
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH"
     },
     {
       "seq": 2,
@@ -44,7 +88,34 @@
         "diameter": 0.656,
         "qty": 1.0
       },
-      "notes": "Hole positions read from drawing."
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0166624,
+        "qty": 1.0
+      },
+      "positions_xy": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH"
     },
     {
       "seq": 999,
@@ -54,7 +125,21 @@
       "description": "Rebuild, mass properties, bounding box, save",
       "status": "generated",
       "dimensions_drawing_units": {},
-      "notes": ""
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
     },
     {
       "seq": 1000,
@@ -64,7 +149,21 @@
       "description": "One macro that runs every step in order (paste once, F5)",
       "status": "generated",
       "dimensions_drawing_units": {},
-      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection."
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
     }
   ],
   "skipped_prohibited": [],

@@ -1,0 +1,245 @@
+{
+  "part_name": "",
+  "part_number": "0014630E",
+  "revision": "",
+  "drawing_standard": "",
+  "units": "inch",
+  "scale": "",
+  "material": "",
+  "finish": "",
+  "general_tolerance": "",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front view showing circular boss with concentric through-hole; two diameter dimensions given",
+      "dimensions_shown": [
+        "D001",
+        "D002"
+      ],
+      "visible_features": [
+        "F001",
+        "F002"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Crosshair centerlines confirm coaxial outer cylinder and inner through-hole; part is rotationally symmetric about the central axis"
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right) view showing the part depth/length; dashed lines indicate the inner through-hole bore",
+      "dimensions_shown": [
+        "D003"
+      ],
+      "visible_features": [
+        "F001"
+      ],
+      "hidden_features": [
+        "F002"
+      ],
+      "centerline_notes": "Two horizontal dashed lines running the full length represent the hidden bore of the through-hole"
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "diameter",
+      "value": 1.12,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "outer_diameter",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Outer diameter of cylindrical boss; reads '1.12 DIA'",
+      "resolved_value": 1.12,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D001 (1.12) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D002",
+      "type": "diameter",
+      "value": 0.656,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_diameter",
+      "feature_ref": "F002",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Inner through-hole diameter; reads '.656 DIA'",
+      "resolved_value": 0.656,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D002 (0.656) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 0.312,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "length",
+      "feature_ref": "F001",
+      "view": "Right",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Part depth/length read from side view; reads '.312'",
+      "resolved_value": 0.312,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D003 (0.312) read directly from the drawing callout \u2014 no action needed."
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "thru",
+      "diameter": 0.656,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.0,
+      "cbore_depth": 0.0,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 1,
+      "x_position": 0.0,
+      "y_position": 0.0,
+      "position_known": true,
+      "pattern": "none",
+      "pattern_spacing": 0.0,
+      "instance_positions": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "feature_ref": "F002",
+      "view": "Front"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Cylindrical base boss, outer diameter 1.12 inch, extruded 0.312 inch deep",
+      "related_dimensions": [
+        "D001",
+        "D003"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D003",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F001 position read from the drawing \u2014 no action needed."
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": "Concentric through-hole, diameter 0.656 inch, thru the full 0.312 inch depth",
+      "related_dimensions": [
+        "D002"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D003",
+      "parent_feature": "F001",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F002 position read from the drawing \u2014 no action needed."
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Front",
+        "feature_ids": [
+          "F001",
+          "F002"
+        ],
+        "description": "Part is rotationally symmetric about its central axis"
+      }
+    ],
+    "concentric_groups": [
+      {
+        "feature_ids": [
+          "F001",
+          "F002"
+        ],
+        "description": "Outer cylinder and inner bore are coaxial about the part central axis"
+      }
+    ],
+    "equal_spacing": [],
+    "dimension_chains": [],
+    "derived_dimension_ids": [],
+    "reference_dimension_ids": []
+  },
+  "build_order": [
+    "F001",
+    "F002"
+  ],
+  "warnings": [
+    "No title block present \u2014 part name, part number, revision, material, finish, drawing standard, and scale are all unknown.",
+    "No explicit tolerances given on any dimension; general tolerance block absent. All dimensions treated as reference-only tolerances pending a tolerance block.",
+    "Outer diameter reads '1.12 DIA' \u2014 value could conceivably be 1.125 (1-1/8 inch nominal); flagged as possible ambiguity but 1.12 taken as written.",
+    "Inner diameter reads '.656 DIA' \u2014 likely 21/32 inch (0.65625); value taken as 0.656 as written.",
+    "Length reads '.312' \u2014 likely 5/16 inch (0.3125); taken as 0.312 as written.",
+    "Part appears to be a simple washer or spacer bushing based on geometry.",
+    "Could not classify view for 0014630E.png; skipped."
+  ],
+  "confidence": 0.82,
+  "resolution": {
+    "total_dimensions": 3,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 0,
+    "medium_flags": 0,
+    "high_flags": 5,
+    "rebuild_confidence": 0.92,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  }
+}

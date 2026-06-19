@@ -89,6 +89,9 @@ Sub main()
         LogResult "FAIL", "02_F002 - hole: .218 DR. THRU holes along a row at 0.50 in from bottom edge on the side face. Spacing and quantity to su", "No active document"
         End
     End If
+    ' --- Stage 2.5 assumption flags ---
+    MsgBox "POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location ? verify placement in SolidWorks.", vbExclamation, "Verify before continuing (F002)"
+    MsgBox "POSITION ASSUMED for hole H001: centered/laid-out from the envelope; verify hole locations in SolidWorks.", vbExclamation, "Verify before continuing (H001)"
     ' ---- PLANE SELECTION (Right Plane; name auto-detected) ----
     If Not SelectRefPlane("Right Plane", 3) Then
         MsgBox "Could not select Right Plane (no reference plane found).", vbCritical

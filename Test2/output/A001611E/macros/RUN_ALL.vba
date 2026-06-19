@@ -150,6 +150,8 @@ Sub Step00_Setup()
 End Sub
 
 Sub Step01_F001()
+    ' --- Stage 2.5 assumption flags ---
+    MsgBox "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location ? verify placement in SolidWorks.", vbExclamation, "Verify before continuing (F001)"
     ' ---- PLANE SELECTION (Front Plane; name auto-detected) ----
     If Not SelectRefPlane("Front Plane", 1) Then
         MsgBox "Could not select Front Plane (no reference plane found).", vbCritical
@@ -206,6 +208,9 @@ Sub Step01_F001()
 End Sub
 
 Sub Step02_F002()
+    ' --- Stage 2.5 assumption flags ---
+    MsgBox "POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location ? verify placement in SolidWorks.", vbExclamation, "Verify before continuing (F002)"
+    MsgBox "POSITION ASSUMED for hole H001: centered/laid-out from the envelope; verify hole locations in SolidWorks.", vbExclamation, "Verify before continuing (H001)"
     ' ---- PLANE SELECTION (Right Plane; name auto-detected) ----
     If Not SelectRefPlane("Right Plane", 3) Then
         MsgBox "Could not select Right Plane (no reference plane found).", vbCritical
@@ -284,6 +289,8 @@ Sub Step02_F002()
 End Sub
 
 Sub Step03_FilletsChamfers()
+    ' --- Stage 2.5 assumption flags ---
+    MsgBox "POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location ? verify placement in SolidWorks.", vbExclamation, "Verify before continuing (F003)"
     ' This macro applies fillets/chamfers to the edges YOU have selected.
     ' For each block below: select the edge(s) in the graphics area first,
     ' then press F5 (run). Blocks for values you've already applied can be

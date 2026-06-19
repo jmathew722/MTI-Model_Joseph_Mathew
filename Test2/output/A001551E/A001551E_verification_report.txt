@@ -4,7 +4,7 @@ Part: A001551E    Units: inch    Standard: unknown    Confidence: 0.82
 Total dimensions extracted: 15
 Hole callouts extracted: 2
 Features identified: 4  (build order: 4)
-Dimensions flagged ambiguous: 1  ->  D015
+Dimensions flagged ambiguous: 0
 Dimensional closure: FAIL  ->  failed: D001 = D010 + D013 + D010; D001 = D003 + D004
 Unit consistency: PASS
 View consistency: PASS
@@ -13,10 +13,10 @@ Derived dimensions computed: 0
 
 DRAWING COMPLETENESS SCORE (Phase 4):
   Geometry completeness:  100%
-  Dimension completeness: 93%
+  Dimension completeness: 100%
   Cross-view consistency: 50%
   Feature confidence:     82%
-  Macro readiness:        84%
+  Macro readiness:        86%
 
 ERRORS:
   [ERROR] Dimensional closure FAILED: D001 = D010 + D013 + D010 → 20.75 != 21 (allowed slack 0.021 inch).
@@ -31,6 +31,5 @@ WARNINGS:
   [WARN]  extraction: Title block data (part name, number, material, finish, scale) not visible in the provided images.
   [WARN]  extraction: The 4 corner slots (H001) are described as 'oval' (oblong) slots — not simple circular holes. The diameter field (0.515) represents the slot width; length is 1.00 in per D011.
   [WARN]  extraction: Could not classify view for A001551E.png; skipped.
-  [WARN]  Dimension D015 value is unclear (Only 'R. TYP' label given; no explicit numeric value — inferred as half of 0.515 slot width); using best guess 0.2575.
 
 OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST

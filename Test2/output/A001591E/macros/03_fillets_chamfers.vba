@@ -89,6 +89,8 @@ Sub main()
         LogResult "FAIL", "03_fillets_chamfers - applied LAST", "No active document"
         End
     End If
+    ' --- Stage 2.5 assumption flags ---
+    MsgBox "POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location ? verify placement in SolidWorks.", vbExclamation, "Verify before continuing (F003)"
     ' This macro applies fillets/chamfers to the edges YOU have selected.
     ' For each block below: select the edge(s) in the graphics area first,
     ' then press F5 (run). Blocks for values you've already applied can be

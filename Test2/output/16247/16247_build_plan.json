@@ -1,0 +1,214 @@
+{
+  "part": "16247",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.72,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 7,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 3,
+    "medium_flags": 0,
+    "high_flags": 7,
+    "rebuild_confidence": 0.75,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_extrusion_of_the_channel_C_profile_.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base extrusion of the channel/C-profile cross-section. Profile is a C-channel shape with two flanges and a web as read from the front view. Extruded to depth of .280 inch (D006) in the side direction.",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 1.0,
+        "width": 1.0,
+        "depth": 0.28
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.0254,
+        "width": 0.0254,
+        "depth": 0.007112
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "F001",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_Stepped_notch_relief_cut_visible_at_the_.vba",
+      "feature_id": "F002",
+      "type": "extrude_cut",
+      "description": "Stepped notch/relief cut visible at the top flange in the front view \u2014 creates the flange step geometry distinguishing the flange from the web.",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 1.0,
+        "width": 1.0,
+        "depth": 0.75
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.0254,
+        "width": 0.0254,
+        "depth": 0.01905
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "blind",
+      "flags": [
+        {
+          "dimension_id": "F002",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_fillets_chamfers.vba",
+      "feature_id": "F003",
+      "type": "fillet/chamfer",
+      "description": "Interactive: select edges, run, repeat",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "F003_radius": 0.531
+      },
+      "notes": "Run last. Interactive edge selection (values from the drawing are baked in).",
+      "dimensions_meters": {
+        "F003_radius": 0.0134874
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "F001",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "F003",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": true,
+      "auto_select_strategy": "parent_feature_sketch_edges",
+      "expected_edge_count": 0,
+      "edge_selection_note": "Select the edge(s) for each fillet/chamfer in the graphics area, then run. The macro applies the exact radius/chamfer values baked in from the drawing; if no edges are selected it prompts and skips that value.",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

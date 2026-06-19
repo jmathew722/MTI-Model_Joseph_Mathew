@@ -89,6 +89,8 @@ Sub main()
         LogResult "FAIL", "01_F001 - extrude_boss: Base extrusion of the lens/diamond-shaped closed profile. Overall width 32.25 in, inside height ", "No active document"
         End
     End If
+    ' --- Stage 2.5 assumption flags ---
+    MsgBox "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location ? verify placement in SolidWorks.", vbExclamation, "Verify before continuing (F001)"
     ' ---- PLANE SELECTION (Front Plane; name auto-detected) ----
     If Not SelectRefPlane("Front Plane", 1) Then
         MsgBox "Could not select Front Plane (no reference plane found).", vbCritical

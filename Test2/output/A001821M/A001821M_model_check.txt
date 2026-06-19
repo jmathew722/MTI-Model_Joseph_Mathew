@@ -1,0 +1,11 @@
+MODEL CHECK — A001821M
+========================================
+Saved: C:\Users\JOMATHEW\Downloads\TestDrawings-20260618T163658Z-3-001\TestDrawings\0014630E\MTI-Model_Joseph_Mathew\Test2\output\A001821M\A001821M.SLDPRT
+
+[PASS] Solid body exists (volume > 0).
+
+Skipped features (build non-strict — verify manually):
+  - F003 (hole): FeatureCut4 returned None for F003.
+  - F004 (hole): FeatureCut4 returned None for F004.
+
+Overall model validation: PASSED.

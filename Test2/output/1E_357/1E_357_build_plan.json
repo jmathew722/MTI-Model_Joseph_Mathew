@@ -1,0 +1,266 @@
+{
+  "part": "1E 357",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 9,
+    "assumptions_made": 1,
+    "critical_flags": 1,
+    "low_flags": 0,
+    "medium_flags": 0,
+    "high_flags": 12,
+    "rebuild_confidence": 0.55,
+    "plain_english": "THICKNESS ASSUMED for base F001: the drawing does not dimension the part thickness, so D900=0.75 inch was synthesized so a solid could be built \u2014 MUST set the real thickness in SolidWorks before rebuild. 1 of 9 dimension(s) required an engineering assumption (1 critical, 0 low, 0 medium). Model is complete and buildable as-is; verify flagged items in SolidWorks."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_flange_ring_circular_disc_5_00_OD_O.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flange ring \u2014 circular disc, 5.00\" OD. Overall part thickness not explicitly dimensioned (see warnings).",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 5.0,
+        "depth": 0.75
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.127,
+        "depth": 0.01905
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "D900",
+          "flag_tier": "CRITICAL",
+          "human_note": "THICKNESS ASSUMED for base F001: the drawing does not dimension the part thickness, so D900=0.75 inch was synthesized so a solid could be built \u2014 MUST set the real thickness in SolidWorks before rebuild.",
+          "macro_behavior": "confirm_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": true,
+      "assumption_confidence": 0.25,
+      "flag_tier": "CRITICAL"
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_Center_bore_through_the_part_3_500_DIA_t.vba",
+      "feature_id": "F002",
+      "type": "extrude_cut",
+      "description": "Center bore through the part \u2014 3.500\" DIA through hole with a shoulder step at 3.765\" DIA \u00d7 .094\" deep from back face",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 3.5,
+        "depth": 0.094
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0889,
+        "depth": 0.0023876
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "blind",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F003_Front_face_shoulder_recess_250_deep_step.vba",
+      "feature_id": "F003",
+      "type": "extrude_cut",
+      "description": "Front face shoulder recess \u2014 .250\" deep step creating the inner shoulder ring visible in side view",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 3.765,
+        "depth": 0.25
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.095631,
+        "depth": 0.00635
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "side",
+      "parent_feature_id": "",
+      "depth_type": "blind",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 4,
+      "macro_file": "04_F004_4_bolt_holes_on_4_375_BC_drill_and_count.vba",
+      "feature_id": "F004",
+      "type": "hole",
+      "description": "4\u00d7 bolt holes on 4.375 BC \u2014 drill and counterbore for 1/4 low-head socket head cap screws, equally spaced 90\u00b0 apart",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.201,
+        "qty": 4.0,
+        "cbore_diameter": 0.375,
+        "cbore_depth": 0.25
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0051054,
+        "qty": 4.0,
+        "cbore_diameter": 0.009525,
+        "cbore_depth": 0.00635
+      },
+      "positions_xy": [
+        [
+          2.5,
+          4.375
+        ],
+        [
+          0.3125,
+          2.1875
+        ],
+        [
+          2.5,
+          0.0
+        ],
+        [
+          4.6875,
+          2.1875
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0635,
+          0.111125
+        ],
+        [
+          0.0079375,
+          0.0555625
+        ],
+        [
+          0.0635,
+          0.0
+        ],
+        [
+          0.1190625,
+          0.0555625
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

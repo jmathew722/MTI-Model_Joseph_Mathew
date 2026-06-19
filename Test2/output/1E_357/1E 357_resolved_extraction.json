@@ -1,0 +1,486 @@
+{
+  "part_name": "Flange Ring",
+  "part_number": "1E 357",
+  "revision": "",
+  "drawing_standard": "ASME",
+  "units": "inch",
+  "scale": "",
+  "material": "Heat Treated Steel (partial title block)",
+  "finish": "",
+  "general_tolerance": "2 PLACE DECIMAL \u00b10.01, 3 PLACE DECIMAL \u00b10.005, ANGULAR \u00b10.5\u00b0",
+  "views": [
+    {
+      "view_type": "Front",
+      "description": "Front face of the flange ring showing concentric circles for OD, bore, shoulder, and 4 bolt-circle holes at 90\u00b0 intervals",
+      "dimensions_shown": [
+        "D001",
+        "D002",
+        "D003"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003",
+        "F004"
+      ],
+      "hidden_features": [],
+      "centerline_notes": "Horizontal and vertical centerlines intersect at part center. Four small circles with crosshairs at 90\u00b0 positions indicate the 4-hole bolt pattern on 4.375 BC. Center bore with two concentric circles indicates a stepped bore."
+    },
+    {
+      "view_type": "Right",
+      "description": "Side (right) view showing the part thickness, OD, inner bore diameters, counterbore depth, and flange step",
+      "dimensions_shown": [
+        "D004",
+        "D005",
+        "D006",
+        "D007"
+      ],
+      "visible_features": [
+        "F001",
+        "F002",
+        "F003",
+        "F004"
+      ],
+      "hidden_features": [
+        "F002"
+      ],
+      "centerline_notes": "Vertical centerline implies revolved/axisymmetric geometry. Dashed lines inside indicate the inner bore step."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "diameter",
+      "value": 4.375,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "bolt_circle_diameter",
+      "feature_ref": "F004",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": true,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "4.375 B.C. REF \u2014 bolt circle reference diameter",
+      "resolved_value": 4.375,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D001 (4.375) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D002",
+      "type": "diameter",
+      "value": 3.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "bore_diameter",
+      "feature_ref": "F002",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "",
+      "resolved_value": 3.5,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D002 (3.5) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D003",
+      "type": "linear",
+      "value": 2.188,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "bolt_circle_radius",
+      "feature_ref": "F004",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "\u00b1.005 TYP \u2014 half of bolt circle (radius), typical for all 4 holes",
+      "resolved_value": 2.188,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D003 (2.188) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D004",
+      "type": "depth",
+      "value": 0.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "counterbore_depth",
+      "feature_ref": "F003",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".250 counterbore/step depth from face",
+      "resolved_value": 0.25,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D004 (0.25) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D005",
+      "type": "diameter",
+      "value": 5.0,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "outer_diameter",
+      "feature_ref": "F001",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "",
+      "resolved_value": 5.0,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D005 (5) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D006",
+      "type": "diameter",
+      "value": 3.765,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "inner_shoulder_diameter",
+      "feature_ref": "F002",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "3.765 DIA \u2014 inner bore step or shoulder diameter",
+      "resolved_value": 3.765,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D006 (3.765) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D007",
+      "type": "linear",
+      "value": 0.094,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "step_thickness_or_lip_width",
+      "feature_ref": "F002",
+      "view": "side",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".094 \u2014 thin flange lip or step width at bottom of part",
+      "resolved_value": 0.094,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D007 (0.094) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D008",
+      "type": "diameter",
+      "value": 4.375,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "bolt_circle_diameter_derived",
+      "feature_ref": "F004",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": true,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "Derived: 2 \u00d7 2.1875 radius = 4.375 BC, consistent with D001 and D003",
+      "resolved_value": 4.375,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D008 (4.375) read directly from the drawing callout \u2014 no action needed."
+    },
+    {
+      "id": "D900",
+      "type": "depth",
+      "value": 0.75,
+      "unit": "inch",
+      "applies_to": "thickness",
+      "feature_ref": "F001",
+      "notes": "Synthesized by Stage 2.5 \u2014 thickness not dimensioned on the drawing.",
+      "resolved_value": 0.75,
+      "assumption_made": true,
+      "assumption_basis": "default_base_thickness",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.25,
+      "flag_tier": "CRITICAL",
+      "human_note": "THICKNESS ASSUMED for base F001: the drawing does not dimension the part thickness, so D900=0.75 inch was synthesized so a solid could be built \u2014 MUST set the real thickness in SolidWorks before rebuild."
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H001",
+      "type": "counterbore",
+      "diameter": 0.201,
+      "thru": true,
+      "depth": 0.0,
+      "thread_spec": "",
+      "cbore_diameter": 0.375,
+      "cbore_depth": 0.25,
+      "csink_diameter": 0.0,
+      "csink_angle": 0.0,
+      "qty": 4,
+      "x_position": 2.188,
+      "y_position": 0.0,
+      "position_known": true,
+      "pattern": "circular",
+      "pattern_spacing": 90.0,
+      "instance_positions": [
+        [
+          2.5,
+          4.375
+        ],
+        [
+          0.3125,
+          2.1875
+        ],
+        [
+          2.5,
+          0.0
+        ],
+        [
+          4.6875,
+          2.1875
+        ]
+      ],
+      "feature_ref": "F004",
+      "view": "side"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flange ring \u2014 circular disc, 5.00\" OD. Overall part thickness not explicitly dimensioned (see warnings).",
+      "related_dimensions": [
+        "D005",
+        "D900"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D900",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F001 position read from the drawing \u2014 no action needed."
+    },
+    {
+      "id": "F002",
+      "type": "extrude_cut",
+      "description": "Center bore through the part \u2014 3.500\" DIA through hole with a shoulder step at 3.765\" DIA \u00d7 .094\" deep from back face",
+      "related_dimensions": [
+        "D002",
+        "D006",
+        "D007"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F002 position read from the drawing \u2014 no action needed."
+    },
+    {
+      "id": "F003",
+      "type": "extrude_cut",
+      "description": "Front face shoulder recess \u2014 .250\" deep step creating the inner shoulder ring visible in side view",
+      "related_dimensions": [
+        "D004",
+        "D006"
+      ],
+      "sketch_plane": "side",
+      "depth_dimension_id": "D004",
+      "parent_feature": "",
+      "offset_x": 0.0,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 1,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F003 position read from the drawing \u2014 no action needed."
+    },
+    {
+      "id": "F004",
+      "type": "hole",
+      "description": "4\u00d7 bolt holes on 4.375 BC \u2014 drill and counterbore for 1/4 low-head socket head cap screws, equally spaced 90\u00b0 apart",
+      "related_dimensions": [
+        "D001",
+        "D003"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F001",
+      "offset_x": 2.188,
+      "offset_y": 0.0,
+      "position_known": true,
+      "quantity": 4,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F004 position read from the drawing \u2014 no action needed."
+    }
+  ],
+  "geometric_tolerances": [],
+  "relationships": {
+    "symmetry": [
+      {
+        "plane": "Front",
+        "feature_ids": [
+          "F004"
+        ],
+        "description": "4 bolt holes are symmetric about both horizontal and vertical centerlines through part center"
+      }
+    ],
+    "concentric_groups": [
+      {
+        "feature_ids": [
+          "F001",
+          "F002",
+          "F003"
+        ],
+        "description": "Base OD, center bore, and shoulder step are all coaxial about the part center"
+      }
+    ],
+    "equal_spacing": [
+      {
+        "feature_ref": "H001",
+        "qty": 4,
+        "spacing_value": 90.0,
+        "computed_from": "360\u00b0 / 4 holes = 90\u00b0 angular spacing on 4.375 BC"
+      }
+    ],
+    "dimension_chains": [
+      {
+        "total_dimension_id": "D001",
+        "component_dimension_ids": [
+          "D003",
+          "D008"
+        ],
+        "description": "Bolt circle diameter = 2 \u00d7 radius: 4.375 = 2 \u00d7 2.1875"
+      }
+    ],
+    "derived_dimension_ids": [
+      "D008"
+    ],
+    "reference_dimension_ids": [
+      "D001",
+      "D008"
+    ]
+  },
+  "build_order": [
+    "F001",
+    "F002",
+    "F003",
+    "F004"
+  ],
+  "warnings": [
+    "CRITICAL: Overall part thickness (depth of extrusion, F001) is NOT explicitly dimensioned in either view. The side view shows the part height but no overall length/height number is readable. A human must determine the part thickness before building.",
+    "Hole callout H001: drill diameter (0.201\") and counterbore diameter (0.375\") for 1/4 low-head SHCS are standard assumed values \u2014 not numerically stated on drawing. Confirm from fastener standard.",
+    "Material spec is partially obscured \u2014 only 'HEAT' (heat treated) is readable. Full material callout requires original drawing.",
+    "The 3.500 DIA (D002, front view) is the through-bore; 3.765 DIA (D006, side view) appears to be a shoulder/relief. Verify which is thru-bore vs. counterbore step.",
+    "Part number '1E 357' is a best-read from partially visible title block \u2014 confirm with original.",
+    "Scale not visible in cropped title block.",
+    "Surface finish not specified in visible portion of drawing.",
+    "instance_positions for H001 are given as edge-referenced coordinates approximated from the 4.375 BC and part center \u2014 exact XY positions should be verified from original drawing dimensions.",
+    "Could not classify view for A001291E.png; skipped."
+  ],
+  "confidence": 0.82,
+  "resolution": {
+    "total_dimensions": 9,
+    "assumptions_made": 1,
+    "critical_flags": 1,
+    "low_flags": 0,
+    "medium_flags": 0,
+    "high_flags": 12,
+    "rebuild_confidence": 0.55,
+    "plain_english": "THICKNESS ASSUMED for base F001: the drawing does not dimension the part thickness, so D900=0.75 inch was synthesized so a solid could be built \u2014 MUST set the real thickness in SolidWorks before rebuild. 1 of 9 dimension(s) required an engineering assumption (1 critical, 0 low, 0 medium). Model is complete and buildable as-is; verify flagged items in SolidWorks."
+  }
+}

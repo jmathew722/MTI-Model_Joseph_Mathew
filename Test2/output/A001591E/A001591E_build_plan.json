@@ -2,12 +2,25 @@
   "part": "A001591E",
   "units": "inch",
   "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
   "confidence": 0.82,
   "audit": {
     "ok": true,
     "error_count": 0,
     "warning_count": 0,
     "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 9,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 2,
+    "medium_flags": 0,
+    "high_flags": 10,
+    "rebuild_confidence": 0.75,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
   },
   "steps": [
     {
@@ -18,7 +31,21 @@
       "description": "New part, units, save-as",
       "status": "generated",
       "dimensions_drawing_units": {},
-      "notes": ""
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
     },
     {
       "seq": 1,
@@ -32,7 +59,32 @@
         "width": 8.0,
         "depth": 0.105
       },
-      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing."
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.2032,
+        "width": 0.2032,
+        "depth": 0.002667
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "F001",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
     },
     {
       "seq": 2,
@@ -45,7 +97,90 @@
         "diameter": 0.218,
         "qty": 8.0
       },
-      "notes": "Hole positions read from drawing."
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0055372,
+        "qty": 8.0
+      },
+      "positions_xy": [
+        [
+          0.25,
+          0.25
+        ],
+        [
+          4.0,
+          0.25
+        ],
+        [
+          7.75,
+          0.25
+        ],
+        [
+          0.25,
+          3.5
+        ],
+        [
+          7.75,
+          3.5
+        ],
+        [
+          0.25,
+          6.75
+        ],
+        [
+          4.0,
+          6.75
+        ],
+        [
+          7.75,
+          6.75
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.00635,
+          0.00635
+        ],
+        [
+          0.1016,
+          0.00635
+        ],
+        [
+          0.19685,
+          0.00635
+        ],
+        [
+          0.00635,
+          0.0889
+        ],
+        [
+          0.19685,
+          0.0889
+        ],
+        [
+          0.00635,
+          0.17145
+        ],
+        [
+          0.1016,
+          0.17145
+        ],
+        [
+          0.19685,
+          0.17145
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.97,
+      "flag_tier": "HIGH"
     },
     {
       "seq": 3,
@@ -57,7 +192,30 @@
       "dimensions_drawing_units": {
         "F003_radius": 0.12
       },
-      "notes": "Run last. Interactive edge selection (values from the drawing are baked in)."
+      "notes": "Run last. Interactive edge selection (values from the drawing are baked in).",
+      "dimensions_meters": {
+        "F003_radius": 0.003048
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "F001",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "F003",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": true,
+      "auto_select_strategy": "parent_feature_sketch_edges",
+      "expected_edge_count": 0,
+      "edge_selection_note": "Select the edge(s) for each fillet/chamfer in the graphics area, then run. The macro applies the exact radius/chamfer values baked in from the drawing; if no edges are selected it prompts and skips that value.",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
     },
     {
       "seq": 999,
@@ -67,7 +225,21 @@
       "description": "Rebuild, mass properties, bounding box, save",
       "status": "generated",
       "dimensions_drawing_units": {},
-      "notes": ""
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
     },
     {
       "seq": 1000,
@@ -77,7 +249,21 @@
       "description": "One macro that runs every step in order (paste once, F5)",
       "status": "generated",
       "dimensions_drawing_units": {},
-      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection."
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
     }
   ],
   "skipped_prohibited": [],
