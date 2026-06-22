@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from pipeline.schema import DrawingData, Feature, FeatureType, HoleType
+from pipeline.schema import DrawingData, Feature, FeatureType, HoleType, PatternKind
 from utils.logger import get_logger
 from utils.unit_converter import assert_meters, to_meters, to_radians
 
@@ -112,10 +112,67 @@ def _const(name: str, default: Optional[int] = None) -> int:
     return default
 
 
-# SOLIDWORKS 2024 Constant type library — loading this by CLSID/version populates
+# SOLIDWORKS Constant type library — loading this by CLSID/version populates
 # win32com.client.constants with the swConst enums (swDocPART, swSketchSegment_*, etc.)
-# without needing GetTypeInfo() on a live SolidWorks object.
-_SW_CONST_TYPELIB = ("{4687F359-55D0-4CD3-B6CF-2EB42C11F989}", 0, 20, 0)
+# without needing GetTypeInfo() on a live SolidWorks object. The major version
+# differs by SolidWorks release (and the hardcoded one drifts as installs change),
+# so we DISCOVER the loadable version at runtime rather than pinning one — pinning
+# a version the machine can't load raised "Library not registered" and silently
+# disabled every .sldprt build.
+_SW_CONST_TYPELIB_CLSID = "{4687F359-55D0-4CD3-B6CF-2EB42C11F989}"
+# Tried newest-first after any versions the registry actually advertises; spans
+# SolidWorks 2012-era (20) through recent releases (33+).
+_SW_CONST_FALLBACK_VERSIONS = (33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18)
+
+
+def _registered_typelib_versions(clsid: str) -> list[int]:
+    """Major versions advertised for ``clsid`` under HKCR\\TypeLib (best-effort)."""
+    try:
+        import winreg
+
+        out: list[int] = []
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, "TypeLib\\" + clsid) as k:
+            i = 0
+            while True:
+                try:
+                    ver = winreg.EnumKey(k, i)
+                    i += 1
+                except OSError:
+                    break
+                try:
+                    out.append(int(float(ver)))
+                except ValueError:
+                    continue
+        return out
+    except Exception:
+        return []
+
+
+def _ensure_sw_constants() -> Optional[int]:
+    """Populate ``win32com.client.constants`` with the SolidWorks enums.
+
+    Tries the versions the registry advertises first, then a newest-first fallback
+    list, and returns the major version that loaded (or None). NON-FATAL: SolidWorks
+    constants are also resolved with literal defaults via :func:`_const`, so a miss
+    only means named-constant lookups fall back — it must never block the build."""
+    from win32com.client import gencache  # type: ignore
+
+    clsid = _SW_CONST_TYPELIB_CLSID
+    seen: set[int] = set()
+    candidates = _registered_typelib_versions(clsid) + list(_SW_CONST_FALLBACK_VERSIONS)
+    for major in candidates:
+        if major in seen:
+            continue
+        seen.add(major)
+        try:
+            gencache.EnsureModule(clsid, 0, major, 0)
+            log.info("Loaded SolidWorks constant type library v%d.0", major)
+            return major
+        except Exception:
+            continue
+    log.warning("Could not load any SolidWorks constant type library version "
+                "(constants fall back to literal defaults).")
+    return None
 
 
 def connect_to_solidworks():
@@ -138,10 +195,11 @@ def connect_to_solidworks():
     _require_windows()
     import pythoncom  # type: ignore
     import win32com.client  # type: ignore
-    from win32com.client import gencache  # type: ignore
 
     pythoncom.CoInitialize()
-    gencache.EnsureModule(*_SW_CONST_TYPELIB)
+    # Load the swConst enums under whatever typelib version this machine can load
+    # (non-fatal — pinning the wrong version previously disabled all .sldprt builds).
+    _ensure_sw_constants()
 
     sw_app = None
     try:
@@ -575,6 +633,92 @@ def build_extrude_cut(sw_doc, model, feature: Feature, dims: dict[str, float]):
     return _do_cut(sw_doc, feature, through_all, depth)
 
 
+def build_revolve(sw_doc, model, feature: Feature, dims: dict[str, float]):
+    """Create a revolved solid from the extracted half-profile.
+
+    The profile is the feature's ``revolve_profile`` — ordered [axial, radial]
+    points (drawing units). They are drawn as a closed sketch region against a
+    horizontal centerline (the revolve axis at radial=0), then revolved 360°. When
+    no profile was extracted the build can't synthesize one, so it raises and the
+    non-strict driver records it for manual modeling (or the resolver's
+    bounding-cylinder approximation applies)."""
+    profile = getattr(feature, "revolve_profile", None) or []
+    if len(profile) < 2:
+        raise SolidWorksError(
+            f"revolve {feature.id} has no usable profile (need >=2 [axial, radial] points)."
+        )
+    from pipeline.macro_generator import revolve_sketch_points
+
+    unit = model.units.value
+    closed, (x_min, x_max) = revolve_sketch_points(profile)
+    pts_m = [(to_meters(ax, unit), to_meters(rad, unit)) for ax, rad in closed]
+    axis_x1, axis_x2 = to_meters(x_min, unit), to_meters(x_max, unit)
+
+    _select_plane(sw_doc, feature.sketch_plane or "front")
+    sw_doc.SketchManager.InsertSketch(True)
+    if sw_doc.SketchManager.ActiveSketch is None:
+        raise SolidWorksError("Failed to enter sketch mode for revolve.")
+
+    # Centerline = revolve axis (kept as an object so we can select it by reference,
+    # never by an unreliable name lookup).
+    axis = sw_doc.SketchManager.CreateCenterLine(axis_x1, 0.0, 0.0, axis_x2, 0.0, 0.0)
+    if axis is None:
+        raise SolidWorksError(f"revolve {feature.id}: could not create the centerline axis.")
+    # Closed profile polyline.
+    for (x1, y1), (x2, y2) in zip(pts_m, pts_m[1:] + pts_m[:1]):
+        if sw_doc.SketchManager.CreateLine(x1, y1, 0.0, x2, y2, 0.0) is None:
+            raise SolidWorksError(f"revolve {feature.id}: CreateLine returned None.")
+    _verify_sketch_fully_defined(sw_doc)
+    sw_doc.SketchManager.InsertSketch(True)  # close the sketch
+
+    sw_doc.ClearSelection2(True)
+    try:
+        axis.Select4(False, _null_dispatch())  # select the axis for the revolve
+    except Exception:
+        pass
+    # FeatureRevolve2(SingleDir, IsSolid, IsThin, IsCut, ReverseDir, BothSameEntity,
+    #   Dir1Type, Dir2Type, Dir1Angle, Dir2Angle, OffReverse1, OffReverse2, OffDist1,
+    #   OffDist2, ThinType, ThinThick1, ThinThick2, Merge, UseFeatScope, UseAutoSelect)
+    feat = sw_doc.FeatureManager.FeatureRevolve2(
+        True, True, False, False, False, False,
+        0, 0, to_radians(360), 0.0,
+        False, False, 0.0, 0.0, 0, 0.0, 0.0,
+        True, True, True,
+    )
+    if feat is None:
+        raise SolidWorksError(f"FeatureRevolve2 returned None for {feature.id}.")
+    if not _solid_body_exists(sw_doc):
+        raise SolidWorksError(f"No solid body exists after revolve {feature.id} (volume=0).")
+    return feat
+
+
+def build_mirror(sw_doc, model, feature: Feature, dims: dict[str, float], feature_map: Optional[dict] = None):
+    """Mirror the host feature(s) about a plane. FRAGILE — wrapped like fillet.
+
+    Selects the mirror plane plus the seed feature named by ``parent_feature`` and
+    calls InsertMirrorFeature2. Best-effort: when the seed isn't available the
+    build skips it (non-strict) and records it for manual modeling."""
+    pid = feature.parent_feature or ""
+    seed = (feature_map or {}).get(pid)
+    if seed is None:
+        raise SolidWorksError(f"mirror {feature.id}: seed feature {pid or '(none)'} was not built.")
+    plane = _PLANE_NAMES.get((feature.mirror_plane or feature.sketch_plane or "front").lower().strip(), "Front Plane")
+
+    sw_doc.ClearSelection2(True)
+    if not sw_doc.Extension.SelectByID2(plane, "PLANE", 0.0, 0.0, 0.0, False, 1, _null_dispatch(), 0):
+        raise SolidWorksError(f"mirror {feature.id}: could not select mirror plane {plane!r}.")
+    try:
+        seed.Select2(True, 4)  # append the feature to mirror (mark 4)
+    except Exception as e:
+        raise SolidWorksError(f"mirror {feature.id}: could not select seed feature {pid}: {e}")
+    # InsertMirrorFeature2(BodyFeatureScope, GeomPattern, Merge, KnitSurface)
+    feat = sw_doc.FeatureManager.InsertMirrorFeature2(False, False, True, False)
+    if feat is None:
+        raise SolidWorksError(f"InsertMirrorFeature2 returned None for {feature.id}.")
+    _note_warning(model, f"{feature.id}: mirrored {pid} about {plane}; verify against the drawing.")
+    return feat
+
+
 def build_hole(sw_doc, model, feature: Feature, dims: dict[str, float]):
     """Create holes as exact circle cuts, at parity with the VBA macro generator.
 
@@ -603,10 +747,17 @@ def build_hole(sw_doc, model, feature: Feature, dims: dict[str, float]):
     positions_m = [(to_meters(x, unit), to_meters(y, unit)) for x, y in _hole_positions(model, h)]
     if not positions_m:
         raise SolidWorksError(f"hole {feature.id}: no instance positions could be resolved.")
-    # If the positions are the centred FALLBACK (drawing never dimensioned them),
-    # re-centre the whole layout on the ACTUAL body so the cut can't land off an
-    # edge when an envelope dimension was missing.
-    if not h.position_known and not h.instance_positions:
+    # Re-centre the whole layout on the ACTUAL body when the positions are a
+    # centred fallback (drawing never dimensioned them) OR it is a bolt circle with
+    # no explicit center — a bolt circle is concentric with the round part by
+    # definition, so aligning its ring to the body centre is what keeps the holes
+    # on material. A circular pattern WITH an explicit center is left as placed.
+    explicit_circular = h.pattern == PatternKind.CIRCULAR and len(h.bolt_circle_center) == 2
+    concentric_circular = h.pattern == PatternKind.CIRCULAR and not explicit_circular
+    needs_recenter = concentric_circular or (
+        not h.position_known and not h.instance_positions and not explicit_circular
+    )
+    if needs_recenter:
         center = _body_center_xy_m(sw_doc)
         if center is not None:
             cxm = sum(p[0] for p in positions_m) / len(positions_m)
@@ -648,20 +799,144 @@ def build_thread(sw_doc, model, feature: Feature, dims: dict[str, float]):
     return _NOOP
 
 
-def build_fillet(sw_doc, model, feature: Feature, dims: dict[str, float]):
-    """Apply a constant-radius fillet. FRAGILE — wrapped by the orchestrator.
+def _note_warning(model, message: str) -> None:
+    """Record a build caveat on the model's warnings (surfaced to the operator)
+    and the log, without ever breaking the build if the field is missing."""
+    log.warning("%s", message)
+    try:
+        model.warnings.append(message)
+    except Exception:
+        pass
 
-    Selects edges of the most recent feature when no explicit edge data exists.
-    On failure the orchestrator records a warning and continues.
+
+def _select_all_body_edges(sw_doc) -> int:
+    """Select every edge of every solid body and return how many were selected.
+
+    A generated build has no per-edge topology from the 2D drawing, so the
+    reliable automatic behavior for a fillet/chamfer is to apply the called-out
+    value to ALL edges (matching general notes like "ALL FILLETS R__"). Selective
+    fillets — where only specific corners are rounded — are left to the
+    interactive macro, which lets a human pick the edges.
+    """
+    try:
+        bodies = sw_doc.GetBodies2(0, False)  # swSolidBody, visibleOnly=False
+    except Exception as e:
+        log.warning("Could not enumerate bodies for edge selection: %s", e)
+        return 0
+    if bodies is None:
+        return 0
+    if not isinstance(bodies, (list, tuple)):
+        bodies = [bodies]
+    sw_doc.ClearSelection2(True)
+    count = 0
+    for body in bodies:
+        try:
+            edges = body.GetEdges()
+        except Exception:
+            edges = None
+        if not edges:
+            continue
+        if not isinstance(edges, (list, tuple)):
+            edges = [edges]
+        for edge in edges:
+            try:
+                if edge.Select4(True, _null_dispatch()):  # append to the selection
+                    count += 1
+            except Exception:
+                continue
+    return count
+
+
+def _select_feature_edges(sw_doc, feat_obj) -> int:
+    """Select every edge of the faces created by ``feat_obj`` (a SolidWorks
+    Feature) and return how many were selected. Used to scope a fillet/chamfer to
+    its host feature instead of the whole body. Returns 0 if the feature exposes
+    no faces (caller then falls back to all body edges)."""
+    sw_doc.ClearSelection2(True)
+    try:
+        faces = feat_obj.GetFaces()
+    except Exception:
+        faces = None
+    if not faces:
+        return 0
+    if not isinstance(faces, (list, tuple)):
+        faces = [faces]
+    count = 0
+    for face in faces:
+        try:
+            edges = face.GetEdges()
+        except Exception:
+            edges = None
+        if not edges:
+            continue
+        if not isinstance(edges, (list, tuple)):
+            edges = [edges]
+        for edge in edges:
+            try:
+                if edge.Select4(True, _null_dispatch()):
+                    count += 1
+            except Exception:
+                continue
+    return count
+
+
+def _fillet_edge_strategy(feature: Feature, feature_map: Optional[dict]) -> tuple[str, str]:
+    """Decide which edges a fillet/chamfer applies to (pure, testable).
+
+    Returns ``("feature", parent_id)`` to scope to the host feature's faces when
+    the drawing named a host (``parent_feature``) that was actually built, else
+    ``("all", "")`` to round every body edge. ``FILLET_EDGE_MODE=all`` forces the
+    whole-body behavior regardless.
+    """
+    import os
+
+    if os.getenv("FILLET_EDGE_MODE", "").strip().lower() == "all":
+        return ("all", "")
+    pid = feature.parent_feature or ""
+    if pid and feature_map and pid in feature_map:
+        return ("feature", pid)
+    return ("all", "")
+
+
+def _select_fillet_edges(sw_doc, model, feature: Feature, feature_map: Optional[dict]) -> tuple[int, str]:
+    """Select the edges to fillet/chamfer per the strategy; return (count, scope).
+
+    Scopes to the host feature's faces when possible (closer to a selective
+    fillet), otherwise selects all body edges. Always leaves the chosen edges
+    selected for the immediately following feature call."""
+    strategy, pid = _fillet_edge_strategy(feature, feature_map)
+    if strategy == "feature":
+        n = _select_feature_edges(sw_doc, feature_map[pid])
+        if n > 0:
+            return n, f"feature {pid}"
+    return _select_all_body_edges(sw_doc), "all edges"
+
+
+def build_fillet(sw_doc, model, feature: Feature, dims: dict[str, float], feature_map: Optional[dict] = None):
+    """Apply a constant-radius fillet. FRAGILE — wrapped by the orchestrator (a
+    failure is demoted to a warning, not fatal).
+
+    The 2D drawing carries no per-edge topology, so edges are chosen by scope: the
+    host feature's faces when the drawing named one (``parent_feature``), else
+    every body edge (correct for global "ALL FILLETS R__" notes). A warning is
+    recorded with the scope so the result is verified, never assumed; the
+    interactive macro remains the authoritative path for truly selective fillets.
     """
     radius = dims.get("fillet_radius") or dims.get("radius") or next(iter(dims.values()), None)
     if not radius:
-        raise SolidWorksError(f"fillet {feature.id} has no radius dimension.")
+        # Extracted fillet whose radius wasn't linked to the feature: recover it
+        # from any fillet/corner-radius dimension rather than failing outright.
+        from pipeline.macro_generator import _model_radius_fallback
+
+        radius, _src = _model_radius_fallback(model)
+        if not radius:
+            raise SolidWorksError(f"fillet {feature.id} has no radius dimension.")
+        radius = to_meters(radius, model.units.value)
     assert_meters(radius, f"{feature.id}.fillet_radius")
 
-    # Select all edges of the part by selecting the solid body's edges is non-trivial
-    # without topology data; select the last feature so SW fillets its edges.
-    sw_doc.ClearSelection2(True)
+    n, scope = _select_fillet_edges(sw_doc, model, feature, feature_map)
+    if n == 0:
+        raise SolidWorksError(f"fillet {feature.id}: no body edges available to fillet.")
     # FeatureFillet3(Options, R1, Ftyp, OverflowType, ...) — minimal constant-radius form.
     feat = sw_doc.FeatureManager.FeatureFillet3(
         195,  # default fillet options bitmask (propagate, etc.)
@@ -670,27 +945,40 @@ def build_fillet(sw_doc, model, feature: Feature, dims: dict[str, float]):
         _null_dispatch(), _null_dispatch(), _null_dispatch(),
     )
     if feat is None:
-        raise SolidWorksError(f"FeatureFillet3 returned None for {feature.id} (no edges selected?).")
+        raise SolidWorksError(f"FeatureFillet3 returned None for {feature.id}.")
+    log.info("  fillet %s applied to %d edge(s) (%s).", feature.id, n, scope)
+    _note_warning(model, f"{feature.id}: fillet applied to {n} edges ({scope}); "
+                         f"verify against the drawing (selective fillets need the interactive macro).")
     return feat
 
 
-def build_chamfer(sw_doc, model, feature: Feature, dims: dict[str, float]):
-    """Apply a chamfer. FRAGILE — wrapped by the orchestrator like fillet."""
+def build_chamfer(sw_doc, model, feature: Feature, dims: dict[str, float], feature_map: Optional[dict] = None):
+    """Apply a chamfer. FRAGILE — wrapped like fillet, scoped the same way."""
     distance = dims.get("chamfer") or dims.get("length") or next(
         (v for k, v in dims.items() if k != "angle"), None
     )
     if not distance:
-        raise SolidWorksError(f"chamfer {feature.id} has no distance dimension.")
+        from pipeline.macro_generator import _model_chamfer_fallback
+
+        distance, _src = _model_chamfer_fallback(model)
+        if not distance:
+            raise SolidWorksError(f"chamfer {feature.id} has no distance dimension.")
+        distance = to_meters(distance, model.units.value)
     assert_meters(distance, f"{feature.id}.chamfer_distance")
     angle = dims.get("angle", to_radians(45))  # default 45° if unspecified (already radians)
 
-    sw_doc.ClearSelection2(True)
+    n, scope = _select_fillet_edges(sw_doc, model, feature, feature_map)
+    if n == 0:
+        raise SolidWorksError(f"chamfer {feature.id}: no body edges available to chamfer.")
     # InsertFeatureChamfer(Width, Angle, Flip, Type, OtherDist, VertexChamDist, VertexChamDist2)
     feat = sw_doc.FeatureManager.InsertFeatureChamfer(
         4, 1, distance, angle, 0, 0, 0, 0
     )
     if feat is None:
         raise SolidWorksError(f"InsertFeatureChamfer returned None for {feature.id}.")
+    log.info("  chamfer %s applied to %d edge(s) (%s).", feature.id, n, scope)
+    _note_warning(model, f"{feature.id}: chamfer applied to {n} edges ({scope}); "
+                         f"verify against the drawing (selective chamfers need the interactive macro).")
     return feat
 
 
@@ -736,11 +1024,17 @@ def build_pattern(sw_doc, model, feature: Feature, dims: dict[str, float], featu
 _BUILDERS = {
     FeatureType.EXTRUDE_BOSS: (build_extrude_boss, False),
     FeatureType.EXTRUDE_CUT: (build_extrude_cut, False),
+    FeatureType.REVOLVE: (build_revolve, False),
     FeatureType.HOLE: (build_hole, False),
     FeatureType.THREAD: (build_thread, False),
     FeatureType.FILLET: (build_fillet, True),
     FeatureType.CHAMFER: (build_chamfer, True),
+    FeatureType.MIRROR: (build_mirror, True),
 }
+
+# Builders that need the map of already-built features (to scope edges / find a
+# seed): they take an extra ``feature_map`` argument.
+_NEEDS_FEATURE_MAP = {FeatureType.FILLET, FeatureType.CHAMFER, FeatureType.MIRROR}
 
 
 def dispatch_feature_builder(sw_doc, model, feature: Feature, dims: dict[str, float], feature_map: dict[str, Any]):
@@ -753,11 +1047,13 @@ def dispatch_feature_builder(sw_doc, model, feature: Feature, dims: dict[str, fl
             f"Feature type {feature.type.value!r} ({feature.id}) is not yet supported by the builder."
         )
     builder, _fragile = entry
+    if feature.type in _NEEDS_FEATURE_MAP:
+        return builder(sw_doc, model, feature, dims, feature_map)
     return builder(sw_doc, model, feature, dims)
 
 
 def _is_fragile(feature: Feature) -> bool:
-    return feature.type in (FeatureType.FILLET, FeatureType.CHAMFER)
+    return feature.type in (FeatureType.FILLET, FeatureType.CHAMFER, FeatureType.MIRROR)
 
 
 def save_model(sw_doc, name: str, output_dir: Optional[Path] = None) -> str:

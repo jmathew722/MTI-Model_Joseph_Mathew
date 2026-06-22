@@ -169,13 +169,34 @@ def _check_unit_consistency(model: DrawingData, report: ValidationReport) -> Non
 
 def _check_sketch_definability(model: DrawingData, report: ValidationReport) -> None:
     for f in model.features:
-        if f.type in SKETCH_FEATURE_TYPES:
-            n = len(f.related_dimensions)
-            if n < MIN_PROFILE_DIMENSIONS:
-                report.error(
-                    f"Sketch feature {f.id} ({f.type.value}) has {n} related dimension(s); "
-                    f"need at least {MIN_PROFILE_DIMENSIONS} to define a profile."
-                )
+        if f.type not in SKETCH_FEATURE_TYPES:
+            continue
+        # A revolve carries its geometry as an explicit half-profile (>=2 points),
+        # not as related dimensions — that is sufficient to define its sketch.
+        if f.type == FeatureType.REVOLVE and len(f.revolve_profile) >= 2:
+            continue
+        n = len(f.related_dimensions)
+        if n < MIN_PROFILE_DIMENSIONS:
+            report.error(
+                f"Sketch feature {f.id} ({f.type.value}) has {n} related dimension(s); "
+                f"need at least {MIN_PROFILE_DIMENSIONS} to define a profile."
+            )
+
+
+def _check_mirror_features(model: DrawingData, report: ValidationReport) -> None:
+    """A mirror feature must name the feature it mirrors (parent_feature) and a
+    mirror plane; otherwise it cannot be built (warning — non-strict skips it)."""
+    feature_ids = {f.id for f in model.features}
+    for f in model.features:
+        if f.type != FeatureType.MIRROR:
+            continue
+        if not f.parent_feature or f.parent_feature not in feature_ids:
+            report.warn(
+                f"Mirror feature {f.id} has no valid parent_feature (the feature to mirror); "
+                f"it cannot be auto-built and will be left for manual modeling."
+            )
+        if not (f.mirror_plane or f.sketch_plane):
+            report.warn(f"Mirror feature {f.id} has no mirror plane; defaulting to the Front Plane.")
 
 
 def _check_ambiguity(model: DrawingData, report: ValidationReport) -> None:
@@ -307,6 +328,24 @@ def _check_instance_positions(model: DrawingData, report: ValidationReport) -> N
                     break
 
 
+def _check_unmodeled_fillets(model: DrawingData, report: ValidationReport) -> None:
+    """Advisory: a fillet dimension was extracted but no fillet feature consumes
+    it — a likely missed fillet. Warning only; never blocks the build."""
+    if any(f.type == FeatureType.FILLET for f in model.features):
+        return
+    suspects = [
+        d.id for d in model.dimensions
+        if d.canonical_applies_to == "fillet_radius"
+        or "fillet" in (d.applies_to or "").lower()
+        or "fillet" in (d.notes or "").lower()
+    ]
+    if suspects:
+        report.warn(
+            f"Fillet dimension(s) {suspects} were extracted but no fillet feature uses "
+            f"them — a fillet may have been missed; verify against the drawing."
+        )
+
+
 def _check_view_consistency(model: DrawingData, report: ValidationReport) -> None:
     """v2 (advisory): views' dimension lists should reference real dimensions."""
     dim_ids = {d.id for d in model.dimensions}
@@ -418,6 +457,8 @@ def run_verification(
     _check_pattern_envelopes(model, report)
     _check_reference_dimensions(model, report)
     _check_instance_positions(model, report)
+    _check_unmodeled_fillets(model, report)
+    _check_mirror_features(model, report)
     _check_view_consistency(model, report)
 
     # Phase-4 readiness scoring (advisory; optional hard-gate via env var).

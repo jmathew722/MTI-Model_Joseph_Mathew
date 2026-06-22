@@ -43,6 +43,7 @@ Public entry point: :func:`generate_macro_package`.
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -96,8 +97,9 @@ SUPPORTED = {
     FeatureType.FILLET,
     FeatureType.CHAMFER,
     FeatureType.PATTERN,
+    FeatureType.MIRROR,
     FeatureType.THREAD,   # cosmetic thread only (TODO-marked)
-    FeatureType.REVOLVE,  # skeleton + needs_review
+    FeatureType.REVOLVE,  # real revolve when a profile exists, else skeleton + needs_review
 }
 # Schema types that are prohibited outright (plus anything not in SUPPORTED).
 PROHIBITED = {FeatureType.SHELL}
@@ -242,6 +244,58 @@ def _effective_spacing(model: DrawingData, h: HoleCallout) -> tuple[float, int]:
     return 0.0, h.qty
 
 
+def _corner_frame_shift(model: DrawingData, positions: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Shift positions into the corner-origin (lower-left) frame when they look
+    CENTER-referenced.
+
+    Drawings dimension hole centers either from a part edge (the corner frame this
+    pipeline builds in) or from a centerline/center datum. A negative coordinate is
+    an unambiguous signal of center-referencing — the corner frame has no negatives —
+    so when the envelope is known we re-origin by half the envelope, putting the
+    holes where they were drawn instead of off the part.
+    """
+    if not positions:
+        return positions
+    length, width = _envelope(model)
+    if not (length and width):
+        return positions
+    min_x = min(p[0] for p in positions)
+    min_y = min(p[1] for p in positions)
+    if min_x < 0 or min_y < 0:
+        return [(x + length / 2.0, y + width / 2.0) for x, y in positions]
+    return positions
+
+
+def _circular_positions(model: DrawingData, h: HoleCallout) -> Optional[list[tuple[float, float]]]:
+    """Instance centers for a CIRCULAR (bolt-circle) pattern, or None if it isn't
+    one / lacks a bolt-circle diameter.
+
+    The qty instances are placed evenly around the bolt circle starting at
+    ``start_angle`` (degrees, CCW from +X). The center comes from
+    ``bolt_circle_center`` when given, else the part-envelope center — so a bolt
+    pattern lands as a real ring of holes instead of the single-instance fallback.
+    """
+    if h.pattern != PatternKind.CIRCULAR or h.bolt_circle_diameter <= 0 or h.qty < 1:
+        return None
+    radius = h.bolt_circle_diameter / 2.0
+    if len(h.bolt_circle_center) == 2:
+        cx, cy = h.bolt_circle_center[0], h.bolt_circle_center[1]
+    else:
+        # No explicit center: use the envelope center when known, else place the
+        # bolt circle in the corner frame (center at the radius) so every hole
+        # stays non-negative. The COM builder re-centers a concentric pattern on
+        # the actual body, so this only has to be a valid corner-frame placement.
+        length, width = _envelope(model)
+        cx = (length / 2.0) if length else radius
+        cy = (width / 2.0) if width else radius
+    start = math.radians(h.start_angle)
+    step = 2.0 * math.pi / h.qty
+    return [
+        (cx + radius * math.cos(start + i * step), cy + radius * math.sin(start + i * step))
+        for i in range(h.qty)
+    ]
+
+
 def _hole_positions(model: DrawingData, h: HoleCallout) -> list[tuple[float, float]]:
     """Instance centers in the DRAWING FRAME (base plate lower-left corner at origin).
 
@@ -249,21 +303,28 @@ def _hole_positions(model: DrawingData, h: HoleCallout) -> list[tuple[float, flo
     part edges, which is exactly this frame. When positions are unknown but a
     spacing can be GROUNDED in extracted data (the callout's pattern_spacing or a
     structured equal_spacing relationship), instances are laid out as a centered
-    row about the plate envelope. With no such evidence, a single instance is
-    placed at the envelope center and the macro flags POSITION ASSUMED — positions
-    are never invented from free text.
+    row about the plate envelope. A grounded circular (bolt-circle) pattern is laid
+    out as a ring. With no such evidence, a single instance is placed at the
+    envelope center and the macro flags POSITION ASSUMED — positions are never
+    invented from free text.
     """
-    # Most reliable: explicit per-instance centers read straight from the drawing.
+    # Most reliable: explicit per-instance centers read straight from the drawing
+    # (re-origined to the corner frame if they were dimensioned from a centerline).
     if h.instance_positions:
-        return [(p[0], p[1]) for p in h.instance_positions if len(p) == 2]
+        return _corner_frame_shift(model, [(p[0], p[1]) for p in h.instance_positions if len(p) == 2])
+
+    # Circular (bolt-circle) pattern grounded in a bolt-circle diameter.
+    circular = _circular_positions(model, h)
+    if circular is not None:
+        return circular
 
     length, width = _envelope(model)
     ecx = (length / 2.0) if length else 0.0
     ecy = (width / 2.0) if width else 0.0
     spacing, qty = _effective_spacing(model, h)
     # A grounded spacing lays out a centered row for linear/unspecified patterns.
-    # Circular patterns lack a bolt-circle radius in the schema, so they are left
-    # to the single-instance fallback rather than guessed.
+    # A circular pattern with no bolt-circle diameter falls through to the
+    # single-instance fallback rather than being guessed.
     linear_like = h.pattern in (PatternKind.LINEAR, PatternKind.NONE)
     if linear_like and qty > 1 and spacing > 0:
         if h.position_known:
@@ -271,11 +332,38 @@ def _hole_positions(model: DrawingData, h: HoleCallout) -> list[tuple[float, flo
         else:
             span = (qty - 1) * spacing
             x0, y0 = ecx - span / 2.0, ecy
-        return [(x0 + i * spacing, y0) for i in range(qty)]
+        return _corner_frame_shift(model, [(x0 + i * spacing, y0) for i in range(qty)])
     # Single position (or qty>1 with no grounded spacing — macro comments flag it).
     if h.position_known:
-        return [(h.x_position, h.y_position)]
+        return _corner_frame_shift(model, [(h.x_position, h.y_position)])
     return [(ecx, ecy)]
+
+
+def revolve_sketch_points(
+    profile: list[list[float]],
+) -> tuple[list[tuple[float, float]], tuple[float, float]]:
+    """Closed sketch polygon for a revolve half-profile, plus the axis endpoints.
+
+    Input is the OUTER boundary as ordered ``[axial, radial]`` points; in the
+    sketch these map to ``(x=axial, y=radial)``. The region is closed back to the
+    revolve axis (radial = 0): the polygon drops from the last point to the axis,
+    runs along the axis, and back up to the first point (the sketch closes the
+    final segment to the start). Returns ``(closed_points, (x_min, x_max))`` where
+    the centerline runs from ``x_min`` to ``x_max`` at y = 0.
+
+    Raises MacroGenerationError when fewer than two points are supplied.
+    """
+    pts = [(float(a), float(r)) for a, r in profile]
+    if len(pts) < 2:
+        raise MacroGenerationError("revolve profile needs at least 2 points.")
+    xs = [p[0] for p in pts]
+    x_min, x_max = min(xs), max(xs)
+    closed = list(pts)
+    if pts[-1][1] > 0:                 # drop the last point to the axis
+        closed.append((pts[-1][0], 0.0))
+    if pts[0][1] > 0:                  # and return along the axis to the start
+        closed.append((pts[0][0], 0.0))
+    return closed, (x_min, x_max)
 
 
 # --------------------------------------------------------------------------- #
@@ -898,6 +986,29 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
     return body, used, position_note
 
 
+def _model_radius_fallback(model: DrawingData) -> tuple[float, str]:
+    """First fillet/corner-radius dimension anywhere in the model (drawing units).
+
+    Used when a fillet feature was extracted but its radius dimension was not
+    linked via related_dimensions — so an extracted fillet is never silently
+    dropped from the macro. ``fillet_radius`` is preferred over a bare ``radius``
+    (which could be a bolt-circle radius). Returns ``(value, dim_id)`` or
+    ``(0.0, "")`` when nothing usable exists."""
+    for token in ("fillet_radius", "radius"):
+        for d in model.dimensions:
+            if d.canonical_applies_to == token and d.value > 0:
+                return d.value, d.id
+    return 0.0, ""
+
+
+def _model_chamfer_fallback(model: DrawingData) -> tuple[float, str]:
+    """First chamfer-distance dimension anywhere in the model (drawing units)."""
+    for d in model.dimensions:
+        if d.canonical_applies_to == "chamfer" and d.value > 0:
+            return d.value, d.id
+    return 0.0, ""
+
+
 def _macro_fillet_chamfer(model: DrawingData, features: list[Feature], step: str) -> tuple[str, dict[str, float]]:
     """One combined macro: user pre-selects edges, macro applies values.
 
@@ -919,8 +1030,14 @@ def _macro_fillet_chamfer(model: DrawingData, features: list[Feature], step: str
         if f.type == FeatureType.FILLET:
             radius = dims.get("fillet_radius") or dims.get("radius") or next(iter(dims.values()), 0.0)
             if radius <= 0:
-                body += f"\n    ' {f.id}: SKIPPED - no radius dimension found.\n"
-                continue
+                # The fillet was extracted but its radius wasn't linked to the
+                # feature — recover it from any fillet/corner-radius dimension on
+                # the drawing rather than dropping the fillet entirely.
+                radius, src_id = _model_radius_fallback(model)
+                if radius <= 0:
+                    body += f"\n    ' {f.id}: SKIPPED - no radius dimension found.\n"
+                    continue
+                body += f"\n    ' {f.id}: radius not linked to the feature; using {src_id}=R{_v(radius)} from the drawing - VERIFY.\n"
             used[f"{f.id}_radius"] = radius
             body += f"""
     ' ---- {f.id}: FILLET R{_v(radius)} ({f.description}) ----
@@ -946,8 +1063,11 @@ def _macro_fillet_chamfer(model: DrawingData, features: list[Feature], step: str
             distance = dims.get("chamfer") or dims.get("length") or next(iter(dims.values()), 0.0)
             angle = dims.get("angle", 45.0)
             if distance <= 0:
-                body += f"\n    ' {f.id}: SKIPPED - no distance dimension found.\n"
-                continue
+                distance, src_id = _model_chamfer_fallback(model)
+                if distance <= 0:
+                    body += f"\n    ' {f.id}: SKIPPED - no distance dimension found.\n"
+                    continue
+                body += f"\n    ' {f.id}: distance not linked to the feature; using {src_id}={_v(distance)} from the drawing - VERIFY.\n"
             used[f"{f.id}_distance"] = distance
             used[f"{f.id}_angle_deg"] = angle
             body += f"""
@@ -981,6 +1101,90 @@ def _macro_revolve_skeleton(feature: Feature, step: str) -> str:
     MsgBox "Feature {feature.id} (revolve) requires manual modeling - see macro comments.", vbInformation
     LogResult "WARN", "{step}", "{feature.id} revolve requires manual modeling"
 """
+
+
+def _macro_revolve(model: DrawingData, feature: Feature, step: str) -> Optional[tuple[str, dict[str, float], str]]:
+    """Real revolve macro from the extracted half-profile, or None when no profile
+    was extracted (the caller then falls back to the manual skeleton).
+
+    Draws a horizontal centerline (the revolve axis) plus the closed profile
+    polyline, then revolves 360°. Profile points are [axial, radial] in drawing
+    units; the region is closed back to the axis by ``revolve_sketch_points``.
+    """
+    profile = list(feature.revolve_profile or [])
+    if len(profile) < 2:
+        return None
+    closed, (x_min, x_max) = revolve_sketch_points(profile)
+    plane = _plane_for(feature)
+    max_r = max((p[1] for p in profile), default=0.0)
+
+    body = _sketch_open(plane, step)
+    body += f"    ' ---- REVOLVE PROFILE: {len(closed)} pts about a horizontal axis (drawing units) ----\n"
+    body += "    Dim axisSeg As SldWorks.SketchSegment\n"
+    body += (
+        f"    Set axisSeg = swModel.SketchManager.CreateCenterLine("
+        f"{_v(x_min)} * UNIT_FACTOR, 0#, 0#, {_v(x_max)} * UNIT_FACTOR, 0#, 0#)\n"
+    )
+    for (x1, y1), (x2, y2) in zip(closed, closed[1:] + closed[:1]):
+        body += (
+            f"    swModel.SketchManager.CreateLine "
+            f"{_v(x1)} * UNIT_FACTOR, {_v(y1)} * UNIT_FACTOR, 0#, "
+            f"{_v(x2)} * UNIT_FACTOR, {_v(y2)} * UNIT_FACTOR, 0#\n"
+        )
+    body += "    On Error Resume Next\n"
+    body += "    swModel.SketchManager.FullyDefineSketch True, True, 0, True, 1, Nothing, 1, Nothing, 0, 0\n"
+    body += "    On Error GoTo 0\n"
+    body += "    swModel.SketchManager.InsertSketch True   ' close the profile sketch\n"
+    body += "    swModel.ClearSelection2 True\n"
+    body += "    If Not axisSeg Is Nothing Then axisSeg.Select4 False, Nothing\n"
+    body += "\n    ' ---- REVOLVE 360 deg ----\n"
+    body += "    Dim swFeat As SldWorks.Feature\n"
+    body += (
+        "    Set swFeat = swModel.FeatureManager.FeatureRevolve2( _\n"
+        "        True, True, False, False, False, False, _\n"
+        "        0, 0, (2 * 3.14159265358979), 0#, False, False, 0#, 0#, _\n"
+        "        0, 0#, 0#, True, True, True)\n"
+    )
+    body += _feature_check_and_name(f"{feature.id}_{_vba_name(feature.description)}", step)
+    used = {"axial_length": round(x_max - x_min, 6), "max_radius": round(max_r, 6),
+            "profile_points": float(len(profile))}
+    return body, used, "Revolved 360 deg from the extracted half-profile."
+
+
+def _macro_mirror(model: DrawingData, feature: Feature, step: str) -> Optional[tuple[str, dict[str, float], str]]:
+    """Mirror the host feature about a plane, or None when the seed isn't known
+    (the caller falls back to a manual skeleton)."""
+    parent = model.feature_by_id(feature.parent_feature) if feature.parent_feature else None
+    if parent is None:
+        return None
+    plane = PLANE_NAMES.get(
+        (feature.mirror_plane or feature.sketch_plane or "front").lower().strip(), "Front Plane"
+    )
+    idx = PLANE_INDEX.get(plane, 1)
+    seed_name = f"{parent.id}_{_vba_name(parent.description)}"
+    body = f"""    ' ---- MIRROR {feature.id}: mirror {parent.id} about {plane} ----
+    If Not SelectRefPlane("{plane}", {idx}) Then
+{_fail_block(step, f"Could not select mirror plane {plane}.", "        ")}    End If
+    ' Append the feature to mirror (mark 4); select by feature name (BODYFEATURE,
+    ' not SKETCH — name reselection is only unreliable for sketches).
+    boolstatus = swModel.Extension.SelectByID2("{seed_name}", "BODYFEATURE", 0, 0, 0, True, 4, Nothing, 0)
+    If Not boolstatus Then
+        MsgBox "Select the feature to mirror ({parent.id}) in the tree, then run again.", vbExclamation
+        LogResult "WARN", "{step}", "{feature.id} mirror: seed {parent.id} not found by name"
+    Else
+        Dim swFeat As SldWorks.Feature
+        ' InsertMirrorFeature2(BodyFeatureScope, GeomPattern, Merge, KnitSurface)
+        Set swFeat = swModel.FeatureManager.InsertMirrorFeature2(False, False, True, False)
+        If swFeat Is Nothing Then
+            LogResult "WARN", "{step}", "{feature.id} mirror failed (continuing - verify in tree)"
+        Else
+            swFeat.Name = "{feature.id}_{_vba_name(feature.description)}"
+            LogResult "PASS", "{step}", "{feature.id} mirrored {parent.id} about {plane}"
+        End If
+        swModel.ClearSelection2 True
+    End If
+"""
+    return body, {}, f"Mirror {parent.id} about {plane} — verify against the drawing."
 
 
 def _pattern_covered_by(model: DrawingData, feature: Feature) -> Optional[tuple[str, int]]:
@@ -1389,8 +1593,23 @@ def generate_macro_package(
 """
                 status, notes = "needs_review", "Cosmetic thread step requires manual verification."
             elif feature.type == FeatureType.REVOLVE:
-                body = _macro_revolve_skeleton(feature, step_name)
-                status, notes = "needs_review", "Revolve requires manual modeling (see macro)."
+                real = _macro_revolve(model, feature, step_name)
+                if real is not None:
+                    body, used, notes = real
+                else:
+                    body = _macro_revolve_skeleton(feature, step_name)
+                    status, notes = "needs_review", "Revolve has no extracted profile — manual modeling (see macro)."
+            elif feature.type == FeatureType.MIRROR:
+                real = _macro_mirror(model, feature, step_name)
+                if real is not None:
+                    body, used, notes = real
+                else:
+                    body = (
+                        f'    MsgBox "Feature {feature.id} (mirror): set parent_feature to the '
+                        f'feature to mirror, then build manually.", vbExclamation\n'
+                        f'    LogResult "WARN", "{step_name}", "{feature.id} mirror: no seed feature"\n'
+                    )
+                    status, notes = "needs_review", "Mirror has no seed feature — manual modeling (see macro)."
             elif feature.type == FeatureType.PATTERN:
                 covered = _pattern_covered_by(model, feature)
                 if covered is not None:

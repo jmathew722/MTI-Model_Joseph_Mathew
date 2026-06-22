@@ -63,6 +63,7 @@ class FeatureType(str, Enum):
     CHAMFER = "chamfer"
     THREAD = "thread"
     PATTERN = "pattern"
+    MIRROR = "mirror"
     SHELL = "shell"
 
 
@@ -78,6 +79,11 @@ _FEATURE_ALIASES = {
     "hole_wizard": "hole",
     "round": "fillet",
     "bevel": "chamfer",
+    "revolved_boss": "revolve",
+    "revolved": "revolve",
+    "lathe": "revolve",
+    "mirrored": "mirror",
+    "mirror_feature": "mirror",
 }
 
 
@@ -218,6 +224,27 @@ class HoleCallout(BaseModel):
     )
     pattern: PatternKind = Field(default=PatternKind.NONE)
     pattern_spacing: float = Field(default=0.0, description="Pattern spacing in drawing units; 0.0 if no pattern")
+    bolt_circle_diameter: float = Field(
+        default=0.0,
+        description=(
+            "For a CIRCULAR (bolt-circle) pattern: the bolt-circle diameter in drawing "
+            "units (the circle the hole centers lie on). 0.0 if not a circular pattern."
+        ),
+    )
+    bolt_circle_center: list[float] = Field(
+        default_factory=list,
+        description=(
+            "For a circular pattern: [x, y] center of the bolt circle, edge-referenced "
+            "from the part's lower-left corner. Empty to default to the part-envelope center."
+        ),
+    )
+    start_angle: float = Field(
+        default=0.0,
+        description=(
+            "For a circular pattern: angle in DEGREES (CCW from +X) of the first instance "
+            "on the bolt circle; 0.0 if the first hole sits on the +X axis or is unknown."
+        ),
+    )
     instance_positions: list[list[float]] = Field(
         default_factory=list,
         description=(
@@ -236,6 +263,13 @@ class HoleCallout(BaseModel):
         for p in v:
             if len(p) != 2:
                 raise ValueError(f"each instance position must be [x, y]; got {p}")
+        return v
+
+    @field_validator("bolt_circle_center")
+    @classmethod
+    def bolt_circle_center_is_xy(cls, v: list[float]) -> list[float]:
+        if v and len(v) != 2:
+            raise ValueError(f"bolt_circle_center must be [x, y] or empty; got {v}")
         return v
 
     @field_validator("diameter")
@@ -404,6 +438,34 @@ class Feature(BaseModel):
         default=False, description="True only if the offsets were read from the drawing"
     )
     quantity: int = Field(default=1, description="Instance count (for patterns)")
+    revolve_profile: list[list[float]] = Field(
+        default_factory=list,
+        description=(
+            "For a REVOLVE only: the half-profile as ordered [axial, radial] points in "
+            "drawing units, read from the section/front view. 'axial' runs along the "
+            "revolve axis (a horizontal centerline) and 'radial' is the distance from the "
+            "axis (always >= 0). List the outer profile in order; it is closed back to the "
+            "axis automatically. e.g. a stepped shaft -> [[0,5],[10,5],[10,8],[25,8]]. "
+            "Empty if not a revolve or the profile cannot be read."
+        ),
+    )
+    mirror_plane: str = Field(
+        default="",
+        description=(
+            "For a MIRROR feature only: the mirror plane (front/top/right). The feature(s) "
+            "mirrored are given by parent_feature. Empty for non-mirror features."
+        ),
+    )
+
+    @field_validator("revolve_profile")
+    @classmethod
+    def revolve_points_are_pairs(cls, v: list[list[float]]) -> list[list[float]]:
+        for p in v:
+            if len(p) != 2:
+                raise ValueError(f"each revolve_profile point must be [axial, radial]; got {p}")
+            if p[1] < 0:
+                raise ValueError(f"revolve_profile radial value must be >= 0; got {p}")
+        return v
 
     @field_validator("type", mode="before")
     @classmethod

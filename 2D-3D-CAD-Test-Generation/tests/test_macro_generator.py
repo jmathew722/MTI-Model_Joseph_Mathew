@@ -219,6 +219,22 @@ class TestProhibitedAndDeferred:
         assert "0.125 * UNIT_FACTOR" in fillet
         assert "FeatureFillet3" in fillet
 
+    def test_fillet_recovers_radius_when_not_linked(self, tmp_path):
+        """An extracted fillet whose radius dimension was NOT linked to the feature
+        must still be modeled (radius recovered from the drawing), never skipped."""
+        data = bracket_drawing()
+        # Drop the link so the fillet feature has no related dimensions, but keep
+        # the fillet_radius dimension (D005) on the drawing.
+        for f in data["features"]:
+            if f["id"] == "F003":
+                f["related_dimensions"] = []
+        model, report = run_verification(data)
+        pkg = generate_macro_package(model, data, "x", tmp_path)
+        fillet = next(pkg.macros_dir.glob("*fillets_chamfers.vba")).read_text()
+        assert "FeatureFillet3" in fillet
+        assert "0.125 * UNIT_FACTOR" in fillet          # recovered radius is applied
+        assert "SKIPPED - no radius" not in fillet       # never silently dropped
+
 
 class TestNeedsReview:
     def test_revolve_marked_needs_review(self, tmp_path):

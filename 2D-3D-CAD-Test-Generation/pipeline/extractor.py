@@ -38,6 +38,13 @@ SDK_MAX_RETRIES = 3  # SDK-level retries for transient API errors
 
 TOOL_NAME = "report_drawing_data"
 
+# Bump this whenever the prompt (system or user text) changes meaningfully. It is
+# mixed into the extraction cache key so an improved prompt forces a fresh
+# extraction instead of silently returning a result captured under the old prompt.
+# v3: emphatic fillet/chamfer capture + extrude-depth & per-instance-hole rules.
+# v4: revolve half-profiles, bolt-circle patterns, and mirror features.
+PROMPT_VERSION = "4"
+
 # Token usage fields summed across the (possibly several) calls of one extraction.
 _USAGE_FIELDS = (
     "input_tokens", "output_tokens",
@@ -68,6 +75,8 @@ def _accumulate_usage(acc: dict[str, int], response: Any) -> None:
 # --- Extraction cache: skip the API entirely for an already-seen image ------- #
 def _cache_key(image_b64: str, model: str) -> str:
     h = hashlib.sha256()
+    h.update(PROMPT_VERSION.encode("utf-8"))
+    h.update(b"\0")
     h.update(model.encode("utf-8"))
     h.update(b"\0")
     h.update(image_b64.encode("utf-8"))
@@ -136,17 +145,63 @@ HOLE CALLOUTS:
   corner (e.g. a 2x2 bolt pattern -> four [x,y] pairs). This is the most reliable way
   to place patterns; len(instance_positions) should equal qty. Leave empty only when
   the individual positions genuinely cannot be read.
+- CIRCULAR / BOLT-CIRCLE patterns (holes equally spaced on a circle): set
+  pattern="circular", bolt_circle_diameter to the B.C. diameter, bolt_circle_center
+  to the [x,y] circle center (edge-referenced; leave empty to use the part center),
+  start_angle to the first hole's angle in degrees (CCW from +X, 0 if unknown), and
+  qty to the hole count. Prefer this over guessing instance_positions for a B.C.
 
 FEATURES & BUILD ORDER (F001, F002, ...):
 - Use ONLY these feature `type` values: extrude_boss, extrude_cut, revolve, hole,
-  fillet, chamfer, thread, pattern, shell.
+  fillet, chamfer, thread, pattern, mirror, shell.
 - build_order: base solid first (largest extrude_boss or revolve), then primary
   cuts/through holes, then counterbores/countersinks/taps, fillets and chamfers
   LAST, patterns after their seed. The FIRST feature MUST be extrude_boss or revolve.
 - related_dimensions / depth_dimension_id must reference existing dimension ids.
+- EVERY extrude_boss and extrude_cut MUST have a depth: set depth_dimension_id to
+  the dimension giving its thickness/height/depth (read the side/section view for
+  plate thickness). A blind cut needs its depth; a cut that goes fully through the
+  material is through-all (leave depth unset). Never emit an extrude with no depth.
 - Set parent_feature for dependent features (pattern seed, fillet's host feature).
 - If a feature's sketch center is dimensioned from the part origin/center, set
   offset_x/offset_y and position_known=true.
+
+FILLETS & CHAMFERS — CAPTURE EVERY ONE (these are routinely missed):
+- Scan the WHOLE drawing — every view, every section/detail, AND the notes block —
+  for fillet and chamfer callouts. Common forms in these drawings:
+    * a radius leader on a corner: ".531 R", "R.531", ".531 R. TYP", "R3 TYP";
+    * an inside corner of a section/profile (e.g. where a web meets a flange, or a
+      pocket/slot bottom) with a small radius leader — this is a fillet;
+    * a chamfer/bevel callout: "0.06 x 45°", "CHAMFER .03", or a clipped corner;
+    * a GENERAL NOTE governing many edges: "ALL FILLETS R___", "FILLET ALL INTERNAL
+      CORNERS R___", "BREAK ALL SHARP EDGES/CORNERS", "ALL CORNERS R___ UNLESS NOTED".
+- For EACH fillet found, emit a `fillet` FEATURE (not just a dimension) and add the
+  radius to `dimensions` with applies_to "fillet_radius", linked via the feature's
+  related_dimensions. For EACH chamfer, emit a `chamfer` feature with its distance
+  (applies_to "chamfer") and angle. A general note that covers many edges is ONE
+  feature; put the scope (e.g. "all internal corners") in its description.
+- "TYP"/"TYPICAL" means the same radius repeats — still ONE fillet feature; note TYP.
+- Range or dual callouts like ".06/.09 R" (min/max acceptable radius): use the value
+  closest to the typical/nominal (here .06), set value_unclear=true with
+  ambiguity_reason and possible_values listing both — but STILL create the feature.
+- If you are unsure whether a corner is filleted, prefer creating the fillet feature
+  and flagging it over omitting it. Never silently drop a radius/fillet callout.
+
+REVOLVES (turned / cylindrical / symmetric-about-an-axis parts):
+- If the part is turned on a lathe or is a solid of revolution (a shaft, hub, pin,
+  flange, bushing — its section view is symmetric about a centerline), make the base
+  feature a `revolve` and fill revolve_profile with the HALF-profile as ordered
+  [axial, radial] points in drawing units: 'axial' along the centerline, 'radial' the
+  distance from it (>=0). Trace the OUTER boundary in order; it is closed back to the
+  axis automatically. e.g. a stepped shaft ø10 x 10 then ø16 x 15 ->
+  [[0,5],[10,5],[10,8],[25,8]]. Read each diameter as radius = diameter/2.
+- Only use revolve when the part truly revolves; a prism stays an extrude_boss.
+
+MIRRORS (symmetric features):
+- When a feature (or group) is the MIRROR IMAGE of another about a plane, you may add
+  a `mirror` feature: set parent_feature to the feature being mirrored and
+  mirror_plane to the plane (front/top/right). Optional — only when it is clearer
+  than extracting both halves directly.
 
 RELATIONSHIPS (fill the relationships object — this enables arithmetic verification):
 - symmetry: planes of symmetry and which features mirror about them.
@@ -308,15 +363,34 @@ MULTIVIEW_USER_TEXT = (
     "- A hole or cut visible in several views is the SAME feature — extract it "
     "ONCE, on the plane where its position is best dimensioned; never double-count.\n"
     "- Read dimensions, hole callouts, and per-instance positions from whichever "
-    "view shows them; set instance_positions when a view dimensions every hole.\n"
-    "- build_order: base extrude first, then cuts/holes in view order, fillets and "
-    "chamfers last, patterns after their seed.\n"
+    "view shows them; set instance_positions ([x,y] for EVERY instance, edge-"
+    "referenced from the lower-left corner, len == qty) whenever a view dimensions "
+    "the holes.\n"
+    "- Every extrude_boss/extrude_cut MUST link a depth: set depth_dimension_id to "
+    "the thickness/height read from the SIDE view (a through cut may stay through-"
+    "all). Never emit an extrude with no depth.\n"
+    "- FILLETS & CHAMFERS are routinely missed — scan EVERY view, section/detail, "
+    "AND the notes block for radius/'R'/'R TYP'/chamfer callouts, inside corners of "
+    "section profiles (web-to-flange, slot/pocket bottoms), and general notes ('ALL "
+    "FILLETS R__', 'FILLET ALL INTERNAL CORNERS', 'BREAK SHARP EDGES'). For each, "
+    "emit a fillet/chamfer FEATURE with its radius/distance linked in "
+    "related_dimensions. A range callout like '.06/.09 R' still becomes a feature "
+    "(use the nominal value, flag value_unclear). Never silently drop a fillet.\n"
+    "- A TURNED/REVOLVED part (shaft/hub/flange, section symmetric about a "
+    "centerline): make the base a `revolve` and fill revolve_profile with the "
+    "ordered [axial, radial] half-profile points (radius = diameter/2).\n"
+    "- A CIRCULAR/BOLT-CIRCLE hole pattern: set the callout's pattern='circular', "
+    "bolt_circle_diameter, optional bolt_circle_center/start_angle, and qty.\n"
+    "- build_order: base extrude/revolve first, then cuts/holes in view order, "
+    "fillets and chamfers last, patterns after their seed.\n"
     "Extract everything; be honest about uncertainty (confidence, value_unclear, warnings)."
 )
 
 
 def _multiview_cache_key(views: list[tuple[str, str, str]], model: str) -> str:
     h = hashlib.sha256()
+    h.update(PROMPT_VERSION.encode("utf-8"))
+    h.update(b"\0")
     h.update(model.encode("utf-8"))
     for view_type, b64, _ in views:
         h.update(b"\0")

@@ -66,10 +66,14 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
     template = resolve_part_template(template_path)
 
     skipped: list[tuple[str, str, str]] = []
+    # Snapshot warnings so we can report only the caveats the BUILD added (e.g. a
+    # fillet auto-applied to all edges), separate from extraction/resolver notes.
+    pre_warnings = list(getattr(model, "warnings", []) or [])
     _, sw_doc = build_model(
         sw_app, model, output_dir=part_dir, template_path=template,
         strict=False, skipped_out=skipped,
     )
+    build_caveats = [w for w in (getattr(model, "warnings", []) or []) if w not in pre_warnings]
     sldprt = save_model(sw_doc, name, part_dir)
 
     vreport = validate_model(sw_doc, model)
@@ -85,6 +89,11 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
         lines.append("Skipped features (build non-strict — verify manually):")
         for fid, ftype, reason in skipped:
             lines.append(f"  - {fid} ({ftype}): {reason}")
+    if build_caveats:
+        lines.append("")
+        lines.append("Build caveats (applied, but verify against the drawing):")
+        for w in build_caveats:
+            lines.append(f"  - {w}")
     lines.append("")
     lines.append(f"Overall model validation: {'PASSED' if vreport.get('ok') else 'completed with issues'}.")
     (part_dir / f"{name}_model_check.txt").write_text("\n".join(lines), encoding="utf-8")
