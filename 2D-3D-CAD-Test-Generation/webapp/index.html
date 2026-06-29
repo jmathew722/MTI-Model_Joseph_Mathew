@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MTI 2D→3D Pipeline</title>
+<style>
+  :root {
+    --bg: #0a0e16; --bg2: #0f1622; --panel: #111a28; --line: #1d2a3c;
+    --ink: #e6edf6; --muted: #8aa0bd; --accent: #4f86ff; --accent2: #2dd4bf;
+    --ok: #34d399; --warn: #fbbf24; --err: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--ink); }
+  header { display: flex; align-items: center; gap: 14px; padding: 14px 22px;
+           background: linear-gradient(180deg, #16243a, #0f1622); border-bottom: 1px solid var(--line); }
+  .logo { width: 40px; height: 40px; border-radius: 9px; flex: 0 0 auto;
+          background: linear-gradient(135deg, var(--accent), var(--accent2)); display: grid; place-items: center;
+          font-size: 20px; }
+  header h1 { font-size: 17px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px;
+          border: 1px solid var(--line); background: #0d1521; font-size: 12px; font-weight: 600; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .pill.live .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .pill.demo .dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+
+  main { max-width: 980px; margin: 26px auto; padding: 0 20px; }
+  .drop { border: 2px dashed #2b3f5c; border-radius: 16px; padding: 42px 20px; text-align: center;
+          background: var(--bg2); cursor: pointer; transition: .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: #0f1a2b; }
+  .drop .emoji { font-size: 40px; }
+  .drop .big { font-weight: 700; margin-top: 10px; }
+  .drop .small { color: var(--muted); font-size: 12px; }
+  .drop .file { margin-top: 12px; color: var(--accent2); font-weight: 600; }
+
+  .actions { display: flex; gap: 12px; align-items: center; margin: 18px 0; flex-wrap: wrap; }
+  button, select { font: inherit; }
+  .btn { border: 1px solid var(--line); background: #15203250; color: var(--ink); padding: 10px 18px;
+         border-radius: 10px; cursor: pointer; font-weight: 600; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), #3b6fe0); border-color: transparent; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  select { background: #0d1521; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; }
+  .hint { color: var(--muted); font-size: 12px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-top: 18px; overflow: hidden; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+              margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .panel .body { padding: 14px 16px; }
+  pre.log { margin: 0; padding: 14px 16px; max-height: 340px; overflow: auto; background: #070b12;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+  pre.log .status { font-weight: 700; }
+  .status.ok { color: var(--ok); } .status.err { color: var(--err); }
+
+  .files { list-style: none; margin: 0; padding: 0; }
+  .files li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #16212f; }
+  .files li:last-child { border-bottom: 0; }
+  .tag { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 999px;
+         border: 1px solid var(--line); color: var(--muted); }
+  .tag.macro { color: var(--accent2); border-color: #1c4a44; }
+  .tag.json { color: var(--accent); border-color: #1f3a66; }
+  .tag.report { color: var(--warn); border-color: #4a3f1c; }
+  .files .name { flex: 1; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .files .size { color: var(--muted); font-size: 11px; }
+  .files a { color: var(--accent); text-decoration: none; }
+  .files a:hover { text-decoration: underline; }
+  pre.report { margin: 0; padding: 12px 14px; background: #070b12; border-radius: 10px; max-height: 320px; overflow: auto;
+               font: 12px/1.55 ui-monospace, Menlo, monospace; white-space: pre-wrap; }
+  .hidden { display: none; }
+  .err-box { color: var(--err); background: #2a0f12; border: 1px solid #5a1f25; padding: 10px 14px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⚙️</div>
+  <div>
+    <h1>MTI 2D→3D Pipeline</h1>
+    <div class="sub">Claude Vision extraction · Ambiguity resolution · SolidWorks VBA macros</div>
+  </div>
+  <div class="spacer"></div>
+  <div id="pill" class="pill"><span class="dot"></span><span id="pillText">checking…</span></div>
+</header>
+
+<main>
+  <div id="drop" class="drop">
+    <div class="emoji">🗂️</div>
+    <div class="big">Drop an engineering drawing here</div>
+    <div class="small">or click to browse · JPG, PNG, WEBP, TIFF, BMP, PDF</div>
+    <div id="fileName" class="file hidden"></div>
+    <input id="fileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp,.pdf" class="hidden" />
+  </div>
+
+  <div class="actions">
+    <button id="runBtn" class="btn primary" disabled>Run extraction</button>
+    <span class="hint">— or —</span>
+    <button id="demoBtn" class="btn">Try demo (no API key)</button>
+    <select id="sampleSel" title="Demo sample"></select>
+    <span id="actionHint" class="hint"></span>
+  </div>
+
+  <div id="logPanel" class="panel hidden">
+    <h2>Pipeline log</h2>
+    <pre id="log" class="log"></pre>
+  </div>
+
+  <div id="resultPanel" class="panel hidden">
+    <h2>Results</h2>
+    <div class="body">
+      <div id="reportWrap" class="hidden">
+        <div class="hint" style="margin-bottom:6px;" id="reportName"></div>
+        <pre id="report" class="report"></pre>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px;">
+        <strong>Generated files</strong>
+        <button id="zipBtn" class="btn">⬇ Download all (zip)</button>
+      </div>
+      <ul id="files" class="files"></ul>
+      <div id="noFiles" class="hint hidden">No files were produced.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let selectedFile = null;
+let liveAvailable = false;
+let currentRun = null;
+let evt = null;
+
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    liveAvailable = !!d.live;
+    const pill = $('pill'), txt = $('pillText');
+    if (liveAvailable) { pill.className = 'pill live'; txt.textContent = 'Live extraction'; }
+    else { pill.className = 'pill demo'; txt.textContent = 'Demo only — no API key'; }
+    const sel = $('sampleSel');
+    sel.innerHTML = '';
+    (d.samples || []).forEach(s => {
+      const o = document.createElement('option'); o.value = s; o.textContent = 'sample ' + s; sel.appendChild(o);
+    });
+    if (!d.samples || !d.samples.length) { $('demoBtn').disabled = true; sel.disabled = true; }
+    refreshRunBtn();
+  } catch (e) { $('pillText').textContent = 'server unreachable'; }
+}
+
+function refreshRunBtn() {
+  const btn = $('runBtn');
+  if (!liveAvailable) {
+    btn.disabled = true;
+    $('actionHint').textContent = 'Set ANTHROPIC_API_KEY to enable a live run.';
+  } else {
+    btn.disabled = !selectedFile;
+    $('actionHint').textContent = selectedFile ? '' : 'Choose a drawing to run.';
+  }
+}
+
+// ---- file pick / drag-drop ----
+const drop = $('drop'), input = $('fileInput');
+drop.addEventListener('click', () => input.click());
+input.addEventListener('change', () => setFile(input.files[0]));
+['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', ev => { if (ev.dataTransfer.files[0]) setFile(ev.dataTransfer.files[0]); });
+function setFile(f) {
+  selectedFile = f || null;
+  const el = $('fileName');
+  if (f) { el.textContent = '📄 ' + f.name; el.classList.remove('hidden'); }
+  else el.classList.add('hidden');
+  refreshRunBtn();
+}
+
+// ---- run ----
+$('runBtn').addEventListener('click', async () => {
+  if (!selectedFile) return;
+  const fd = new FormData(); fd.append('file', selectedFile);
+  await launch('/api/run', { method: 'POST', body: fd });
+});
+$('demoBtn').addEventListener('click', async () => {
+  await launch('/api/demo', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sample: $('sampleSel').value || null }),
+  });
+});
+
+async function launch(url, opts) {
+  setBusy(true);
+  $('logPanel').classList.remove('hidden');
+  $('resultPanel').classList.add('hidden');
+  $('log').textContent = '';
+  try {
+    const r = await fetch(url, opts);
+    if (!r.ok) {
+      const msg = await r.json().catch(() => ({ detail: r.statusText }));
+      $('log').innerHTML = '<span class="status err">' + (msg.detail || 'request failed') + '</span>';
+      setBusy(false); return;
+    }
+    const { id } = await r.json();
+    currentRun = id;
+    streamLog(id);
+  } catch (e) {
+    $('log').innerHTML = '<span class="status err">' + e + '</span>';
+    setBusy(false);
+  }
+}
+
+function streamLog(id) {
+  if (evt) evt.close();
+  const log = $('log');
+  evt = new EventSource(`/api/runs/${id}/log`);
+  evt.onmessage = (m) => {
+    log.appendChild(document.createTextNode(m.data + '\n'));
+    log.scrollTop = log.scrollHeight;
+  };
+  evt.addEventListener('done', (m) => {
+    const code = parseInt(m.data, 10);
+    const span = document.createElement('span');
+    span.className = 'status ' + (code === 0 ? 'ok' : 'err');
+    span.textContent = (code === 0 ? '✓ pipeline finished (exit 0)' : '✗ pipeline exited with code ' + code) + '\n';
+    log.appendChild(span); log.scrollTop = log.scrollHeight;
+    evt.close(); setBusy(false);
+    loadResults(id);
+  });
+  evt.onerror = () => { evt.close(); setBusy(false); loadResults(id); };
+}
+
+async function loadResults(id) {
+  try {
+    const r = await fetch(`/api/runs/${id}/files`);
+    const d = await r.json();
+    const panel = $('resultPanel'); panel.classList.remove('hidden');
+    // report
+    const rw = $('reportWrap');
+    if (d.report) { $('reportName').textContent = d.report.name; $('report').textContent = d.report.text; rw.classList.remove('hidden'); }
+    else rw.classList.add('hidden');
+    // files
+    const ul = $('files'); ul.innerHTML = '';
+    (d.files || []).forEach(f => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="tag ${f.category}">${f.category}</span>`
+        + `<span class="name">${f.name}</span>`
+        + `<span class="size">${fmtSize(f.size)}</span>`
+        + `<a href="/api/runs/${id}/download/${encodeURIComponent(f.name)}">download</a>`;
+      ul.appendChild(li);
+    });
+    $('noFiles').classList.toggle('hidden', (d.files || []).length > 0);
+    $('zipBtn').onclick = () => { window.location = `/api/runs/${id}/zip`; };
+    $('zipBtn').disabled = !(d.files || []).length;
+  } catch (e) { /* ignore */ }
+}
+
+function setBusy(b) {
+  $('runBtn').disabled = b || !liveAvailable || !selectedFile;
+  $('demoBtn').disabled = b || $('sampleSel').options.length === 0;
+}
+function fmtSize(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+loadStatus();
+</script>
+</body>
+</html>
