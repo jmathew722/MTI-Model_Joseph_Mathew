@@ -1,0 +1,6 @@
+PyQt6>=6.5
+Pillow>=10.0
+pymupdf>=1.23
+pytest>=7.0
+ezdxf>=1.0
+matplotlib>=3.8

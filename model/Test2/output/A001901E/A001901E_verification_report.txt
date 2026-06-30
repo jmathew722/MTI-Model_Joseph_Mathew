@@ -1,0 +1,35 @@
+VERIFICATION REPORT
+===================
+Part: A001901E    Units: inch    Standard: ASME    Confidence: 0.72
+Total dimensions extracted: 16
+Hole callouts extracted: 1
+Features identified: 2  (build order: 2)
+Dimensions flagged ambiguous: 0
+Dimensional closure: FAIL  ->  failed: D009 = D010 + D008
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 50%
+  Feature confidence:     72%
+  Macro readiness:        83%
+
+ERRORS:
+  [ERROR] Dimensional closure FAILED: D009 = D010 + D008 → 81.5 != 83 (allowed slack 0.083 inch).
+
+WARNINGS:
+  [WARN]  extraction: The 9 hole instance positions are estimated from the stacked dimensions (10, 20, 30, 40, 50, 60, 70, 80) plus 1.500 left offset and 6.000 right-end spacing. The first and last hole positions require human verification — some dimension leaders may point to step edges rather than hole centers.
+  [WARN]  extraction: The 2.50 dimension in the side view may be the flange half-width (total 5.00) or an overall flange height — interpretation is ambiguous without a top view. Resolution required before building.
+  [WARN]  extraction: The cross-sectional profile (T, I, or channel) cannot be fully confirmed from two views alone. The side view shows a stepped T-shaped profile but exact base flange dimensions are uncertain.
+  [WARN]  extraction: GD&T frames in side view show perpendicularity and parallelism to Datum A with values 0.001 and 0.002 — exact symbol/datum pairings may differ; human review recommended.
+  [WARN]  extraction: Datum A appears to be the base flange bottom surface; Datum B is referenced on the 1.125 hole diameter. No Datum C identified.
+  [WARN]  extraction: The 4.375 vertical dimension likely represents the distance from the part bottom to the hole centerline. Verify this is consistent with the 7.250 total height (4.375 offset from bottom would place holes above mid-height).
+  [WARN]  extraction: Units assumed to be inches based on decimal values (1.125, 1.625, 4.375, 1.750). No explicit unit declaration found in the provided views.
+  [WARN]  extraction: The 9th hole x-position (~77.0) is inferred from 83.00 overall - 6.000 spacing - last hole; exact position requires confirmation from the drawing.
+  [WARN]  extraction: Could not classify view for A001901E.png; skipped.
+
+OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST

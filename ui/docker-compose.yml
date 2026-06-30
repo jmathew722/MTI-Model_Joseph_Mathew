@@ -1,0 +1,19 @@
+services:
+  drawingcrop:
+    build:
+      context: ./web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ./api
+    restart: unless-stopped
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MODEL_DIR=/app/model/2D-3D-CAD-Test-Generation
+    volumes:
+      - ../model:/app/model:ro

@@ -1,0 +1,248 @@
+{
+  "part": "A001901E",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.72,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 16,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 1,
+    "medium_flags": 0,
+    "high_flags": 17,
+    "rebuild_confidence": 0.75,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_T_section_I_section_extrusion_Front.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base T-section / I-section extrusion. Front view shows a long horizontal plate 83.00 long with stepped shoulders. Side view confirms a T or channel cross-section: tall vertical web (7.250 high, 0.500 wide total) above a wide base flange (1.750 wide).",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 80.0,
+        "width": 2.5,
+        "depth": 83.0
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 2.032,
+        "width": 0.0635,
+        "depth": 2.1082
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "F001",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_9x_counterbore_holes_1_125_dia_thru_with.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "9x counterbore holes: 1.125 dia thru with 1.625 dia x 1.00 deep counterbore. Arrayed linearly along the length of the part. Datum B is the hole axis.",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 1.125,
+        "qty": 9.0,
+        "cbore_diameter": 1.625,
+        "cbore_depth": 1.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.028575,
+        "qty": 9.0,
+        "cbore_diameter": 0.041275,
+        "cbore_depth": 0.0254
+      },
+      "positions_xy": [
+        [
+          1.5,
+          4.375
+        ],
+        [
+          10.0,
+          4.375
+        ],
+        [
+          20.0,
+          4.375
+        ],
+        [
+          30.0,
+          4.375
+        ],
+        [
+          40.0,
+          4.375
+        ],
+        [
+          50.0,
+          4.375
+        ],
+        [
+          60.0,
+          4.375
+        ],
+        [
+          70.0,
+          4.375
+        ],
+        [
+          77.0,
+          4.375
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0381,
+          0.111125
+        ],
+        [
+          0.254,
+          0.111125
+        ],
+        [
+          0.508,
+          0.111125
+        ],
+        [
+          0.762,
+          0.111125
+        ],
+        [
+          1.016,
+          0.111125
+        ],
+        [
+          1.27,
+          0.111125
+        ],
+        [
+          1.524,
+          0.111125
+        ],
+        [
+          1.778,
+          0.111125
+        ],
+        [
+          1.9558,
+          0.111125
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": []
+}

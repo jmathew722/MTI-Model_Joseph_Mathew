@@ -1,0 +1,107 @@
+CLAUDE API TOKEN & COST LEDGER
+==============================
+Prices USD per 1M tokens (sonnet-4-6 $3/$15, opus-4-8 $5/$25; cache write 1.25x input, cache read 0.10x input).
+Only extraction runs hit the API; --from-json and cache hits cost $0.
+
+TIMESTAMP             PART              MODEL                      IN       OUT   CACHE_RD  CALLS   COST_USD
+--------------------------------------------------------------------------------------------------------------
+2026-06-18 18:23:00   0014630E          claude-sonnet-4-6         290     1,633          0      1     0.0513
+2026-06-18 18:23:42   16247             claude-sonnet-4-6         290     2,518      5,964      1     0.0453
+2026-06-18 18:25:32   A001211E          claude-sonnet-4-6       4,720     8,425     14,082      2     0.1528
+2026-06-18 18:27:07   A001271E          claude-sonnet-4-6       4,280     7,037     13,853      2     0.1298
+2026-06-18 18:28:31   1E 357            claude-sonnet-4-6       3,720     5,518     14,107      2     0.1063
+2026-06-18 18:30:06   A001551E          claude-sonnet-4-6       4,282     7,270     13,374      2     0.1313
+2026-06-18 18:31:25   A001561E          claude-sonnet-4-6       3,373     5,656     14,293      2     0.1081
+2026-06-18 18:32:48   A001581E          claude-sonnet-4-6       3,608     6,107     14,010      2     0.1144
+2026-06-18 18:34:06   A001591E          claude-sonnet-4-6       3,650     5,933     13,774      2     0.1110
+2026-06-18 18:35:16   A001601E          claude-sonnet-4-6       3,233     5,217     13,640      2     0.0985
+2026-06-18 18:36:38   A001611E          claude-sonnet-4-6       3,329     5,306     14,302      2     0.1028
+2026-06-18 18:37:28   A001621E          claude-sonnet-4-6         290     3,192      5,964      1     0.0577
+2026-06-18 18:38:50   0014630E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:50   16247             claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:50   A001211E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:50   A001271E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:50   1E 357            claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:50   A001551E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:50   A001561E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:51   A001581E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:51   A001591E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:51   A001601E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:51   A001611E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:38:51   A001621E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:40:25   A001821M          claude-sonnet-4-6       4,146     7,022     13,572      2     0.1280
+2026-06-18 18:41:56   A001901E          claude-sonnet-4-6       3,953     6,738     13,740      2     0.1238
+2026-06-18 18:58:55   0014630E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:58:58   16247             claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:58:58   A001211E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:58:58   A001271E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:58:58   1E 357            claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:58:58   A001551E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:58:58   A001561E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:59:01   A001581E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:59:05   A001591E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:59:08   A001601E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:59:08   A001611E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:59:10   A001621E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:59:14   A001821M          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 18:59:14   A001901E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:00   0014630E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:03   16247             claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:03   A001211E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:03   A001271E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:03   1E 357            claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:03   A001551E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:03   A001561E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:07   A001581E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:10   A001591E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:13   A001601E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:13   A001611E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:16   A001621E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:19   A001821M          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-18 19:08:19   A001901E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:14   0014630E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:19   16247             claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:22   A001211E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:25   A001271E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:27   1E 357            claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:28   A001551E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:32   A001561E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:35   A001581E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:38   A001591E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:41   A001601E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:43   A001611E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:46   A001621E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:49   A001821M          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:01:53   A001901E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:29:55   0014630E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:29:59   16247             claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:02   A001211E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:06   A001271E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:10   1E 357            claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:15   A001551E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:19   A001561E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:23   A001581E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:26   A001591E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:30   A001601E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:33   A001611E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:36   A001621E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:39   A001821M          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:30:43   A001901E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:36:43   0014630E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:36:46   16247             claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:36:49   A001211E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:36:53   A001271E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:36:57   1E 357            claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:02   A001551E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:05   A001561E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:09   A001581E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:13   A001591E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:16   A001601E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:19   A001611E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:22   A001621E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:26   A001821M          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+2026-06-19 14:37:30   A001901E          claude-sonnet-4-6           0         0          0      0     0.0000  (cache hit)
+--------------------------------------------------------------------------------------------------------------
+TOTAL                 96 run(s)                                 43,164    77,572    164,675            1.4611
+
+TOTAL API COST TO DATE: $1.4611
