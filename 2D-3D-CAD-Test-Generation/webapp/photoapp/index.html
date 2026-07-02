@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DrawingCrop</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ground:     #080d14;
+      --panel:      #0d1520;
+      --panel2:     #111d2b;
+      --accent:     #00b4d8;
+      --accent-dim: #005f73;
+      --border:     #1a2840;
+      --text:       #cdd9e5;
+      --muted:      #4a6070;
+      --success:    #4ade80;
+      --warn:       #fbbf24;
+      --danger:     #ef4444;
+      --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    html, body { height: 100%; background: var(--ground); color: var(--text);
+      font-family: var(--mono); font-size: 12px; overflow: hidden;
+      -webkit-font-smoothing: antialiased; }
+
+    #app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* Toolbar */
+    #toolbar { display: flex; align-items: center; gap: 6px;
+      padding: 0 10px; height: 42px; background: var(--panel);
+      border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+    .logo { font-size: 11px; font-weight: 700; letter-spacing: 3px;
+      color: var(--accent); margin-right: 4px; user-select: none; }
+
+    .vsep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    .spacer { flex: 1; }
+
+    #fileLabel { font-size: 10px; color: var(--muted); letter-spacing: 0.4px; }
+
+    /* Main */
+    #main { display: flex; flex: 1; overflow: hidden; }
+
+    /* Canvas */
+    #canvasWrap { flex: 1; position: relative; overflow: hidden; }
+    #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+    /* Sidebar */
+    #sidebar { width: 240px; flex-shrink: 0; background: var(--panel);
+      border-left: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; }
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-track { background: var(--panel); }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    #sideInner { padding: 12px; display: flex; flex-direction: column; min-height: 100%; }
+
+    .info-chip { background: var(--panel2); border: 1px solid var(--border);
+      border-radius: 3px; padding: 6px 8px; font-size: 10px; color: var(--muted);
+      margin-bottom: 14px; line-height: 1.6; word-break: break-all; white-space: pre-wrap; }
+
+    .section-hdr { font-size: 8px; font-weight: 700; letter-spacing: 3px;
+      color: var(--accent); border-bottom: 1px solid var(--accent-dim);
+      padding-bottom: 5px; margin-bottom: 8px; }
+
+    .field-label { display: block; font-size: 8px; color: var(--muted);
+      margin-bottom: 3px; letter-spacing: 0.5px; }
+
+    .gap-s { margin-bottom: 6px; }
+    .gap-m { margin-bottom: 10px; }
+    .gap-l { margin-bottom: 16px; }
+
+    .divider { height: 1px; background: var(--border); margin: 14px 0; }
+    .push { flex: 1; }
+
+    /* Form */
+    select, input[type="text"], input[type="number"] {
+      width: 100%; background: var(--panel2); color: var(--text);
+      border: 1px solid var(--border); border-radius: 3px;
+      padding: 4px 8px; font-size: 11px; font-family: var(--mono);
+      outline: none; -webkit-appearance: none; appearance: none; }
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%234a6070'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      padding-right: 22px; cursor: pointer; }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    /* Buttons */
+    button { font-family: var(--mono); border: none; border-radius: 3px;
+      cursor: pointer; font-size: 11px; padding: 5px 12px;
+      transition: background 0.1s, color 0.1s, border-color 0.1s; }
+    button:disabled { cursor: default; }
+
+    .btn-primary { background: var(--accent); color: #000; font-weight: 700; letter-spacing: 0.5px; }
+    .btn-primary:hover:not(:disabled) { background: #00d0f0; }
+    .btn-primary:disabled { background: var(--accent-dim); color: #1a3a44; }
+
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-ghost:disabled { color: var(--muted); }
+
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid #7f1d1d; font-size: 10px; padding: 4px 10px; letter-spacing: 0.5px; }
+    .btn-danger:hover { background: #7f1d1d; color: #fca5a5; }
+
+    .btn-dim { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-dim); font-weight: 700; padding: 4px 10px; }
+    .btn-dim:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+    .btn-muted { background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 9px; padding: 3px 8px; }
+    .btn-muted:hover { color: var(--danger); border-color: var(--danger); }
+
+    .btn-full { width: 100%; }
+
+    /* Download ZIP button — the hero action */
+    #dlZipBtn {
+      background: var(--panel2); color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: 11px; padding: 4px 12px; font-weight: 700;
+      letter-spacing: 0.3px; transition: all 0.15s;
+    }
+    #dlZipBtn.ready {
+      background: var(--accent); color: #000; border-color: var(--accent);
+    }
+    #dlZipBtn.ready:hover { background: #00d0f0; }
+    #dlZipBtn:disabled { cursor: default; }
+
+    .badge { display: inline-block; background: #000; color: var(--accent);
+      border-radius: 9px; font-size: 9px; padding: 1px 5px;
+      margin-left: 5px; font-weight: 700; min-width: 18px; text-align: center; }
+    #dlZipBtn.ready .badge { background: rgba(0,0,0,0.25); color: #000; }
+
+    /* Lists */
+    .list-box { background: var(--panel2); border: 1px solid var(--border);
+      border-radius: 3px; padding: 4px; list-style: none; overflow-y: auto; font-size: 10px; }
+    .list-box.views { height: 76px; }
+    .list-box.features { height: 100px; color: var(--warn); }
+    .list-box li { padding: 1px 4px; line-height: 1.6; }
+    .list-box.views li { color: var(--success); }
+    .list-box.views li.pending { color: var(--muted); font-style: italic; }
+
+    /* Count row */
+    .count-row { display: flex; gap: 6px; align-items: stretch; }
+    .count-row input { flex: 1; }
+
+    /* Status bar */
+    #statusbar { height: 26px; display: flex; align-items: center;
+      padding: 0 12px; background: var(--panel);
+      border-top: 1px solid var(--border); color: var(--muted);
+      font-size: 10px; letter-spacing: 0.3px; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div id="toolbar">
+    <span class="logo">DRAWINGCROP</span>
+    <div class="vsep"></div>
+    <button class="btn-primary" id="openBtn" style="font-size:11px;padding:4px 12px">Open Drawing</button>
+    <button class="btn-ghost"   id="clearBtn" style="font-size:11px;padding:4px 12px" disabled>Clear Selection</button>
+    <input type="file" id="fileInput" accept="image/*,.pdf,application/pdf" style="display:none">
+    <div class="spacer"></div>
+    <span id="fileLabel"></span>
+    <div class="vsep"></div>
+    <button id="dlZipBtn" disabled>
+      ⬇ Download ZIP<span class="badge" id="zipBadge">0</span>
+    </button>
+    <button class="btn-danger" id="resetBtn">RESET</button>
+  </div>
+
+  <div id="main">
+    <div id="canvasWrap">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="sidebar">
+      <div id="sideInner">
+
+        <div class="info-chip" id="infoChip">No drawing loaded</div>
+
+        <div class="section-hdr">VIEWS</div>
+        <label class="field-label">PRESET</label>
+        <select id="presetSel" class="gap-s"></select>
+        <label class="field-label">CUSTOM NAME (overrides preset)</label>
+        <input type="text" id="customName" placeholder="e.g. iso_detail" class="gap-m">
+        <button class="btn-primary btn-full gap-m" id="saveViewBtn" disabled>Queue View</button>
+        <label class="field-label">QUEUED VIEWS</label>
+        <ul class="list-box views gap-l" id="savedList"></ul>
+
+        <div class="divider"></div>
+
+        <div class="section-hdr">FEATURE TALLY</div>
+        <label class="field-label">FEATURE</label>
+        <select id="featSel" class="gap-s"></select>
+        <label class="field-label">COUNT</label>
+        <div class="count-row gap-m">
+          <input type="number" id="countIn" value="1" min="0" max="999">
+          <button class="btn-dim" id="addBtn">Add</button>
+        </div>
+        <label class="field-label">TALLIED</label>
+        <ul class="list-box features gap-s" id="featList"></ul>
+        <div style="display:flex;gap:6px;margin-top:4px;margin-bottom:14px">
+          <button class="btn-muted" id="clearTallyBtn" style="flex:1">Clear</button>
+        </div>
+
+        <div class="push"></div>
+
+        <button class="btn-primary btn-full" id="dlZipSideBtn" disabled style="margin-bottom:0">
+          ⬇ Download ZIP
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="statusbar">Ready — open an engineering drawing to begin</div>
+</div>
+
+<script src="/pdf.min.js"></script>
+<script>
+// Configure pdf.js worker (served locally by nginx alongside index.html)
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+}
+
+// ── CRC-32 ────────────────────────────────────────────────────────────────────
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[i] = c;
+  }
+  return t;
+})();
+
+function crc32(data) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < data.length; i++) c = (c >>> 8) ^ CRC_TABLE[(c ^ data[i]) & 0xFF];
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+// ── ZIP writer (STORE — no compression) ──────────────────────────────────────
+class ZipWriter {
+  constructor() { this.entries = []; this.offset = 0; }
+
+  add(name, data) {
+    if (typeof data === 'string') data = new TextEncoder().encode(data);
+    const nameB = new TextEncoder().encode(name);
+    const crc   = crc32(data);
+    const size  = data.length;
+
+    // Local file header (30 + name)
+    const lh = new Uint8Array(30 + nameB.length);
+    const lv = new DataView(lh.buffer);
+    lv.setUint32(0,  0x04034b50, true); // sig
+    lv.setUint16(4,  20, true);          // version needed
+    lv.setUint16(6,  0,  true);          // flags
+    lv.setUint16(8,  0,  true);          // method: STORED
+    lv.setUint16(10, 0,  true);          // mod time
+    lv.setUint16(12, 0,  true);          // mod date
+    lv.setUint32(14, crc,  true);
+    lv.setUint32(18, size, true);        // compressed size
+    lv.setUint32(22, size, true);        // uncompressed size
+    lv.setUint16(26, nameB.length, true);
+    lv.setUint16(28, 0, true);           // extra length
+    lh.set(nameB, 30);
+
+    // Central directory header (46 + name)
+    const ch = new Uint8Array(46 + nameB.length);
+    const cv = new DataView(ch.buffer);
+    cv.setUint32(0,  0x02014b50, true); // sig
+    cv.setUint16(4,  20, true);
+    cv.setUint16(6,  20, true);
+    cv.setUint16(8,  0,  true);
+    cv.setUint16(10, 0,  true);
+    cv.setUint16(12, 0,  true);
+    cv.setUint16(14, 0,  true);
+    cv.setUint32(16, crc,  true);
+    cv.setUint32(20, size, true);
+    cv.setUint32(24, size, true);
+    cv.setUint16(28, nameB.length, true);
+    cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true);
+    cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, this.offset, true); // local header offset
+    ch.set(nameB, 46);
+
+    this.entries.push({ lh, data, ch });
+    this.offset += lh.length + size;
+  }
+
+  async addBlob(name, blob) {
+    const buf = await blob.arrayBuffer();
+    this.add(name, new Uint8Array(buf));
+  }
+
+  generate() {
+    const cdSize = this.entries.reduce((a, e) => a + e.ch.length, 0);
+    const eocd   = new Uint8Array(22);
+    const ev     = new DataView(eocd.buffer);
+    ev.setUint32(0,  0x06054b50, true); // sig
+    ev.setUint16(4,  0, true);
+    ev.setUint16(6,  0, true);
+    ev.setUint16(8,  this.entries.length, true);
+    ev.setUint16(10, this.entries.length, true);
+    ev.setUint32(12, cdSize, true);
+    ev.setUint32(16, this.offset, true);
+    ev.setUint16(20, 0, true);
+
+    const parts = [];
+    this.entries.forEach(e => { parts.push(e.lh); parts.push(e.data); });
+    this.entries.forEach(e => parts.push(e.ch));
+    parts.push(eocd);
+
+    const total = parts.reduce((a, p) => a + p.length, 0);
+    const out   = new Uint8Array(total);
+    let pos = 0;
+    parts.forEach(p => { out.set(p, pos); pos += p.length; });
+    return out;
+  }
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const PRESETS = ['front','back','left','right','side','top','bottom','detail','section cut'];
+const FEATURES = [
+  'Boss Extrude','Cut Extrude','Hole Wizard','Fillets','Chamfers',
+  'Linear/Circular Patterns','Mirror (bodies, features)','Revolved Boss',
+  'Sheet Metal - Base Flange/Tab','Sheet Metal - Edge Flange',
+  'Sheet Metal - Hem','Cosmetic Threads',
+];
+const HANDLE = 10, HANDLE_H = 5, MIN_PX = 10;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let img = null, imgFile = null;
+let scale = 1, ox = 0, oy = 0;
+let sel = null, dragStart = null, resizeH = null;
+let featureCounts = {};
+let savedCrops   = []; // [{name, blob}]
+let savedNames   = []; // [string] for display dedup
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const canvas      = document.getElementById('canvas');
+const gctx        = canvas.getContext('2d');
+const fileInput   = document.getElementById('fileInput');
+const presetSel   = document.getElementById('presetSel');
+const featSelEl   = document.getElementById('featSel');
+const customName  = document.getElementById('customName');
+const countIn     = document.getElementById('countIn');
+const savedList   = document.getElementById('savedList');
+const featList    = document.getElementById('featList');
+const saveBtn     = document.getElementById('saveViewBtn');
+const clearBtn    = document.getElementById('clearBtn');
+const infoChip    = document.getElementById('infoChip');
+const fileLabel   = document.getElementById('fileLabel');
+const statusBar   = document.getElementById('statusbar');
+const dlZipBtn    = document.getElementById('dlZipBtn');
+const dlZipSide   = document.getElementById('dlZipSideBtn');
+const zipBadge    = document.getElementById('zipBadge');
+
+// Populate selects
+PRESETS.forEach(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; presetSel.appendChild(o); });
+FEATURES.forEach(f => { const o=document.createElement('option'); o.value=f; o.textContent=f; featSelEl.appendChild(o); });
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const setStatus = m => statusBar.textContent = m;
+const sanitize  = s => s.replace(/[/\\:*?"<>|]/g,'').replace(/\s+/g,'_').trim();
+const stem      = () => imgFile ? imgFile.name.replace(/\.[^.]+$/,'') : 'drawing';
+const getName   = () => customName.value.trim() || presetSel.value;
+
+function normSel(s) {
+  if (!s || !img) return null;
+  const x = s.w >= 0 ? s.x : s.x + s.w;
+  const y = s.h >= 0 ? s.y : s.y + s.h;
+  const w = Math.abs(s.w), h = Math.abs(s.h);
+  const cx = Math.max(0, Math.min(x, img.naturalWidth));
+  const cy = Math.max(0, Math.min(y, img.naturalHeight));
+  return { x:cx, y:cy,
+    w: Math.max(0, Math.min(w, img.naturalWidth  - cx)),
+    h: Math.max(0, Math.min(h, img.naturalHeight - cy)) };
+}
+
+function validSel() {
+  if (!sel || !img) return false;
+  const n = normSel(sel);
+  return n && n.w*scale >= MIN_PX && n.h*scale >= MIN_PX && n.w >= 1 && n.h >= 1;
+}
+
+function d2i(px, py) {
+  return {
+    x: Math.max(0, Math.min(Math.round((px-ox)/scale), img ? img.naturalWidth  : 0)),
+    y: Math.max(0, Math.min(Math.round((py-oy)/scale), img ? img.naturalHeight : 0)),
+  };
+}
+
+function cpos(e) { const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+
+function hitH(pos) {
+  if (!sel || !img || !validSel()) return null;
+  const n=normSel(sel);
+  const dl=n.x*scale+ox, dt=n.y*scale+oy;
+  const dr=(n.x+n.w)*scale+ox, db=(n.y+n.h)*scale+oy;
+  const tol=HANDLE_H+4;
+  const pts={tl:[dl,dt],tr:[dr,dt],bl:[dl,db],br:[dr,db]};
+  for (const [k,[hx,hy]] of Object.entries(pts)) {
+    if (Math.abs(pos.x-hx)<=tol && Math.abs(pos.y-hy)<=tol) return k;
+  }
+  return null;
+}
+
+// ── Transform ─────────────────────────────────────────────────────────────────
+function updateTransform() {
+  if (!img) return;
+  const cw=canvas.clientWidth, ch=canvas.clientHeight;
+  scale = Math.min(cw/img.naturalWidth, ch/img.naturalHeight);
+  ox = (cw - img.naturalWidth*scale)/2;
+  oy = (ch - img.naturalHeight*scale)/2;
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function draw() {
+  const dpr=window.devicePixelRatio||1;
+  const cw=canvas.clientWidth, ch=canvas.clientHeight;
+  canvas.width=cw*dpr; canvas.height=ch*dpr;
+  gctx.scale(dpr, dpr);
+  gctx.fillStyle='#080d14'; gctx.fillRect(0,0,cw,ch);
+
+  if (!img) {
+    drawGrid(cw,ch);
+    gctx.fillStyle='rgba(74,96,112,0.6)';
+    gctx.font='12px ui-monospace,monospace';
+    gctx.textAlign='center'; gctx.textBaseline='middle';
+    gctx.fillText('Open an engineering drawing to begin', cw/2, ch/2);
+    return;
+  }
+
+  gctx.imageSmoothingEnabled=true; gctx.imageSmoothingQuality='high';
+  gctx.drawImage(img, ox, oy, img.naturalWidth*scale, img.naturalHeight*scale);
+  if (sel && validSel()) drawSel(cw,ch);
+  gctx.fillStyle='rgba(74,96,112,0.45)';
+  gctx.font='10px ui-monospace,monospace';
+  gctx.textAlign='left'; gctx.textBaseline='bottom';
+  gctx.fillText('drag to select  ·  drag corners to resize  ·  Esc to clear', 10, ch-8);
+}
+
+function drawGrid(cw,ch) {
+  const step=40;
+  gctx.strokeStyle='rgba(0,180,216,0.06)'; gctx.lineWidth=1;
+  for (let x=0;x<=cw;x+=step) { gctx.beginPath();gctx.moveTo(x+.5,0);gctx.lineTo(x+.5,ch);gctx.stroke(); }
+  for (let y=0;y<=ch;y+=step) { gctx.beginPath();gctx.moveTo(0,y+.5);gctx.lineTo(cw,y+.5);gctx.stroke(); }
+  gctx.strokeStyle='rgba(0,180,216,0.13)'; gctx.setLineDash([4,6]);
+  gctx.beginPath();gctx.moveTo(Math.round(cw/2)+.5,0);gctx.lineTo(Math.round(cw/2)+.5,ch);gctx.stroke();
+  gctx.beginPath();gctx.moveTo(0,Math.round(ch/2)+.5);gctx.lineTo(cw,Math.round(ch/2)+.5);gctx.stroke();
+  gctx.setLineDash([]);
+}
+
+function drawSel(cw,ch) {
+  const n=normSel(sel);
+  const dl=n.x*scale+ox, dt=n.y*scale+oy;
+  const dr=(n.x+n.w)*scale+ox, db=(n.y+n.h)*scale+oy;
+  const dw=dr-dl, dh=db-dt;
+  const iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
+
+  gctx.fillStyle='rgba(0,0,0,0.55)';
+  gctx.fillRect(ox,oy,iw,Math.max(0,dt-oy));
+  gctx.fillRect(ox,db,iw,Math.max(0,oy+ih-db));
+  gctx.fillRect(ox,dt,Math.max(0,dl-ox),dh);
+  gctx.fillRect(dr,dt,Math.max(0,ox+iw-dr),dh);
+
+  gctx.strokeStyle='#00b4d8'; gctx.lineWidth=1.5; gctx.setLineDash([6,4]);
+  gctx.strokeRect(dl+.5,dt+.5,dw,dh); gctx.setLineDash([]);
+
+  gctx.fillStyle='#00b4d8';
+  [[dl,dt],[dr,dt],[dl,db],[dr,db]].forEach(([hx,hy]) => {
+    gctx.fillRect(hx-HANDLE_H, hy-HANDLE_H, HANDLE, HANDLE);
+  });
+
+  gctx.fillStyle='rgba(0,180,216,0.9)';
+  gctx.font='11px ui-monospace,monospace';
+  gctx.textAlign='center'; gctx.textBaseline='middle';
+  gctx.fillText(`${n.w} × ${n.h}`, dl+dw/2, dt+dh/2);
+}
+
+// ── UI state ──────────────────────────────────────────────────────────────────
+function updateUI() {
+  const hasImg=!!img, hasSel=validSel(), hasName=!!sanitize(getName());
+  saveBtn.disabled    = !(hasImg && hasSel && hasName);
+  clearBtn.disabled   = !hasSel;
+  const hasItems = savedCrops.length > 0 || Object.keys(featureCounts).length > 0;
+  dlZipBtn.disabled  = !hasItems;
+  dlZipSide.disabled = !hasItems;
+  dlZipBtn.classList.toggle('ready', hasItems && savedCrops.length > 0);
+  zipBadge.textContent = savedCrops.length;
+  if (hasSel) {
+    const n=normSel(sel);
+    setStatus(`Selection  ${n.w} × ${n.h} px  ·  origin (${n.x}, ${n.y})`);
+  }
+}
+
+// ── Load image ────────────────────────────────────────────────────────────────
+document.getElementById('openBtn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { const f=e.target.files[0]; if(f) loadFile(f); fileInput.value=''; });
+
+const wrap = document.getElementById('canvasWrap');
+wrap.addEventListener('dragover', e => { e.preventDefault(); canvas.style.opacity='.7'; });
+wrap.addEventListener('dragleave', () => { canvas.style.opacity=''; });
+wrap.addEventListener('drop', e => { e.preventDefault(); canvas.style.opacity=''; const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+
+function loadFile(file) {
+  imgFile = file;
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+    loadPDF(file);
+  } else {
+    loadImage(file);
+  }
+}
+
+function loadImage(file) {
+  const url = URL.createObjectURL(file);
+  const i = new Image();
+  i.onload = () => {
+    if (img && img._url) URL.revokeObjectURL(img._url);
+    img = i; img._url = url;
+    afterImageLoad();
+  };
+  i.onerror = () => { URL.revokeObjectURL(url); setStatus('Error: could not load image'); };
+  i.src = url;
+}
+
+async function loadPDF(file) {
+  setStatus('Converting PDF to image…');
+  const url = URL.createObjectURL(file);
+  try {
+    const pdf = await pdfjsLib.getDocument(url).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 150 / 72 }); // 150 DPI
+    const off = document.createElement('canvas');
+    off.width = Math.round(viewport.width);
+    off.height = Math.round(viewport.height);
+    await page.render({ canvasContext: off.getContext('2d'), viewport }).promise;
+    const i = new Image();
+    i.onload = () => {
+      if (img && img._url) URL.revokeObjectURL(img._url);
+      img = i; img._url = null;
+      afterImageLoad();
+    };
+    i.src = off.toDataURL('image/png');
+  } catch (err) {
+    setStatus(`PDF error: ${err.message}`);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function afterImageLoad() {
+  sel = null;
+  updateTransform(); draw();
+  infoChip.textContent = `${imgFile.name}\n${img.naturalWidth} × ${img.naturalHeight} px`;
+  fileLabel.textContent = `${imgFile.name}   ${img.naturalWidth} × ${img.naturalHeight}`;
+  setStatus(`Loaded ${imgFile.name}`); updateUI();
+}
+
+// ── Mouse ─────────────────────────────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  if (!img || e.button!==0) return;
+  const pos=cpos(e), h=hitH(pos);
+  if (h) { resizeH=h; dragStart=null; }
+  else { resizeH=null; const ip=d2i(pos.x,pos.y); dragStart=ip; sel={x:ip.x,y:ip.y,w:0,h:0}; }
+  draw(); updateUI();
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!img) return;
+  const pos=cpos(e);
+  if (resizeH && sel) {
+    const ip=d2i(pos.x,pos.y), n=normSel(sel); if(!n) return;
+    if      (resizeH==='tl') sel={x:ip.x, y:ip.y,  w:n.x+n.w-ip.x, h:n.y+n.h-ip.y};
+    else if (resizeH==='tr') sel={x:n.x,  y:ip.y,  w:ip.x-n.x,     h:n.y+n.h-ip.y};
+    else if (resizeH==='bl') sel={x:ip.x, y:n.y,   w:n.x+n.w-ip.x, h:ip.y-n.y};
+    else if (resizeH==='br') sel={x:n.x,  y:n.y,   w:ip.x-n.x,     h:ip.y-n.y};
+    draw(); updateUI();
+  } else if (dragStart) {
+    const ip=d2i(pos.x,pos.y);
+    sel={x:dragStart.x,y:dragStart.y,w:ip.x-dragStart.x,h:ip.y-dragStart.y};
+    draw(); updateUI();
+  } else {
+    const h=hitH(pos);
+    const cur={tl:'nwse-resize',tr:'nesw-resize',bl:'nesw-resize',br:'nwse-resize'};
+    canvas.style.cursor = h ? cur[h] : 'crosshair';
+  }
+});
+
+canvas.addEventListener('mouseup', () => { dragStart=null; resizeH=null; updateUI(); });
+
+// ── Save view (queue) ─────────────────────────────────────────────────────────
+saveBtn.addEventListener('click', queueView);
+customName.addEventListener('input', updateUI);
+presetSel.addEventListener('change', updateUI);
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') clearSel();
+  if ((e.metaKey||e.ctrlKey) && e.key==='s') { e.preventDefault(); if(!saveBtn.disabled) queueView(); }
+});
+
+function queueView() {
+  if (!img || !validSel()) return;
+  const name=sanitize(getName()); if(!name) return;
+  const n=normSel(sel), s=stem();
+  const off=document.createElement('canvas');
+  off.width=n.w; off.height=n.h;
+  off.getContext('2d').drawImage(img, n.x,n.y,n.w,n.h, 0,0,n.w,n.h);
+  off.toBlob(blob => {
+    savedCrops.push({name, blob});
+    if (!savedNames.includes(name)) savedNames.push(name);
+    refreshSavedList();
+    sel=null; customName.value=''; presetSel.selectedIndex=0;
+    draw(); updateUI();
+    setStatus(`Queued  ${s}_${name}.png  ·  ${savedCrops.length} view(s) ready`);
+  }, 'image/png');
+}
+
+function refreshSavedList() {
+  savedList.innerHTML='';
+  savedCrops.forEach(c => {
+    const li=document.createElement('li');
+    li.textContent=`${stem()}_${c.name}.png`;
+    savedList.appendChild(li);
+  });
+}
+
+// ── Feature tally ─────────────────────────────────────────────────────────────
+document.getElementById('addBtn').addEventListener('click', addFeature);
+document.getElementById('clearTallyBtn').addEventListener('click', () => { featureCounts={}; refreshFeatList(); updateUI(); });
+
+function addFeature() {
+  const f=featSelEl.value, c=parseInt(countIn.value)||0;
+  if (c<=0) return;
+  featureCounts[f]=(featureCounts[f]||0)+c;
+  countIn.value=1;
+  refreshFeatList(); updateUI();
+  setStatus(`Tallied: ${f} ×${featureCounts[f]}`);
+}
+
+function refreshFeatList() {
+  featList.innerHTML='';
+  for (const [f,c] of Object.entries(featureCounts)) {
+    const li=document.createElement('li'); li.textContent=`${f}  ×${c}`; featList.appendChild(li);
+  }
+}
+
+// ── Download ZIP ──────────────────────────────────────────────────────────────
+dlZipBtn.addEventListener('click',  downloadZip);
+dlZipSide.addEventListener('click', downloadZip);
+
+async function downloadZip() {
+  if (savedCrops.length===0 && Object.keys(featureCounts).length===0) return;
+  const s=stem();
+  setStatus('Building ZIP…');
+  const zip=new ZipWriter();
+
+  // Full drawing PNG (always included so the output folder is self-contained)
+  if (img) {
+    const fullBlob = await new Promise(resolve => {
+      const off = document.createElement('canvas');
+      off.width = img.naturalWidth; off.height = img.naturalHeight;
+      off.getContext('2d').drawImage(img, 0, 0);
+      off.toBlob(resolve, 'image/png');
+    });
+    await zip.addBlob(`${s}/${s}.png`, fullBlob);
+  }
+
+  for (const crop of savedCrops) {
+    await zip.addBlob(`${s}/${s}_${crop.name}.png`, crop.blob);
+  }
+
+  if (Object.keys(featureCounts).length) {
+    let txt=`drawing: ${s}\n`;
+    for (const [f,c] of Object.entries(featureCounts)) txt+=`${f}: ${c}\n`;
+    zip.add(`${s}/${s}_features.txt`, txt);
+  }
+
+  const data=zip.generate();
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'application/zip'}));
+  a.download=`${s}.zip`;
+  a.click(); URL.revokeObjectURL(a.href);
+  setStatus(`Downloaded  ${s}.zip  ·  full PNG + ${savedCrops.length} view(s) + features`);
+}
+
+// ── Clear / Reset ─────────────────────────────────────────────────────────────
+clearBtn.addEventListener('click', clearSel);
+document.getElementById('resetBtn').addEventListener('click', resetApp);
+
+function clearSel() {
+  sel=null; dragStart=null; resizeH=null;
+  customName.value=''; presetSel.selectedIndex=0;
+  draw(); updateUI();
+}
+
+function resetApp() {
+  img=null; imgFile=null; sel=null; dragStart=null; resizeH=null;
+  featureCounts={}; savedCrops=[]; savedNames=[];
+  customName.value=''; presetSel.selectedIndex=0; countIn.value=1;
+  infoChip.textContent='No drawing loaded'; fileLabel.textContent='';
+  savedList.innerHTML=''; featList.innerHTML='';
+  draw(); updateUI();
+  setStatus('Ready — open an engineering drawing to begin');
+}
+
+// ── Resize ────────────────────────────────────────────────────────────────────
+new ResizeObserver(() => { updateTransform(); draw(); }).observe(document.getElementById('canvasWrap'));
+draw();
+</script>
+</body>
+</html>

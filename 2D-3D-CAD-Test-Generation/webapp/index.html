@@ -6,264 +6,457 @@
 <title>MTI 2D→3D Pipeline</title>
 <style>
   :root {
-    --bg: #0a0e16; --bg2: #0f1622; --panel: #111a28; --line: #1d2a3c;
-    --ink: #e6edf6; --muted: #8aa0bd; --accent: #4f86ff; --accent2: #2dd4bf;
-    --ok: #34d399; --warn: #fbbf24; --err: #f87171;
+    --bg:#0a0e16; --bg2:#0f1622; --panel:#111a28; --line:#1d2a3c;
+    --ink:#e6edf6; --muted:#8aa0bd; --accent:#4f86ff; --accent2:#2dd4bf;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171;
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-         background: var(--bg); color: var(--ink); }
-  header { display: flex; align-items: center; gap: 14px; padding: 14px 22px;
-           background: linear-gradient(180deg, #16243a, #0f1622); border-bottom: 1px solid var(--line); }
-  .logo { width: 40px; height: 40px; border-radius: 9px; flex: 0 0 auto;
-          background: linear-gradient(135deg, var(--accent), var(--accent2)); display: grid; place-items: center;
-          font-size: 20px; }
-  header h1 { font-size: 17px; margin: 0; }
-  header .sub { color: var(--muted); font-size: 12px; }
-  header .spacer { flex: 1; }
-  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px;
-          border: 1px solid var(--line); background: #0d1521; font-size: 12px; font-weight: 600; }
-  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .pill.live .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-  .pill.demo .dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         background:var(--bg); color:var(--ink); display:flex; flex-direction:column; height:100vh; }
+  header { display:flex; align-items:center; gap:14px; padding:12px 20px; flex:0 0 auto;
+           background:linear-gradient(180deg,#16243a,#0f1622); border-bottom:1px solid var(--line); }
+  .logo { width:34px; height:34px; border-radius:8px; flex:0 0 auto;
+          background:linear-gradient(135deg,var(--accent),var(--accent2)); display:grid; place-items:center; font-size:18px; }
+  header h1 { font-size:16px; margin:0; }
+  header .sub { color:var(--muted); font-size:12px; }
+  header .spacer { flex:1; }
+  .pill { display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:999px;
+          border:1px solid var(--line); background:#0d1521; font-size:12px; font-weight:600; }
+  .pill .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); }
+  .pill.live .dot { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .pill.demo .dot { background:var(--warn); box-shadow:0 0 8px var(--warn); }
 
-  main { max-width: 980px; margin: 26px auto; padding: 0 20px; }
-  .drop { border: 2px dashed #2b3f5c; border-radius: 16px; padding: 42px 20px; text-align: center;
-          background: var(--bg2); cursor: pointer; transition: .15s; }
-  .drop:hover, .drop.over { border-color: var(--accent); background: #0f1a2b; }
-  .drop .emoji { font-size: 40px; }
-  .drop .big { font-weight: 700; margin-top: 10px; }
-  .drop .small { color: var(--muted); font-size: 12px; }
-  .drop .file { margin-top: 12px; color: var(--accent2); font-weight: 600; }
+  .tabs { display:flex; gap:2px; padding:0 14px; background:#0c131f; border-bottom:1px solid var(--line);
+          flex:0 0 auto; overflow-x:auto; }
+  .tab { padding:11px 15px; font-size:13px; font-weight:600; color:var(--muted); background:none; border:none;
+         border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; margin-bottom:-1px; }
+  .tab:hover { color:#cbd5e1; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px; border-radius:9px;
+                font-size:10px; line-height:16px; text-align:center; background:#1e2b3f; color:var(--muted); }
+  .tab.filled .badge { background:var(--ok); color:#04120b; }
 
-  .actions { display: flex; gap: 12px; align-items: center; margin: 18px 0; flex-wrap: wrap; }
-  button, select { font: inherit; }
-  .btn { border: 1px solid var(--line); background: #15203250; color: var(--ink); padding: 10px 18px;
-         border-radius: 10px; cursor: pointer; font-weight: 600; }
-  .btn:hover:not(:disabled) { border-color: var(--accent); }
-  .btn.primary { background: linear-gradient(135deg, var(--accent), #3b6fe0); border-color: transparent; }
-  .btn:disabled { opacity: .45; cursor: not-allowed; }
-  select { background: #0d1521; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; }
-  .hint { color: var(--muted); font-size: 12px; }
+  main { flex:1 1 auto; min-height:0; position:relative; }
+  .panel { position:absolute; inset:0; display:none; }
+  .panel.active { display:flex; flex-direction:column; }
 
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-top: 18px; overflow: hidden; }
-  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
-              margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-  .panel .body { padding: 14px 16px; }
-  pre.log { margin: 0; padding: 14px 16px; max-height: 340px; overflow: auto; background: #070b12;
-            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
-  pre.log .status { font-weight: 700; }
-  .status.ok { color: var(--ok); } .status.err { color: var(--err); }
+  /* Tab 1 */
+  #panel-preprocess iframe { flex:1 1 auto; width:100%; border:0; background:#080d14; min-height:0; }
+  .tab1-bottom { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg2);
+                 display:flex; flex-direction:column; max-height:46vh; }
+  .parts-head { display:flex; align-items:center; gap:12px; padding:10px 16px 6px; }
+  .parts-head strong { font-size:13px; }
+  .parts-head .hint { color:var(--muted); font-size:12px; }
+  .parts-head .grow { flex:1; }
+  .parts-list { display:flex; gap:10px; overflow-x:auto; padding:6px 16px 10px; min-height:88px; }
+  .parts-list .empty { color:var(--muted); font-size:12px; align-self:center; padding:10px; }
+  .pcard { flex:0 0 auto; width:132px; border:2px solid var(--line); border-radius:10px; background:#0d1521;
+           cursor:pointer; overflow:hidden; transition:.12s; position:relative; }
+  .pcard:hover { border-color:#33507a; }
+  .pcard.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 4px 16px rgba(79,134,255,.25); }
+  .pcard .thumb { width:100%; height:76px; object-fit:cover; background:#080d14; display:block; }
+  .pcard .meta { padding:6px 8px; }
+  .pcard .nm { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pcard .vw { font-size:11px; color:var(--muted); }
+  .pcard .ran { position:absolute; top:6px; right:6px; background:var(--ok); color:#04120b; font-size:10px;
+                font-weight:700; padding:1px 6px; border-radius:8px; }
+  .pcard.sel .tickbadge { position:absolute; top:6px; left:6px; background:var(--accent); color:#fff;
+                font-size:10px; font-weight:700; padding:1px 6px; border-radius:8px; }
 
-  .files { list-style: none; margin: 0; padding: 0; }
-  .files li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #16212f; }
-  .files li:last-child { border-bottom: 0; }
-  .tag { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 999px;
-         border: 1px solid var(--line); color: var(--muted); }
-  .tag.macro { color: var(--accent2); border-color: #1c4a44; }
-  .tag.json { color: var(--accent); border-color: #1f3a66; }
-  .tag.report { color: var(--warn); border-color: #4a3f1c; }
-  .files .name { flex: 1; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
-  .files .size { color: var(--muted); font-size: 11px; }
-  .files a { color: var(--accent); text-decoration: none; }
-  .files a:hover { text-decoration: underline; }
-  pre.report { margin: 0; padding: 12px 14px; background: #070b12; border-radius: 10px; max-height: 320px; overflow: auto;
-               font: 12px/1.55 ui-monospace, Menlo, monospace; white-space: pre-wrap; }
-  .hidden { display: none; }
-  .err-box { color: var(--err); background: #2a0f12; border: 1px solid #5a1f25; padding: 10px 14px; border-radius: 10px; }
+  .run-row { display:flex; align-items:center; gap:12px; padding:8px 16px; border-top:1px solid var(--line); }
+  .run-row .grow { flex:1; }
+  .btn { font:inherit; font-weight:700; border:0; border-radius:9px; padding:10px 18px; cursor:pointer;
+         background:linear-gradient(135deg,var(--accent),#3b6fe0); color:#fff; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn.secondary { background:#1a2740; color:var(--ink); border:1px solid var(--line); font-weight:600; }
+  .btn.running { background:#243452; color:var(--accent2); }
+  .status { color:var(--muted); font-size:13px; }
+  .status.err { color:var(--err); } .status.ok { color:var(--ok); } .status.run { color:var(--accent2); }
+  .spinner { width:14px; height:14px; border:2px solid #2a3d5c; border-top-color:var(--accent2);
+             border-radius:50%; display:inline-block; vertical-align:-2px; margin-right:7px; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #inline-console { margin:0; max-height:120px; overflow:auto; padding:10px 16px; border-top:1px solid var(--line);
+                    font:11px/1.5 ui-monospace,Menlo,monospace; color:#a9c2e6; background:#080d14; white-space:pre-wrap; }
+
+  /* Tab 2 split */
+  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:0; }
+  .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; border-right:1px solid var(--line); }
+  .split .side:last-child { border-right:0; }
+  .side .cap { flex:0 0 auto; padding:9px 14px; font-size:12px; font-weight:700; letter-spacing:.04em;
+               text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); background:#0c131f; }
+  .side .body { flex:1 1 auto; min-height:0; position:relative; display:grid; place-items:center; background:#080d14; }
+  #src-img { max-width:100%; max-height:100%; object-fit:contain; display:none; }
+  #stl-canvas-wrap { position:absolute; inset:0; }
+  .emptynote { color:var(--muted); font-size:13px; text-align:center; padding:20px; max-width:360px; }
+
+  /* Output tabs */
+  .out { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+  .out .toolbar { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:8px 16px;
+                  border-bottom:1px solid var(--line); background:#0c131f; font-size:12px; color:var(--muted); }
+  .out .toolbar .grow { flex:1; }
+  .out pre { flex:1 1 auto; margin:0; overflow:auto; padding:16px; font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+             color:#d7e2f2; white-space:pre; }
+  .out .empty { flex:1 1 auto; display:grid; place-items:center; color:var(--muted); padding:20px; text-align:center; }
+  .macro-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+  .macro-tabs button { font:inherit; font-size:11px; padding:3px 9px; border-radius:7px; cursor:pointer;
+                       background:#111a28; color:var(--muted); border:1px solid var(--line); }
+  .macro-tabs button.active { color:var(--accent); border-color:var(--accent); }
 </style>
 </head>
 <body>
 <header>
-  <div class="logo">⚙️</div>
+  <div class="logo">△</div>
   <div>
-    <h1>MTI 2D→3D Pipeline</h1>
-    <div class="sub">Claude Vision extraction · Ambiguity resolution · SolidWorks VBA macros</div>
+    <h1>MTI 2D → 3D SolidWorks Pipeline</h1>
+    <div class="sub">Preprocess drawings, pick a part, run the pipeline on it, inspect every output.</div>
   </div>
   <div class="spacer"></div>
-  <div id="pill" class="pill"><span class="dot"></span><span id="pillText">checking…</span></div>
+  <span class="pill" id="key-pill"><span class="dot"></span><span id="key-txt">checking…</span></span>
 </header>
 
+<nav class="tabs" id="tabbar">
+  <button class="tab active" data-tab="preprocess">1 · Image Preprocessing</button>
+  <button class="tab" data-tab="viewer">2 · Drawing vs 3D Model</button>
+  <button class="tab" data-tab="extraction">Extraction JSON <span class="badge">·</span></button>
+  <button class="tab" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
+  <button class="tab" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
+  <button class="tab" data-tab="verification">Verification <span class="badge">·</span></button>
+  <button class="tab" data-tab="modelcheck">Model Check <span class="badge">·</span></button>
+  <button class="tab" data-tab="macros">VBA Macros <span class="badge">·</span></button>
+  <button class="tab" data-tab="console">Console</button>
+</nav>
+
 <main>
-  <div id="drop" class="drop">
-    <div class="emoji">🗂️</div>
-    <div class="big">Drop an engineering drawing here</div>
-    <div class="small">or click to browse · JPG, PNG, WEBP, TIFF, BMP, PDF</div>
-    <div id="fileName" class="file hidden"></div>
-    <input id="fileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp,.pdf" class="hidden" />
-  </div>
-
-  <div class="actions">
-    <button id="runBtn" class="btn primary" disabled>Run extraction</button>
-    <span class="hint">— or —</span>
-    <button id="demoBtn" class="btn">Try demo (no API key)</button>
-    <select id="sampleSel" title="Demo sample"></select>
-    <span id="actionHint" class="hint"></span>
-  </div>
-
-  <div id="logPanel" class="panel hidden">
-    <h2>Pipeline log</h2>
-    <pre id="log" class="log"></pre>
-  </div>
-
-  <div id="resultPanel" class="panel hidden">
-    <h2>Results</h2>
-    <div class="body">
-      <div id="reportWrap" class="hidden">
-        <div class="hint" style="margin-bottom:6px;" id="reportName"></div>
-        <pre id="report" class="report"></pre>
+  <!-- Tab 1 -->
+  <section class="panel active" id="panel-preprocess">
+    <iframe id="photoapp" src="/photoapp/"></iframe>
+    <div class="tab1-bottom">
+      <div class="parts-head">
+        <strong>Parts</strong>
+        <button class="btn secondary" id="add-part-btn">➕ Add current part</button>
+        <span class="hint" id="add-hint">Load a drawing above, queue view crops, then add it as a part.</span>
+        <div class="grow"></div>
+        <select id="demo-sample" class="btn secondary" style="padding:8px 10px"></select>
+        <button class="btn secondary" id="demo-btn" title="Run from a saved extraction — no API key needed">▶ Run demo</button>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px;">
-        <strong>Generated files</strong>
-        <button id="zipBtn" class="btn">⬇ Download all (zip)</button>
+      <div class="parts-list" id="parts-list"><div class="empty">No parts yet — add one from the drawing above.</div></div>
+      <div class="run-row">
+        <div class="status" id="run-status">Select a part, then run the pipeline on it.</div>
+        <div class="grow"></div>
+        <button class="btn" id="run-btn" disabled>▶ Run Pipeline</button>
       </div>
-      <ul id="files" class="files"></ul>
-      <div id="noFiles" class="hint hidden">No files were produced.</div>
+      <pre id="inline-console" style="display:none"></pre>
     </div>
-  </div>
+  </section>
+
+  <!-- Tab 2 -->
+  <section class="panel" id="panel-viewer">
+    <div class="split">
+      <div class="side">
+        <div class="cap">Original Drawing — <span id="viewer-part">no part selected</span></div>
+        <div class="body">
+          <img id="src-img" alt="source drawing" />
+          <div class="emptynote" id="src-empty">Select a part in Tab 1 — its source drawing appears here.</div>
+        </div>
+      </div>
+      <div class="side">
+        <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan</div>
+        <div class="body">
+          <div id="stl-canvas-wrap"></div>
+          <div class="emptynote" id="stl-empty">The STL appears after a SolidWorks build. On macOS (no SolidWorks) run the generated <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Output tabs -->
+  <section class="panel" id="panel-extraction"><div class="out"><div class="toolbar"><span class="nm">—</span><span class="grow"></span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+  <section class="panel" id="panel-resolved"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+  <section class="panel" id="panel-buildplan"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+  <section class="panel" id="panel-verification"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+  <section class="panel" id="panel-modelcheck"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">Model check requires Windows + SolidWorks; not produced on this machine.</div><pre style="display:none"></pre></div></section>
+  <section class="panel" id="panel-macros"><div class="out"><div class="toolbar"><div class="macro-tabs" id="macro-tabs"></div><span class="grow"></span><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+  <section class="panel" id="panel-console"><div class="out"><div class="toolbar"><span class="nm">Live pipeline output</span></div><pre id="console-pre"></pre></div></section>
 </main>
 
+<script src="/bridge.js"></script>
+<script src="/vendor/three.min.js"></script>
+<script src="/vendor/STLLoader.js"></script>
+<script src="/vendor/OrbitControls.js"></script>
 <script>
-const $ = (id) => document.getElementById(id);
-let selectedFile = null;
-let liveAvailable = false;
-let currentRun = null;
-let evt = null;
-
-async function loadStatus() {
-  try {
-    const r = await fetch('/api/status');
-    const d = await r.json();
-    liveAvailable = !!d.live;
-    const pill = $('pill'), txt = $('pillText');
-    if (liveAvailable) { pill.className = 'pill live'; txt.textContent = 'Live extraction'; }
-    else { pill.className = 'pill demo'; txt.textContent = 'Demo only — no API key'; }
-    const sel = $('sampleSel');
-    sel.innerHTML = '';
-    (d.samples || []).forEach(s => {
-      const o = document.createElement('option'); o.value = s; o.textContent = 'sample ' + s; sel.appendChild(o);
-    });
-    if (!d.samples || !d.samples.length) { $('demoBtn').disabled = true; sel.disabled = true; }
-    refreshRunBtn();
-  } catch (e) { $('pillText').textContent = 'server unreachable'; }
-}
-
-function refreshRunBtn() {
-  const btn = $('runBtn');
-  if (!liveAvailable) {
-    btn.disabled = true;
-    $('actionHint').textContent = 'Set ANTHROPIC_API_KEY to enable a live run.';
-  } else {
-    btn.disabled = !selectedFile;
-    $('actionHint').textContent = selectedFile ? '' : 'Choose a drawing to run.';
-  }
-}
-
-// ---- file pick / drag-drop ----
-const drop = $('drop'), input = $('fileInput');
-drop.addEventListener('click', () => input.click());
-input.addEventListener('change', () => setFile(input.files[0]));
-['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
-['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', ev => { if (ev.dataTransfer.files[0]) setFile(ev.dataTransfer.files[0]); });
-function setFile(f) {
-  selectedFile = f || null;
-  const el = $('fileName');
-  if (f) { el.textContent = '📄 ' + f.name; el.classList.remove('hidden'); }
-  else el.classList.add('hidden');
-  refreshRunBtn();
-}
-
-// ---- run ----
-$('runBtn').addEventListener('click', async () => {
-  if (!selectedFile) return;
-  const fd = new FormData(); fd.append('file', selectedFile);
-  await launch('/api/run', { method: 'POST', body: fd });
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+document.getElementById('tabbar').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab);
 });
-$('demoBtn').addEventListener('click', async () => {
-  await launch('/api/demo', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sample: $('sampleSel').value || null }),
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'viewer') viewer.onShow();
+}
+
+// ── Status pill + session + demo samples ─────────────────────────────────────
+let sessionId = null, liveKey = false;
+fetch('/api/status').then(r => r.json()).then(s => {
+  liveKey = !!s.live;
+  const pill = document.getElementById('key-pill'), txt = document.getElementById('key-txt');
+  if (s.live) { pill.classList.add('live'); txt.textContent = 'API key set — live extraction'; }
+  else { pill.classList.add('demo'); txt.textContent = 'No API key — use Run demo'; }
+  const sel = document.getElementById('demo-sample');
+  (s.samples || []).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = 'sample ' + n; sel.appendChild(o); });
+  if (!(s.samples || []).length) { document.getElementById('demo-btn').disabled = true; sel.style.display = 'none'; }
+}).catch(() => {});
+fetch('/api/session', { method:'POST' }).then(r => r.json()).then(d => { sessionId = d.session; }).catch(() => {});
+
+// ── Output tab plumbing ──────────────────────────────────────────────────────
+const CATS = ['extraction','resolved','buildplan','verification','modelcheck','macros'];
+const KEYMAP = { extraction:'extraction', resolved:'resolved', buildplan:'build_plan', verification:'verification', modelcheck:'model_check' };
+function setTabFilled(name, filled) {
+  const t = document.querySelector(`.tab[data-tab="${name}"]`); if (!t) return;
+  t.classList.toggle('filled', filled);
+  const b = t.querySelector('.badge'); if (b) b.textContent = filled ? '✓' : '·';
+}
+function prettyJSON(t) { try { return JSON.stringify(JSON.parse(t), null, 2); } catch { return t; } }
+function paintText(panelId, name, text) {
+  const p = document.getElementById(panelId), pre = p.querySelector('pre'), empty = p.querySelector('.empty'), nm = p.querySelector('.nm');
+  if (nm && name) nm.textContent = name;
+  if (text != null) { pre.textContent = text; pre.style.display = ''; if (empty) empty.style.display = 'none'; }
+}
+function resetOutputs(msg) {
+  CATS.forEach(c => setTabFilled(c, false));
+  document.querySelectorAll('.panel .out').forEach(o => {
+    const pre = o.querySelector('pre'); if (pre && pre.id !== 'console-pre') { pre.style.display = 'none'; pre.textContent = ''; }
+    const empty = o.querySelector('.empty'); if (empty) empty.style.display = '';
   });
-});
-
-async function launch(url, opts) {
-  setBusy(true);
-  $('logPanel').classList.remove('hidden');
-  $('resultPanel').classList.add('hidden');
-  $('log').textContent = '';
-  try {
-    const r = await fetch(url, opts);
-    if (!r.ok) {
-      const msg = await r.json().catch(() => ({ detail: r.statusText }));
-      $('log').innerHTML = '<span class="status err">' + (msg.detail || 'request failed') + '</span>';
-      setBusy(false); return;
+  document.querySelectorAll('.panel .empty').forEach(e => { if (msg) e.textContent = msg; });
+  document.querySelector('#panel-modelcheck .empty').textContent =
+    'Model check requires Windows + SolidWorks; not produced on this machine.';
+  document.getElementById('macro-tabs').innerHTML = ''; lastMacroCount = 0;
+  document.querySelector('.tab[data-tab="viewer"]').classList.remove('filled');
+}
+let lastMacroCount = 0;
+function paintMacros(macros) {
+  if (!macros || !macros.length || macros.length === lastMacroCount) return;
+  lastMacroCount = macros.length;
+  const panel = document.getElementById('panel-macros'), pre = panel.querySelector('pre'),
+        empty = panel.querySelector('.empty'), tabsEl = document.getElementById('macro-tabs');
+  tabsEl.innerHTML = '';
+  macros.forEach((m, i) => {
+    const b = document.createElement('button'); b.textContent = m.name.split('/').pop();
+    b.onclick = () => { tabsEl.querySelectorAll('button').forEach(x => x.classList.remove('active')); b.classList.add('active'); pre.textContent = m.text; };
+    if (i === 0) b.classList.add('active'); tabsEl.appendChild(b);
+  });
+  pre.textContent = macros[0].text; pre.style.display = ''; if (empty) empty.style.display = 'none';
+}
+function fillOutputs(payload) {
+  const c = payload.categories || {};
+  for (const tab of ['extraction','resolved','buildplan','verification','modelcheck']) {
+    const cat = c[KEYMAP[tab]];
+    if (cat && cat.present) {
+      const isJson = tab === 'extraction' || tab === 'resolved' || tab === 'buildplan';
+      paintText('panel-' + tab, cat.name, isJson ? prettyJSON(cat.text || '') : cat.text);
+      setTabFilled(tab, true);
     }
-    const { id } = await r.json();
-    currentRun = id;
-    streamLog(id);
-  } catch (e) {
-    $('log').innerHTML = '<span class="status err">' + e + '</span>';
-    setBusy(false);
+  }
+  if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
+  if (c.stl && c.stl.present && selectedPart) {
+    document.querySelector('.tab[data-tab="viewer"]').classList.add('filled');
+    viewer.load(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/model.stl?t=${payload.stl_mtime || ''}`);
   }
 }
 
-function streamLog(id) {
-  if (evt) evt.close();
-  const log = $('log');
-  evt = new EventSource(`/api/runs/${id}/log`);
-  evt.onmessage = (m) => {
-    log.appendChild(document.createTextNode(m.data + '\n'));
-    log.scrollTop = log.scrollHeight;
-  };
-  evt.addEventListener('done', (m) => {
-    const code = parseInt(m.data, 10);
-    const span = document.createElement('span');
-    span.className = 'status ' + (code === 0 ? 'ok' : 'err');
-    span.textContent = (code === 0 ? '✓ pipeline finished (exit 0)' : '✗ pipeline exited with code ' + code) + '\n';
-    log.appendChild(span); log.scrollTop = log.scrollHeight;
-    evt.close(); setBusy(false);
-    loadResults(id);
+// ── Parts model ──────────────────────────────────────────────────────────────
+let partsData = [], selectedPart = null, isRunning = false;
+
+function renderParts() {
+  const list = document.getElementById('parts-list');
+  if (!partsData.length) { list.innerHTML = '<div class="empty">No parts yet — add one from the drawing above.</div>'; return; }
+  list.innerHTML = '';
+  partsData.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'pcard' + (p.name === selectedPart ? ' sel' : '');
+    card.innerHTML =
+      `<img class="thumb" src="/api/parts/${sessionId}/${encodeURIComponent(p.name)}/thumb.jpg" onerror="this.style.visibility='hidden'"/>` +
+      (p.has_output ? '<span class="ran">ran</span>' : '') +
+      (p.name === selectedPart ? '<span class="tickbadge">✓ selected</span>' : '') +
+      `<div class="meta"><div class="nm" title="${p.name}">${p.name}</div><div class="vw">${p.n_views} view${p.n_views===1?'':'s'}</div></div>`;
+    card.onclick = () => selectPart(p.name);
+    list.appendChild(card);
   });
-  evt.onerror = () => { evt.close(); setBusy(false); loadResults(id); };
+}
+function updateRunEnabled() {
+  const p = partsData.find(x => x.name === selectedPart);
+  document.getElementById('run-btn').disabled = isRunning || !p || p.n_views < 1;
+}
+function selectPart(name) {
+  selectedPart = name;
+  renderParts(); updateRunEnabled();
+  document.getElementById('viewer-part').textContent = name;
+  // Tab 2 left = this part's source thumbnail.
+  const img = document.getElementById('src-img');
+  img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none'; };
+  img.onerror = () => { img.style.display = 'none'; document.getElementById('src-empty').style.display = ''; };
+  img.src = `/api/parts/${sessionId}/${encodeURIComponent(name)}/thumb.jpg?t=` + Date.now();
+  loadPartOutputs(name);
+}
+async function loadPartOutputs(name) {
+  resetOutputs('Waiting for pipeline output…');
+  document.getElementById('stl-empty').style.display = '';
+  let d;
+  try { d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(name)}/outputs`)).json(); } catch { return; }
+  if (name !== selectedPart) return; // selection changed while fetching
+  if (d.has_any) fillOutputs(d);
+  else setStatus(`Part "${name}" selected — not run yet.`, '');
 }
 
-async function loadResults(id) {
-  try {
-    const r = await fetch(`/api/runs/${id}/files`);
-    const d = await r.json();
-    const panel = $('resultPanel'); panel.classList.remove('hidden');
-    // report
-    const rw = $('reportWrap');
-    if (d.report) { $('reportName').textContent = d.report.name; $('report').textContent = d.report.text; rw.classList.remove('hidden'); }
-    else rw.classList.add('hidden');
-    // files
-    const ul = $('files'); ul.innerHTML = '';
-    (d.files || []).forEach(f => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="tag ${f.category}">${f.category}</span>`
-        + `<span class="name">${f.name}</span>`
-        + `<span class="size">${fmtSize(f.size)}</span>`
-        + `<a href="/api/runs/${id}/download/${encodeURIComponent(f.name)}">download</a>`;
-      ul.appendChild(li);
-    });
-    $('noFiles').classList.toggle('hidden', (d.files || []).length > 0);
-    $('zipBtn').onclick = () => { window.location = `/api/runs/${id}/zip`; };
-    $('zipBtn').disabled = !(d.files || []).length;
-  } catch (e) { /* ignore */ }
+// ── Add current part (from the unmodified photo app) ─────────────────────────
+document.getElementById('add-part-btn').addEventListener('click', async () => {
+  if (!sessionId) { setStatus('Session not ready yet, try again.', 'err'); return; }
+  const iframe = document.getElementById('photoapp');
+  setStatus('Reading queued views from the photo app…', 'run');
+  let payload;
+  try { payload = await window.MTIBridge.collect(iframe); }
+  catch (e) { setStatus(e.message, 'err'); return; }
+  const fd = new FormData();
+  fd.append('session', sessionId);
+  fd.append('part', payload.stem || 'drawing');
+  if (payload.source) fd.append('source', window.MTIBridge.dataURLtoBlob(payload.source), 'source.jpg');
+  payload.crops.forEach(c => fd.append('crops', window.MTIBridge.dataURLtoBlob(c.dataURL), c.name + '.jpg'));
+  let res;
+  try { res = await (await fetch('/api/parts', { method:'POST', body:fd })).json(); }
+  catch (e) { setStatus('Add part failed: ' + e.message, 'err'); return; }
+  if (res.error || !res.parts) { setStatus(res.detail || res.error || 'Add part failed', 'err'); return; }
+  partsData = res.parts;
+  selectPart(res.part);
+  setStatus(`Added part "${res.part}" (${payload.crops.length} view(s)). Select a part and Run Pipeline.`, 'ok');
+});
+
+// ── Run the selected part ────────────────────────────────────────────────────
+const runBtn = document.getElementById('run-btn'), runStatus = document.getElementById('run-status');
+const inlineConsole = document.getElementById('inline-console'), consolePre = document.getElementById('console-pre');
+let es = null, pollTimer = null;
+function setStatus(msg, cls) { runStatus.innerHTML = msg; runStatus.className = 'status' + (cls ? ' ' + cls : ''); }
+function setRunning(on) {
+  isRunning = on;
+  document.getElementById('add-part-btn').disabled = on;
+  document.getElementById('demo-btn').disabled = on || !document.querySelector('#demo-sample option');
+  if (on) { runBtn.className = 'btn running'; runBtn.textContent = '⏳ Running…'; runBtn.disabled = true; }
+  else { runBtn.className = 'btn'; runBtn.textContent = '▶ Run Pipeline'; }
+  updateRunEnabled();
 }
 
-function setBusy(b) {
-  $('runBtn').disabled = b || !liveAvailable || !selectedFile;
-  $('demoBtn').disabled = b || $('sampleSel').options.length === 0;
-}
-function fmtSize(n) {
-  if (n < 1024) return n + ' B';
-  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-  return (n / 1024 / 1024).toFixed(1) + ' MB';
+runBtn.addEventListener('click', async () => {
+  if (!selectedPart || isRunning) return;
+  setRunning(true);
+  setStatus('<span class="spinner"></span>Launching pipeline for "' + selectedPart + '"…', 'run');
+  inlineConsole.style.display = ''; inlineConsole.textContent = ''; consolePre.textContent = '';
+  resetOutputs('Waiting for pipeline output…');
+  const fd = new FormData(); fd.append('session', sessionId); fd.append('part', selectedPart);
+  let res;
+  try { res = await (await fetch('/api/run-part', { method:'POST', body:fd })).json(); }
+  catch (e) { setStatus('Run failed: ' + e.message, 'err'); setRunning(false); return; }
+  if (res.error || !res.id) { setStatus(res.detail || res.error || 'Run failed to start', 'err'); setRunning(false); return; }
+  monitorRun(res.id, selectedPart);
+  showTab('console');
+});
+
+function monitorRun(id, partName) {
+  if (es) es.close();
+  es = new EventSource(`/api/runs/${id}/log`);
+  es.onmessage = ev => { const line = ev.data + '\n'; consolePre.textContent += line; inlineConsole.textContent += line;
+    consolePre.scrollTop = consolePre.scrollHeight; inlineConsole.scrollTop = inlineConsole.scrollHeight; };
+  es.addEventListener('done', ev => { const line = `\n— pipeline exited (code ${ev.data}) —\n`; consolePre.textContent += line; inlineConsole.textContent += line; es.close(); });
+
+  if (pollTimer) clearInterval(pollTimer);
+  const poll = async () => {
+    let d; try { d = await (await fetch(`/api/runs/${id}/outputs`)).json(); } catch { return; }
+    if (selectedPart === partName) fillOutputs(d);
+    if (d.done) {
+      clearInterval(pollTimer); pollTimer = null;
+      setRunning(false);
+      // refresh the parts list so the "ran" badge appears
+      try { const pl = await (await fetch(`/api/parts?session=${sessionId}`)).json(); partsData = pl.parts; renderParts(); } catch {}
+      if (d.exit === 0) setStatus(`✅ Pipeline finished for "${partName}". Outputs are in the tabs above.`, 'ok');
+      else setStatus(`❌ Pipeline failed for "${partName}" (exit ${d.exit}). See Console. Partial outputs shown.`, 'err');
+    }
+  };
+  poll(); pollTimer = setInterval(poll, 1200);
 }
 
-loadStatus();
+// ── Demo run (no API key): fills output tabs from a saved extraction ──────────
+document.getElementById('demo-btn').addEventListener('click', async () => {
+  if (isRunning) return;
+  setRunning(true);
+  setStatus('<span class="spinner"></span>Starting demo run (saved extraction, no API call)…', 'run');
+  inlineConsole.style.display = ''; inlineConsole.textContent = ''; consolePre.textContent = '';
+  resetOutputs('Waiting for pipeline output…');
+  const sample = document.getElementById('demo-sample').value || undefined;
+  let res;
+  try { res = await (await fetch('/api/demo', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sample }) })).json(); }
+  catch (e) { setStatus('Demo failed: ' + e.message, 'err'); setRunning(false); return; }
+  if (res.error || !res.id) { setStatus(res.detail || res.error || 'Demo failed to start', 'err'); setRunning(false); return; }
+  // Demo is not tied to a part; fill tabs from the run id directly.
+  if (es) es.close();
+  es = new EventSource(`/api/runs/${res.id}/log`);
+  es.onmessage = ev => { const l = ev.data + '\n'; consolePre.textContent += l; inlineConsole.textContent += l; consolePre.scrollTop = consolePre.scrollHeight; inlineConsole.scrollTop = inlineConsole.scrollHeight; };
+  es.addEventListener('done', () => es.close());
+  if (pollTimer) clearInterval(pollTimer);
+  const poll = async () => {
+    let d; try { d = await (await fetch(`/api/runs/${res.id}/outputs`)).json(); } catch { return; }
+    // demo: fill tabs regardless of selectedPart (STL guard checks selectedPart, skip)
+    const c = d.categories || {};
+    for (const tab of ['extraction','resolved','buildplan','verification','modelcheck']) {
+      const cat = c[KEYMAP[tab]];
+      if (cat && cat.present) { const j = tab!=='verification'&&tab!=='modelcheck'; paintText('panel-'+tab, cat.name, j?prettyJSON(cat.text||''):cat.text); setTabFilled(tab, true); }
+    }
+    if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
+    if (d.done) { clearInterval(pollTimer); pollTimer = null; setRunning(false);
+      setStatus(d.exit === 0 ? '✅ Demo finished. See the output tabs.' : `❌ Demo exited ${d.exit}.`, d.exit === 0 ? 'ok' : 'err'); }
+  };
+  poll(); pollTimer = setInterval(poll, 1200);
+  showTab('console');
+});
+
+// ── Three.js STL viewer ──────────────────────────────────────────────────────
+const viewer = (() => {
+  let renderer, scene, camera, controls, mesh, wrap, inited = false, needResize = false, loadedURL = null;
+  function init() {
+    wrap = document.getElementById('stl-canvas-wrap');
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x080d14);
+    camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000); camera.position.set(120, 90, 160);
+    renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(window.devicePixelRatio || 1);
+    wrap.appendChild(renderer.domElement);
+    controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08;
+    scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x202830, 1.0));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.85); dir.position.set(1, 1, 1); scene.add(dir);
+    inited = true; resize(); animate();
+    new ResizeObserver(() => { needResize = true; }).observe(wrap);
+  }
+  function resize() { if (!inited) return; const w = wrap.clientWidth||1, h = wrap.clientHeight||1; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+  function animate() { requestAnimationFrame(animate); if (needResize){resize();needResize=false;} if (controls) controls.update(); if (renderer) renderer.render(scene,camera); }
+  function frame(geometry) {
+    geometry.computeBoundingBox(); const bb=geometry.boundingBox, c=new THREE.Vector3(); bb.getCenter(c);
+    const size=new THREE.Vector3(); bb.getSize(size); geometry.translate(-c.x,-c.y,-c.z);
+    const maxDim=Math.max(size.x,size.y,size.z)||100;
+    camera.position.set(maxDim*1.4,maxDim*1.1,maxDim*1.8); camera.near=maxDim/100; camera.far=maxDim*100; camera.updateProjectionMatrix();
+    controls.target.set(0,0,0); controls.update();
+    const old=scene.getObjectByName('grid2'); if (old) scene.remove(old);
+    const g=new THREE.GridHelper(maxDim*3,20,0x1d2a3c,0x141d2b); g.name='grid2'; g.position.y=-size.y/2; scene.add(g);
+  }
+  return {
+    onShow() { if (!inited) init(); else needResize = true; },
+    load(url) {
+      if (!inited) init();
+      if (url === loadedURL) return; loadedURL = url;
+      new THREE.STLLoader().load(url, geo => {
+        if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
+        const mat = new THREE.MeshStandardMaterial({ color: 0x8fb3ff, metalness: 0.15, roughness: 0.55 });
+        mesh = new THREE.Mesh(geo, mat); scene.add(mesh); frame(geo);
+        document.getElementById('stl-empty').style.display = 'none';
+      }, undefined, err => console.warn('STL load failed', err));
+    }
+  };
+})();
 </script>
 </body>
 </html>

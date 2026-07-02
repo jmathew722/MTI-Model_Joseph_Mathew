@@ -1086,6 +1086,31 @@ def save_model(sw_doc, name: str, output_dir: Optional[Path] = None) -> str:
     return str(path)
 
 
+def export_stl(sw_doc, name: str, output_dir: Optional[Path] = None) -> str:
+    """Export the active part as an ``.stl`` next to its ``.sldprt`` and return the
+    absolute path. Uses the SAME name convention as :func:`save_model`, so the STL
+    filename matches the part name and the web UI can locate it automatically.
+
+    SolidWorks picks the STL translator from the ``.stl`` extension (default STL
+    export options). Raises :class:`SolidWorksError` on failure.
+    """
+    output_dir = Path(output_dir) if output_dir else OUTPUT_DIR_DEFAULT
+    output_dir.mkdir(parents=True, exist_ok=True)
+    safe = "".join(c for c in (name or "output_part") if c.isalnum() or c in ("_", "-")).strip("_") or "output_part"
+    path = (output_dir / f"{safe}.stl").resolve()
+    try:
+        result = sw_doc.SaveAs3(str(path), 0, 1)
+        if result in (False, None) and not path.exists():
+            raise SolidWorksError(f"STL SaveAs3 failed for {path}.")
+    except SolidWorksError:
+        raise
+    except Exception as e:
+        raise SolidWorksError(f"Exporting STL {path} failed: {e}") from e
+
+    log.info("Exported STL: %s", path)
+    return str(path)
+
+
 def build_model(
     sw_app,
     drawing_data: Union[DrawingData, dict[str, Any]],
@@ -1206,4 +1231,10 @@ def build_model(
         raise SolidWorksError("Build produced no solid body (all body-creating features were skipped).")
 
     output_path = save_model(sw_doc, model.part_name or "output_part", output_dir)
+    # Also export an STL beside the .sldprt (same base name) so the 3D viewer can
+    # load it. Non-fatal: a failed STL export never invalidates a good .sldprt.
+    try:
+        export_stl(sw_doc, model.part_name or "output_part", output_dir)
+    except SolidWorksError as e:
+        log.warning("STL export failed (continuing): %s", e)
     return output_path, sw_doc

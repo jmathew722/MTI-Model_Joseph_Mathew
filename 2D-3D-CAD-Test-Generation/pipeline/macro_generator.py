@@ -1376,6 +1376,41 @@ def _final_verify_macro(model: DrawingData, unit_factor: float, n_features: int)
     return header + _final_verify_body(model, unit_factor, n_features) + _vba_footer()
 
 
+def _export_stl_body(model: DrawingData) -> str:
+    """Body of the STL-export step (header-free; reused by RUN_ALL).
+
+    Exports ``<part>.stl`` next to the saved ``.sldprt`` by swapping the active
+    document's extension — so the STL filename matches the part name and the web
+    UI's 3D viewer can locate it automatically. Uses SolidWorks' default STL
+    export options (SaveAs3 is extension-driven)."""
+    return """
+    ' ---- EXPORT STL (beside the .sldprt, same base name) ----
+    Dim stlPath As String
+    stlPath = swModel.GetPathName
+    If stlPath = "" Then
+        MsgBox "Part has not been saved yet - run 00_setup / ZZ_final_verify first.", vbCritical
+        LogResult "FAIL", "ZZZ_export_stl", "No saved path - cannot derive STL name"
+        End
+    End If
+    Dim dotPos As Long
+    dotPos = InStrRev(stlPath, ".")
+    If dotPos > 0 Then stlPath = Left$(stlPath, dotPos - 1)
+    stlPath = stlPath & ".stl"
+    boolstatus = swModel.SaveAs3(stlPath, 0, 0)
+    LogResult IIf(boolstatus, "PASS", "WARN"), "ZZZ_export_stl", "STL -> " & stlPath
+"""
+
+
+def _export_stl_macro(model: DrawingData, unit_factor: float) -> str:
+    """Standalone ZZZ_export_stl.vba (header + STL-export body). Sorts AFTER
+    ZZ_final_verify so it runs last in the numbered sequence."""
+    header = _vba_header(
+        "ZZZ_export_stl - export the part as STL beside the .sldprt",
+        model.display_name, unit_factor,
+    )
+    return header + _export_stl_body(model) + _vba_footer()
+
+
 def _vba_identifier(text: str) -> str:
     """A unique-ish, VBA-safe Sub identifier fragment."""
     frag = re.sub(r"[^A-Za-z0-9]+", "_", text).strip("_")
@@ -1429,6 +1464,8 @@ def _build_run_all(
         lines.append("")
     lines.append("Sub StepZZ_FinalVerify()" + _final_verify_body(model, unit_factor, n_solid) + "End Sub")
     lines.append("")
+    lines.append("Sub StepZZZ_ExportStl()" + _export_stl_body(model) + "End Sub")
+    lines.append("")
     # The orchestrator: set up the app once, then run each step in order.
     lines.append("Sub main()")
     lines.append("    Set swApp = Application.SldWorks")
@@ -1437,6 +1474,7 @@ def _build_run_all(
     for sub_name, _ in feature_subs:
         lines.append(f"    {sub_name}")
     lines.append("    StepZZ_FinalVerify")
+    lines.append("    StepZZZ_ExportStl")
     lines.append('    LogResult "PASS", "RUN_ALL", "All steps completed"')
     lines.append('    MsgBox "RUN_ALL finished. See ..\\logs\\build_log.txt for the per-step log.", vbInformation')
     lines.append("End Sub")
@@ -1470,8 +1508,11 @@ the numbered macros to isolate the step.
 6. `NN_fillets_chamfers.vba` (if present) is interactive: select the edge(s) in
    the graphics area first, then run the macro; it applies the exact radius /
    chamfer values from the drawing.
-7. Finish with `ZZ_final_verify.vba` — rebuild, mass properties, bounding-box
+7. Run `ZZ_final_verify.vba` — rebuild, mass properties, bounding-box
    check against the drawing envelope, save.
+8. Finish with `ZZZ_export_stl.vba` — exports `<part>.stl` next to the saved
+   `.sldprt` (same base name) so the web UI's 3D viewer can load it. (RUN_ALL
+   does this automatically as its last step.)
 
 Notes
 - Macros marked `TODO: VERIFY API CALL` describe a step to do manually
@@ -1682,6 +1723,14 @@ def generate_macro_package(
     )
     pkg.steps.append(BuildStep(999, "ZZ_final_verify.vba", "-", "verify",
                                "Rebuild, mass properties, bounding box, save", "generated"))
+
+    # --- Export STL (runs last; sorts after ZZ_final_verify) ---
+    (macros_dir / "ZZZ_export_stl.vba").write_text(
+        _export_stl_macro(model, unit_factor), encoding="utf-8"
+    )
+    pkg.steps.append(BuildStep(1001, "ZZZ_export_stl.vba", "-", "export",
+                               "Export the part as an STL beside the .sldprt (same base name)",
+                               "generated"))
 
     # --- RUN_ALL.vba: one-click, in-order build (no installs on the SW machine) ---
     (macros_dir / "RUN_ALL.vba").write_text(

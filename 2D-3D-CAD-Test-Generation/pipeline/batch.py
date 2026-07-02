@@ -59,7 +59,7 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
     write a ``<name>_model_check.txt``. Non-strict: a fragile feature is skipped
     (and documented) rather than aborting the build. Returns the saved path."""
     from pipeline.model_validator import validate_model
-    from pipeline.solidworks_builder import build_model, save_model
+    from pipeline.solidworks_builder import build_model, export_stl, save_model, SolidWorksError
 
     if not model.part_name:
         model.part_name = name
@@ -75,6 +75,12 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
     )
     build_caveats = [w for w in (getattr(model, "warnings", []) or []) if w not in pre_warnings]
     sldprt = save_model(sw_doc, name, part_dir)
+    # Export an STL with the SAME base name as the .sldprt so the web UI's 3D
+    # viewer can locate it. Non-fatal — a good .sldprt is not lost to an STL error.
+    try:
+        export_stl(sw_doc, name, part_dir)
+    except SolidWorksError as e:
+        log.warning("STL export failed for %s (continuing): %s", name, e)
 
     vreport = validate_model(sw_doc, model)
     lines = [f"MODEL CHECK — {name}", "=" * 40, f"Saved: {sldprt}", ""]
