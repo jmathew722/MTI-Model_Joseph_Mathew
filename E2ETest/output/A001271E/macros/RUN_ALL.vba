@@ -1,6 +1,6 @@
 ' ============================================================
 ' RUN_ALL - build the entire part in one run (ordered)
-' Part: GOLDEN-1-RevA
+' Part: A001271E
 ' Paste this whole file into a new SolidWorks macro (Alt+F11) and press F5
 ' ONCE. It runs every step in build order; a failing step stops the run
 ' and reports which step failed (see ..\logs\build_log.txt).
@@ -135,11 +135,11 @@ Sub Step00_Setup()
         swUserPreferenceOption_e.swDetailingNoOptionSpecified, swUnitSystem_e.swUnitSystem_IPS)
     LogResult "PASS", "00_setup", "New part created; units set (inch)"
 
-    ' ---- SAVE AS GOLDEN-1-RevA.sldprt (next to the macros folder) ----
+    ' ---- SAVE AS A001271E.sldprt (next to the macros folder) ----
     Dim macroPath As String, savePath As String
     Dim saveErrs As Long, saveWarns As Long
     macroPath = swApp.GetCurrentMacroPathName
-    savePath = Left$(macroPath, InStrRev(macroPath, "\")) & "..\GOLDEN-1-RevA.sldprt"
+    savePath = Left$(macroPath, InStrRev(macroPath, "\")) & "..\A001271E.sldprt"
     boolstatus = swModel.Extension.SaveAs(savePath, 0, _
         swSaveAsOptions_e.swSaveAsOptions_Silent, Nothing, saveErrs, saveWarns)
     If Not boolstatus Then
@@ -150,20 +150,22 @@ Sub Step00_Setup()
 End Sub
 
 Sub Step01_F001()
-    ' ---- PLANE SELECTION (Top Plane; name auto-detected) ----
-    If Not SelectRefPlane("Top Plane", 2) Then
-        MsgBox "Could not select Top Plane (no reference plane found).", vbCritical
-        LogResult "FAIL", "01_F001", "Could not select Top Plane (no reference plane found)."
+    ' --- Stage 2.5 assumption flags ---
+    MsgBox "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location ? verify placement in SolidWorks.", vbExclamation, "Verify before continuing (F001)"
+    ' ---- PLANE SELECTION (Front Plane; name auto-detected) ----
+    If Not SelectRefPlane("Front Plane", 1) Then
+        MsgBox "Could not select Front Plane (no reference plane found).", vbCritical
+        LogResult "FAIL", "01_F001", "Could not select Front Plane (no reference plane found)."
         End
     End If
 
     ' ---- OPEN SKETCH ----
     swModel.SketchManager.InsertSketch True
-    ' ---- SKETCH: rectangle 4 x 2, lower-left corner at (0, 0) ----
+    ' ---- SKETCH: rectangle 17.5 x 11.25, lower-left corner at (0, 0) ----
     ' (Corner at the origin keeps sketch coordinates equal to the drawing's
     '  edge-referenced dimensions, so hole positions land where dimensioned.)
     swModel.SketchManager.CreateCornerRectangle 0 * UNIT_FACTOR, 0 * UNIT_FACTOR, 0#, _
-        (0 + 4) * UNIT_FACTOR, (0 + 2) * UNIT_FACTOR, 0#
+        (0 + 17.5) * UNIT_FACTOR, (0 + 11.25) * UNIT_FACTOR, 0#
     ' NOTE: POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.
 
     ' ---- FINALIZE SKETCH ----
@@ -185,7 +187,7 @@ Sub Step01_F001()
     Set swFeat = swModel.FeatureManager.FeatureExtrusion3( _
         True, False, False, _
         swEndConditions_e.swEndCondBlind, swEndConditions_e.swEndCondBlind, _
-        0.5 * UNIT_FACTOR, 0.01, _
+        1 * UNIT_FACTOR, 0.01, _
         False, False, False, False, 0#, 0#, _
         False, False, False, False, _
         True, True, True, _
@@ -196,13 +198,13 @@ Sub Step01_F001()
         LogResult "FAIL", "01_F001", "Feature creation returned Nothing - check the sketch."
         End
     End If
-    swFeat.Name = "F001_Base_plate"
+    swFeat.Name = "F001_Base_rectangular_plate_17_50_x_11_25_x_1"
     If Not VerifySolidBody("01_F001") Then
         MsgBox "No solid body after this feature.", vbCritical
         LogResult "FAIL", "01_F001", "No solid body after this feature."
         End
     End If
-    LogResult "PASS", "01_F001", "Created feature F001_Base_plate"
+    LogResult "PASS", "01_F001", "Created feature F001_Base_rectangular_plate_17_50_x_11_25_x_1"
 End Sub
 
 Sub Step02_F002()
@@ -215,12 +217,12 @@ Sub Step02_F002()
 
     ' ---- OPEN SKETCH ----
     swModel.SketchManager.InsertSketch True
-    ' ---- SKETCH: 4 hole(s) dia 0.25 (thru) ----
-    swModel.SketchManager.CreateCircleByRadius 0.5 * UNIT_FACTOR, 1 * UNIT_FACTOR, 0#, (0.25 / 2#) * UNIT_FACTOR
-    swModel.SketchManager.CreateCircleByRadius 1.5 * UNIT_FACTOR, 1 * UNIT_FACTOR, 0#, (0.25 / 2#) * UNIT_FACTOR
-    swModel.SketchManager.CreateCircleByRadius 2.5 * UNIT_FACTOR, 1 * UNIT_FACTOR, 0#, (0.25 / 2#) * UNIT_FACTOR
-    swModel.SketchManager.CreateCircleByRadius 3.5 * UNIT_FACTOR, 1 * UNIT_FACTOR, 0#, (0.25 / 2#) * UNIT_FACTOR
-    ' NOTE: HOLE POSITIONS ASSUMED (centered on the plate envelope) - verify against the drawing.
+    ' ---- SKETCH: 4 hole(s) dia 0.531 (counterbore) ----
+    swModel.SketchManager.CreateCircleByRadius 0.844 * UNIT_FACTOR, 10.5 * UNIT_FACTOR, 0#, (0.531 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 16.656 * UNIT_FACTOR, 10.5 * UNIT_FACTOR, 0#, (0.531 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 0.844 * UNIT_FACTOR, 0.75 * UNIT_FACTOR, 0#, (0.531 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 16.656 * UNIT_FACTOR, 0.75 * UNIT_FACTOR, 0#, (0.531 / 2#) * UNIT_FACTOR
+    ' NOTE: Hole positions read from drawing.
 
     ' ---- FINALIZE SKETCH ----
     ' The feature call below consumes the ACTIVE sketch - this is exactly what
@@ -277,55 +279,166 @@ Sub Step02_F002()
         LogResult "FAIL", "02_F002", "Feature creation returned Nothing - check the sketch."
         End
     End If
-    swFeat.Name = "F002_Mounting_holes"
+    swFeat.Name = "F002_Corner_counterbored_clearance_holes_for_"
     If Not VerifySolidBody("02_F002") Then
         MsgBox "No solid body after this feature.", vbCritical
         LogResult "FAIL", "02_F002", "No solid body after this feature."
         End
     End If
-    LogResult "PASS", "02_F002", "Created feature F002_Mounting_holes"
-End Sub
+    LogResult "PASS", "02_F002", "Created feature F002_Corner_counterbored_clearance_holes_for_"
 
-Sub Step03_F004_Manual()
-    ' ============ MANUAL STEP - NO GEOMETRY IS CREATED HERE ============
-    ' Feature F004 (shell) cannot be scripted reliably.
-    ' Build it by hand in SolidWorks using the drawing and these values:
-    '   height = 0.5 (drawing units)
-    ' Description: Shell body
-    ' When done, re-run this macro so the build log records the step.
-    MsgBox "MANUAL STEP 03_F004: build feature F004 (shell) by hand." & vbCrLf & _
-        "Shell body" & vbCrLf & "See this macro's comments for the extracted values.", _
-        vbExclamation, "Manual step required - F004"
-    LogResult "WARN", "03_F004", "F004 (shell) requires MANUAL modeling - no geometry created"
-End Sub
-
-Sub Step04_FilletsChamfers()
-    ' This macro applies fillets/chamfers to the edges YOU have selected.
-    ' For each block below: select the edge(s) in the graphics area first,
-    ' then press F5 (run). Blocks for values you've already applied can be
-    ' skipped by commenting them out.
-
-    Dim swSelMgr As SldWorks.SelectionMgr
-    Set swSelMgr = swModel.SelectionManager
-
-    ' ---- F003: FILLET R0.125 (Corner fillet) ----
-    If swSelMgr.GetSelectedObjectCount2(-1) = 0 Then
-        MsgBox "Select the edge(s) for fillet F003 (R0.125), then run again.", vbExclamation
-        LogResult "WARN", "04_fillets_chamfers", "F003 fillet skipped - no edges selected"
-    Else
-        Dim swFeatF003 As SldWorks.Feature
-        Set swFeatF003 = swModel.FeatureManager.FeatureFillet3( _
-            swFeatureFilletOptions_e.swFeatureFilletPropagate, _
-            0.125 * UNIT_FACTOR, 0#, 0#, 0, 0, 0, _
-            Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing)
-        If swFeatF003 Is Nothing Then
-            LogResult "WARN", "04_fillets_chamfers", "F003 fillet failed (continuing - fillets are non-fatal)"
-        Else
-            swFeatF003.Name = "F003_Corner_fillet"
-            LogResult "PASS", "04_fillets_chamfers", "F003 fillet R0.125 applied"
-        End If
-        swModel.ClearSelection2 True
+    ' ---- COUNTERBORE: concentric blind cut dia 0.75 x 0.3 deep ----
+    ' ---- PLANE SELECTION (Front Plane; name auto-detected) ----
+    If Not SelectRefPlane("Front Plane", 1) Then
+        MsgBox "Could not select Front Plane (no reference plane found).", vbCritical
+        LogResult "FAIL", "02_F002_cbore", "Could not select Front Plane (no reference plane found)."
+        End
     End If
+
+    ' ---- OPEN SKETCH ----
+    swModel.SketchManager.InsertSketch True
+    swModel.SketchManager.CreateCircleByRadius 0.844 * UNIT_FACTOR, 10.5 * UNIT_FACTOR, 0#, (0.75 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 16.656 * UNIT_FACTOR, 10.5 * UNIT_FACTOR, 0#, (0.75 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 0.844 * UNIT_FACTOR, 0.75 * UNIT_FACTOR, 0#, (0.75 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 16.656 * UNIT_FACTOR, 0.75 * UNIT_FACTOR, 0#, (0.75 / 2#) * UNIT_FACTOR
+
+    ' ---- FINALIZE SKETCH ----
+    ' The feature call below consumes the ACTIVE sketch - this is exactly what
+    ' SolidWorks' own macro recorder emits (ClearSelection2 then the feature
+    ' call, sketch left open). No closing, no name-based reselection.
+    On Error Resume Next
+    swModel.SketchManager.FullyDefineSketch True, True, 0, True, 1, Nothing, 1, Nothing, 0, 0
+    On Error GoTo 0
+    swModel.ClearSelection2 True
+    If swModel.SketchManager.ActiveSketch Is Nothing Then
+        MsgBox "No active sketch to build the feature from.", vbCritical
+        LogResult "FAIL", "02_F002_cbore", "No active sketch to build the feature from."
+        End
+    End If
+
+    Dim swFeatCb As SldWorks.Feature
+    Set swFeatCb = swModel.FeatureManager.FeatureCut4( _
+        True, False, False, _
+        swEndConditions_e.swEndCondBlind, swEndConditions_e.swEndCondBlind, _
+        0.3 * UNIT_FACTOR, 0.01, _
+        False, False, False, False, 0#, 0#, _
+        False, False, False, False, False, _
+        True, True, True, True, False, _
+        swStartConditions_e.swStartSketchPlane, 0#, False, False)
+    If swFeatCb Is Nothing Then
+        ' The cut may have missed the material (body on the other side of the
+        ' sketch plane) - restore the profile sketch and retry, direction flipped.
+        If swModel.SketchManager.ActiveSketch Is Nothing Then
+            ' Sketch was consumed/closed by the failed attempt: select the most
+            ' recent sketch feature in the tree (type "ProfileFeature") by object,
+            ' never by name.
+            Dim featRswFeatCb As SldWorks.Feature, lastSkswFeatCb As SldWorks.Feature
+            Set featRswFeatCb = swModel.FirstFeature
+            Do While Not featRswFeatCb Is Nothing
+                If featRswFeatCb.GetTypeName2 = "ProfileFeature" Then Set lastSkswFeatCb = featRswFeatCb
+                Set featRswFeatCb = featRswFeatCb.GetNextFeature
+            Loop
+            swModel.ClearSelection2 True
+            If Not lastSkswFeatCb Is Nothing Then lastSkswFeatCb.Select2 False, 0
+        End If
+        Set swFeatCb = swModel.FeatureManager.FeatureCut4( _
+            True, False, True, _
+            swEndConditions_e.swEndCondBlind, swEndConditions_e.swEndCondBlind, _
+            0.3 * UNIT_FACTOR, 0.01, _
+            False, False, False, False, 0#, 0#, _
+            False, False, False, False, False, _
+            True, True, True, True, False, _
+            swStartConditions_e.swStartSketchPlane, 0#, False, False)
+    End If
+
+    If swFeatCb Is Nothing Then
+        MsgBox "Counterbore cut failed.", vbCritical
+        LogResult "FAIL", "02_F002", "Counterbore cut failed."
+        End
+    End If
+    swFeatCb.Name = "F002_cbore"
+    LogResult "PASS", "02_F002", "Counterbore created"
+End Sub
+
+Sub Step03_F003()
+    ' ---- PLANE SELECTION (Front Plane; name auto-detected) ----
+    If Not SelectRefPlane("Front Plane", 1) Then
+        MsgBox "Could not select Front Plane (no reference plane found).", vbCritical
+        LogResult "FAIL", "03_F003", "Could not select Front Plane (no reference plane found)."
+        End
+    End If
+
+    ' ---- OPEN SKETCH ----
+    swModel.SketchManager.InsertSketch True
+    ' ---- SKETCH: 4 hole(s) dia 0.531 (thru) ----
+    swModel.SketchManager.CreateCircleByRadius 7.625 * UNIT_FACTOR, 4.5 * UNIT_FACTOR, 0#, (0.531 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 14.625 * UNIT_FACTOR, 4.5 * UNIT_FACTOR, 0#, (0.531 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 7.625 * UNIT_FACTOR, 10.5 * UNIT_FACTOR, 0#, (0.531 / 2#) * UNIT_FACTOR
+    swModel.SketchManager.CreateCircleByRadius 14.625 * UNIT_FACTOR, 10.5 * UNIT_FACTOR, 0#, (0.531 / 2#) * UNIT_FACTOR
+    ' NOTE: Hole positions read from drawing.
+
+    ' ---- FINALIZE SKETCH ----
+    ' The feature call below consumes the ACTIVE sketch - this is exactly what
+    ' SolidWorks' own macro recorder emits (ClearSelection2 then the feature
+    ' call, sketch left open). No closing, no name-based reselection.
+    On Error Resume Next
+    swModel.SketchManager.FullyDefineSketch True, True, 0, True, 1, Nothing, 1, Nothing, 0, 0
+    On Error GoTo 0
+    swModel.ClearSelection2 True
+    If swModel.SketchManager.ActiveSketch Is Nothing Then
+        MsgBox "No active sketch to build the feature from.", vbCritical
+        LogResult "FAIL", "03_F003", "No active sketch to build the feature from."
+        End
+    End If
+
+    ' ---- CUT ----
+    Dim swFeat As SldWorks.Feature
+    Set swFeat = swModel.FeatureManager.FeatureCut4( _
+        True, False, False, _
+        swEndConditions_e.swEndCondThroughAllBoth, swEndConditions_e.swEndCondBlind, _
+        0#, 0.01, _
+        False, False, False, False, 0#, 0#, _
+        False, False, False, False, False, _
+        True, True, True, True, False, _
+        swStartConditions_e.swStartSketchPlane, 0#, False, False)
+    If swFeat Is Nothing Then
+        ' The cut may have missed the material (body on the other side of the
+        ' sketch plane) - restore the profile sketch and retry, direction flipped.
+        If swModel.SketchManager.ActiveSketch Is Nothing Then
+            ' Sketch was consumed/closed by the failed attempt: select the most
+            ' recent sketch feature in the tree (type "ProfileFeature") by object,
+            ' never by name.
+            Dim featRswFeat As SldWorks.Feature, lastSkswFeat As SldWorks.Feature
+            Set featRswFeat = swModel.FirstFeature
+            Do While Not featRswFeat Is Nothing
+                If featRswFeat.GetTypeName2 = "ProfileFeature" Then Set lastSkswFeat = featRswFeat
+                Set featRswFeat = featRswFeat.GetNextFeature
+            Loop
+            swModel.ClearSelection2 True
+            If Not lastSkswFeat Is Nothing Then lastSkswFeat.Select2 False, 0
+        End If
+        Set swFeat = swModel.FeatureManager.FeatureCut4( _
+            True, False, True, _
+            swEndConditions_e.swEndCondThroughAll, swEndConditions_e.swEndCondBlind, _
+            0#, 0.01, _
+            False, False, False, False, 0#, 0#, _
+            False, False, False, False, False, _
+            True, True, True, True, False, _
+            swStartConditions_e.swStartSketchPlane, 0#, False, False)
+    End If
+
+    If swFeat Is Nothing Then
+        MsgBox "Feature creation returned Nothing - check the sketch.", vbCritical
+        LogResult "FAIL", "03_F003", "Feature creation returned Nothing - check the sketch."
+        End
+    End If
+    swFeat.Name = "F003_Inner_pattern_of_4_through_drilled_531_h"
+    If Not VerifySolidBody("03_F003") Then
+        MsgBox "No solid body after this feature.", vbCritical
+        LogResult "FAIL", "03_F003", "No solid body after this feature."
+        End
+    End If
+    LogResult "PASS", "03_F003", "Created feature F003_Inner_pattern_of_4_through_drilled_531_h"
 End Sub
 
 Sub StepZZ_FinalVerify()
@@ -355,7 +468,7 @@ Sub StepZZ_FinalVerify()
         Format$(vMass(1) / UNIT_FACTOR, "0.000") & ", " & Format$(vMass(2) / UNIT_FACTOR, "0.000") & ")"
 
     ' ---- BOUNDING BOX vs DRAWING ENVELOPE ----
-    ' Expected from the drawing: length=4; width=2; height=0.5
+    ' Expected from the drawing: length=17.5; width=11.25
     ' Box read from the solid body (IBody2::GetBodyBox) - ModelDoc2 exposes
     ' no whole-model bounding-box call in VBA.
     Dim swPart As SldWorks.PartDoc
@@ -375,8 +488,8 @@ Sub StepZZ_FinalVerify()
         Format$((vBox(3) - vBox(0)) / UNIT_FACTOR, "0.000") & " x " & _
         Format$((vBox(4) - vBox(1)) / UNIT_FACTOR, "0.000") & " x " & _
         Format$((vBox(5) - vBox(2)) / UNIT_FACTOR, "0.000") & vbCrLf & _
-        "Drawing envelope: length=4; width=2; height=0.5" & vbCrLf & _
-        "Expected feature count: 4", vbInformation
+        "Drawing envelope: length=17.5; width=11.25" & vbCrLf & _
+        "Expected feature count: 3", vbInformation
     LogResult "PASS", "ZZ_final_verify", "bbox(drawing units) " & _
         Format$((vBox(3) - vBox(0)) / UNIT_FACTOR, "0.000") & " x " & _
         Format$((vBox(4) - vBox(1)) / UNIT_FACTOR, "0.000") & " x " & _
@@ -411,8 +524,7 @@ Sub main()
     Step00_Setup
     Step01_F001
     Step02_F002
-    Step03_F004_Manual
-    Step04_FilletsChamfers
+    Step03_F003
     StepZZ_FinalVerify
     StepZZZ_ExportStl
     LogResult "PASS", "RUN_ALL", "All steps completed"

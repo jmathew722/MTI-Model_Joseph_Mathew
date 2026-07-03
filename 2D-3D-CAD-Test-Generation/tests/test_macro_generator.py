@@ -200,9 +200,19 @@ class TestProhibitedAndDeferred:
         skipped = [s for s in plan["steps"] if s["status"] == "skipped_prohibited"]
         assert skipped and "SKIPPED" in skipped[0]["notes"]
 
-    def test_no_macro_file_for_shell(self, package):
+    def test_manual_step_macro_generated_for_shell(self, package):
+        """A prohibited feature is never silently dropped: it gets a numbered
+        MANUAL-step macro (no geometry, instructions + WARN log entry)."""
         pkg, _ = package
-        assert not list(pkg.macros_dir.glob("*F004*"))
+        manual = list(pkg.macros_dir.glob("*F004*MANUAL*.vba"))
+        assert len(manual) == 1
+        text = manual[0].read_text()
+        assert "MANUAL STEP" in text
+        assert "LogResult" in text
+        assert "NO GEOMETRY" in text
+        # The skipped step now references its manual macro file.
+        skipped = [s for s in pkg.skipped if s.feature_id == "F004"]
+        assert skipped and skipped[0].macro_file == manual[0].name
 
     def test_fillet_deferred_to_last_numbered_macro(self, package):
         pkg, _ = package

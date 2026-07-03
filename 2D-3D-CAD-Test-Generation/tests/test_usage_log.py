@@ -5,6 +5,21 @@ from pipeline.usage_log import LEDGER_JSONL, LEDGER_TXT, estimate_cost, record_r
 
 
 class TestEstimateCost:
+    def test_sonnet_5_input_output(self):
+        # The default extraction model: 1M input @ $3 + 1M output @ $15 = $18.00
+        cost = estimate_cost(
+            {"input_tokens": 1_000_000, "output_tokens": 1_000_000}, "claude-sonnet-5"
+        )
+        assert round(cost, 4) == 18.0
+
+    def test_sonnet_5_cache_pricing(self):
+        # cache read 1M @ $0.30 + cache write 1M @ $3.75 = $4.05
+        cost = estimate_cost(
+            {"cache_read_input_tokens": 1_000_000, "cache_creation_input_tokens": 1_000_000},
+            "claude-sonnet-5",
+        )
+        assert round(cost, 4) == 4.05
+
     def test_sonnet_input_output(self):
         # 1M input @ $3 + 1M output @ $15 = $18.00
         cost = estimate_cost(

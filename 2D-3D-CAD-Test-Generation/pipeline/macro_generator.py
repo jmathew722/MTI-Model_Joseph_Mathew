@@ -601,6 +601,11 @@ def _build_plan_dict(model: DrawingData, pkg: MacroPackage, unit_factor: float,
     plan["steps"] = [_step_to_dict(s) for s in pkg.steps]
     plan["skipped_prohibited"] = [s.feature_id for s in pkg.skipped]
     plan["needs_review"] = [s.feature_id for s in pkg.needs_review]
+    # Severity-ranked engineering review (CRITICAL..LOW, most urgent first) —
+    # the same items are written per part as <Part>_engineering_review.txt.
+    from pipeline.engineering_review import build_review_items
+
+    plan["engineering_review"] = build_review_items(resolution=resolution, pkg=pkg)
     return plan
 
 
@@ -1594,12 +1599,43 @@ def generate_macro_package(
             continue  # validator already flagged it
 
         if feature.type in PROHIBITED or feature.type not in SUPPORTED:
-            step = BuildStep(
-                -1, "-", feature.id, feature.type.value, feature.description,
-                "skipped_prohibited",
-                notes=f"FEATURE {feature.id} SKIPPED: {feature.type.value} is prohibited/unsupported. "
-                      "Manual modeling required.",
+            # NEVER silently dropped: the feature gets a numbered MANUAL-step
+            # macro carrying its dimensions and instructions, and is flagged
+            # CRITICAL in the engineering review. The macro creates no geometry.
+            seq += 1
+            step_name = f"{seq:02d}_{feature.id}"
+            fname = f"{seq:02d}_{feature.id}_MANUAL_{_vba_name(feature.type.value)}.vba"
+            dims = _dims_map(model, feature)
+            dim_lines = "".join(
+                f"    '   {k} = {_v(v)} (drawing units)\n" for k, v in dims.items()
+            ) or "    '   (no linked dimensions extracted)\n"
+            desc = _vba_str(feature.description, 200)
+            body = f"""    ' ============ MANUAL STEP - NO GEOMETRY IS CREATED HERE ============
+    ' Feature {feature.id} ({feature.type.value}) cannot be scripted reliably.
+    ' Build it by hand in SolidWorks using the drawing and these values:
+{dim_lines}    ' Description: {desc}
+    ' When done, re-run this macro so the build log records the step.
+    MsgBox "MANUAL STEP {step_name}: build feature {feature.id} ({feature.type.value}) by hand." & vbCrLf & _
+        "{desc}" & vbCrLf & "See this macro's comments for the extracted values.", _
+        vbExclamation, "Manual step required - {feature.id}"
+    LogResult "WARN", "{step_name}", "{feature.id} ({feature.type.value}) requires MANUAL modeling - no geometry created"
+"""
+            header = _vba_header(
+                f"{step_name} - MANUAL STEP - {feature.type.value}: {feature.description}",
+                model.display_name, unit_factor,
             )
+            (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
+            run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}_Manual", body))
+            step = BuildStep(
+                seq, fname, feature.id, feature.type.value, feature.description,
+                "skipped_prohibited",
+                notes=f"FEATURE {feature.id} SKIPPED by automation: {feature.type.value} is "
+                      f"prohibited/unsupported. A numbered MANUAL step macro ({fname}) "
+                      "was generated instead.",
+            )
+            _enrich_feature_step(step, model, feature, resolution,
+                                 _collect_step_flags(model, feature, resolution))
+            step.requires_input = True
             pkg.skipped.append(step)
             pkg.steps.append(step)
             log.warning("%s", step.notes)
@@ -1762,6 +1798,13 @@ def generate_macro_package(
 
     plan = _build_plan_dict(model, pkg, unit_factor, audit, resolution)
     pkg.build_plan_json.write_text(json.dumps(plan, indent=2), encoding="utf-8")
+
+    # --- Severity-ranked engineering review (first-class human-facing output) ---
+    # Written now from the resolver + macro data; the batch driver rewrites it
+    # after the .sldprt build to fold in any COM-skipped features/caveats.
+    from pipeline.engineering_review import write_review
+
+    write_review(root, name, plan["engineering_review"], resolution=resolution)
 
     log.info(
         "Macro package written to %s (%d macros, %d skipped, %d need review)",

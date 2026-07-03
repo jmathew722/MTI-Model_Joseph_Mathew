@@ -1,0 +1,35 @@
+VERIFICATION REPORT
+===================
+Part: A001271E    Units: inch    Standard: ASME    Confidence: 0.82
+Total dimensions extracted: 15
+Hole callouts extracted: 2
+Features identified: 3  (build order: 3)
+Dimensions flagged ambiguous: 0
+Dimensional closure: FAIL  ->  failed: D001 = D003 + D002; D005 = D004 + D006; D012 = D010 + D011
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 50%
+  Feature confidence:     82%
+  Macro readiness:        86%
+
+ERRORS:
+  [ERROR] Dimensional closure FAILED: D001 = D003 + D002 → 16.656 != 17.5 (allowed slack 0.0175 inch).
+  [ERROR] Dimensional closure FAILED: D005 = D004 + D006 → 14.75 != 11.25 (allowed slack 0.01125 inch).
+  [ERROR] Dimensional closure FAILED: D012 = D010 + D011 → 7.281 != 7 (allowed slack 0.02 inch).
+
+WARNINGS:
+  [WARN]  extraction: D006 (14.00) appears larger than the overall plate width (11.25 in D005), which is inconsistent — it may be a mis-transcribed dimension, a reference to a different datum, or an extended centerline dimension beyond the physical plate edge; flagged for human review.
+  [WARN]  extraction: Exact counterbore diameter and depth for the .500 socket head cap screw clearance holes (H001) are not explicitly dimensioned on the drawing; standard clearance/cbore values for a 1/2in SHCS were estimated (cbore dia ~0.75in, depth ~0.30in) and should be verified against a fastener spec or shop standard.
+  [WARN]  extraction: Dimension chain check: 6.781 + 0.500 = 7.281, which does not match the stated 7.000 spacing between inner hole columns; one of these three values (6.781, 0.500, 7.000) may be misread or these are independent (non-summing) dimensions — flagged for review.
+  [WARN]  extraction: No explicit fillet or chamfer callouts, or general notes about breaking sharp edges, were visible anywhere on the drawing (front, side, or overview) — none were added since no evidence exists, though this is unusual for a machined plate and should be confirmed with the source drawing.
+  [WARN]  extraction: Title block information (part number, revision, material, finish, scale) was not visible/legible in the provided images; left blank.
+  [WARN]  extraction: Hole instance positions for H001 and H002 were computed from the given offset dimensions (edge-referenced from lower-left corner of the 17.50 x 11.25 plate) rather than read as explicit x/y callouts on the drawing; verify against source.
+  [WARN]  extraction: D006 (14.00) was tentatively linked to F002/F003 relationships but its exact role in the dimensioning scheme is unclear given the plate height of only 11.25 in; treated as informational/reference pending clarification.
+
+OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST

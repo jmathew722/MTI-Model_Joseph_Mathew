@@ -1,0 +1,2 @@
+source,part,status,macro_readiness,geometry_completeness,dimension_completeness,consistency,feature_confidence,n_macros,n_needs_review,n_skipped,detail
+A001271E,A001271E,READY,0.855,1.0,1.0,0.5,0.82,7,0,0,

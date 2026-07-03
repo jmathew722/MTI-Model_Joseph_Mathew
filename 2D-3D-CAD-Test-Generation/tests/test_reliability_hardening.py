@@ -250,7 +250,10 @@ class TestRunAllMacro:
         calls = [ln.strip() for ln in main.splitlines()
                  if ln.strip().startswith("Step")]
         assert calls[0] == "Step00_Setup"
-        assert calls[-1] == "StepZZ_FinalVerify"
+        # STL export runs last so the web viewer can pick up the model; the
+        # final-verify step (rebuild + mass props) runs just before it.
+        assert calls[-1] == "StepZZZ_ExportStl"
+        assert calls[-2] == "StepZZ_FinalVerify"
         assert any(c.startswith("Step01_") for c in calls)
 
     def test_blocks_balanced(self, run_all):

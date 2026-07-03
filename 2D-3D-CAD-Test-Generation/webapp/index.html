@@ -109,6 +109,81 @@
   .macro-tabs button { font:inherit; font-size:11px; padding:3px 9px; border-radius:7px; cursor:pointer;
                        background:#111a28; color:var(--muted); border:1px solid var(--line); }
   .macro-tabs button.active { color:var(--accent); border-color:var(--accent); }
+
+  /* Intake: upload / pull crops -> orientation gallery -> name -> save */
+  .intake { border-bottom:1px solid var(--line); }
+  .intake-head { display:flex; align-items:center; gap:10px; padding:10px 16px 6px; flex-wrap:wrap; }
+  .intake-head strong { font-size:13px; }
+  .intake-head .hint { color:var(--muted); font-size:12px; }
+  .filebtn { display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:13px;
+             padding:8px 14px; border-radius:9px; background:#1a2740; color:var(--ink);
+             border:1px solid var(--line); cursor:pointer; }
+  .filebtn:hover { border-color:#33507a; }
+  .orient-gallery { display:flex; gap:10px; overflow-x:auto; padding:8px 16px; min-height:0; }
+  .orient-gallery:empty { display:none; }
+  .ocard { flex:0 0 auto; width:150px; border:2px solid var(--line); border-radius:10px;
+           background:#0d1521; overflow:hidden; position:relative; }
+  .ocard.assigned { border-color:#2b5a43; }
+  .ocard.dup { border-color:var(--warn); }
+  .ocard img { width:100%; height:92px; object-fit:contain; background:#fff; display:block; }
+  .ocard .ctl { display:flex; gap:4px; padding:6px; align-items:center; }
+  .ocard select { flex:1; font:inherit; font-size:11px; background:#111a28; color:var(--ink);
+                  border:1px solid var(--line); border-radius:6px; padding:3px 4px; min-width:0; }
+  .ocard .ibtn { flex:0 0 auto; width:24px; height:24px; border-radius:6px; border:1px solid var(--line);
+                 background:#111a28; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; }
+  .ocard .ibtn:hover { color:var(--ink); border-color:#33507a; }
+  .ocard .dupbadge { position:absolute; top:4px; left:4px; background:var(--warn); color:#3a2a00;
+                     font-size:9px; font-weight:700; padding:1px 6px; border-radius:8px; display:none; }
+  .ocard.dup .dupbadge { display:inline-block; }
+  .intake-foot { display:flex; align-items:center; gap:10px; padding:6px 16px 10px; flex-wrap:wrap; }
+  .req-warn { color:var(--warn); font-size:12px; }
+  .req-warn.ok { color:var(--ok); }
+  #part-name { font:inherit; font-size:13px; background:#0d1521; color:var(--ink);
+               border:1px solid var(--line); border-radius:9px; padding:8px 12px; width:230px; }
+  #part-name:focus { outline:none; border-color:var(--accent); }
+
+  /* Per-stage progress strip */
+  .stage-strip { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+  .stage-chip { font-size:10px; font-weight:700; padding:2px 8px; border-radius:8px;
+                background:#0d1521; color:var(--muted); border:1px solid var(--line); white-space:nowrap; }
+  .stage-chip.done { color:var(--ok); border-color:#1d4636; }
+  .stage-chip.now { color:var(--accent2); border-color:var(--accent2); }
+
+  /* Engineering flags */
+  .flag-item { border:1px solid var(--line); border-left:4px solid var(--muted); border-radius:8px;
+               padding:10px 14px; margin:10px 16px; background:#0d1521; font-size:13px; }
+  .flag-item .sev { display:inline-block; font-size:10px; font-weight:800; letter-spacing:.06em;
+                    padding:1px 8px; border-radius:8px; margin-right:8px; }
+  .flag-item .fid { color:var(--muted); font-size:11px; }
+  .flag-item .row { margin-top:4px; color:#c6d4e8; }
+  .flag-item .row b { color:var(--muted); font-weight:600; display:inline-block; min-width:66px; }
+  .flag-item.sev-CRITICAL { border-left-color:var(--err); }
+  .flag-item.sev-CRITICAL .sev { background:var(--err); color:#2a0505; }
+  .flag-item.sev-HIGH { border-left-color:#fb923c; }
+  .flag-item.sev-HIGH .sev { background:#fb923c; color:#2a1200; }
+  .flag-item.sev-MEDIUM { border-left-color:var(--warn); }
+  .flag-item.sev-MEDIUM .sev { background:var(--warn); color:#2a2000; }
+  .flag-item.sev-LOW { border-left-color:#60a5fa; }
+  .flag-item.sev-LOW .sev { background:#60a5fa; color:#001a3a; }
+  .flags-scroll { flex:1 1 auto; overflow:auto; padding-bottom:12px; }
+  .flags-summary { padding:10px 16px 0; font-size:13px; color:var(--muted); }
+
+  /* Token / cost */
+  .cost-cards { display:flex; gap:12px; padding:14px 16px 4px; flex-wrap:wrap; }
+  .cost-card { border:1px solid var(--line); border-radius:10px; background:#0d1521;
+               padding:10px 16px; min-width:150px; }
+  .cost-card .v { font-size:20px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .cost-card .k { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* Files */
+  .files-scroll { flex:1 1 auto; overflow:auto; }
+  .files-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .files-table td { padding:5px 16px; border-bottom:1px solid #131d2c; }
+  .files-table td.sz { color:var(--muted); text-align:right; white-space:nowrap; }
+  .files-table a { color:var(--accent); text-decoration:none; }
+  .files-table a:hover { text-decoration:underline; }
+  .files-paths { padding:10px 16px; font-size:12px; color:var(--muted); border-bottom:1px solid var(--line); }
+  .files-paths code { color:#a9c2e6; }
 </style>
 </head>
 <body>
@@ -129,8 +204,11 @@
   <button class="tab" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
   <button class="tab" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
   <button class="tab" data-tab="verification">Verification <span class="badge">·</span></button>
+  <button class="tab" data-tab="flags">Engineering Flags <span class="badge">·</span></button>
   <button class="tab" data-tab="modelcheck">Model Check <span class="badge">·</span></button>
   <button class="tab" data-tab="macros">VBA Macros <span class="badge">·</span></button>
+  <button class="tab" data-tab="cost">Token / Cost <span class="badge">·</span></button>
+  <button class="tab" data-tab="files">Files <span class="badge">·</span></button>
   <button class="tab" data-tab="console">Console</button>
 </nav>
 
@@ -139,18 +217,34 @@
   <section class="panel active" id="panel-preprocess">
     <iframe id="photoapp" src="/photoapp/"></iframe>
     <div class="tab1-bottom">
+      <div class="intake">
+        <div class="intake-head">
+          <strong>New part</strong>
+          <label class="filebtn" for="intake-file">📄 Upload drawing <span style="color:var(--muted);font-weight:400">PDF · JPG · PNG · DWG</span></label>
+          <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf" style="display:none">
+          <button class="btn secondary" id="pull-crops-btn">⬇ Pull queued crops from the cropper</button>
+          <span class="hint">Multi-view sheet? Crop each view above, then pull. Then label every image with its orientation.</span>
+        </div>
+        <div class="orient-gallery" id="orient-gallery"></div>
+        <div class="intake-foot" id="intake-foot" style="display:none">
+          <span class="req-warn" id="req-warn"></span>
+          <div class="grow"></div>
+          <input type="text" id="part-name" placeholder="Part name (becomes the folder name)">
+          <button class="btn" id="save-part-btn" disabled>💾 Save part</button>
+        </div>
+      </div>
       <div class="parts-head">
         <strong>Parts</strong>
-        <button class="btn secondary" id="add-part-btn">➕ Add current part</button>
-        <span class="hint" id="add-hint">Load a drawing above, queue view crops, then add it as a part.</span>
+        <span class="hint" id="add-hint">Saved parts appear here — select one and run the pipeline.</span>
         <div class="grow"></div>
         <select id="demo-sample" class="btn secondary" style="padding:8px 10px"></select>
         <button class="btn secondary" id="demo-btn" title="Run from a saved extraction — no API key needed">▶ Run demo</button>
       </div>
-      <div class="parts-list" id="parts-list"><div class="empty">No parts yet — add one from the drawing above.</div></div>
+      <div class="parts-list" id="parts-list"><div class="empty">No parts yet — upload a drawing or pull crops above.</div></div>
       <div class="run-row">
         <div class="status" id="run-status">Select a part, then run the pipeline on it.</div>
         <div class="grow"></div>
+        <div class="stage-strip" id="stage-strip" style="display:none"></div>
         <div class="progress-wrap" id="progress-wrap" style="display:none">
           <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
           <span class="elapsed" id="elapsed-txt">0:00</span>
@@ -187,11 +281,27 @@
   <section class="panel" id="panel-resolved"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
   <section class="panel" id="panel-buildplan"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
   <section class="panel" id="panel-verification"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+  <section class="panel" id="panel-flags"><div class="out">
+    <div class="toolbar"><span class="nm">Engineering review — every assumption &amp; manual step, most urgent first</span></div>
+    <div class="empty">No part run yet.</div>
+    <div class="flags-scroll" style="display:none"><div class="flags-summary" id="flags-summary"></div><div id="flags-list"></div></div>
+  </div></section>
   <section class="panel" id="panel-modelcheck"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">Model check requires Windows + SolidWorks; not produced on this machine.</div><pre style="display:none"></pre></div></section>
   <section class="panel" id="panel-macros"><div class="out"><div class="toolbar"><div class="macro-tabs" id="macro-tabs"></div><span class="grow"></span><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+  <section class="panel" id="panel-cost"><div class="out">
+    <div class="toolbar"><span class="nm">API token usage &amp; cost (from token_usage_log)</span></div>
+    <div class="empty">No part run yet.</div>
+    <div class="files-scroll" style="display:none"><div class="cost-cards" id="cost-cards"></div><pre id="cost-pre" style="white-space:pre"></pre></div>
+  </div></section>
+  <section class="panel" id="panel-files"><div class="out">
+    <div class="toolbar"><span class="nm">Every output file for this part</span></div>
+    <div class="empty">No part run yet.</div>
+    <div class="files-scroll" style="display:none"><div class="files-paths" id="files-paths"></div><table class="files-table"><tbody id="files-tbody"></tbody></table></div>
+  </div></section>
   <section class="panel" id="panel-console"><div class="out"><div class="toolbar"><span class="nm">Live pipeline output</span></div><pre id="console-pre"></pre></div></section>
 </main>
 
+<script src="/pdf.min.js"></script>
 <script src="/bridge.js"></script>
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/STLLoader.js"></script>
@@ -221,7 +331,8 @@ fetch('/api/status').then(r => r.json()).then(s => {
 fetch('/api/session', { method:'POST' }).then(r => r.json()).then(d => { sessionId = d.session; }).catch(() => {});
 
 // ── Output tab plumbing ──────────────────────────────────────────────────────
-const CATS = ['extraction','resolved','buildplan','verification','modelcheck','macros'];
+if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+const CATS = ['extraction','resolved','buildplan','verification','flags','modelcheck','macros','cost','files'];
 const KEYMAP = { extraction:'extraction', resolved:'resolved', buildplan:'build_plan', verification:'verification', modelcheck:'model_check' };
 function setTabFilled(name, filled) {
   const t = document.querySelector(`.tab[data-tab="${name}"]`); if (!t) return;
@@ -239,12 +350,71 @@ function resetOutputs(msg) {
   document.querySelectorAll('.panel .out').forEach(o => {
     const pre = o.querySelector('pre'); if (pre && pre.id !== 'console-pre') { pre.style.display = 'none'; pre.textContent = ''; }
     const empty = o.querySelector('.empty'); if (empty) empty.style.display = '';
+    const scroll = o.querySelector('.flags-scroll, .files-scroll'); if (scroll) scroll.style.display = 'none';
   });
   document.querySelectorAll('.panel .empty').forEach(e => { if (msg) e.textContent = msg; });
   document.querySelector('#panel-modelcheck .empty').textContent =
     'Model check requires Windows + SolidWorks; not produced on this machine.';
   document.getElementById('macro-tabs').innerHTML = ''; lastMacroCount = 0;
+  document.getElementById('flags-list').innerHTML = '';
+  document.getElementById('files-tbody').innerHTML = '';
+  document.getElementById('cost-cards').innerHTML = '';
   document.querySelector('.tab[data-tab="viewer"]').classList.remove('filled');
+}
+
+// ── Engineering Flags / Token-Cost / Files painters ──────────────────────────
+function esc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+function paintReview(review) {
+  const panel = document.getElementById('panel-flags');
+  const scroll = panel.querySelector('.flags-scroll'), empty = panel.querySelector('.empty');
+  const list = document.getElementById('flags-list'), summary = document.getElementById('flags-summary');
+  const items = review.items || [];
+  const counts = { CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0 };
+  items.forEach(i => { if (counts[i.severity] != null) counts[i.severity]++; });
+  summary.textContent = items.length
+    ? `${items.length} item(s): ${counts.CRITICAL} critical · ${counts.HIGH} high · ${counts.MEDIUM} medium · ${counts.LOW} low — most urgent first.`
+    : 'No assumptions or manual steps — every dimension was read directly from the drawing.';
+  list.innerHTML = items.map(i => `
+    <div class="flag-item sev-${esc(i.severity)}">
+      <span class="sev">${esc(i.severity)}</span><span class="fid">${esc(i.id || '')} · ${esc(i.source)}</span>
+      <div class="row"><b>What</b> ${esc(i.what)}</div>
+      <div class="row"><b>Decision</b> ${esc(i.decision)}</div>
+      <div class="row"><b>Why</b> ${esc(i.why)}</div>
+      <div class="row"><b>Affects</b> ${esc(i.affects)}</div>
+    </div>`).join('');
+  empty.style.display = 'none'; scroll.style.display = '';
+}
+function paintUsage(usage) {
+  const panel = document.getElementById('panel-cost');
+  const scroll = panel.querySelector('.files-scroll'), empty = panel.querySelector('.empty');
+  const cards = document.getElementById('cost-cards'), pre = document.getElementById('cost-pre');
+  const last = usage.last_run || {};
+  const fmt = n => (n == null ? '—' : Number(n).toLocaleString());
+  const card = (v, k) => `<div class="cost-card"><div class="v">${v}</div><div class="k">${k}</div></div>`;
+  cards.innerHTML =
+    card('$' + Number(usage.total_cost_usd || 0).toFixed(4), 'this part — total API cost') +
+    (usage.session_total_cost_usd != null ? card('$' + Number(usage.session_total_cost_usd).toFixed(4), 'this session — all parts') : '') +
+    card(fmt(last.input_tokens), 'input tokens (last run)') +
+    card(fmt(last.output_tokens), 'output tokens (last run)') +
+    card(fmt(last.cache_read_tokens), 'cache-read tokens (last run)') +
+    card(esc(last.model || '—'), 'model');
+  pre.textContent = usage.text || '';
+  empty.style.display = 'none'; scroll.style.display = '';
+}
+function paintFiles(files, payload) {
+  const panel = document.getElementById('panel-files');
+  const scroll = panel.querySelector('.files-scroll'), empty = panel.querySelector('.empty');
+  const tbody = document.getElementById('files-tbody'), paths = document.getElementById('files-paths');
+  const base = selectedPart ? `/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/file/` : null;
+  const kb = s => s > 1048576 ? (s/1048576).toFixed(1) + ' MB' : (s/1024).toFixed(1) + ' KB';
+  tbody.innerHTML = (files.list || []).map(f =>
+    `<tr><td>${base ? `<a href="${base}${encodeURI(f.name)}" download>${esc(f.name)}</a>` : esc(f.name)}</td>` +
+    `<td class="sz">${kb(f.size)}</td></tr>`).join('');
+  const p = [];
+  if (payload && payload.delivered) p.push(`Output folder: <code>${esc(payload.delivered)}</code>`);
+  if (payload && payload.delivered_downloads) p.push(`Downloads: <code>${esc(payload.delivered_downloads)}</code>`);
+  paths.innerHTML = p.length ? p.join('<br>') : 'Outputs are copied to UI_Output/ and ~/Downloads/SolidWorksModel_Parts/ when the run finishes.';
+  empty.style.display = 'none'; scroll.style.display = '';
 }
 let lastMacroCount = 0;
 function paintMacros(macros) {
@@ -270,6 +440,9 @@ function fillOutputs(payload) {
       setTabFilled(tab, true);
     }
   }
+  if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
+  if (c.usage && c.usage.present) { paintUsage(c.usage); setTabFilled('cost', true); }
+  if (c.files && c.files.present && (c.files.list || []).length) { paintFiles(c.files, payload); setTabFilled('files', true); }
   if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
   if (c.stl && c.stl.present && selectedPart) {
     document.querySelector('.tab[data-tab="viewer"]').classList.add('filled');
@@ -321,26 +494,220 @@ async function loadPartOutputs(name) {
   else setStatus(`Part "${name}" selected — not run yet.`, '');
 }
 
-// ── Add current part (from the unmodified photo app) ─────────────────────────
-document.getElementById('add-part-btn').addEventListener('click', async () => {
-  if (!sessionId) { setStatus('Session not ready yet, try again.', 'err'); return; }
+// ── Intake: upload / pull crops → orientation gallery → name → save ──────────
+const ORIENTATIONS = [
+  ['', '— orientation —'], ['front', 'Front'], ['back', 'Back'], ['top', 'Top'],
+  ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['iso', 'Isometric / Overview'],
+];
+// Orientation → the crop filename the server's VIEW_MAP / view_ingest classify.
+const ORIENT_TO_NAME = { front:'front', back:'back', top:'top', bottom:'bottom',
+                         left:'left', right:'right', iso:'overview' };
+const ORTHO_SET = new Set(['top','bottom','left','right','back']);
+let intake = { items: [], source: null, originalFile: null, stem: 'drawing' };
+let intakeSeq = 0;
+
+const galleryEl = document.getElementById('orient-gallery');
+const intakeFoot = document.getElementById('intake-foot');
+const reqWarn = document.getElementById('req-warn');
+const partNameEl = document.getElementById('part-name');
+const saveBtn = document.getElementById('save-part-btn');
+
+function guessOrientation(name) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('front')) return 'front';
+  if (n.includes('back') || n.includes('rear')) return 'back';
+  if (n.includes('bottom')) return 'bottom';
+  if (n.includes('top') || n.includes('plan')) return 'top';
+  if (n.includes('left')) return 'left';
+  if (n.includes('right') || n.includes('side')) return 'right';
+  if (n.includes('iso') || n.includes('overview') || n.includes('full')) return 'iso';
+  return '';
+}
+
+function addIntakeItems(entries) {  // entries: [{dataURL, orientation?, label?}]
+  for (const e of entries) {
+    intake.items.push({ id: 'it' + (++intakeSeq), dataURL: e.dataURL,
+                        orientation: e.orientation || '', label: e.label || '' });
+  }
+  renderGallery();
+}
+
+function rotateDataURL(dataURL) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalHeight; c.height = img.naturalWidth;
+      const g = c.getContext('2d');
+      g.translate(c.width / 2, c.height / 2); g.rotate(Math.PI / 2);
+      g.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      resolve(c.toDataURL('image/jpeg', 0.95));
+    };
+    img.src = dataURL;
+  });
+}
+
+function dupOrientations() {
+  const seen = {}, dups = new Set();
+  for (const it of intake.items) {
+    if (!it.orientation) continue;
+    if (seen[it.orientation]) dups.add(it.orientation);
+    seen[it.orientation] = true;
+  }
+  return dups;
+}
+
+function validateIntake() {
+  const assigned = intake.items.map(i => i.orientation).filter(Boolean);
+  const hasFront = assigned.includes('front');
+  const hasOther = assigned.some(o => ORTHO_SET.has(o));
+  const named = !!partNameEl.value.trim();
+  const dups = dupOrientations();
+  let msg = '', ok = false;
+  if (!intake.items.length) msg = '';
+  else if (!hasFront) msg = '⚠ Assign a FRONT view — the base profile cannot be built without it.';
+  else if (!hasOther) msg = '⚠ Assign at least one more orthographic view (Top / Bottom / Left / Right / Back) so depth can be read.';
+  else if (!named) msg = 'Name the part to save it.';
+  else { ok = true; msg = dups.size ? `⚠ Duplicate orientation(s): ${[...dups].join(', ')} — you can save, but confirm the override.` : '✓ Ready to save.'; }
+  reqWarn.textContent = msg;
+  reqWarn.className = 'req-warn' + (ok && !dups.size ? ' ok' : '');
+  saveBtn.disabled = !(ok && !isRunning);
+  intakeFoot.style.display = intake.items.length ? '' : 'none';
+}
+
+function renderGallery() {
+  const dups = dupOrientations();
+  galleryEl.innerHTML = '';
+  for (const it of intake.items) {
+    const card = document.createElement('div');
+    card.className = 'ocard' + (it.orientation ? ' assigned' : '') + (dups.has(it.orientation) ? ' dup' : '');
+    const img = document.createElement('img'); img.src = it.dataURL; img.title = it.label || '';
+    const ctl = document.createElement('div'); ctl.className = 'ctl';
+    const sel = document.createElement('select');
+    for (const [v, label] of ORIENTATIONS) {
+      const o = document.createElement('option'); o.value = v; o.textContent = label;
+      if (v === it.orientation) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.onchange = () => { it.orientation = sel.value; renderGallery(); };
+    const rot = document.createElement('button'); rot.className = 'ibtn'; rot.textContent = '⟳';
+    rot.title = 'Rotate 90° (scanned drawings are often rotated)';
+    rot.onclick = async () => { it.dataURL = await rotateDataURL(it.dataURL); renderGallery(); };
+    const del = document.createElement('button'); del.className = 'ibtn'; del.textContent = '✕';
+    del.title = 'Remove this image';
+    del.onclick = () => { intake.items = intake.items.filter(x => x.id !== it.id); renderGallery(); };
+    ctl.append(sel, rot, del);
+    const badge = document.createElement('span'); badge.className = 'dupbadge'; badge.textContent = 'duplicate';
+    card.append(img, ctl, badge);
+    galleryEl.appendChild(card);
+  }
+  validateIntake();
+}
+partNameEl.addEventListener('input', validateIntake);
+
+// -- Upload a single file: PDF (each page), JPG/PNG (directly), DWG/DXF (server-converted)
+const intakeFile = document.getElementById('intake-file');
+intakeFile.addEventListener('change', async e => {
+  const f = e.target.files[0]; intakeFile.value = '';
+  if (!f) return;
+  const ext = (f.name.split('.').pop() || '').toLowerCase();
+  const stem = f.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '_');
+  try {
+    if (ext === 'pdf') {
+      setStatus('Rasterizing PDF pages…', 'run');
+      const pdf = await pdfjsLib.getDocument(URL.createObjectURL(f)).promise;
+      const pages = Math.min(pdf.numPages, 12);
+      const urls = [];
+      for (let p = 1; p <= pages; p++) {
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({ scale: 200 / 72 });
+        const c = document.createElement('canvas');
+        c.width = Math.round(viewport.width); c.height = Math.round(viewport.height);
+        await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
+        urls.push(c.toDataURL('image/jpeg', 0.95));
+      }
+      intake.source = urls[0]; intake.originalFile = f; intake.stem = stem;
+      addIntakeItems(urls.map((u, i) => ({ dataURL: u, label: `page ${i + 1}`,
+        orientation: pages === 1 ? 'front' : '' })));
+      setStatus(`Loaded ${pages} page(s) from ${f.name}. Assign an orientation to each.`, 'ok');
+    } else if (ext === 'dwg' || ext === 'dxf') {
+      setStatus('Converting ' + ext.toUpperCase() + ' on the server…', 'run');
+      const fd = new FormData(); fd.append('file', f, f.name);
+      const resp = await fetch('/api/convert-dwg', { method: 'POST', body: fd });
+      if (!resp.ok) {
+        let msg = 'DWG conversion failed.';
+        try { msg = (await resp.json()).detail || msg; } catch {}
+        setStatus('❌ ' + msg, 'err'); return;
+      }
+      const blob = await resp.blob();
+      const url = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(blob); });
+      intake.source = url; intake.originalFile = f; intake.stem = stem;
+      addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
+      setStatus(`Converted ${f.name}. Check the orientation, then save.`, 'ok');
+    } else {
+      const url = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); });
+      intake.source = url; intake.originalFile = f; intake.stem = stem;
+      addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
+      setStatus(`Loaded ${f.name}. Assign orientations (add more views via the cropper above).`, 'ok');
+    }
+    if (!partNameEl.value.trim()) partNameEl.value = intake.stem;
+    validateIntake();
+  } catch (err) {
+    setStatus('❌ Could not load file: ' + err.message, 'err');
+  }
+});
+
+// -- Pull queued crops from the (unmodified) photo app iframe
+document.getElementById('pull-crops-btn').addEventListener('click', async () => {
   const iframe = document.getElementById('photoapp');
-  setStatus('Reading queued views from the photo app…', 'run');
+  setStatus('Reading queued views from the cropper…', 'run');
   let payload;
   try { payload = await window.MTIBridge.collect(iframe); }
   catch (e) { setStatus(e.message, 'err'); return; }
+  if (payload.source && !intake.source) intake.source = payload.source;
+  if (!intake.items.length) intake.stem = payload.stem || intake.stem;
+  addIntakeItems(payload.crops.map(c => ({ dataURL: c.dataURL, label: c.name,
+                                           orientation: guessOrientation(c.name) })));
+  if (!partNameEl.value.trim()) partNameEl.value = intake.stem;
+  setStatus(`Pulled ${payload.crops.length} crop(s). Check each orientation, then save.`, 'ok');
+  validateIntake();
+});
+
+// -- Save the part: writes the pipeline's --views-folder layout on the server
+saveBtn.addEventListener('click', async () => {
+  if (!sessionId) { setStatus('Session not ready yet, try again.', 'err'); return; }
+  const dups = dupOrientations();
+  if (dups.size && !confirm(
+      `The same orientation is assigned to more than one image (${[...dups].join(', ')}).\n` +
+      'Some parts legitimately have two candidates — the pipeline keeps the first and warns.\n\nSave anyway?')) return;
+  const unassigned = intake.items.filter(i => !i.orientation).length;
+  if (unassigned && !confirm(`${unassigned} image(s) have no orientation and will be skipped. Save anyway?`)) return;
+
+  const part = partNameEl.value.trim() || intake.stem || 'drawing';
   const fd = new FormData();
   fd.append('session', sessionId);
-  fd.append('part', payload.stem || 'drawing');
-  if (payload.source) fd.append('source', window.MTIBridge.dataURLtoBlob(payload.source), 'source.jpg');
-  payload.crops.forEach(c => fd.append('crops', window.MTIBridge.dataURLtoBlob(c.dataURL), c.name + '.jpg'));
+  fd.append('part', part);
+  if (intake.source) fd.append('source', window.MTIBridge.dataURLtoBlob(intake.source), 'source.jpg');
+  if (intake.originalFile) fd.append('original', intake.originalFile, intake.originalFile.name);
+  const counts = {};
+  for (const it of intake.items) {
+    if (!it.orientation) continue;
+    const base = ORIENT_TO_NAME[it.orientation];
+    counts[base] = (counts[base] || 0) + 1;
+    const name = counts[base] > 1 ? `${base}_${counts[base]}` : base;
+    fd.append('crops', window.MTIBridge.dataURLtoBlob(it.dataURL), name + '.jpg');
+  }
+  saveBtn.disabled = true;
   let res;
-  try { res = await (await fetch('/api/parts', { method:'POST', body:fd })).json(); }
-  catch (e) { setStatus('Add part failed: ' + e.message, 'err'); return; }
-  if (res.error || !res.parts) { setStatus(res.detail || res.error || 'Add part failed', 'err'); return; }
+  try { res = await (await fetch('/api/parts', { method: 'POST', body: fd })).json(); }
+  catch (e) { setStatus('Save part failed: ' + e.message, 'err'); validateIntake(); return; }
+  if (res.error || !res.parts) { setStatus(res.detail || res.error || 'Save part failed', 'err'); validateIntake(); return; }
   partsData = res.parts;
+  intake = { items: [], source: null, originalFile: null, stem: 'drawing' };
+  partNameEl.value = '';
+  renderGallery();
   selectPart(res.part);
-  setStatus(`Added part "${res.part}" (${payload.crops.length} view(s)). Select a part and Run Pipeline.`, 'ok');
+  setStatus(`Saved part "${res.part}". Now press ▶ Run Pipeline.`, 'ok');
 });
 
 // ── Run the selected part ────────────────────────────────────────────────────
@@ -377,19 +744,45 @@ function startElapsed() {
 }
 function stopElapsed() { if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; } }
 
+// ── Per-stage progress strip (parses "[STAGE] ..." lines from the pipeline) ──
+const STAGE_LIST = ['Extracting', 'Resolving', 'Verifying', 'Building macros',
+                    'Building .sldprt', 'Exporting', 'Done'];
+const stageStrip = document.getElementById('stage-strip');
+let stageIdx = -1;
+function resetStages() {
+  stageIdx = -1;
+  stageStrip.innerHTML = STAGE_LIST.map(s => `<span class="stage-chip">${s}</span>`).join('');
+}
+function paintStages() {
+  [...stageStrip.children].forEach((el, i) => {
+    el.className = 'stage-chip' + (i < stageIdx ? ' done' : i === stageIdx ? ' now' : '');
+  });
+}
+function stageFromLine(line) {
+  if (!line.startsWith('[STAGE]')) return;
+  const rest = line.slice(7).trim();
+  const i = STAGE_LIST.findIndex(s => rest.startsWith(s));
+  if (i >= 0 && i > stageIdx) { stageIdx = i; paintStages(); }
+}
+function finishStages(ok) {
+  if (ok) { stageIdx = STAGE_LIST.length - 1; paintStages(); stageStrip.children[stageIdx].className = 'stage-chip done'; }
+}
+
 function setRunning(on) {
   isRunning = on;
-  document.getElementById('add-part-btn').disabled = on;
+  saveBtn.disabled = on || saveBtn.disabled;
   document.getElementById('demo-btn').disabled = on || !document.querySelector('#demo-sample option');
   cancelBtn.style.display = on ? '' : 'none';
   progressWrap.style.display = on ? '' : 'none';
+  stageStrip.style.display = on || stageIdx >= 0 ? '' : 'none';
   if (on) {
     runBtn.className = 'btn running'; runBtn.textContent = '⏳ Running…'; runBtn.disabled = true;
-    cancelBtn.disabled = false; resetProgress(); setProgress(2); startElapsed();
+    cancelBtn.disabled = false; resetProgress(); setProgress(2); startElapsed(); resetStages(); paintStages();
   } else {
     runBtn.className = 'btn'; runBtn.textContent = '▶ Run Pipeline'; stopElapsed();
   }
   updateRunEnabled();
+  validateIntake();
 }
 
 cancelBtn.addEventListener('click', async () => {
@@ -423,6 +816,7 @@ function monitorRun(id, partName) {
     const line = ev.data + '\n'; consolePre.textContent += line; inlineConsole.textContent += line;
     consolePre.scrollTop = consolePre.scrollHeight; inlineConsole.scrollTop = inlineConsole.scrollHeight;
     const p = progressFromLine(ev.data); if (p != null) setProgress(p);
+    stageFromLine(ev.data);
   };
   es.addEventListener('done', ev => { const line = `\n— pipeline exited (code ${ev.data}) —\n`; consolePre.textContent += line; inlineConsole.textContent += line; es.close(); });
 
@@ -433,10 +827,13 @@ function monitorRun(id, partName) {
     if (d.done) {
       clearInterval(pollTimer); pollTimer = null;
       setProgress(100);
+      finishStages(d.exit === 0 && !d.cancelled);
       setRunning(false);
       currentRunId = null;
       // refresh the parts list so the "ran" badge appears
       try { const pl = await (await fetch(`/api/parts?session=${sessionId}`)).json(); partsData = pl.parts; renderParts(); } catch {}
+      // refresh outputs once more so delivered paths land in the Files tab
+      if (selectedPart === partName) { try { const d2 = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(partName)}/outputs`)).json(); if (d2.has_any) fillOutputs(d2); } catch {} }
       if (d.cancelled) setStatus(`🛑 Pipeline cancelled for "${partName}".`, 'err');
       else if (d.exit === 0) {
         let where = '';
@@ -481,6 +878,8 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
       const cat = c[KEYMAP[tab]];
       if (cat && cat.present) { const j = tab!=='verification'&&tab!=='modelcheck'; paintText('panel-'+tab, cat.name, j?prettyJSON(cat.text||''):cat.text); setTabFilled(tab, true); }
     }
+    if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
+    if (c.usage && c.usage.present) { paintUsage(c.usage); setTabFilled('cost', true); }
     if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
     if (d.done) {
       clearInterval(pollTimer); pollTimer = null; setProgress(100); setRunning(false); currentRunId = null;

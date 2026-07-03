@@ -58,7 +58,7 @@ Rasterizes a PDF page or normalizes an image into a clean PNG, downscales to a m
 nearly blank") that follow through to the final report.
 
 ### Stage 2 — Extraction · `pipeline/extractor.py` · *any OS* · **the only paid step**
-- **Model:** `claude-sonnet-4-6` (override with env `EXTRACTION_MODEL`).
+- **Model:** `claude-sonnet-5` (override with env `EXTRACTION_MODEL`).
 - **Method:** a *forced tool call* validated against a Pydantic schema, with one repair retry.
 - **Multi-view:** all views of a part go to Claude in **one** call, labeled by view, so each
   feature's sketch plane is tied to the view it was read in — and a feature seen in two views is
@@ -122,7 +122,7 @@ values baked in).
 | Stage | Module | Runs on |
 |---|---|---|
 | Image prep | `utils/image_prep.py` | any OS |
-| Extraction | `pipeline/extractor.py` (`claude-sonnet-4-6`, forced tool call) | any OS |
+| Extraction | `pipeline/extractor.py` (`claude-sonnet-5`, forced tool call) | any OS |
 | Schema | `pipeline/schema.py` (Pydantic v2: views, holes, relationships, ambiguity) | any OS |
 | **Ambiguity resolution** | `pipeline/resolver.py` (resolved_value + tier per dim; never blocks) | any OS |
 | Verification | `pipeline/validator.py` (closure, envelopes, readiness report) | any OS |

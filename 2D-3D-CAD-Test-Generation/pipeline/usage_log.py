@@ -5,9 +5,11 @@ Appends one row per extraction run to a human-readable ``token_usage_log.txt``
 total) at the output root, so the cost of every API call is tracked over time.
 
 Prices are USD per MILLION tokens, from the Anthropic pricing reference
-(claude-api skill, cached 2026-06-04). Prompt-caching multipliers:
+(claude-api skill, cached 2026-07-03). Prompt-caching multipliers:
 cache WRITE (5-min TTL) = 1.25x input, cache READ = 0.10x input.
-Update PRICING if Anthropic changes published prices.
+claude-sonnet-5 is listed at $3/$15 (an introductory $2/$10 applies through
+2026-08-31 — the ledger uses the list price, so logged costs are an upper bound
+during the intro window). Update PRICING if Anthropic changes published prices.
 """
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ from pathlib import Path
 
 # USD per 1,000,000 tokens.
 PRICING: dict[str, dict[str, float]] = {
+    "claude-sonnet-5": {"input": 3.00, "output": 15.00, "cache_write": 3.75, "cache_read": 0.30},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cache_write": 3.75, "cache_read": 0.30},
     "claude-opus-4-8": {"input": 5.00, "output": 25.00, "cache_write": 6.25, "cache_read": 0.50},
 }
@@ -84,7 +87,7 @@ def record_run(output_dir: Path | str, part: str, model: str, usage: dict[str, i
     lines = [
         "CLAUDE API TOKEN & COST LEDGER",
         "==============================",
-        "Prices USD per 1M tokens (sonnet-4-6 $3/$15, opus-4-8 $5/$25; "
+        "Prices USD per 1M tokens (sonnet-5 $3/$15, sonnet-4-6 $3/$15, opus-4-8 $5/$25; "
         "cache write 1.25x input, cache read 0.10x input).",
         "Only extraction runs hit the API; --from-json and cache hits cost $0.",
         "",

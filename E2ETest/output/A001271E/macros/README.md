@@ -13,7 +13,7 @@ the numbered macros to isolate the step.
 
 ## Step-by-step (numbered macros)
 
-1. Copy this whole `GOLDEN-1-RevA` folder (with `macros/` and `logs/`) to the machine.
+1. Copy this whole `A001271E` folder (with `macros/` and `logs/`) to the machine.
 2. Open SolidWorks 2024.
 3. Tools > Macro > New… (give it any temp name) — the VBA editor opens.
 4. Paste the contents of `00_setup.vba`, press **F5** (Run). It creates the part,
@@ -35,5 +35,5 @@ Notes
   (cosmetic threads, countersinks, revolves) — values are in the comments.
 - If a feature's position was not readable from the drawing, the macro says
   `POSITION ASSUMED` — verify against the drawing before trusting the model.
-- Check `GOLDEN-1-RevA_build_plan.json` for the full step list, including anything
+- Check `A001271E_build_plan.json` for the full step list, including anything
   skipped as prohibited (lofts/sweeps/shells are never generated).

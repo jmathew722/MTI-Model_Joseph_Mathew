@@ -1,6 +1,6 @@
 """Dimension extraction via the Claude Vision API.
 
-Uses ``claude-sonnet-4-6`` (override with ``EXTRACTION_MODEL``) with a **forced
+Uses ``claude-sonnet-5`` (override with ``EXTRACTION_MODEL``) with a **forced
 tool call** — Claude must respond by calling the ``report_drawing_data`` tool,
 whose ``input_schema`` is generated from :class:`pipeline.schema.DrawingData`.
 The tool's JSON input is then validated against the same Pydantic model.
@@ -31,10 +31,14 @@ from utils.logger import get_logger
 log = get_logger()
 load_dotenv()
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = "claude-sonnet-5"
 MAX_TOKENS = 16000
 CONFIDENCE_THRESHOLD = 0.7  # below this, re-query once for a closer look
 SDK_MAX_RETRIES = 3  # SDK-level retries for transient API errors
+# Extra retry rounds in _call AFTER the SDK's own budget is exhausted (covers
+# longer outages so a paid multi-view extraction isn't lost to a blip).
+EXTRA_RETRY_ROUNDS = 2
+EXTRA_RETRY_BACKOFF_S = 15.0
 
 TOOL_NAME = "report_drawing_data"
 
@@ -269,15 +273,44 @@ def _call(client, model: str, messages: list[dict[str, Any]]):
     # ~4.6k tokens), which is byte-identical across every call and every drawing
     # in a batch — so within the cache window nearly all calls read it at ~10%
     # cost. The image carries its own cache breakpoint (see _image_block).
+    #
+    # Transient-failure policy: the SDK client itself retries connection errors,
+    # 429s and 5xx with exponential backoff (max_retries=SDK_MAX_RETRIES). On top
+    # of that, one extra retry round here with a longer backoff covers the case
+    # where the SDK's whole retry budget is exhausted during a burst outage —
+    # a paid multi-view extraction should not be lost to a 30-second blip.
     system = [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
-    return client.messages.create(
-        model=model,
-        max_tokens=MAX_TOKENS,
-        system=system,
-        messages=messages,
-        tools=[_drawing_data_tool()],
-        tool_choice={"type": "tool", "name": TOOL_NAME},
-    )
+
+    def _once():
+        return client.messages.create(
+            model=model,
+            max_tokens=MAX_TOKENS,
+            system=system,
+            messages=messages,
+            tools=[_drawing_data_tool()],
+            tool_choice={"type": "tool", "name": TOOL_NAME},
+        )
+
+    import time
+
+    import anthropic
+
+    attempts = 1 + EXTRA_RETRY_ROUNDS
+    for attempt in range(attempts):
+        try:
+            return _once()
+        except anthropic.APIConnectionError as e:
+            last = e
+        except anthropic.APIStatusError as e:
+            if e.status_code not in (429, 500, 502, 503, 529):
+                raise  # non-transient (auth, bad request, ...) — fail immediately
+            last = e
+        if attempt < attempts - 1:
+            delay = EXTRA_RETRY_BACKOFF_S * (2 ** attempt)
+            log.warning("Transient API failure (%s); retrying in %.0fs "
+                        "(extra round %d/%d)...", last, delay, attempt + 1, attempts - 1)
+            time.sleep(delay)
+    raise last
 
 
 def _find_tool_use(response) -> Any:
@@ -515,7 +548,7 @@ def extract_drawing_data(
     Args:
         image_b64: Base64-encoded image (from :func:`utils.image_prep.prepare_image`).
         media_type: MIME type of the image (default ``image/png``).
-        model: Model override; defaults to ``$EXTRACTION_MODEL`` or ``claude-sonnet-4-6``.
+        model: Model override; defaults to ``$EXTRACTION_MODEL`` or ``claude-sonnet-5``.
         prep_warnings: Warnings from image preparation, merged into the result so the
             operator sees them alongside the model's own warnings.
         cache_dir: If given, an on-disk extraction cache keyed by image+model hash;

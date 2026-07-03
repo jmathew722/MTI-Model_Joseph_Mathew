@@ -1,8 +1,9 @@
 # MTI 2D → 3D SolidWorks Pipeline — Run Guide
 
-Convert a folder of 2D engineering drawings into **SolidWorks 2024 parts** —
-extraction → ambiguity resolution → verification → VBA macros + a real `.sldprt`,
-with token costs logged and all deliverables copied to your Downloads folder.
+Convert 2D engineering drawings into **SolidWorks 2024 parts** —
+extraction (Claude `claude-sonnet-5`) → ambiguity resolution → verification →
+VBA macros + a real `.sldprt`, with token costs logged, a severity-ranked
+engineering review per part, and all deliverables copied to your Downloads folder.
 
 This page is the **operator run guide**. The deep technical docs live in
 [`2D-3D-CAD-Test-Generation/README.md`](2D-3D-CAD-Test-Generation/README.md).
@@ -14,14 +15,17 @@ To have an agent run + verify a batch for you, use
 ## What one run does (the whole flow)
 
 ```
-drawings → image prep → Claude Vision extract → Stage 2.5 resolve → verify
-         → VBA macros + build_plan.json + resolved_extraction.json
-         → .sldprt (SolidWorks COM)  → token ledger  → copy to ~/Downloads
+drawing(s) → image prep → Sonnet 5 extract → Stage 2.5 resolve → verify
+           → VBA macros + build_plan.json + resolved_extraction.json
+           → .sldprt (SolidWorks COM) → engineering review → token ledger
+           → copy to ~/Downloads
 ```
 
 - **Stage 2.5 (chief-engineer pass):** every ambiguous / under-dimensioned value
-  is resolved to a defensible number and flagged HIGH/MEDIUM/LOW/CRITICAL — the
-  build never blocks on ambiguity.
+  is resolved to a defensible number and flagged — the build never blocks on
+  ambiguity.
+- **`<Part>_engineering_review.txt`:** one ranked list per part of every
+  assumption and skipped/manual feature, CRITICAL first, in plain language.
 - **`.sldprt` is built by default** when SolidWorks 2024 is available (Windows).
   Off Windows / no SolidWorks, you still get macros + reports and a clear note.
 - **Deliverables are copied to `~/Downloads/SolidWorksModel_Parts`** as the last
@@ -34,8 +38,9 @@ drawings → image prep → Claude Vision extract → Stage 2.5 resolve → veri
 | Need | For |
 |------|-----|
 | Python 3.10+ | the whole pipeline |
-| `ANTHROPIC_API_KEY` | Claude Vision extraction (skipped on cache hits) |
+| `ANTHROPIC_API_KEY` | Sonnet 5 extraction (skipped on cache hits) |
 | SolidWorks 2024 (Windows) | building the `.sldprt` (optional — macros work anywhere) |
+| ODA File Converter (free) | DWG upload in the web UI only (DXF/PDF/JPG need nothing extra) |
 
 ## One-time setup
 
@@ -47,7 +52,33 @@ python setup.py                      # checks Python, installs deps, creates .en
 
 ---
 
-## Run a full test (the command you use every time)
+## Web UI — the primary path
+
+```powershell
+cd 2D-3D-CAD-Test-Generation\webapp
+.venv\Scripts\python.exe -m uvicorn app:app --host 127.0.0.1 --port 8092
+# then open http://127.0.0.1:8092/
+```
+
+One flow, no folder editing:
+
+1. **Upload one file** (PDF, JPG/PNG, or DWG/DXF) — or crop views out of a
+   multi-view sheet in the embedded cropper and pull them in.
+2. **Assign an orientation to each image** (Front / Back / Top / Bottom / Left /
+   Right / Isometric), rotating 90° where a scan is sideways. Front + one more
+   orthographic view are required before you can save.
+3. **Name the part** and save — the server writes the exact `--views-folder`
+   layout the CLI reads.
+4. **Run.** Progress shows per stage; results fill the tabs live: 3D viewer,
+   verification, **Engineering Flags** (severity-ranked), **Token / Cost**, and
+   **Files**. Outputs also land in `UI_Output/<Part>/` and
+   `~/Downloads/SolidWorksModel_Parts/<Part>/` — same files everywhere.
+
+Full UI docs: [`2D-3D-CAD-Test-Generation/README.md`](2D-3D-CAD-Test-Generation/README.md).
+
+---
+
+## CLI — the advanced / batch path (the command you use for test batches)
 
 Each **part** is a subfolder of view images (front + side, optionally top). Layout:
 
@@ -92,13 +123,16 @@ Compress-Archive -Path "$env:USERPROFILE\Downloads\SolidWorksModel_Parts\*" `
 ```
 <Part>/
 ├── <Part>.SLDPRT                    # the 3D model (when SolidWorks is available)
+├── <Part>.STL                       # STL export (3D viewer)
+├── <Part>_engineering_review.txt    # severity-ranked review: CRITICAL → HIGH → MEDIUM → LOW
 ├── <Part>_model_check.txt           # mass/bbox validation + any skipped features
 ├── <Part>_extraction.json           # raw Claude extraction (verbatim)
 ├── <Part>_resolved_extraction.json  # Stage 2.5: resolved_value + flag tier per dim
 ├── <Part>_verification_report.txt   # READY / completeness score
-├── <Part>_build_plan.json           # self-contained steps (dims, positions, flags)
+├── <Part>_build_plan.json           # self-contained steps (dims, positions, flags, review)
 ├── <Part>_audit_report.json         # static self-validation of the macros
 └── macros/                          # 00_setup … ZZ_final_verify, RUN_ALL.vba, README.md
+                                     # unsupported features appear as NN_Fxxx_MANUAL_*.vba
 ```
 
 Plus, at the output root: `multiview_summary.csv`, `token_usage_log.txt`
@@ -135,11 +169,16 @@ python -m pytest tests/ -q
 
 ## Reading the results
 
+- **`*_engineering_review.txt` — read this first.** Every assumption, ambiguity
+  resolution, and skipped/manual feature in one ranked list, most urgent first.
+  Each item states what was ambiguous, the decision made, why, and what it
+  affects. Also shown in the UI's Engineering Flags tab.
 - **Summary table / `multiview_summary.csv`** — per part: status, readiness %,
   macro count, features needing review, features skipped.
-- **`*_build_plan.json` → `resolution_summary`** — counts of assumptions and the
-  plain-English narrative; per-step `flags[]` list every MEDIUM/LOW/CRITICAL
-  assumption with an actionable note.
+- **`*_build_plan.json` → `resolution_summary` / `engineering_review`** — the
+  same review as structured data, plus per-step `flags[]` with actionable notes.
 - **`*_model_check.txt`** — if the `.sldprt` skipped a feature (e.g. an
   interactive fillet, or a hole with degenerate/edge-case data), it's listed here
-  with the reason. The macros still build those features.
+  with the reason. The macros still contain those features as steps.
+- **`token_usage_log.txt`** — tokens and dollar cost per API call, per part, and
+  the running total.

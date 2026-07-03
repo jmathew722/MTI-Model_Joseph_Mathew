@@ -52,6 +52,10 @@ load_dotenv(PROJECT_DIR / ".env")
 
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".tif", ".tiff", ".bmp"}
 
+# Untouched uploads (PDF/JPG/DWG) are kept per part so the original drawing is
+# always delivered next to the generated outputs.
+ORIGINALS_DIRNAME = ".originals"
+
 # Photo-app crop name -> (canonical order index, pipeline view name). The pipeline's
 # view_ingest classifies views from the filename; naming the uploaded crops this way
 # guarantees correct classification + processing order.
@@ -123,13 +127,23 @@ def _flatten_copy(out_dir: Path, dest: Path) -> Path | None:
         return None
 
 
-def _deliver_run(out_dir: Path, part_name: str) -> dict:
+def _deliver_run(out_dir: Path, part_name: str,
+                 extra_files: list[Path] | None = None) -> dict:
     """Deliver a finished run's outputs to BOTH the project ``UI_Output/<part>/``
     and the user's ``~/Downloads/SolidWorksModel_Parts/<part>/`` so they are easy
-    to find and open. Returns the paths that were written."""
+    to find and open. ``extra_files`` (e.g. the untouched original upload) are
+    copied alongside. Returns the paths that were written."""
     part = _sanitize(part_name)
     project = _flatten_copy(out_dir, DELIVER_DIR / part)
     downloads = _flatten_copy(out_dir, DOWNLOADS_DIR / part)
+    for extra in extra_files or []:
+        try:
+            if extra and Path(extra).is_file():
+                for dest in (project, downloads):
+                    if dest:
+                        shutil.copy2(extra, Path(dest) / Path(extra).name)
+        except Exception:
+            pass
     return {
         "project": str(project) if project else None,
         "downloads": str(downloads) if downloads else None,
@@ -137,7 +151,8 @@ def _deliver_run(out_dir: Path, part_name: str) -> dict:
 
 
 def _start_run(cmd: list[str], output_dir: Path, run_id: str | None = None,
-               deliver_name: str | None = None) -> str:
+               deliver_name: str | None = None,
+               extra_files: list[Path] | None = None) -> str:
     """Spawn the pipeline CLI and stream its output into RUNS[id]['lines'].
 
     When ``deliver_name`` is given, a successful run's outputs are also copied into
@@ -148,6 +163,7 @@ def _start_run(cmd: list[str], output_dir: Path, run_id: str | None = None,
         "lines": [], "done": False, "exit": None, "output": output_dir,
         "proc": None, "started": time.time(), "finished": None, "cancelled": False,
         "deliver_name": deliver_name, "delivered": None, "delivered_downloads": None,
+        "extra_files": extra_files or [],
     }
     RUNS[run_id] = state
 
@@ -200,7 +216,8 @@ def _start_run(cmd: list[str], output_dir: Path, run_id: str | None = None,
             # Deliver clean, openable copies for a successful, non-cancelled run:
             # one in the project (UI_Output/) and one in the user's Downloads folder.
             if state["exit"] == 0 and not state["cancelled"] and deliver_name:
-                paths = _deliver_run(output_dir, deliver_name)
+                paths = _deliver_run(output_dir, deliver_name,
+                                     extra_files=state.get("extra_files"))
                 state["delivered"] = paths.get("project")
                 state["delivered_downloads"] = paths.get("downloads")
                 if paths.get("project"):
@@ -542,14 +559,80 @@ def _cat(p: Path | None) -> dict:
     return {"present": True, "name": p.name, "text": text}
 
 
+def _review_items(build_plan: Path | None, review_txt: Path | None) -> dict:
+    """Engineering Flags tab payload: the structured severity-ranked items from
+    build_plan.json (single source of truth) plus the plain-text report."""
+    items = []
+    if build_plan is not None:
+        try:
+            import json as _json
+
+            plan = _json.loads(build_plan.read_text(encoding="utf-8"))
+            items = plan.get("engineering_review", []) or []
+        except Exception:
+            items = []
+    text = None
+    if review_txt is not None:
+        try:
+            text = review_txt.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            text = None
+    return {"present": bool(items) or text is not None, "items": items, "text": text}
+
+
+def _usage_summary(out: Path) -> dict:
+    """Token/Cost tab payload from the run's own ledger files (source of truth:
+    the same token_usage_log.* the CLI writes)."""
+    import json as _json
+
+    jsonl = out / "token_usage_log.jsonl"
+    txt = out / "token_usage_log.txt"
+    rows = []
+    if jsonl.is_file():
+        for line in jsonl.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    rows.append(_json.loads(line))
+                except Exception:
+                    continue
+    total_cost = round(sum(r.get("cost_usd", 0.0) for r in rows), 4)
+    ledger_text = None
+    if txt.is_file():
+        try:
+            ledger_text = txt.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    return {
+        "present": bool(rows) or ledger_text is not None,
+        "rows": rows,
+        "last_run": rows[-1] if rows else None,
+        "total_cost_usd": total_cost,
+        "text": ledger_text,
+    }
+
+
+def _file_listing(out: Path) -> list[dict]:
+    """Files tab payload: every output file with its relative path and size."""
+    files = []
+    if out.exists():
+        for p in sorted(out.rglob("*")):
+            if p.is_file() and ".extraction_cache" not in p.parts:
+                files.append({"name": p.relative_to(out).as_posix(),
+                              "size": p.stat().st_size})
+    return files
+
+
 def _categorize_output(out: Path) -> dict:
     """Categorise a pipeline output dir into the shape the output tabs consume.
-    Shared by run-id-scoped and per-part outputs so both render identically."""
+    Shared by run-id-scoped and per-part outputs so both render identically —
+    the UI reads the SAME files written to disk (one source of truth)."""
     extraction = _first(out, ["*_extraction.json", "*extraction*.json"], exclude=["resolved"])
     resolved = _first(out, ["*_resolved_extraction.json", "*resolved*.json"])
     build_plan = _first(out, ["*build_plan*.json", "**/build_plan*.json"])
     verification = _first(out, ["*verification_report*.txt", "*verification*.txt"])
     model_check = _first(out, ["*model_check*.txt", "*model_validation*.txt", "*validation_report*.txt"])
+    review_txt = _first(out, ["*_engineering_review.txt"])
 
     macros_files = []
     if out.exists():
@@ -571,9 +654,12 @@ def _categorize_output(out: Path) -> dict:
             "build_plan": _cat(build_plan),
             "verification": _cat(verification),
             "model_check": _cat(model_check),
+            "review": _review_items(build_plan, review_txt),
+            "usage": _usage_summary(out),
             "macros": {"present": bool(macros_files), "files": macros_files},
             "sldprt": {"present": bool(_first(out, ["*.sldprt"]))},
             "stl": {"present": stl is not None, "name": stl.name if stl else None},
+            "files": {"present": out.exists(), "list": _file_listing(out)},
         },
     }
 
@@ -598,6 +684,112 @@ def run_outputs(run_id: str):
         "delivered_downloads": state.get("delivered_downloads"),
     })
     return payload
+
+
+# ── DWG intake: convert to a raster PNG server-side ────────────────────────────
+
+# Common install locations of the free ODA File Converter (DWG -> DXF).
+_ODA_GLOBS = (
+    r"C:\Program Files\ODA\ODAFileConverter*\ODAFileConverter.exe",
+    r"C:\Program Files (x86)\ODA\ODAFileConverter*\ODAFileConverter.exe",
+)
+
+
+def _find_oda_converter() -> str | None:
+    import glob as _glob
+
+    exe = shutil.which("ODAFileConverter")
+    if exe:
+        return exe
+    for pattern in _ODA_GLOBS:
+        hits = sorted(_glob.glob(pattern))
+        if hits:
+            return hits[-1]  # newest version
+    return None
+
+
+def _render_dxf_to_png(dxf_path: Path, png_path: Path) -> None:
+    """Render a DXF's modelspace to a high-resolution PNG via ezdxf+matplotlib."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import ezdxf
+    from ezdxf.addons.drawing import RenderContext, Frontend
+    from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
+    import matplotlib.pyplot as plt
+
+    doc = ezdxf.readfile(str(dxf_path))
+    msp = doc.modelspace()
+    fig = plt.figure(figsize=(20, 14))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ctx = RenderContext(doc)
+    Frontend(ctx, MatplotlibBackend(ax)).draw_layout(msp, finalize=True)
+    ax.set_facecolor("#ffffff")
+    fig.patch.set_facecolor("#ffffff")
+    fig.savefig(str(png_path), dpi=150, facecolor="#ffffff")
+    plt.close(fig)
+
+
+@app.post("/api/convert-dwg")
+async def convert_dwg(file: UploadFile = File(...)):
+    """Convert an uploaded DWG (or DXF) to a viewable PNG.
+
+    DXF renders directly (ezdxf). DWG needs the free ODA File Converter installed;
+    when it is missing a clear 422 explains exactly what to install — never a
+    silent failure."""
+    import tempfile
+
+    name = Path(file.filename or "drawing.dwg").name
+    suffix = Path(name).suffix.lower()
+    if suffix not in (".dwg", ".dxf"):
+        raise HTTPException(400, f"Expected a .dwg or .dxf file, got '{suffix}'.")
+
+    try:
+        import ezdxf  # noqa: F401
+    except ImportError:
+        raise HTTPException(
+            422,
+            "DWG/DXF support needs the 'ezdxf' and 'matplotlib' Python packages. "
+            "Run: pip install -r webapp/requirements-ui.txt and restart the UI.",
+        )
+
+    with tempfile.TemporaryDirectory() as td:
+        tdir = Path(td)
+        src = tdir / name
+        src.write_bytes(await file.read())
+
+        if suffix == ".dwg":
+            oda = _find_oda_converter()
+            if not oda:
+                raise HTTPException(
+                    422,
+                    "DWG conversion needs the free ODA File Converter, which was not "
+                    "found on this machine. Install it from "
+                    "https://www.opendesign.com/guestfiles/oda_file_converter and "
+                    "retry — or export the drawing as PDF/DXF and upload that instead.",
+                )
+            out_dir = tdir / "dxf"
+            out_dir.mkdir()
+            # ODAFileConverter <in_dir> <out_dir> <outver> <outtype> <recurse> <audit> [filter]
+            proc = subprocess.run(
+                [oda, str(tdir), str(out_dir), "ACAD2018", "DXF", "0", "1", name],
+                capture_output=True, text=True, timeout=120,
+            )
+            dxfs = list(out_dir.glob("*.dxf"))
+            if not dxfs:
+                raise HTTPException(
+                    422,
+                    f"ODA File Converter could not convert '{name}' "
+                    f"(exit {proc.returncode}). {proc.stderr or proc.stdout or ''}".strip(),
+                )
+            src = dxfs[0]
+
+        png = tdir / "render.png"
+        try:
+            _render_dxf_to_png(src, png)
+        except Exception as e:
+            raise HTTPException(422, f"Could not render '{name}': {type(e).__name__}: {e}")
+        return Response(png.read_bytes(), media_type="image/png")
 
 
 # ── Multi-part working set (Tab 1 part selector + per-part run) ────────────────
@@ -647,6 +839,7 @@ async def add_part(
     session: str = Form(...),
     part: str = Form("drawing"),
     source: UploadFile | None = File(None),
+    original: UploadFile | None = File(None),
     crops: list[UploadFile] = File(...),
 ):
     if not crops:
@@ -679,6 +872,16 @@ async def add_part(
         # the views folder as an overview view (00_full.jpg -> classified "full").
         (pdir / OVERVIEW_FILENAME).write_bytes(src_bytes)
 
+    # Keep the untouched original upload (PDF/JPG/DWG) OUTSIDE the views folder
+    # so it is never mis-classified as a view; it is delivered with the outputs.
+    if original is not None:
+        odir = sdir / ORIGINALS_DIRNAME
+        odir.mkdir(exist_ok=True)
+        ext = Path(original.filename or "").suffix.lower() or ".bin"
+        for old in odir.glob(f"{part_name}.*"):
+            old.unlink()
+        (odir / f"{part_name}{ext}").write_bytes(await original.read())
+
     return {"session": _safe_session(session), "part": part_name, "parts": _list_parts(sdir)}
 
 
@@ -701,8 +904,33 @@ def part_outputs(session: str, part: str):
     if not pdir.is_dir():
         raise HTTPException(404, "Unknown part")
     payload = _categorize_output(pdir / "output")
-    payload.update({"part": _sanitize(part), "ran": (pdir / "output").is_dir()})
+    # Cumulative session cost: sum every part's ledger in this session.
+    session_total = 0.0
+    for other in _session_dir(session).iterdir():
+        if other.is_dir() and not other.name.startswith("."):
+            session_total += _usage_summary(other / "output").get("total_cost_usd", 0.0)
+    payload["categories"]["usage"]["session_total_cost_usd"] = round(session_total, 4)
+    delivered = DELIVER_DIR / _sanitize(part)
+    downloads = DOWNLOADS_DIR / _sanitize(part)
+    payload.update({
+        "part": _sanitize(part),
+        "ran": (pdir / "output").is_dir(),
+        "delivered": str(delivered) if delivered.is_dir() else None,
+        "delivered_downloads": str(downloads) if downloads.is_dir() else None,
+    })
     return payload
+
+
+@app.get("/api/parts/{session}/{part}/file/{name:path}")
+def part_file(session: str, part: str, name: str):
+    """Download any single output file of a part (Files tab links)."""
+    out = (_session_dir(session) / _sanitize(part) / "output").resolve()
+    target = (out / name).resolve()
+    if not str(target).startswith(str(out)) or target == out:
+        raise HTTPException(403, "Path outside part output")
+    if not target.is_file():
+        raise HTTPException(404, "File not found")
+    return FileResponse(str(target), filename=target.name)
 
 
 @app.get("/api/parts/{session}/{part}/model.stl")
@@ -732,5 +960,8 @@ def run_part(session: str = Form(...), part: str = Form(...)):
         "--output", str(out_dir),
         "--no-export",
     ]
-    run_id = _start_run(cmd, out_dir, deliver_name=_sanitize(part))
+    # Deliver the untouched original upload (if any) alongside the outputs.
+    extras = sorted((_session_dir(session) / ORIGINALS_DIRNAME).glob(f"{_sanitize(part)}.*")) \
+        if (_session_dir(session) / ORIGINALS_DIRNAME).is_dir() else []
+    run_id = _start_run(cmd, out_dir, deliver_name=_sanitize(part), extra_files=extras)
     return {"id": run_id, "part": _sanitize(part)}

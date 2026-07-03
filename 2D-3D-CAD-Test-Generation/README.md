@@ -34,13 +34,20 @@ generates SolidWorks VBA macros and (on a SolidWorks machine) builds a real
 
 ## What you get
 
-- **Web UI** (`webapp/`): preprocess a drawing and crop its views in the embedded
-  DrawingCrop tool, add one or more **parts**, run the full pipeline on a single
-  selected part, watch it live (with a **progress bar**, **run timer**, and a
-  **Cancel** button), and inspect every output — including an interactive 3D **STL
-  viewer** — in dedicated tabs.
-- **CLI** (`main.py`): the same pipeline as a scriptable command — a single drawing,
-  a batch folder, or multi-view part folders.
+- **Web UI** (`webapp/`) — the primary path: upload **one file** (PDF, JPG/PNG, or
+  DWG/DXF) or crop views out of a multi-view sheet, assign each image an
+  **orientation** (Front / Back / Top / Bottom / Left / Right / Isometric) with 90°
+  rotation for scanned drawings, name the part, and run. Progress shows **per stage**
+  (Extracting → Resolving → Verifying → Building macros → Building .sldprt →
+  Exporting → Done) with a run timer and Cancel. Results land live in tabs: the 3D
+  **STL viewer**, verification, a severity-ranked **Engineering Flags** review,
+  **Token / Cost**, and a **Files** tab linking every output.
+- **CLI** (`main.py`): the same pipeline as a scriptable command — the
+  advanced/manual path for batch runs (a single drawing, a batch folder, or
+  multi-view part folders).
+- **Severity-ranked engineering review** (`<Part>_engineering_review.txt`): every
+  assumption, ambiguity resolution, and skipped/manual feature, sorted
+  CRITICAL → HIGH → MEDIUM → LOW, in plain language.
 - **Deliverables in two easy places:** every successful web-UI run drops a clean,
   openable folder named after the part into both the project's `UI_Output/` and your
   `~/Downloads/SolidWorksModel_Parts/` (see [Outputs](#outputs--where-they-land)).
@@ -62,11 +69,12 @@ drawing/views ─► image_prep ─► extractor (Claude Vision) ─► resolver
 | Stage | Module | Runs on |
 |-------|--------|---------|
 | Image prep | `utils/image_prep.py` | any OS |
-| Extraction | `pipeline/extractor.py` (`claude-sonnet-4-6`, forced tool call) | any OS |
+| Extraction | `pipeline/extractor.py` (`claude-sonnet-5`, forced tool call) | any OS |
 | Schema | `pipeline/schema.py` (Pydantic v2: views, hole callouts, relationships) | any OS |
 | **Ambiguity resolution (Stage 2.5)** | `pipeline/resolver.py` (numeric `resolved_value` + flag tier per dimension; never blocks) | any OS |
 | Verification | `pipeline/validator.py` (dimensional closure, envelopes, advisory report) | any OS |
-| **VBA macros** | `pipeline/macro_generator.py` (incl. `ZZZ_export_stl.vba`) | any OS (macros run on any SolidWorks machine) |
+| **Engineering review** | `pipeline/engineering_review.py` (severity-ranked human report) | any OS |
+| **VBA macros** | `pipeline/macro_generator.py` (incl. `ZZZ_export_stl.vba`; unsupported features become numbered MANUAL-step macros) | any OS (macros run on any SolidWorks machine) |
 | COM build | `pipeline/solidworks_builder.py` (`.sldprt` + STL export) | Windows + SolidWorks 2024 |
 | Model check | `pipeline/model_validator.py` (mass/bounding-box, skipped features) | Windows + SolidWorks 2024 |
 
@@ -87,11 +95,17 @@ get the model and STL.
   `.sldprt`/`.stl` and run the model check. Everything else works without it.
 - For PDF input: a PDF rasterizer — **PyMuPDF** (bundled in `requirements.txt`) or
   **poppler** (for `pdf2image`).
+- For **DWG** input (web UI): the free
+  [ODA File Converter](https://www.opendesign.com/guestfiles/oda_file_converter)
+  installed on the server machine (found automatically). DXF needs no extra install.
+  Without it, DWG uploads fail with a clear message — export the drawing as PDF/DXF
+  instead.
 
 Python dependencies (`requirements.txt`): `anthropic`, `pillow`, `pdf2image`,
 `PyMuPDF`, `numpy`, `pydantic`, `python-dotenv`, `rich`, `pytest`, and `pywin32`
 (Windows only). The web UI adds (`webapp/requirements-ui.txt`): `fastapi`,
-`uvicorn[standard]`, `python-multipart`.
+`uvicorn[standard]`, `python-multipart`, `ezdxf`, `matplotlib` (the last two for
+DWG/DXF rendering).
 
 ---
 
@@ -119,7 +133,7 @@ put a real key in `.env.template`):
 
 ```ini
 ANTHROPIC_API_KEY=sk-ant-...
-# Optional model override (default claude-sonnet-4-6):
+# Optional model override (default claude-sonnet-5):
 # EXTRACTION_MODEL=claude-opus-4-8
 # Windows only — a REAL SolidWorks part template (see Troubleshooting for the path):
 SOLIDWORKS_TEMPLATE_PATH=C:\ProgramData\SOLIDWORKS\SOLIDWORKS 2024\templates\<a real .prtdot>
@@ -174,39 +188,47 @@ extraction (no API call).
 
 ### Tabs
 
-1. **Image Preprocessing** — the DrawingCrop photo app, embedded **verbatim**. Open
-   a PDF or image, draw bounding boxes, and queue each as a named view crop
-   (front / top / side / left / bottom). *DWG is not supported — use PDF or an image.*
+1. **Image Preprocessing** — intake and orientation. The DrawingCrop photo app is
+   embedded **verbatim** on top for cropping views out of a multi-view sheet.
+   Below it, the intake strip: upload a file or pull crops, assign orientations,
+   name the part, save, run.
 2. **Drawing vs 3D Model** — split panel: the selected part's source drawing on the
    left, an interactive **Three.js STL viewer** (drag-rotate, scroll-zoom,
    right-drag-pan) on the right. The STL loads automatically once the pipeline
    produces it.
-3. **Extraction JSON · Resolved Extraction · Build Plan · Verification · Model Check
-   · VBA Macros · Console** — each fills with the corresponding output file the
-   moment the pipeline writes it.
+3. **Extraction JSON · Resolved Extraction · Build Plan · Verification ·
+   Engineering Flags · Model Check · VBA Macros · Token / Cost · Files · Console**
+   — each fills with the corresponding output the moment the pipeline writes it.
+   *Engineering Flags* renders the severity-ranked review (CRITICAL first);
+   *Token / Cost* shows this part's API spend and the session total from the
+   ledger; *Files* links every output file plus the delivered folder paths.
 
-### Run a part
+### Run a part (upload → orient → name → run)
 
-The photo app works on one drawing at a time, so parts are committed out of it one
-at a time:
-
-1. Load a drawing, queue its view crops, click **➕ Add current part** — the crops
-   (plus a source thumbnail **and** the full drawing) are saved as a part in the
-   session.
-2. Repeat for each drawing to build a **part list** (cards show a thumbnail, name,
-   and view count).
-3. **Select exactly one part** (its card highlights).
-4. Click **▶ Run Pipeline**. It runs scoped to **just that part's folder**:
-   `main.py --views-folder <part> --output <part>/output`.
+1. **Get images in.** Either **📄 Upload drawing** — one PDF (each page becomes an
+   image), JPG/PNG, or DWG/DXF (converted server-side) — or crop views out of a
+   multi-view sheet in the cropper above and **⬇ Pull queued crops**.
+2. **Assign orientations.** Each image gets one of Front / Back / Top / Bottom /
+   Left / Right / Isometric-Overview. Rotate 90° (⟳) for scanned drawings.
+   Duplicate orientations show a warning badge and need a confirm on save.
+   The inline banner requires **Front + one more orthographic view** before saving
+   is enabled — that is what extraction needs to resolve depth.
+3. **Name the part** (becomes the folder name) and **💾 Save part** — the images
+   are written server-side in the exact `--views-folder` layout, so the folder
+   works with the CLI unchanged. The untouched original upload is kept and
+   delivered with the outputs.
+4. **Select the part** and click **▶ Run Pipeline**. It runs scoped to just that
+   part's folder: `main.py --views-folder <part> --output <part>/output`.
 
 While it runs you get:
 
-- a **progress bar** that advances with the pipeline's own stage markers,
-- a live **run timer** (`m:ss`),
-- a live **Console** stream, and
+- a **per-stage strip** (Extracting → Resolving → Verifying → Building macros →
+  Building .sldprt → Exporting → Done) plus a progress bar and run timer,
+- a live **Console** stream (partial failures surface inline, per stage),
 - a **✕ Cancel** button that terminates the run and its SolidWorks child processes.
 
-On success the status line shows exactly where the outputs were saved (see below).
+On success the tabs fill in place (no reload) and the status line shows exactly
+where the outputs were saved (see below).
 
 ---
 
@@ -303,15 +325,24 @@ Test2/
 <output>/<PartNumber>/
 ├── <PartNumber>.SLDPRT                    # the 3D model — built when SolidWorks is available
 ├── <PartNumber>.STL                       # STL export (for the 3D viewer)
+├── <PartNumber>_engineering_review.txt    # SEVERITY-RANKED review: every assumption & manual step,
+│                                          #   CRITICAL → HIGH → MEDIUM → LOW, plain language
 ├── <PartNumber>_model_check.txt           # mass/bounding-box validation + any skipped features
 ├── <PartNumber>_extraction.json           # RAW extraction, verbatim (saved even when BLOCKED)
 ├── <PartNumber>_resolved_extraction.json  # Stage 2.5: each dim's resolved_value + flag tier + note
 ├── <PartNumber>_verification_report.txt   # verification report + readiness score
-├── <PartNumber>_build_plan.json           # SELF-CONTAINED steps + resolution_summary
+├── <PartNumber>_build_plan.json           # SELF-CONTAINED steps + resolution_summary + engineering_review
 ├── <PartNumber>_audit_report.json         # static self-validation of the generated macros
 ├── macros/                                # 00_setup … ZZ_final_verify, ZZZ_export_stl, RUN_ALL.vba, README.md
+│                                          #   unsupported features appear as NN_Fxxx_MANUAL_*.vba steps
 └── logs/                                  # build_log.txt appended by the macros
 ```
+
+The **engineering review** is the first thing to read after a run: one ranked list
+of every assumption, ambiguity resolution, and skipped/manual feature, most urgent
+first, each with what was ambiguous, the decision made, why, and what it affects.
+It is regenerated after the `.sldprt` build so COM-skipped features are always in
+it, and it renders in the web UI's **Engineering Flags** tab.
 
 The **raw extraction JSON is written for every run** so a paid extraction is never
 lost — patch it and regenerate with `--from-json` (no API cost). Every `.vba` is
@@ -340,7 +371,7 @@ independent; the web-UI delivery above is always on for successful part runs.)
 | Variable | Purpose |
 |----------|---------|
 | `ANTHROPIC_API_KEY` | **Required** for live extraction. |
-| `EXTRACTION_MODEL` | Override the extraction model (default `claude-sonnet-4-6`). |
+| `EXTRACTION_MODEL` | Override the extraction model (default `claude-sonnet-5`). |
 | `SOLIDWORKS_TEMPLATE_PATH` | Windows: a real blank part `.prtdot` template to base new parts on. |
 | `MAX_IMAGE_LONG_EDGE` | Max image long edge in px before extraction (default `2576`, the high-res vision ceiling). Lower it to trade accuracy for fewer image tokens. |
 
@@ -375,10 +406,13 @@ VBA by tier: **HIGH** → a `' NOTE` comment; **MEDIUM** → `MsgBox vbInformati
 **LOW** → `MsgBox vbExclamation`; **CRITICAL** → a banner + a confirmation dialog the
 operator must acknowledge.
 
-**Always review the `resolution_summary` and every MEDIUM/LOW/CRITICAL flag before
-relying on a model** — a CRITICAL value is a defensible default, not a confirmed
-reading. Likewise, when `model_check.txt` lists skipped features, the `.sldprt` is
-**not** feature-complete (the macros still build those features).
+**Always read `<Part>_engineering_review.txt` before relying on a model.** It maps
+the resolver's tiers into review severities (resolver CRITICAL → CRITICAL, resolver
+LOW → HIGH, resolver MEDIUM → MEDIUM, confirmed-with-assumption → LOW) and adds
+every macro-manual and COM-skipped feature, so nothing needing human attention is
+scattered across files. A CRITICAL value is a defensible default, not a confirmed
+reading. When `model_check.txt` lists skipped features, the `.sldprt` is **not**
+feature-complete (the macros still contain those features as steps).
 
 ---
 
@@ -434,12 +468,16 @@ SolidWorks before re-running that part. Skipped features are always listed in
 ## Limitations
 
 - Feature/hole **positions** are only as good as the drawing callouts: an
-  undimensioned position is centered and flagged `POSITION ASSUMED` (tier LOW).
+  undimensioned position is centered and flagged `POSITION ASSUMED`.
 - Stage 2.5 **resolves rather than blocks** — a CRITICAL-tier value is a defensible
   default, not a confirmed reading.
 - **Prohibited features** (loft, sweep, boundary, shell, draft, surfacing, helical
-  threads) are never generated — they're flagged and skipped. Threads are cosmetic.
-- Revolves and feature-level patterns are emitted as TODO-marked skeletons.
+  threads) are never built automatically — each becomes a numbered
+  `NN_Fxxx_MANUAL_*.vba` step with the extracted values in its comments, and is
+  flagged CRITICAL in the engineering review. Threads are cosmetic.
+- Revolves without an extracted profile and feature-level patterns without a
+  covered seed are emitted as TODO-marked macros (flagged HIGH).
 - The COM build path, `.sldprt`/`.stl` outputs, model check, and Tab 2's 3D content
   are exercised only on Windows + SolidWorks 2024.
-- **DWG input** is not supported (needs an external converter — use PDF or an image).
+- **DWG input** requires the free ODA File Converter on the server machine; without
+  it, DWG uploads fail with an instructive message (DXF works out of the box).

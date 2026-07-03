@@ -549,8 +549,16 @@ class DrawingData(BaseModel):
 
     @property
     def display_name(self) -> str:
-        """Best available name for files/folders: part_number > part_name > 'part'."""
-        base = self.part_number or self.part_name or "part"
-        if self.revision:
+        """Best available name for files/folders: part_number > part_name > 'part'.
+
+        An illegible title block can come back as quote/placeholder junk (e.g.
+        '""') rather than empty — a candidate with no alphanumeric character is
+        treated as unread so folder names never end up as garbage like '-Rev'."""
+        def _readable(v: str) -> bool:
+            return any(ch.isalnum() for ch in (v or ""))
+
+        base = (self.part_number if _readable(self.part_number)
+                else self.part_name if _readable(self.part_name) else "part")
+        if _readable(self.revision):
             base = f"{base}-Rev{self.revision}"
         return base

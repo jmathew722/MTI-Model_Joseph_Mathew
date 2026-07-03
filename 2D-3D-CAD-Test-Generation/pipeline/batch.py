@@ -54,10 +54,16 @@ def resolve_part_template(template_path: Optional[str] = None) -> Optional[str]:
 
 
 def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
-                          template_path: Optional[str] = None) -> str:
+                          template_path: Optional[str] = None,
+                          skipped_out: Optional[list] = None,
+                          caveats_out: Optional[list] = None) -> str:
     """Build one validated part into ``<part_dir>/<name>.sldprt`` over COM and
     write a ``<name>_model_check.txt``. Non-strict: a fragile feature is skipped
-    (and documented) rather than aborting the build. Returns the saved path."""
+    (and documented) rather than aborting the build. Returns the saved path.
+
+    When ``skipped_out`` / ``caveats_out`` lists are given, every skipped feature
+    ``(id, type, reason)`` and every build caveat string is appended so the
+    caller can fold them into the engineering review."""
     from pipeline.model_validator import validate_model
     from pipeline.solidworks_builder import build_model, export_stl, save_model, SolidWorksError
 
@@ -69,7 +75,7 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
     # Snapshot warnings so we can report only the caveats the BUILD added (e.g. a
     # fillet auto-applied to all edges), separate from extraction/resolver notes.
     pre_warnings = list(getattr(model, "warnings", []) or [])
-    _, sw_doc = build_model(
+    interim_path, sw_doc = build_model(
         sw_app, model, output_dir=part_dir, template_path=template,
         strict=False, skipped_out=skipped,
     )
@@ -104,10 +110,50 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
     lines.append(f"Overall model validation: {'PASSED' if vreport.get('ok') else 'completed with issues'}.")
     (part_dir / f"{name}_model_check.txt").write_text("\n".join(lines), encoding="utf-8")
 
+    if skipped_out is not None:
+        skipped_out.extend(skipped)
+    if caveats_out is not None:
+        caveats_out.extend(build_caveats)
+
+    # Close the document so the .sldprt is not left locked (a locked file breaks
+    # re-runs and the Downloads copy). CloseDoc keys on the window title, which can
+    # be either the bare title or the file name depending on save state — try every
+    # candidate. Under late-bound COM, GetTitle is a PROPERTY (calling it raises
+    # "'str' object is not callable"), so read it defensively.
+    titles: set[str] = {Path(sldprt).name, Path(sldprt).stem}
     try:
-        sw_app.CloseDoc(sw_doc.GetTitle())
+        t = sw_doc.GetTitle
+        titles.add(str(t() if callable(t) else t))
     except Exception:
         pass
+    for title in titles:
+        if not title:
+            continue
+        try:
+            sw_app.CloseDoc(title)
+        except Exception:
+            pass
+
+    # Remove build-time intermediates so the delivered folder holds exactly one
+    # model per part: SolidWorks autosaves, lock files, and the pre-rename save
+    # (build_model saves under the drawing's part_name before the final SaveAs).
+    final = Path(sldprt).resolve()
+    junk: list[Path] = []
+    junk += part_dir.glob("AUTOSAVE_*.sldprt")
+    junk += part_dir.glob("~$*.sldprt")
+    try:
+        interim = Path(interim_path).resolve()
+        if interim != final:
+            junk.append(interim)
+            junk.append(interim.with_suffix(".stl"))
+    except Exception:
+        pass
+    for j in junk:
+        try:
+            if j.exists() and j.resolve() != final:
+                j.unlink()
+        except OSError:
+            pass  # still locked — cosmetic only, never fail the build over it
     return sldprt
 
 
@@ -166,32 +212,42 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     ``.sldprt`` is also built into the part folder — making the 3D model a
     standard output of every run, not just the VBA macros.
     """
+    # [STAGE] markers: machine-readable progress lines for the web UI's stepper.
     raw_extraction = drawing_data
     resolution = None
     if resolve:
         from pipeline.resolver import resolve_extraction
 
+        print("[STAGE] Resolving", flush=True)
         resolution = resolve_extraction(raw_extraction)
         drawing_data = resolution.clean_extraction
 
+    print("[STAGE] Verifying", flush=True)
     model, report = run_verification(drawing_data)
     scores = _scores(report.readiness or {})
     part = model.display_name if model is not None else (
         drawing_data.get("part_number") or drawing_data.get("part_name") or "part"
     )
 
+    # Folder/file base name must be filesystem-safe (an illegible title block can
+    # produce quotes or other characters Windows rejects). Same sanitizer as the
+    # macro package, so both write into the SAME part folder.
+    from pipeline.macro_generator import _safe_name
+
+    safe = _safe_name(part)
+
     # Always persist the RAW extraction + report (READY or BLOCKED), like the single path.
-    part_dir = output_dir / (part.replace(" ", "_") or "part")
+    part_dir = output_dir / safe
     part_dir.mkdir(parents=True, exist_ok=True)
-    (part_dir / f"{part.replace(' ', '_') or 'part'}_extraction.json").write_text(
+    (part_dir / f"{safe}_extraction.json").write_text(
         json.dumps(raw_extraction, indent=2), encoding="utf-8"
     )
     if resolution is not None:
-        (part_dir / f"{part.replace(' ', '_') or 'part'}_resolved_extraction.json").write_text(
+        (part_dir / f"{safe}_resolved_extraction.json").write_text(
             json.dumps(resolution.resolved_extraction, indent=2), encoding="utf-8"
         )
     verification_text = format_verification_report(model, report)
-    (part_dir / f"{part.replace(' ', '_') or 'part'}_verification_report.txt").write_text(
+    (part_dir / f"{safe}_verification_report.txt").write_text(
         verification_text, encoding="utf-8"
     )
 
@@ -200,6 +256,7 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
         return BatchRow(source, part, "BLOCKED", **scores, n_macros=0, n_needs_review=0,
                         n_skipped=0, detail="; ".join(report.errors)[:300])
     try:
+        print("[STAGE] Building macros", flush=True)
         pkg = generate_macro_package(model, raw_extraction, verification_text, output_dir,
                                      resolution=resolution)
     except MacroGenerationError as e:
@@ -210,13 +267,29 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     # Build the real .sldprt into the part folder whenever SolidWorks is available,
     # so the 3D model is a required output of every run alongside the text files.
     detail = ""
+    build_skipped: list = []
+    build_caveats: list = []
     if sw_app is not None:
+        print("[STAGE] Building .sldprt", flush=True)
         try:
-            sldprt = build_sldprt_for_part(sw_app, model, part_dir, part_dir.name, template_path)
+            sldprt = build_sldprt_for_part(sw_app, model, part_dir, part_dir.name, template_path,
+                                           skipped_out=build_skipped, caveats_out=build_caveats)
             log.info("Built .sldprt for %s: %s", part, sldprt)
         except Exception as e:  # a build failure must not lose the macros/text output
             detail = f"sldprt build failed: {type(e).__name__}: {e}"[:300]
             log.warning("%s: %s", part, detail)
+
+    # Rewrite the engineering review with the .sldprt build outcome folded in, so
+    # a COM-skipped feature can never go unflagged (the macro package wrote the
+    # pre-build version; this is the complete one).
+    try:
+        from pipeline.engineering_review import build_review_items, write_review
+
+        items = build_review_items(resolution=resolution, pkg=pkg,
+                                   build_skipped=build_skipped, build_caveats=build_caveats)
+        write_review(part_dir, part_dir.name, items, resolution=resolution)
+    except Exception as e:  # the review must never sink an otherwise good run
+        log.warning("Could not write engineering review for %s: %s", part, e)
 
     return BatchRow(source, part, "READY", **scores, n_macros=n_macros,
                     n_needs_review=len(pkg.needs_review), n_skipped=len(pkg.skipped), detail=detail)

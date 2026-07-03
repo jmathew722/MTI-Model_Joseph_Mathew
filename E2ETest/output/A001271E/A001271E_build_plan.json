@@ -1,0 +1,307 @@
+{
+  "part": "A001271E",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 15,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 1,
+    "medium_flags": 0,
+    "high_flags": 17,
+    "rebuild_confidence": 0.75,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_rectangular_plate_17_50_x_11_25_x_1.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base rectangular plate 17.50 x 11.25 x 1.00 thick",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 17.5,
+        "width": 11.25,
+        "depth": 1.0
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.4445,
+        "width": 0.28575,
+        "depth": 0.0254
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "F001",
+          "flag_tier": "LOW",
+          "human_note": "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "LOW"
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_Corner_counterbored_clearance_holes_for_.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "Corner counterbored clearance holes for .500 socket head cap screws, 4 places",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.531,
+        "qty": 4.0,
+        "cbore_diameter": 0.75,
+        "cbore_depth": 0.3
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0134874,
+        "qty": 4.0,
+        "cbore_diameter": 0.01905,
+        "cbore_depth": 0.00762
+      },
+      "positions_xy": [
+        [
+          0.844,
+          10.5
+        ],
+        [
+          16.656,
+          10.5
+        ],
+        [
+          0.844,
+          0.75
+        ],
+        [
+          16.656,
+          0.75
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0214376,
+          0.2667
+        ],
+        [
+          0.4230624,
+          0.2667
+        ],
+        [
+          0.0214376,
+          0.01905
+        ],
+        [
+          0.4230624,
+          0.01905
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F003_Inner_pattern_of_4_through_drilled_531_h.vba",
+      "feature_id": "F003",
+      "type": "hole",
+      "description": "Inner pattern of 4 through drilled .531 holes",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.531,
+        "qty": 4.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0134874,
+        "qty": 4.0
+      },
+      "positions_xy": [
+        [
+          7.625,
+          4.5
+        ],
+        [
+          14.625,
+          4.5
+        ],
+        [
+          7.625,
+          10.5
+        ],
+        [
+          14.625,
+          10.5
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.193675,
+          0.1143
+        ],
+        [
+          0.371475,
+          0.1143
+        ],
+        [
+          0.193675,
+          0.2667
+        ],
+        [
+          0.371475,
+          0.2667
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1001,
+      "macro_file": "ZZZ_export_stl.vba",
+      "feature_id": "-",
+      "type": "export",
+      "description": "Export the part as an STL beside the .sldprt (same base name)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH"
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": [],
+  "engineering_review": [
+    {
+      "severity": "HIGH",
+      "source": "feature",
+      "id": "F001",
+      "what": "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+      "decision": "centered_on_parent",
+      "why": "position not dimensioned on the drawing",
+      "affects": "feature F001"
+    }
+  ]
+}

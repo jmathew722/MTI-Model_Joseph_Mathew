@@ -205,9 +205,12 @@ def _force_utf8_console() -> None:
 def _save_extraction(output_dir: Path, folder_name: str, drawing_data: dict) -> Path:
     """Persist the extraction into the output folder so a paid run is never lost,
     READY or BLOCKED (failure E008). Returns the path written."""
-    part_dir = output_dir / (folder_name.replace(" ", "_") or "part")
+    from pipeline.macro_generator import _safe_name
+
+    safe = _safe_name(folder_name)
+    part_dir = output_dir / safe
     part_dir.mkdir(parents=True, exist_ok=True)
-    path = part_dir / f"{folder_name.replace(' ', '_') or 'part'}_extraction.json"
+    path = part_dir / f"{safe}_extraction.json"
     path.write_text(json.dumps(drawing_data, indent=2), encoding="utf-8")
     return path
 
@@ -293,8 +296,16 @@ def _extract_part_views(part, page: int, cache_dir, usage: dict) -> dict:
         views, cache_dir=cache_dir, usage_out=usage, prep_warnings=part.warnings
     )
     # Stamp the part number from the folder name when the model didn't read one.
-    if not data.get("part_number") and not data.get("part_name"):
+    # An illegible title block can come back as quote/placeholder junk (e.g. '""')
+    # rather than empty — treat anything with no alphanumerics as unread. The part
+    # FOLDER name is the operator's authoritative part number.
+    def _unread(v) -> bool:
+        return not any(ch.isalnum() for ch in str(v or ""))
+
+    if _unread(data.get("part_number")):
         data["part_number"] = part.name
+    if _unread(data.get("revision")):
+        data["revision"] = ""
     return data
 
 
@@ -333,6 +344,7 @@ def _run_views_folder(args) -> int:
     rows = []
     for part in parts:
         present = ", ".join(v for v, _ in _views_for_extraction(part)) or "none"
+        print(f"[STAGE] Extracting {part.name}", flush=True)
         console.print(f"[1/2] {part.name}: extracting views ({present})...")
         for w in part.warnings:
             console.print(f"  [yellow]warning:[/yellow] {w}")
@@ -348,10 +360,17 @@ def _run_views_folder(args) -> int:
             continue
         record_run(output_dir, data.get("part_number") or part.name, model, usage)
         console.print("[2.5/2] resolving ambiguities + verifying + per-plane macros + .sldprt...")
-        rows.append(process_drawing_data(data, part.name, output_dir,
-                                         sw_app=sw_app, template_path=template,
-                                         resolve=not getattr(args, "no_resolve", False),
-                                         strict_gate=getattr(args, "strict_gate", False)))
+        try:
+            rows.append(process_drawing_data(data, part.name, output_dir,
+                                             sw_app=sw_app, template_path=template,
+                                             resolve=not getattr(args, "no_resolve", False),
+                                             strict_gate=getattr(args, "strict_gate", False)))
+        except Exception as e:  # one bad part must never sink the rest of the batch
+            console.print(f"  [red]Processing failed:[/red] {type(e).__name__}: {e}")
+            from pipeline.batch import BatchRow
+
+            rows.append(BatchRow(part.name, part.name, "ERROR", 0, 0, 0, 0, 0, 0, 0, 0,
+                                 f"{type(e).__name__}: {e}"[:300]))
 
     table = Table(title=f"Multi-view summary ({len(rows)} part(s))")
     for col in ("Part", "Status", "Readiness", "Macros", "Review", "Skipped", "Detail"):
@@ -365,7 +384,9 @@ def _run_views_folder(args) -> int:
     csv_path = write_batch_csv(rows, output_dir, name="multiview_summary.csv")
     n_ready = sum(1 for r in rows if r.status == "READY")
     console.print(f"  Summary CSV: {csv_path}  ({n_ready}/{len(rows)} READY)")
+    print("[STAGE] Exporting", flush=True)
     _export_to_downloads(args, output_dir)
+    print("[STAGE] Done", flush=True)
     return 0 if n_ready == len(rows) else 8
 
 
@@ -503,12 +524,13 @@ def main() -> int:
     # --from-json with no API cost (failure E008).
     extraction_path = _save_extraction(output_dir, folder_name, raw_extraction)
     console.print(f"  Extraction saved to {extraction_path}")
+    safe_base = extraction_path.name.removesuffix("_extraction.json")
     if resolution is not None:
-        resolved_path = extraction_path.parent / f"{folder_name}_resolved_extraction.json"
+        resolved_path = extraction_path.parent / f"{safe_base}_resolved_extraction.json"
         resolved_path.write_text(json.dumps(resolution.resolved_extraction, indent=2), encoding="utf-8")
         console.print(f"  Resolved extraction saved to {resolved_path}")
     if model is not None:
-        report_path = extraction_path.parent / f"{folder_name}_verification_report.txt"
+        report_path = extraction_path.parent / f"{safe_base}_verification_report.txt"
         report_path.write_text(verification_text, encoding="utf-8")
         console.print(f"  Report written to {report_path}")
 
@@ -552,6 +574,8 @@ def main() -> int:
         import os as _os
 
         sw_app = _connect_solidworks_optional(args)
+        build_skipped: list = []
+        build_caveats: list = []
         if sw_app is not None:
             from pipeline.batch import build_sldprt_for_part
 
@@ -559,10 +583,26 @@ def main() -> int:
                 sldprt = build_sldprt_for_part(
                     sw_app, model, pkg.root, pkg.root.name,
                     _os.getenv("SOLIDWORKS_TEMPLATE_PATH"),
+                    skipped_out=build_skipped, caveats_out=build_caveats,
                 )
                 lines.append(f"  [green]Model built:[/green] {sldprt}")
             except Exception as e:
                 lines.append(f"  [yellow].sldprt build failed:[/yellow] {type(e).__name__}: {e}")
+        # Rewrite the engineering review with the build outcome folded in, so a
+        # COM-skipped feature is always flagged in the human-facing report.
+        try:
+            from pipeline.engineering_review import build_review_items, write_review
+
+            review_items = build_review_items(resolution=resolution, pkg=pkg,
+                                              build_skipped=build_skipped,
+                                              build_caveats=build_caveats)
+            review_path = write_review(pkg.root, pkg.root.name, review_items,
+                                       resolution=resolution)
+            n_urgent = sum(1 for i in review_items if i["severity"] in ("CRITICAL", "HIGH"))
+            lines.append(f"  Engineering review: {review_path} "
+                         f"({n_urgent} item(s) need attention)")
+        except Exception as e:
+            lines.append(f"  [yellow]Engineering review failed:[/yellow] {type(e).__name__}: {e}")
         if pkg.skipped:
             lines.append(
                 f"  [yellow]{len(pkg.skipped)} feature(s) skipped (prohibited):[/yellow] "
