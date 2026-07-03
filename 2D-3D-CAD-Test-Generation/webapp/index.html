@@ -5,16 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>MTI 2D→3D Pipeline</title>
 <style>
+  /* ── Design tokens ─────────────────────────────────────────────────────── */
   :root {
     --bg:#0a0e16; --bg2:#0f1622; --panel:#111a28; --line:#1d2a3c;
     --ink:#e6edf6; --muted:#8aa0bd; --accent:#4f86ff; --accent2:#2dd4bf;
     --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+    --r1:7px; --r2:10px; --r3:12px;
   }
   * { box-sizing:border-box; }
   html,body { height:100%; }
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
          background:var(--bg); color:var(--ink); display:flex; flex-direction:column; height:100vh; }
-  header { display:flex; align-items:center; gap:14px; padding:12px 20px; flex:0 0 auto;
+
+  /* Typography hierarchy: h1 (header) > .grp-title (section) > label/.hint (support) */
+  .grp-title { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+               color:var(--muted); }
+  .hint { color:var(--muted); font-size:12px; font-weight:400; }
+  .grow { flex:1; }
+
+  header { display:flex; align-items:center; gap:14px; padding:var(--s3) 20px; flex:0 0 auto;
            background:linear-gradient(180deg,#16243a,#0f1622); border-bottom:1px solid var(--line); }
   .logo { width:34px; height:34px; border-radius:8px; flex:0 0 auto;
           background:linear-gradient(135deg,var(--accent),var(--accent2)); display:grid; place-items:center; font-size:18px; }
@@ -27,31 +37,90 @@
   .pill.live .dot { background:var(--ok); box-shadow:0 0 8px var(--ok); }
   .pill.demo .dot { background:var(--warn); box-shadow:0 0 8px var(--warn); }
 
+  /* ── Top-level tabs (2) ────────────────────────────────────────────────── */
   .tabs { display:flex; gap:2px; padding:0 14px; background:#0c131f; border-bottom:1px solid var(--line);
           flex:0 0 auto; overflow-x:auto; }
-  .tab { padding:11px 15px; font-size:13px; font-weight:600; color:var(--muted); background:none; border:none;
+  .tab { padding:12px 20px; font-size:14px; font-weight:700; color:var(--muted); background:none; border:none;
          border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; margin-bottom:-1px; }
   .tab:hover { color:#cbd5e1; }
   .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-  .tab .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px; border-radius:9px;
+  .tab .badge, .stab .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px; border-radius:9px;
                 font-size:10px; line-height:16px; text-align:center; background:#1e2b3f; color:var(--muted); }
-  .tab.filled .badge { background:var(--ok); color:#04120b; }
+  .tab.filled .badge, .stab.filled .badge { background:var(--ok); color:#04120b; }
 
   main { flex:1 1 auto; min-height:0; position:relative; }
-  .panel { position:absolute; inset:0; display:none; }
-  .panel.active { display:flex; flex-direction:column; }
+  main > .panel { position:absolute; inset:0; display:none; }
+  main > .panel.active { display:flex; flex-direction:column; }
 
-  /* Tab 1 */
+  /* ── Buttons & inputs ──────────────────────────────────────────────────── */
+  .btn { font:inherit; font-weight:700; border:0; border-radius:9px; padding:10px 18px; cursor:pointer;
+         background:linear-gradient(135deg,var(--accent),#3b6fe0); color:#fff; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn.xl { padding:13px 28px; font-size:15px; border-radius:11px;
+            box-shadow:0 4px 18px rgba(79,134,255,.28); }
+  .btn.secondary { background:#1a2740; color:var(--ink); border:1px solid var(--line); font-weight:600; }
+  .btn.running { background:#243452; color:var(--accent2); box-shadow:none; }
+  .btn.danger { background:#3a1620; color:#ff9c9c; border:1px solid #6e2430; font-weight:600; }
+  .btn.danger:hover:not(:disabled) { background:#4a1c28; }
+  .filebtn { display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:13px;
+             padding:8px 14px; border-radius:9px; background:#1a2740; color:var(--ink);
+             border:1px solid var(--line); cursor:pointer; }
+  .filebtn:hover { border-color:#33507a; }
+  .sel-input { font:inherit; font-size:13px; background:#0d1521; color:var(--ink);
+               border:1px solid var(--line); border-radius:9px; padding:8px 10px; }
+  #part-name { font:inherit; font-size:13px; background:#0d1521; color:var(--ink);
+               border:1px solid var(--line); border-radius:9px; padding:8px 12px; width:230px; }
+  #part-name:focus { outline:none; border-color:var(--accent); }
+  .ibtn { flex:0 0 auto; width:24px; height:24px; border-radius:6px; border:1px solid var(--line);
+          background:#111a28; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; }
+  .ibtn:hover { color:var(--ink); border-color:#33507a; }
+
+  .status { color:var(--muted); font-size:13px; }
+  .status.err { color:var(--err); } .status.ok { color:var(--ok); } .status.run { color:var(--accent2); }
+  .spinner { width:14px; height:14px; border:2px solid #2a3d5c; border-top-color:var(--accent2);
+             border-radius:50%; display:inline-block; vertical-align:-2px; margin-right:7px; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Tab 1 · Preprocessing ─────────────────────────────────────────────── */
   #panel-preprocess iframe { flex:1 1 auto; width:100%; border:0; background:#080d14; min-height:0; }
   .tab1-bottom { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg2);
-                 display:flex; flex-direction:column; max-height:46vh; }
-  .parts-head { display:flex; align-items:center; gap:12px; padding:10px 16px 6px; }
-  .parts-head strong { font-size:13px; }
-  .parts-head .hint { color:var(--muted); font-size:12px; }
-  .parts-head .grow { flex:1; }
-  .parts-list { display:flex; gap:10px; overflow-x:auto; padding:6px 16px 10px; min-height:88px; }
+                 display:flex; flex-direction:column; max-height:48vh; overflow:auto; }
+  .grp { padding:var(--s2) var(--s4); border-bottom:1px solid #131d2c; }
+  .grp:last-of-type { border-bottom:0; }
+  .grp .grp-title { margin-bottom:var(--s2); }
+  .grp-row { display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap; }
+  .statusline { padding:var(--s2) var(--s4); border-top:1px solid var(--line); background:#0c131f; }
+
+  .orient-gallery { display:flex; gap:10px; overflow-x:auto; padding:var(--s1) 0 var(--s2); min-height:0; }
+  .orient-gallery:empty { display:none; }
+  .ocard { flex:0 0 auto; width:150px; border:2px solid var(--line); border-radius:var(--r2);
+           background:#0d1521; overflow:hidden; position:relative; }
+  .ocard.assigned { border-color:#2b5a43; }
+  .ocard.dup { border-color:var(--warn); }
+  .ocard img { width:100%; height:92px; object-fit:contain; background:#fff; display:block; }
+  .ocard .ctl { display:flex; gap:4px; padding:6px; align-items:center; }
+  .ocard select { flex:1; font:inherit; font-size:11px; background:#111a28; color:var(--ink);
+                  border:1px solid var(--line); border-radius:6px; padding:3px 4px; min-width:0; }
+  .ocard .dupbadge { position:absolute; top:4px; left:4px; background:var(--warn); color:#3a2a00;
+                     font-size:9px; font-weight:700; padding:1px 6px; border-radius:8px; display:none; }
+  .ocard.dup .dupbadge { display:inline-block; }
+  .intake-foot { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .req-warn { color:var(--warn); font-size:12px; }
+  .req-warn.ok { color:var(--ok); }
+
+  /* ── Tab 2 · Pipeline & Results ────────────────────────────────────────── */
+  .pipe-top { flex:0 0 auto; display:flex; gap:var(--s4); align-items:stretch;
+              padding:var(--s3) var(--s4); background:var(--bg2); border-bottom:1px solid var(--line); }
+  .pt-parts { flex:1 1 auto; min-width:0; }
+  .pt-parts .grp-title { margin-bottom:var(--s2); }
+  .pt-actions { flex:0 0 auto; display:flex; flex-direction:column; gap:var(--s2);
+                align-items:stretch; justify-content:center; }
+  .demo-row { display:flex; gap:var(--s2); }
+  .demo-row .btn, .demo-row .sel-input { flex:1; }
+
+  .parts-list { display:flex; gap:10px; overflow-x:auto; padding:2px; min-height:96px; }
   .parts-list .empty { color:var(--muted); font-size:12px; align-self:center; padding:10px; }
-  .pcard { flex:0 0 auto; width:132px; border:2px solid var(--line); border-radius:10px; background:#0d1521;
+  .pcard { flex:0 0 auto; width:132px; border:2px solid var(--line); border-radius:var(--r2); background:#0d1521;
            cursor:pointer; overflow:hidden; transition:.12s; position:relative; }
   .pcard:hover { border-color:#33507a; }
   .pcard.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 4px 16px rgba(79,134,255,.25); }
@@ -64,40 +133,54 @@
   .pcard.sel .tickbadge { position:absolute; top:6px; left:6px; background:var(--accent); color:#fff;
                 font-size:10px; font-weight:700; padding:1px 6px; border-radius:8px; }
 
-  .run-row { display:flex; align-items:center; gap:12px; padding:8px 16px; border-top:1px solid var(--line); }
-  .run-row .grow { flex:1; }
-  .btn { font:inherit; font-weight:700; border:0; border-radius:9px; padding:10px 18px; cursor:pointer;
-         background:linear-gradient(135deg,var(--accent),#3b6fe0); color:#fff; }
-  .btn:disabled { opacity:.45; cursor:not-allowed; }
-  .btn.secondary { background:#1a2740; color:var(--ink); border:1px solid var(--line); font-weight:600; }
-  .btn.running { background:#243452; color:var(--accent2); }
-  .btn.danger { background:#3a1620; color:#ff9c9c; border:1px solid #6e2430; font-weight:600; }
-  .btn.danger:hover:not(:disabled) { background:#4a1c28; }
+  .statusbar { flex:0 0 auto; display:flex; align-items:center; gap:var(--s3);
+               padding:var(--s2) var(--s4); border-bottom:1px solid var(--line); background:#0c131f; }
   .progress-wrap { display:flex; align-items:center; gap:8px; }
   .progress-track { width:150px; height:8px; border-radius:5px; background:#0d1521; overflow:hidden; border:1px solid var(--line); }
   .progress-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2));
                     transition:width .35s ease; }
   .elapsed { font-variant-numeric:tabular-nums; color:var(--muted); font-size:12px; min-width:38px; text-align:right; }
-  .status { color:var(--muted); font-size:13px; }
-  .status.err { color:var(--err); } .status.ok { color:var(--ok); } .status.run { color:var(--accent2); }
-  .spinner { width:14px; height:14px; border:2px solid #2a3d5c; border-top-color:var(--accent2);
-             border-radius:50%; display:inline-block; vertical-align:-2px; margin-right:7px; animation:spin .8s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-  #inline-console { margin:0; max-height:120px; overflow:auto; padding:10px 16px; border-top:1px solid var(--line);
-                    font:11px/1.5 ui-monospace,Menlo,monospace; color:#a9c2e6; background:#080d14; white-space:pre-wrap; }
+  .stage-strip { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+  .stage-chip { font-size:10px; font-weight:700; padding:2px 8px; border-radius:8px;
+                background:#0d1521; color:var(--muted); border:1px solid var(--line); white-space:nowrap; }
+  .stage-chip.done { color:var(--ok); border-color:#1d4636; }
+  .stage-chip.now { color:var(--accent2); border-color:var(--accent2); }
+  .logtoggle { font:inherit; font-size:11px; font-weight:700; padding:4px 10px; border-radius:8px; cursor:pointer;
+               background:#111a28; color:var(--muted); border:1px solid var(--line); }
+  .logtoggle:hover { color:var(--ink); border-color:#33507a; }
 
-  /* Tab 2 split */
-  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:0; }
-  .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; border-right:1px solid var(--line); }
-  .split .side:last-child { border-right:0; }
+  /* Split view — resizable */
+  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 6px 1fr; min-height:120px; }
+  .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; }
   .side .cap { flex:0 0 auto; padding:9px 14px; font-size:12px; font-weight:700; letter-spacing:.04em;
                text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); background:#0c131f; }
   .side .body { flex:1 1 auto; min-height:0; position:relative; display:grid; place-items:center; background:#080d14; }
+  .divider { cursor:col-resize; background:var(--line); position:relative; }
+  .divider:hover, .divider.dragging { background:#33507a; }
   #src-img { max-width:100%; max-height:100%; object-fit:contain; display:none; }
   #stl-canvas-wrap { position:absolute; inset:0; }
   .emptynote { color:var(--muted); font-size:13px; text-align:center; padding:20px; max-width:360px; }
 
-  /* Output tabs */
+  #inline-console { flex:0 0 auto; margin:0; max-height:120px; overflow:auto; padding:10px 16px;
+                    border-top:1px solid var(--line); font:11px/1.5 ui-monospace,Menlo,monospace;
+                    color:#a9c2e6; background:#080d14; white-space:pre-wrap; }
+
+  /* Run-outputs dock: sub-tabs hosting every output panel */
+  .dock { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg2);
+          display:flex; flex-direction:column; }
+  .stabs { flex:0 0 auto; display:flex; align-items:center; gap:2px; padding:0 var(--s3);
+           background:#0c131f; border-bottom:1px solid var(--line); overflow-x:auto; }
+  .stabs .dock-label { padding:0 var(--s2); white-space:nowrap; }
+  .stab { padding:9px 12px; font-size:12px; font-weight:600; color:var(--muted); background:none; border:none;
+          border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; margin-bottom:-1px; }
+  .stab:hover { color:#cbd5e1; }
+  .stab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .dock-body { height:42vh; position:relative; }
+  .dock.collapsed .dock-body { display:none; }
+  .subpanel { position:absolute; inset:0; display:none; }
+  .subpanel.active { display:flex; flex-direction:column; }
+
+  /* Output panel internals */
   .out { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
   .out .toolbar { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:8px 16px;
                   border-bottom:1px solid var(--line); background:#0c131f; font-size:12px; color:var(--muted); }
@@ -109,45 +192,6 @@
   .macro-tabs button { font:inherit; font-size:11px; padding:3px 9px; border-radius:7px; cursor:pointer;
                        background:#111a28; color:var(--muted); border:1px solid var(--line); }
   .macro-tabs button.active { color:var(--accent); border-color:var(--accent); }
-
-  /* Intake: upload / pull crops -> orientation gallery -> name -> save */
-  .intake { border-bottom:1px solid var(--line); }
-  .intake-head { display:flex; align-items:center; gap:10px; padding:10px 16px 6px; flex-wrap:wrap; }
-  .intake-head strong { font-size:13px; }
-  .intake-head .hint { color:var(--muted); font-size:12px; }
-  .filebtn { display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:13px;
-             padding:8px 14px; border-radius:9px; background:#1a2740; color:var(--ink);
-             border:1px solid var(--line); cursor:pointer; }
-  .filebtn:hover { border-color:#33507a; }
-  .orient-gallery { display:flex; gap:10px; overflow-x:auto; padding:8px 16px; min-height:0; }
-  .orient-gallery:empty { display:none; }
-  .ocard { flex:0 0 auto; width:150px; border:2px solid var(--line); border-radius:10px;
-           background:#0d1521; overflow:hidden; position:relative; }
-  .ocard.assigned { border-color:#2b5a43; }
-  .ocard.dup { border-color:var(--warn); }
-  .ocard img { width:100%; height:92px; object-fit:contain; background:#fff; display:block; }
-  .ocard .ctl { display:flex; gap:4px; padding:6px; align-items:center; }
-  .ocard select { flex:1; font:inherit; font-size:11px; background:#111a28; color:var(--ink);
-                  border:1px solid var(--line); border-radius:6px; padding:3px 4px; min-width:0; }
-  .ocard .ibtn { flex:0 0 auto; width:24px; height:24px; border-radius:6px; border:1px solid var(--line);
-                 background:#111a28; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; }
-  .ocard .ibtn:hover { color:var(--ink); border-color:#33507a; }
-  .ocard .dupbadge { position:absolute; top:4px; left:4px; background:var(--warn); color:#3a2a00;
-                     font-size:9px; font-weight:700; padding:1px 6px; border-radius:8px; display:none; }
-  .ocard.dup .dupbadge { display:inline-block; }
-  .intake-foot { display:flex; align-items:center; gap:10px; padding:6px 16px 10px; flex-wrap:wrap; }
-  .req-warn { color:var(--warn); font-size:12px; }
-  .req-warn.ok { color:var(--ok); }
-  #part-name { font:inherit; font-size:13px; background:#0d1521; color:var(--ink);
-               border:1px solid var(--line); border-radius:9px; padding:8px 12px; width:230px; }
-  #part-name:focus { outline:none; border-color:var(--accent); }
-
-  /* Per-stage progress strip */
-  .stage-strip { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
-  .stage-chip { font-size:10px; font-weight:700; padding:2px 8px; border-radius:8px;
-                background:#0d1521; color:var(--muted); border:1px solid var(--line); white-space:nowrap; }
-  .stage-chip.done { color:var(--ok); border-color:#1d4636; }
-  .stage-chip.now { color:var(--accent2); border-color:var(--accent2); }
 
   /* Engineering flags */
   .flag-item { border:1px solid var(--line); border-left:4px solid var(--muted); border-radius:8px;
@@ -170,7 +214,7 @@
 
   /* Token / cost */
   .cost-cards { display:flex; gap:12px; padding:14px 16px 4px; flex-wrap:wrap; }
-  .cost-card { border:1px solid var(--line); border-radius:10px; background:#0d1521;
+  .cost-card { border:1px solid var(--line); border-radius:var(--r2); background:#0d1521;
                padding:10px 16px; min-width:150px; }
   .cost-card .v { font-size:20px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
   .cost-card .k { font-size:11px; color:var(--muted); margin-top:2px; }
@@ -191,41 +235,39 @@
   <div class="logo">△</div>
   <div>
     <h1>MTI 2D → 3D SolidWorks Pipeline</h1>
-    <div class="sub">Preprocess drawings, pick a part, run the pipeline on it, inspect every output.</div>
+    <div class="sub">Preprocess drawings in Tab 1 — run the pipeline and inspect every output in Tab 2.</div>
   </div>
   <div class="spacer"></div>
   <span class="pill" id="key-pill"><span class="dot"></span><span id="key-txt">checking…</span></span>
 </header>
 
 <nav class="tabs" id="tabbar">
-  <button class="tab active" data-tab="preprocess">1 · Image Preprocessing</button>
-  <button class="tab" data-tab="viewer">2 · Drawing vs 3D Model</button>
-  <button class="tab" data-tab="extraction">Extraction JSON <span class="badge">·</span></button>
-  <button class="tab" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
-  <button class="tab" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
-  <button class="tab" data-tab="verification">Verification <span class="badge">·</span></button>
-  <button class="tab" data-tab="flags">Engineering Flags <span class="badge">·</span></button>
-  <button class="tab" data-tab="modelcheck">Model Check <span class="badge">·</span></button>
-  <button class="tab" data-tab="macros">VBA Macros <span class="badge">·</span></button>
-  <button class="tab" data-tab="cost">Token / Cost <span class="badge">·</span></button>
-  <button class="tab" data-tab="files">Files <span class="badge">·</span></button>
-  <button class="tab" data-tab="console">Console</button>
+  <button class="tab active" data-tab="preprocess">1 · Preprocessing</button>
+  <button class="tab" data-tab="pipeline">2 · Pipeline &amp; Results <span class="badge">·</span></button>
 </nav>
 
 <main>
-  <!-- Tab 1 -->
+  <!-- ── Tab 1 · Preprocessing ─────────────────────────────────────────── -->
   <section class="panel active" id="panel-preprocess">
     <iframe id="photoapp" src="/photoapp/"></iframe>
     <div class="tab1-bottom">
-      <div class="intake">
-        <div class="intake-head">
-          <strong>New part</strong>
-          <label class="filebtn" for="intake-file">📄 Upload drawing <span style="color:var(--muted);font-weight:400">PDF · JPG · PNG · DWG</span></label>
+      <div class="grp">
+        <div class="grp-title">1 · Add images</div>
+        <div class="grp-row">
+          <label class="filebtn" for="intake-file">📄 Upload drawing <span class="hint">PDF · JPG · PNG · DWG</span></label>
           <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf" style="display:none">
           <button class="btn secondary" id="pull-crops-btn">⬇ Pull queued crops from the cropper</button>
-          <span class="hint">Multi-view sheet? Crop each view above, then pull. Then label every image with its orientation.</span>
+          <span class="hint">Multi-view sheet? Crop each view in the cropper above, then pull. Single drawing? Upload it directly.</span>
         </div>
+      </div>
+      <div class="grp">
+        <div class="grp-title">2 · Assign orientations</div>
+        <div class="hint" id="intake-empty">No images yet — upload a drawing or pull crops above. Each image then gets an orientation (rotate ⟳ if a scan is sideways).</div>
         <div class="orient-gallery" id="orient-gallery"></div>
+      </div>
+      <div class="grp">
+        <div class="grp-title">3 · Name &amp; save</div>
+        <div class="hint" id="save-placeholder">Appears once images are added — Front + one more orthographic view are required.</div>
         <div class="intake-foot" id="intake-foot" style="display:none">
           <span class="req-warn" id="req-warn"></span>
           <div class="grow"></div>
@@ -233,72 +275,100 @@
           <button class="btn" id="save-part-btn" disabled>💾 Save part</button>
         </div>
       </div>
-      <div class="parts-head">
-        <strong>Parts</strong>
-        <span class="hint" id="add-hint">Saved parts appear here — select one and run the pipeline.</span>
-        <div class="grow"></div>
-        <select id="demo-sample" class="btn secondary" style="padding:8px 10px"></select>
-        <button class="btn secondary" id="demo-btn" title="Run from a saved extraction — no API key needed">▶ Run demo</button>
-      </div>
-      <div class="parts-list" id="parts-list"><div class="empty">No parts yet — upload a drawing or pull crops above.</div></div>
-      <div class="run-row">
-        <div class="status" id="run-status">Select a part, then run the pipeline on it.</div>
-        <div class="grow"></div>
-        <div class="stage-strip" id="stage-strip" style="display:none"></div>
-        <div class="progress-wrap" id="progress-wrap" style="display:none">
-          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-          <span class="elapsed" id="elapsed-txt">0:00</span>
-        </div>
-        <button class="btn danger" id="cancel-btn" style="display:none">✕ Cancel</button>
-        <button class="btn" id="run-btn" disabled>▶ Run Pipeline</button>
-      </div>
-      <pre id="inline-console" style="display:none"></pre>
+      <div class="statusline"><span class="status" id="intake-status">Ready — crop views above or upload a drawing.</span></div>
     </div>
   </section>
 
-  <!-- Tab 2 -->
-  <section class="panel" id="panel-viewer">
-    <div class="split">
-      <div class="side">
-        <div class="cap">Original Drawing — <span id="viewer-part">no part selected</span></div>
-        <div class="body">
-          <img id="src-img" alt="source drawing" />
-          <div class="emptynote" id="src-empty">Select a part in Tab 1 — its source drawing appears here.</div>
+  <!-- ── Tab 2 · Pipeline & Results ────────────────────────────────────── -->
+  <section class="panel" id="panel-pipeline">
+    <div class="pipe-top">
+      <div class="pt-parts">
+        <div class="grp-title">Saved parts <span class="hint" id="add-hint">— created in the Preprocessing tab; select one, then run</span></div>
+        <div class="parts-list" id="parts-list"><div class="empty">No parts yet — create one in the Preprocessing tab.</div></div>
+      </div>
+      <div class="pt-actions">
+        <button class="btn xl" id="run-btn" disabled>▶ Pull &amp; Run Pipeline</button>
+        <button class="btn danger" id="cancel-btn" style="display:none">✕ Cancel</button>
+        <div class="demo-row">
+          <select id="demo-sample" class="sel-input"></select>
+          <button class="btn secondary" id="demo-btn" title="Run from a saved extraction — no API key needed">▶ Run demo</button>
         </div>
       </div>
+    </div>
+
+    <div class="statusbar">
+      <div class="status" id="run-status">Select a part above, then press ▶ Pull &amp; Run Pipeline.</div>
+      <div class="grow"></div>
+      <div class="stage-strip" id="stage-strip" style="display:none"></div>
+      <div class="progress-wrap" id="progress-wrap" style="display:none">
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        <span class="elapsed" id="elapsed-txt">0:00</span>
+      </div>
+      <button class="logtoggle" id="log-toggle" title="Show / hide the live console">▤ Log</button>
+    </div>
+
+    <div class="split" id="split-grid">
+      <div class="side">
+        <div class="cap">Input Document — <span id="viewer-part">nothing loaded</span></div>
+        <div class="body">
+          <img id="src-img" alt="source drawing" />
+          <div class="emptynote" id="src-empty">No PDF/DWG loaded yet — upload a drawing in the Preprocessing tab or select a saved part above; it appears here.</div>
+        </div>
+      </div>
+      <div class="divider" id="split-divider" title="Drag to resize · double-click to reset"></div>
       <div class="side">
         <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan</div>
         <div class="body">
           <div id="stl-canvas-wrap"></div>
-          <div class="emptynote" id="stl-empty">The STL appears after a SolidWorks build. On macOS (no SolidWorks) run the generated <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
+          <div class="emptynote" id="stl-empty">No STL yet — it appears after a SolidWorks build. On macOS (no SolidWorks) run the generated <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
         </div>
       </div>
     </div>
-  </section>
 
-  <!-- Output tabs -->
-  <section class="panel" id="panel-extraction"><div class="out"><div class="toolbar"><span class="nm">—</span><span class="grow"></span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
-  <section class="panel" id="panel-resolved"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
-  <section class="panel" id="panel-buildplan"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
-  <section class="panel" id="panel-verification"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
-  <section class="panel" id="panel-flags"><div class="out">
-    <div class="toolbar"><span class="nm">Engineering review — every assumption &amp; manual step, most urgent first</span></div>
-    <div class="empty">No part run yet.</div>
-    <div class="flags-scroll" style="display:none"><div class="flags-summary" id="flags-summary"></div><div id="flags-list"></div></div>
-  </div></section>
-  <section class="panel" id="panel-modelcheck"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">Model check requires Windows + SolidWorks; not produced on this machine.</div><pre style="display:none"></pre></div></section>
-  <section class="panel" id="panel-macros"><div class="out"><div class="toolbar"><div class="macro-tabs" id="macro-tabs"></div><span class="grow"></span><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
-  <section class="panel" id="panel-cost"><div class="out">
-    <div class="toolbar"><span class="nm">API token usage &amp; cost (from token_usage_log)</span></div>
-    <div class="empty">No part run yet.</div>
-    <div class="files-scroll" style="display:none"><div class="cost-cards" id="cost-cards"></div><pre id="cost-pre" style="white-space:pre"></pre></div>
-  </div></section>
-  <section class="panel" id="panel-files"><div class="out">
-    <div class="toolbar"><span class="nm">Every output file for this part</span></div>
-    <div class="empty">No part run yet.</div>
-    <div class="files-scroll" style="display:none"><div class="files-paths" id="files-paths"></div><table class="files-table"><tbody id="files-tbody"></tbody></table></div>
-  </div></section>
-  <section class="panel" id="panel-console"><div class="out"><div class="toolbar"><span class="nm">Live pipeline output</span></div><pre id="console-pre"></pre></div></section>
+    <pre id="inline-console" style="display:none"></pre>
+
+    <div class="dock collapsed" id="dock">
+      <div class="stabs" id="stabbar">
+        <span class="grp-title dock-label">Run outputs</span>
+        <button class="stab active" data-tab="extraction">Extraction JSON <span class="badge">·</span></button>
+        <button class="stab" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
+        <button class="stab" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
+        <button class="stab" data-tab="verification">Verification <span class="badge">·</span></button>
+        <button class="stab" data-tab="flags">Engineering Flags <span class="badge">·</span></button>
+        <button class="stab" data-tab="modelcheck">Model Check <span class="badge">·</span></button>
+        <button class="stab" data-tab="macros">VBA Macros <span class="badge">·</span></button>
+        <button class="stab" data-tab="cost">Token / Cost <span class="badge">·</span></button>
+        <button class="stab" data-tab="files">Files <span class="badge">·</span></button>
+        <button class="stab" data-tab="console">Console</button>
+        <span class="grow"></span>
+        <button class="ibtn" id="dock-toggle" title="Collapse / expand run outputs">▸</button>
+      </div>
+      <div class="dock-body">
+        <section class="subpanel active" id="panel-extraction"><div class="out"><div class="toolbar"><span class="nm">—</span><span class="grow"></span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+        <section class="subpanel" id="panel-resolved"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+        <section class="subpanel" id="panel-buildplan"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+        <section class="subpanel" id="panel-verification"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+        <section class="subpanel" id="panel-flags"><div class="out">
+          <div class="toolbar"><span class="nm">Engineering review — every assumption &amp; manual step, most urgent first</span></div>
+          <div class="empty">No part run yet.</div>
+          <div class="flags-scroll" style="display:none"><div class="flags-summary" id="flags-summary"></div><div id="flags-list"></div></div>
+        </div></section>
+        <section class="subpanel" id="panel-modelcheck"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">Model check requires Windows + SolidWorks; not produced on this machine.</div><pre style="display:none"></pre></div></section>
+        <section class="subpanel" id="panel-macros"><div class="out"><div class="toolbar"><div class="macro-tabs" id="macro-tabs"></div><span class="grow"></span><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+        <section class="subpanel" id="panel-cost"><div class="out">
+          <div class="toolbar"><span class="nm">API token usage &amp; cost (from token_usage_log)</span></div>
+          <div class="empty">No part run yet.</div>
+          <div class="files-scroll" style="display:none"><div class="cost-cards" id="cost-cards"></div><pre id="cost-pre" style="white-space:pre"></pre></div>
+        </div></section>
+        <section class="subpanel" id="panel-files"><div class="out">
+          <div class="toolbar"><span class="nm">Every output file for this part</span></div>
+          <div class="empty">No part run yet.</div>
+          <div class="files-scroll" style="display:none"><div class="files-paths" id="files-paths"></div><table class="files-table"><tbody id="files-tbody"></tbody></table></div>
+        </div></section>
+        <section class="subpanel" id="panel-console"><div class="out"><div class="toolbar"><span class="nm">Live pipeline output</span></div><pre id="console-pre"></pre></div></section>
+      </div>
+    </div>
+  </section>
 </main>
 
 <script src="/pdf.min.js"></script>
@@ -307,15 +377,49 @@
 <script src="/vendor/STLLoader.js"></script>
 <script src="/vendor/OrbitControls.js"></script>
 <script>
-// ── Tabs ─────────────────────────────────────────────────────────────────────
+// ── Tabs: 2 top-level tabs + a sub-tab dock for run outputs ─────────────────
+const TOP_TABS = ['preprocess', 'pipeline'];
 document.getElementById('tabbar').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab);
 });
+document.getElementById('stabbar').addEventListener('click', e => {
+  const b = e.target.closest('.stab'); if (b) showSub(b.dataset.tab);
+});
 function showTab(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
-  if (name === 'viewer') viewer.onShow();
+  if (!TOP_TABS.includes(name)) { showTab('pipeline'); showSub(name); return; } // legacy names → dock sub-tab
+  document.querySelectorAll('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('main > .panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'pipeline') viewer.onShow();
 }
+function showSub(name) {
+  document.querySelectorAll('.stab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.subpanel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  setDockOpen(true);
+}
+const dock = document.getElementById('dock'), dockToggle = document.getElementById('dock-toggle');
+function setDockOpen(open) { dock.classList.toggle('collapsed', !open); dockToggle.textContent = open ? '▾' : '▸'; }
+dockToggle.addEventListener('click', () => setDockOpen(dock.classList.contains('collapsed')));
+
+// ── Resizable split (drag the divider; double-click resets 50/50) ────────────
+(() => {
+  const grid = document.getElementById('split-grid'), div = document.getElementById('split-divider');
+  let dragging = false;
+  div.addEventListener('mousedown', e => { dragging = true; div.classList.add('dragging'); e.preventDefault(); });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const r = grid.getBoundingClientRect();
+    const pct = Math.min(0.8, Math.max(0.2, (e.clientX - r.left) / r.width));
+    grid.style.gridTemplateColumns = `${pct}fr 6px ${1 - pct}fr`;
+  });
+  window.addEventListener('mouseup', () => { dragging = false; div.classList.remove('dragging'); });
+  div.addEventListener('dblclick', () => { grid.style.gridTemplateColumns = '1fr 6px 1fr'; });
+})();
+
+// ── Collapsible live console (slim log under the split view) ────────────────
+document.getElementById('log-toggle').addEventListener('click', () => {
+  const c = document.getElementById('inline-console');
+  c.style.display = c.style.display === 'none' ? '' : 'none';
+});
 
 // ── Status pill + session + demo samples ─────────────────────────────────────
 let sessionId = null, liveKey = false;
@@ -335,7 +439,7 @@ if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '/
 const CATS = ['extraction','resolved','buildplan','verification','flags','modelcheck','macros','cost','files'];
 const KEYMAP = { extraction:'extraction', resolved:'resolved', buildplan:'build_plan', verification:'verification', modelcheck:'model_check' };
 function setTabFilled(name, filled) {
-  const t = document.querySelector(`.tab[data-tab="${name}"]`); if (!t) return;
+  const t = document.querySelector(`.stab[data-tab="${name}"]`); if (!t) return;
   t.classList.toggle('filled', filled);
   const b = t.querySelector('.badge'); if (b) b.textContent = filled ? '✓' : '·';
 }
@@ -345,21 +449,26 @@ function paintText(panelId, name, text) {
   if (nm && name) nm.textContent = name;
   if (text != null) { pre.textContent = text; pre.style.display = ''; if (empty) empty.style.display = 'none'; }
 }
+function setPipelineTabFilled(filled) {
+  const t = document.querySelector('.tab[data-tab="pipeline"]'); if (!t) return;
+  t.classList.toggle('filled', filled);
+  const b = t.querySelector('.badge'); if (b) b.textContent = filled ? '✓' : '·';
+}
 function resetOutputs(msg) {
   CATS.forEach(c => setTabFilled(c, false));
-  document.querySelectorAll('.panel .out').forEach(o => {
+  document.querySelectorAll('.subpanel .out').forEach(o => {
     const pre = o.querySelector('pre'); if (pre && pre.id !== 'console-pre') { pre.style.display = 'none'; pre.textContent = ''; }
     const empty = o.querySelector('.empty'); if (empty) empty.style.display = '';
     const scroll = o.querySelector('.flags-scroll, .files-scroll'); if (scroll) scroll.style.display = 'none';
   });
-  document.querySelectorAll('.panel .empty').forEach(e => { if (msg) e.textContent = msg; });
+  document.querySelectorAll('.subpanel .empty').forEach(e => { if (msg) e.textContent = msg; });
   document.querySelector('#panel-modelcheck .empty').textContent =
     'Model check requires Windows + SolidWorks; not produced on this machine.';
   document.getElementById('macro-tabs').innerHTML = ''; lastMacroCount = 0;
   document.getElementById('flags-list').innerHTML = '';
   document.getElementById('files-tbody').innerHTML = '';
   document.getElementById('cost-cards').innerHTML = '';
-  document.querySelector('.tab[data-tab="viewer"]').classList.remove('filled');
+  setPipelineTabFilled(false);
 }
 
 // ── Engineering Flags / Token-Cost / Files painters ──────────────────────────
@@ -445,7 +554,7 @@ function fillOutputs(payload) {
   if (c.files && c.files.present && (c.files.list || []).length) { paintFiles(c.files, payload); setTabFilled('files', true); }
   if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
   if (c.stl && c.stl.present && selectedPart) {
-    document.querySelector('.tab[data-tab="viewer"]').classList.add('filled');
+    setPipelineTabFilled(true);
     viewer.load(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/model.stl?t=${payload.stl_mtime || ''}`);
   }
 }
@@ -455,7 +564,7 @@ let partsData = [], selectedPart = null, isRunning = false;
 
 function renderParts() {
   const list = document.getElementById('parts-list');
-  if (!partsData.length) { list.innerHTML = '<div class="empty">No parts yet — add one from the drawing above.</div>'; return; }
+  if (!partsData.length) { list.innerHTML = '<div class="empty">No parts yet — create one in the Preprocessing tab.</div>'; return; }
   list.innerHTML = '';
   partsData.forEach(p => {
     const card = document.createElement('div');
@@ -477,7 +586,7 @@ function selectPart(name) {
   selectedPart = name;
   renderParts(); updateRunEnabled();
   document.getElementById('viewer-part').textContent = name;
-  // Tab 2 left = this part's source thumbnail.
+  // Split view left = this part's source thumbnail.
   const img = document.getElementById('src-img');
   img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none'; };
   img.onerror = () => { img.style.display = 'none'; document.getElementById('src-empty').style.display = ''; };
@@ -492,6 +601,16 @@ async function loadPartOutputs(name) {
   if (name !== selectedPart) return; // selection changed while fetching
   if (d.has_any) fillOutputs(d);
   else setStatus(`Part "${name}" selected — not run yet.`, '');
+}
+
+// ── Shared preview: an unsaved upload shows in Tab 2's left panel too ────────
+function showSourcePreview(url, label) {
+  if (selectedPart) return; // a selected part owns the left panel
+  document.getElementById('viewer-part').textContent = label;
+  const img = document.getElementById('src-img');
+  img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none'; };
+  img.onerror = () => { img.style.display = 'none'; document.getElementById('src-empty').style.display = ''; };
+  img.src = url;
 }
 
 // ── Intake: upload / pull crops → orientation gallery → name → save ──────────
@@ -573,11 +692,13 @@ function validateIntake() {
   reqWarn.className = 'req-warn' + (ok && !dups.size ? ' ok' : '');
   saveBtn.disabled = !(ok && !isRunning);
   intakeFoot.style.display = intake.items.length ? '' : 'none';
+  document.getElementById('save-placeholder').style.display = intake.items.length ? 'none' : '';
 }
 
 function renderGallery() {
   const dups = dupOrientations();
   galleryEl.innerHTML = '';
+  document.getElementById('intake-empty').style.display = intake.items.length ? 'none' : '';
   for (const it of intake.items) {
     const card = document.createElement('div');
     card.className = 'ocard' + (it.orientation ? ' assigned' : '') + (dups.has(it.orientation) ? ' dup' : '');
@@ -629,6 +750,7 @@ intakeFile.addEventListener('change', async e => {
       intake.source = urls[0]; intake.originalFile = f; intake.stem = stem;
       addIntakeItems(urls.map((u, i) => ({ dataURL: u, label: `page ${i + 1}`,
         orientation: pages === 1 ? 'front' : '' })));
+      showSourcePreview(intake.source, stem + ' — unsaved upload');
       setStatus(`Loaded ${pages} page(s) from ${f.name}. Assign an orientation to each.`, 'ok');
     } else if (ext === 'dwg' || ext === 'dxf') {
       setStatus('Converting ' + ext.toUpperCase() + ' on the server…', 'run');
@@ -643,11 +765,13 @@ intakeFile.addEventListener('change', async e => {
       const url = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(blob); });
       intake.source = url; intake.originalFile = f; intake.stem = stem;
       addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
+      showSourcePreview(intake.source, stem + ' — unsaved upload');
       setStatus(`Converted ${f.name}. Check the orientation, then save.`, 'ok');
     } else {
       const url = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); });
       intake.source = url; intake.originalFile = f; intake.stem = stem;
       addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
+      showSourcePreview(intake.source, stem + ' — unsaved upload');
       setStatus(`Loaded ${f.name}. Assign orientations (add more views via the cropper above).`, 'ok');
     }
     if (!partNameEl.value.trim()) partNameEl.value = intake.stem;
@@ -668,6 +792,7 @@ document.getElementById('pull-crops-btn').addEventListener('click', async () => 
   if (!intake.items.length) intake.stem = payload.stem || intake.stem;
   addIntakeItems(payload.crops.map(c => ({ dataURL: c.dataURL, label: c.name,
                                            orientation: guessOrientation(c.name) })));
+  if (intake.source) showSourcePreview(intake.source, intake.stem + ' — unsaved upload');
   if (!partNameEl.value.trim()) partNameEl.value = intake.stem;
   setStatus(`Pulled ${payload.crops.length} crop(s). Check each orientation, then save.`, 'ok');
   validateIntake();
@@ -707,18 +832,25 @@ saveBtn.addEventListener('click', async () => {
   partNameEl.value = '';
   renderGallery();
   selectPart(res.part);
-  setStatus(`Saved part "${res.part}". Now press ▶ Run Pipeline.`, 'ok');
+  setStatus(`Saved part "${res.part}". Open the Pipeline &amp; Results tab and press ▶ Pull &amp; Run Pipeline.`, 'ok');
 });
 
 // ── Run the selected part ────────────────────────────────────────────────────
 const runBtn = document.getElementById('run-btn'), runStatus = document.getElementById('run-status');
+const intakeStatus = document.getElementById('intake-status');
 const cancelBtn = document.getElementById('cancel-btn');
 const progressWrap = document.getElementById('progress-wrap'), progressFill = document.getElementById('progress-fill');
 const elapsedTxt = document.getElementById('elapsed-txt');
 const inlineConsole = document.getElementById('inline-console'), consolePre = document.getElementById('console-pre');
 let es = null, pollTimer = null, currentRunId = null;
 let elapsedTimer = null, runStartedMs = null, progressPct = 0;
-function setStatus(msg, cls) { runStatus.innerHTML = msg; runStatus.className = 'status' + (cls ? ' ' + cls : ''); }
+// One status message, mirrored to both tabs so it is visible wherever the user is.
+function setStatus(msg, cls) {
+  for (const el of [runStatus, intakeStatus]) {
+    if (!el) continue;
+    el.innerHTML = msg; el.className = 'status' + (cls ? ' ' + cls : '');
+  }
+}
 
 // Stage lines look like "[1/2] ..." or "[1-2/4] ..." — turn the fraction into a
 // (non-decreasing) 0-92% progress estimate; the final 100% is reserved for the
@@ -776,10 +908,10 @@ function setRunning(on) {
   progressWrap.style.display = on ? '' : 'none';
   stageStrip.style.display = on || stageIdx >= 0 ? '' : 'none';
   if (on) {
-    runBtn.className = 'btn running'; runBtn.textContent = '⏳ Running…'; runBtn.disabled = true;
+    runBtn.className = 'btn xl running'; runBtn.textContent = '⏳ Running…'; runBtn.disabled = true;
     cancelBtn.disabled = false; resetProgress(); setProgress(2); startElapsed(); resetStages(); paintStages();
   } else {
-    runBtn.className = 'btn'; runBtn.textContent = '▶ Run Pipeline'; stopElapsed();
+    runBtn.className = 'btn xl'; runBtn.textContent = '▶ Pull & Run Pipeline'; stopElapsed();
   }
   updateRunEnabled();
   validateIntake();
@@ -839,7 +971,7 @@ function monitorRun(id, partName) {
         let where = '';
         if (d.delivered) where += ` Saved to <code>${d.delivered}</code>`;
         if (d.delivered_downloads) where += ` and <code>${d.delivered_downloads}</code>`;
-        setStatus(`✅ Pipeline finished for "${partName}". Outputs are in the tabs above.${where}`, 'ok');
+        setStatus(`✅ Pipeline finished for "${partName}". Outputs are in the Run outputs panel below.${where}`, 'ok');
       }
       else setStatus(`❌ Pipeline failed for "${partName}" (exit ${d.exit}). See Console. Partial outputs shown.`, 'err');
     }
@@ -884,7 +1016,7 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
     if (d.done) {
       clearInterval(pollTimer); pollTimer = null; setProgress(100); setRunning(false); currentRunId = null;
       if (d.cancelled) setStatus('🛑 Demo cancelled.', 'err');
-      else setStatus(d.exit === 0 ? '✅ Demo finished. See the output tabs.' : `❌ Demo exited ${d.exit}.`, d.exit === 0 ? 'ok' : 'err');
+      else setStatus(d.exit === 0 ? '✅ Demo finished. See the Run outputs panel below.' : `❌ Demo exited ${d.exit}.`, d.exit === 0 ? 'ok' : 'err');
     }
   };
   poll(); pollTimer = setInterval(poll, 1200);

@@ -188,20 +188,23 @@ extraction (no API call).
 
 ### Tabs
 
-1. **Image Preprocessing** — intake and orientation. The DrawingCrop photo app is
+1. **Preprocessing** — everything before the run. The DrawingCrop photo app is
    embedded **verbatim** on top for cropping views out of a multi-view sheet.
-   Below it, the intake strip: upload a file or pull crops, assign orientations,
-   name the part, save, run.
-2. **Drawing vs 3D Model** — split panel: the selected part's source drawing on the
+   Below it, three labeled groups: **1 · Add images** (upload a file or pull
+   crops), **2 · Assign orientations**, **3 · Name & save**.
+2. **Pipeline & Results** — everything from the run onward. Top: the saved-parts
+   picker and the primary **▶ Pull & Run Pipeline** button (plus demo run and
+   Cancel). A slim status bar shows the stage strip, progress bar, and run timer.
+   The main area is a **resizable 50/50 split**: the active input document on the
    left, an interactive **Three.js STL viewer** (drag-rotate, scroll-zoom,
-   right-drag-pan) on the right. The STL loads automatically once the pipeline
-   produces it.
-3. **Extraction JSON · Resolved Extraction · Build Plan · Verification ·
-   Engineering Flags · Model Check · VBA Macros · Token / Cost · Files · Console**
-   — each fills with the corresponding output the moment the pipeline writes it.
-   *Engineering Flags* renders the severity-ranked review (CRITICAL first);
-   *Token / Cost* shows this part's API spend and the session total from the
-   ledger; *Files* links every output file plus the delivered folder paths.
+   right-drag-pan) on the right — the STL loads automatically once the pipeline
+   produces it. Under the split: a collapsible live-console strip and the
+   **Run outputs** dock with sub-tabs — *Extraction JSON · Resolved Extraction ·
+   Build Plan · Verification · Engineering Flags · Model Check · VBA Macros ·
+   Token / Cost · Files · Console* — each fills the moment the pipeline writes
+   the corresponding file. *Engineering Flags* renders the severity-ranked review
+   (CRITICAL first); *Token / Cost* shows this part's API spend and the session
+   total; *Files* links every output file plus the delivered folder paths.
 
 ### Run a part (upload → orient → name → run)
 
