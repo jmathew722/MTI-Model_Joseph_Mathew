@@ -81,15 +81,17 @@
              border-radius:50%; display:inline-block; vertical-align:-2px; margin-right:7px; animation:spin .8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
 
-  /* ── Tab 1 · Preprocessing ─────────────────────────────────────────────── */
-  #panel-preprocess iframe { flex:1 1 auto; width:100%; border:0; background:#080d14; min-height:0; }
-  .tab1-bottom { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg2);
-                 display:flex; flex-direction:column; max-height:48vh; overflow:auto; }
-  .grp { padding:var(--s2) var(--s4); border-bottom:1px solid #131d2c; }
-  .grp:last-of-type { border-bottom:0; }
-  .grp .grp-title { margin-bottom:var(--s2); }
-  .grp-row { display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap; }
-  .statusline { padding:var(--s2) var(--s4); border-top:1px solid var(--line); background:#0c131f; }
+  /* ── Tab 1 · Drawing Crop (the cropper owns the whole tab) ─────────────── */
+  #panel-crop iframe { flex:1 1 auto; width:100%; border:0; background:#080d14; min-height:0; }
+
+  /* ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────────── */
+  .intake-strip { flex:0 0 auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto;
+                  background:var(--bg2); border-bottom:1px solid var(--line); max-height:38vh; overflow:auto; }
+  .gcol { padding:var(--s3) var(--s4); border-right:1px solid #131d2c; min-width:0;
+          display:flex; flex-direction:column; gap:var(--s2); align-items:flex-start; }
+  .gcol:last-child { border-right:0; }
+  .gcol .orient-gallery { width:100%; }
+  .statusline { flex:0 0 auto; padding:var(--s2) var(--s4); border-bottom:1px solid var(--line); background:#0c131f; }
 
   .orient-gallery { display:flex; gap:10px; overflow-x:auto; padding:var(--s1) 0 var(--s2); min-height:0; }
   .orient-gallery:empty { display:none; }
@@ -104,8 +106,9 @@
   .ocard .dupbadge { position:absolute; top:4px; left:4px; background:var(--warn); color:#3a2a00;
                      font-size:9px; font-weight:700; padding:1px 6px; border-radius:8px; display:none; }
   .ocard.dup .dupbadge { display:inline-block; }
-  .intake-foot { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .req-warn { color:var(--warn); font-size:12px; }
+  .intake-foot { display:flex; flex-direction:column; gap:var(--s2); align-items:stretch; }
+  .intake-foot .rowline { display:flex; gap:var(--s2); align-items:center; }
+  .req-warn { color:var(--warn); font-size:12px; max-width:280px; }
   .req-warn.ok { color:var(--ok); }
 
   /* ── Tab 2 · Pipeline & Results ────────────────────────────────────────── */
@@ -166,8 +169,9 @@
                     color:#a9c2e6; background:#080d14; white-space:pre-wrap; }
 
   /* Run-outputs dock: sub-tabs hosting every output panel */
-  .dock { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg2);
+  .dock { flex:1 1 auto; min-height:0; border-top:1px solid var(--line); background:var(--bg2);
           display:flex; flex-direction:column; }
+  .dock.collapsed { flex:0 0 auto; }
   .stabs { flex:0 0 auto; display:flex; align-items:center; gap:2px; padding:0 var(--s3);
            background:#0c131f; border-bottom:1px solid var(--line); overflow-x:auto; }
   .stabs .dock-label { padding:0 var(--s2); white-space:nowrap; }
@@ -175,7 +179,7 @@
           border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; margin-bottom:-1px; }
   .stab:hover { color:#cbd5e1; }
   .stab.active { color:var(--accent); border-bottom-color:var(--accent); }
-  .dock-body { height:42vh; position:relative; }
+  .dock-body { flex:1 1 auto; min-height:0; position:relative; }
   .dock.collapsed .dock-body { display:none; }
   .subpanel { position:absolute; inset:0; display:none; }
   .subpanel.active { display:flex; flex-direction:column; }
@@ -235,56 +239,78 @@
   <div class="logo">△</div>
   <div>
     <h1>MTI 2D → 3D SolidWorks Pipeline</h1>
-    <div class="sub">Preprocess drawings in Tab 1 — run the pipeline and inspect every output in Tab 2.</div>
+    <div class="sub">Crop in Tab 1 · set up the part and view the 3D model in Tab 2 · run the pipeline and inspect outputs in Tab 3.</div>
   </div>
   <div class="spacer"></div>
   <span class="pill" id="key-pill"><span class="dot"></span><span id="key-txt">checking…</span></span>
 </header>
 
 <nav class="tabs" id="tabbar">
-  <button class="tab active" data-tab="preprocess">1 · Preprocessing</button>
-  <button class="tab" data-tab="pipeline">2 · Pipeline &amp; Results <span class="badge">·</span></button>
+  <button class="tab active" data-tab="crop">1 · Drawing Crop</button>
+  <button class="tab" data-tab="intake">2 · Part Setup &amp; 3D Model <span class="badge">·</span></button>
+  <button class="tab" data-tab="pipeline">3 · Pipeline &amp; Results</button>
 </nav>
 
 <main>
-  <!-- ── Tab 1 · Preprocessing ─────────────────────────────────────────── -->
-  <section class="panel active" id="panel-preprocess">
+  <!-- ── Tab 1 · Drawing Crop (cropper fills the whole tab) ────────────── -->
+  <section class="panel active" id="panel-crop">
     <iframe id="photoapp" src="/photoapp/"></iframe>
-    <div class="tab1-bottom">
-      <div class="grp">
+  </section>
+
+  <!-- ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────── -->
+  <section class="panel" id="panel-intake">
+    <div class="intake-strip">
+      <div class="gcol">
         <div class="grp-title">1 · Add images</div>
-        <div class="grp-row">
-          <label class="filebtn" for="intake-file">📄 Upload drawing <span class="hint">PDF · JPG · PNG · DWG</span></label>
-          <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf" style="display:none">
-          <button class="btn secondary" id="pull-crops-btn">⬇ Pull queued crops from the cropper</button>
-          <span class="hint">Multi-view sheet? Crop each view in the cropper above, then pull. Single drawing? Upload it directly.</span>
-        </div>
+        <label class="filebtn" for="intake-file">📄 Upload drawing <span class="hint">PDF · JPG · PNG · DWG</span></label>
+        <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf" style="display:none">
+        <button class="btn secondary" id="pull-crops-btn">⬇ Pull queued crops</button>
+        <span class="hint" style="max-width:220px">Crop views in Tab 1 and pull them here — or upload a single file directly.</span>
       </div>
-      <div class="grp">
+      <div class="gcol">
         <div class="grp-title">2 · Assign orientations</div>
-        <div class="hint" id="intake-empty">No images yet — upload a drawing or pull crops above. Each image then gets an orientation (rotate ⟳ if a scan is sideways).</div>
+        <div class="hint" id="intake-empty">No images yet — upload a drawing or pull crops. Each image then gets an orientation (rotate ⟳ if a scan is sideways).</div>
         <div class="orient-gallery" id="orient-gallery"></div>
       </div>
-      <div class="grp">
+      <div class="gcol">
         <div class="grp-title">3 · Name &amp; save</div>
-        <div class="hint" id="save-placeholder">Appears once images are added — Front + one more orthographic view are required.</div>
+        <div class="hint" id="save-placeholder" style="max-width:250px">Appears once images are added — Front + one more orthographic view are required.</div>
         <div class="intake-foot" id="intake-foot" style="display:none">
           <span class="req-warn" id="req-warn"></span>
-          <div class="grow"></div>
-          <input type="text" id="part-name" placeholder="Part name (becomes the folder name)">
-          <button class="btn" id="save-part-btn" disabled>💾 Save part</button>
+          <div class="rowline">
+            <input type="text" id="part-name" placeholder="Part name (becomes the folder name)">
+            <button class="btn" id="save-part-btn" disabled>💾 Save part</button>
+          </div>
         </div>
       </div>
-      <div class="statusline"><span class="status" id="intake-status">Ready — crop views above or upload a drawing.</span></div>
+    </div>
+    <div class="statusline"><span class="status" id="intake-status">Ready — crop views in Tab 1 or upload a drawing.</span></div>
+
+    <div class="split" id="split-grid">
+      <div class="side">
+        <div class="cap">Input Document — <span id="viewer-part">nothing loaded</span></div>
+        <div class="body">
+          <img id="src-img" alt="source drawing" />
+          <div class="emptynote" id="src-empty">No PDF/DWG loaded yet — upload a drawing above or select a saved part in the Pipeline &amp; Results tab; it appears here.</div>
+        </div>
+      </div>
+      <div class="divider" id="split-divider" title="Drag to resize · double-click to reset"></div>
+      <div class="side">
+        <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan</div>
+        <div class="body">
+          <div id="stl-canvas-wrap"></div>
+          <div class="emptynote" id="stl-empty">No STL yet — it appears after a SolidWorks build. On macOS (no SolidWorks) run the generated <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- ── Tab 2 · Pipeline & Results ────────────────────────────────────── -->
+  <!-- ── Tab 3 · Pipeline & Results ────────────────────────────────────── -->
   <section class="panel" id="panel-pipeline">
     <div class="pipe-top">
       <div class="pt-parts">
-        <div class="grp-title">Saved parts <span class="hint" id="add-hint">— created in the Preprocessing tab; select one, then run</span></div>
-        <div class="parts-list" id="parts-list"><div class="empty">No parts yet — create one in the Preprocessing tab.</div></div>
+        <div class="grp-title">Saved parts <span class="hint" id="add-hint">— created in the Part Setup tab; select one, then run</span></div>
+        <div class="parts-list" id="parts-list"><div class="empty">No parts yet — create one in the Part Setup &amp; 3D Model tab.</div></div>
       </div>
       <div class="pt-actions">
         <button class="btn xl" id="run-btn" disabled>▶ Pull &amp; Run Pipeline</button>
@@ -307,27 +333,9 @@
       <button class="logtoggle" id="log-toggle" title="Show / hide the live console">▤ Log</button>
     </div>
 
-    <div class="split" id="split-grid">
-      <div class="side">
-        <div class="cap">Input Document — <span id="viewer-part">nothing loaded</span></div>
-        <div class="body">
-          <img id="src-img" alt="source drawing" />
-          <div class="emptynote" id="src-empty">No PDF/DWG loaded yet — upload a drawing in the Preprocessing tab or select a saved part above; it appears here.</div>
-        </div>
-      </div>
-      <div class="divider" id="split-divider" title="Drag to resize · double-click to reset"></div>
-      <div class="side">
-        <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan</div>
-        <div class="body">
-          <div id="stl-canvas-wrap"></div>
-          <div class="emptynote" id="stl-empty">No STL yet — it appears after a SolidWorks build. On macOS (no SolidWorks) run the generated <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
-        </div>
-      </div>
-    </div>
-
     <pre id="inline-console" style="display:none"></pre>
 
-    <div class="dock collapsed" id="dock">
+    <div class="dock" id="dock">
       <div class="stabs" id="stabbar">
         <span class="grp-title dock-label">Run outputs</span>
         <button class="stab active" data-tab="extraction">Extraction JSON <span class="badge">·</span></button>
@@ -341,7 +349,7 @@
         <button class="stab" data-tab="files">Files <span class="badge">·</span></button>
         <button class="stab" data-tab="console">Console</button>
         <span class="grow"></span>
-        <button class="ibtn" id="dock-toggle" title="Collapse / expand run outputs">▸</button>
+        <button class="ibtn" id="dock-toggle" title="Collapse / expand run outputs">▾</button>
       </div>
       <div class="dock-body">
         <section class="subpanel active" id="panel-extraction"><div class="out"><div class="toolbar"><span class="nm">—</span><span class="grow"></span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
@@ -377,8 +385,8 @@
 <script src="/vendor/STLLoader.js"></script>
 <script src="/vendor/OrbitControls.js"></script>
 <script>
-// ── Tabs: 2 top-level tabs + a sub-tab dock for run outputs ─────────────────
-const TOP_TABS = ['preprocess', 'pipeline'];
+// ── Tabs: 3 top-level tabs + a sub-tab dock for run outputs ─────────────────
+const TOP_TABS = ['crop', 'intake', 'pipeline'];
 document.getElementById('tabbar').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab);
 });
@@ -389,7 +397,7 @@ function showTab(name) {
   if (!TOP_TABS.includes(name)) { showTab('pipeline'); showSub(name); return; } // legacy names → dock sub-tab
   document.querySelectorAll('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('main > .panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
-  if (name === 'pipeline') viewer.onShow();
+  if (name === 'intake') viewer.onShow(); // STL viewer lives on the Part Setup & 3D Model tab
 }
 function showSub(name) {
   document.querySelectorAll('.stab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -449,8 +457,9 @@ function paintText(panelId, name, text) {
   if (nm && name) nm.textContent = name;
   if (text != null) { pre.textContent = text; pre.style.display = ''; if (empty) empty.style.display = 'none'; }
 }
-function setPipelineTabFilled(filled) {
-  const t = document.querySelector('.tab[data-tab="pipeline"]'); if (!t) return;
+// The "model ready" badge sits on the tab that shows the STL (Part Setup & 3D Model).
+function setModelTabFilled(filled) {
+  const t = document.querySelector('.tab[data-tab="intake"]'); if (!t) return;
   t.classList.toggle('filled', filled);
   const b = t.querySelector('.badge'); if (b) b.textContent = filled ? '✓' : '·';
 }
@@ -468,7 +477,7 @@ function resetOutputs(msg) {
   document.getElementById('flags-list').innerHTML = '';
   document.getElementById('files-tbody').innerHTML = '';
   document.getElementById('cost-cards').innerHTML = '';
-  setPipelineTabFilled(false);
+  setModelTabFilled(false);
 }
 
 // ── Engineering Flags / Token-Cost / Files painters ──────────────────────────
@@ -554,7 +563,7 @@ function fillOutputs(payload) {
   if (c.files && c.files.present && (c.files.list || []).length) { paintFiles(c.files, payload); setTabFilled('files', true); }
   if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
   if (c.stl && c.stl.present && selectedPart) {
-    setPipelineTabFilled(true);
+    setModelTabFilled(true);
     viewer.load(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/model.stl?t=${payload.stl_mtime || ''}`);
   }
 }
@@ -564,7 +573,7 @@ let partsData = [], selectedPart = null, isRunning = false;
 
 function renderParts() {
   const list = document.getElementById('parts-list');
-  if (!partsData.length) { list.innerHTML = '<div class="empty">No parts yet — create one in the Preprocessing tab.</div>'; return; }
+  if (!partsData.length) { list.innerHTML = '<div class="empty">No parts yet — create one in the Part Setup &amp; 3D Model tab.</div>'; return; }
   list.innerHTML = '';
   partsData.forEach(p => {
     const card = document.createElement('div');
@@ -772,7 +781,7 @@ intakeFile.addEventListener('change', async e => {
       intake.source = url; intake.originalFile = f; intake.stem = stem;
       addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
       showSourcePreview(intake.source, stem + ' — unsaved upload');
-      setStatus(`Loaded ${f.name}. Assign orientations (add more views via the cropper above).`, 'ok');
+      setStatus(`Loaded ${f.name}. Assign orientations (add more views via Tab 1's cropper).`, 'ok');
     }
     if (!partNameEl.value.trim()) partNameEl.value = intake.stem;
     validateIntake();
