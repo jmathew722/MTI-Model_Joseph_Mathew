@@ -16,7 +16,9 @@
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
         c.getContext('2d').drawImage(imageLike, 0, 0, w, h);
-        return c.toDataURL('image/jpeg', 0.92);
+        // High JPEG quality (0.97) at the image's NATIVE resolution — fine dimension
+        // text on drawings is easily lost to compression, so keep it crisp.
+        return c.toDataURL('image/jpeg', 0.97);
       }
       function loadBlob(blob) {
         return new Promise((res, rej) => {

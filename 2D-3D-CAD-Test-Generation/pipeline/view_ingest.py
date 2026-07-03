@@ -51,8 +51,14 @@ VIEW_PLANES: dict[str, str] = {
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".pdf"}
 
+# The overview / whole-drawing view: not an orthographic sketch plane, but the
+# full drawing image, passed to extraction as whole-part CONTEXT (the extractor
+# recognizes this exact view type). It is never built as a plane.
+OVERVIEW_VIEW = "full"
+
 # Keyword rules (most specific first) mapping a filename to a canonical view.
 _VIEW_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (OVERVIEW_VIEW, ("full", "overview", "isometric", "pictorial", "wholedrawing", "fulldrawing")),
     ("second_side", ("second_side", "secondside", "second", "2nd", "left", "back", "rear")),
     ("bottom", ("bottom", "btm", "underside", "under")),
     ("top", ("top", "plan")),
@@ -92,6 +98,10 @@ def _collect_part(name: str, image_paths: list[Path]) -> PartViews:
     part = PartViews(name=name)
     for path in sorted(image_paths):
         view = classify_view(path.name)
+        # A file named after the part folder itself (e.g. A001271E.png alongside
+        # A001271E_front_view.png) is the full drawing — use it as overview context.
+        if not view and path.stem.lower() == name.lower():
+            view = OVERVIEW_VIEW
         if not view:
             part.warnings.append(f"Could not classify view for {path.name}; skipped.")
             continue

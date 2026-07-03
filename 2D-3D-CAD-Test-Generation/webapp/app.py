@@ -12,8 +12,10 @@ from __future__ import annotations
 import io
 import os
 import sys
+import time
 import uuid
 import shlex
+import shutil
 import zipfile
 import threading
 import subprocess
@@ -36,6 +38,15 @@ RUNS_DIR.mkdir(exist_ok=True)
 # view); the pipeline writes into parts/<session>/<part>/output/.
 PARTS_DIR = WEBAPP_DIR / "parts"
 PARTS_DIR.mkdir(exist_ok=True)
+# Human-facing deliverables: every UI run copies its finished outputs here into a
+# folder named after the part, so they are easy to find and open (as opposed to
+# the buried per-session working dir under parts/). Re-running a part refreshes
+# its folder with the latest outputs.
+DELIVER_DIR = PROJECT_DIR / "UI_Output"
+DELIVER_DIR.mkdir(exist_ok=True)
+# Same per-part deliverables are also mirrored into the user's Downloads folder so
+# they can be found outside the project tree.
+DOWNLOADS_DIR = Path.home() / "Downloads" / "SolidWorksModel_Parts"
 
 load_dotenv(PROJECT_DIR / ".env")
 
@@ -77,11 +88,67 @@ def _samples() -> list[str]:
     return names
 
 
-def _start_run(cmd: list[str], output_dir: Path, run_id: str | None = None) -> str:
-    """Spawn the pipeline CLI and stream its output into RUNS[id]['lines']."""
+def _flatten_copy(out_dir: Path, dest: Path) -> Path | None:
+    """Copy a finished run's outputs into ``dest/`` (flat, openable).
+
+    The pipeline writes all of a part's artifacts into a single subfolder of
+    ``out_dir`` (named after the part); its contents are copied up so the delivered
+    folder holds the files directly (sldprt, stl, macros/, reports, json), plus the
+    loose ``token_usage_log.txt`` / summary csv. SolidWorks lock/autosave junk is
+    skipped. An existing ``dest`` is replaced. Returns the folder, or None on error."""
+    def _skip(name: str) -> bool:
+        return name.startswith("~$") or name.startswith("AUTOSAVE_")
+
+    try:
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        dest.mkdir(parents=True, exist_ok=True)
+
+        for sub in sorted(p for p in out_dir.iterdir() if p.is_dir() and p.name != ".extraction_cache"):
+            for item in sub.iterdir():
+                if _skip(item.name):
+                    continue
+                target = dest / item.name
+                if item.is_dir():
+                    shutil.copytree(item, target, dirs_exist_ok=True,
+                                    ignore=shutil.ignore_patterns("~$*", "AUTOSAVE_*"))
+                else:
+                    shutil.copy2(item, target)
+        # Loose top-level files (token log, multiview_summary.csv).
+        for f in out_dir.iterdir():
+            if f.is_file() and not _skip(f.name):
+                shutil.copy2(f, dest / f.name)
+        return dest
+    except Exception:
+        return None
+
+
+def _deliver_run(out_dir: Path, part_name: str) -> dict:
+    """Deliver a finished run's outputs to BOTH the project ``UI_Output/<part>/``
+    and the user's ``~/Downloads/SolidWorksModel_Parts/<part>/`` so they are easy
+    to find and open. Returns the paths that were written."""
+    part = _sanitize(part_name)
+    project = _flatten_copy(out_dir, DELIVER_DIR / part)
+    downloads = _flatten_copy(out_dir, DOWNLOADS_DIR / part)
+    return {
+        "project": str(project) if project else None,
+        "downloads": str(downloads) if downloads else None,
+    }
+
+
+def _start_run(cmd: list[str], output_dir: Path, run_id: str | None = None,
+               deliver_name: str | None = None) -> str:
+    """Spawn the pipeline CLI and stream its output into RUNS[id]['lines'].
+
+    When ``deliver_name`` is given, a successful run's outputs are also copied into
+    ``UI_Output/<deliver_name>/`` so they are easy to find and open."""
     run_id = run_id or uuid.uuid4().hex[:12]
     output_dir.mkdir(parents=True, exist_ok=True)
-    state = {"lines": [], "done": False, "exit": None, "output": output_dir}
+    state = {
+        "lines": [], "done": False, "exit": None, "output": output_dir,
+        "proc": None, "started": time.time(), "finished": None, "cancelled": False,
+        "deliver_name": deliver_name, "delivered": None, "delivered_downloads": None,
+    }
     RUNS[run_id] = state
 
     state["lines"].append(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
@@ -101,21 +168,73 @@ def _start_run(cmd: list[str], output_dir: Path, run_id: str | None = None) -> s
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                # Force UTF-8 with replacement: the pipeline's rich console emits
+                # UTF-8 box-drawing output. Without this, text mode defaults to the
+                # Windows locale codec (cp1252), which raises UnicodeDecodeError on
+                # the first non-cp1252 byte, kills this reader thread, stops draining
+                # the pipe, fills the OS buffer, and hangs the child forever.
+                encoding="utf-8",
+                errors="replace",
                 bufsize=1,
             )
         except Exception as e:  # spawn failure
             state["lines"].append(f"[launch error] {type(e).__name__}: {e}")
             state["exit"] = 127
             state["done"] = True
+            state["finished"] = time.time()
             return
-        for line in proc.stdout:  # type: ignore[union-attr]
-            state["lines"].append(line.rstrip("\n"))
-        proc.wait()
-        state["exit"] = proc.returncode
-        state["done"] = True
+        state["proc"] = proc
+        try:
+            for line in proc.stdout:  # type: ignore[union-attr]
+                state["lines"].append(line.rstrip("\n"))
+        except Exception as e:
+            # A reader failure must never leave the child undrained (that would
+            # fill the pipe buffer and hang it). Record it, then kill + reap below.
+            state["lines"].append(f"[reader error] {type(e).__name__}: {e}")
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        finally:
+            state["exit"] = proc.wait()
+            # Deliver clean, openable copies for a successful, non-cancelled run:
+            # one in the project (UI_Output/) and one in the user's Downloads folder.
+            if state["exit"] == 0 and not state["cancelled"] and deliver_name:
+                paths = _deliver_run(output_dir, deliver_name)
+                state["delivered"] = paths.get("project")
+                state["delivered_downloads"] = paths.get("downloads")
+                if paths.get("project"):
+                    state["lines"].append(f"[delivered outputs to] {paths['project']}")
+                if paths.get("downloads"):
+                    state["lines"].append(f"[delivered outputs to] {paths['downloads']}")
+            state["done"] = True
+            state["finished"] = time.time()
 
     threading.Thread(target=_worker, daemon=True).start()
     return run_id
+
+
+def _cancel_run(run_id: str) -> None:
+    """Terminate a run's process (and any children it spawned)."""
+    state = RUNS[run_id]
+    if state["done"]:
+        return
+    proc = state.get("proc")
+    if proc is None:
+        raise HTTPException(409, "Run has not started yet")
+    state["cancelled"] = True
+    state["lines"].append("[cancel requested by user]")
+    try:
+        if os.name == "nt":
+            # taskkill /T also kills any child processes the pipeline spawned.
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                capture_output=True,
+            )
+        else:
+            proc.terminate()
+    except Exception as e:
+        state["lines"].append(f"[cancel error] {type(e).__name__}: {e}")
 
 
 @app.get("/")
@@ -218,6 +337,16 @@ def log(run_id: str):
             time.sleep(0.2)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@app.post("/api/runs/{run_id}/cancel")
+def cancel_run(run_id: str):
+    if run_id not in RUNS:
+        raise HTTPException(404, "Unknown run id")
+    if RUNS[run_id]["done"]:
+        return {"ok": True, "already_done": True}
+    _cancel_run(run_id)
+    return {"ok": True}
 
 
 def _categorize(name: str) -> str:
@@ -337,9 +466,12 @@ async def run_views(
     out_dir = run_root / "output"
     in_dir.mkdir(parents=True, exist_ok=True)
 
-    # Full original drawing for Tab 2's left panel.
+    # Full original drawing: kept for Tab 2's left panel AND fed into extraction as
+    # whole-part context (saved in the views folder as the "full" overview view).
     if source is not None:
-        (run_root / "source.jpg").write_bytes(await source.read())
+        src_bytes = await source.read()
+        (run_root / "source.jpg").write_bytes(src_bytes)
+        (in_dir / OVERVIEW_FILENAME).write_bytes(src_bytes)
 
     used: set[str] = set()
     for i, up in enumerate(crops, start=1):
@@ -357,7 +489,7 @@ async def run_views(
         "--output", str(out_dir),
         "--no-export",
     ]
-    _start_run(cmd, out_dir, run_id=run_id)
+    _start_run(cmd, out_dir, run_id=run_id, deliver_name=part_name)
     return {"id": run_id, "part": part_name, "views": sorted(used)}
 
 
@@ -459,6 +591,11 @@ def run_outputs(run_id: str):
         "done": state["done"],
         "exit": state["exit"],
         "source": (out.parent / "source.jpg").is_file(),
+        "started": state.get("started"),
+        "finished": state.get("finished"),
+        "cancelled": state.get("cancelled", False),
+        "delivered": state.get("delivered"),
+        "delivered_downloads": state.get("delivered_downloads"),
     })
     return payload
 
@@ -476,12 +613,18 @@ def _session_dir(session: str) -> Path:
     return PARTS_DIR / _safe_session(session)
 
 
+# The full drawing is stored in the views folder under this name so view_ingest
+# classifies it as the "full" overview view (whole-part extraction context). It is
+# not one of the orthographic views, so it is excluded from the view count/list.
+OVERVIEW_FILENAME = "00_full.jpg"
+
+
 def _list_parts(sdir: Path) -> list[dict]:
     if not sdir.is_dir():
         return []
     parts = []
     for pdir in sorted(p for p in sdir.iterdir() if p.is_dir() and not p.name.startswith(".")):
-        views = sorted(v.name for v in pdir.glob("*.jpg"))
+        views = sorted(v.name for v in pdir.glob("*.jpg") if v.name != OVERVIEW_FILENAME)
         out = pdir / "output"
         parts.append({
             "name": pdir.name,
@@ -528,9 +671,13 @@ async def add_part(
         (pdir / fname).write_bytes(await up.read())
 
     if source is not None:
+        src_bytes = await source.read()
         thumbs = sdir / ".thumbs"
         thumbs.mkdir(exist_ok=True)
-        (thumbs / f"{part_name}.jpg").write_bytes(await source.read())
+        (thumbs / f"{part_name}.jpg").write_bytes(src_bytes)
+        # Also feed the FULL drawing into extraction as whole-part context: saved in
+        # the views folder as an overview view (00_full.jpg -> classified "full").
+        (pdir / OVERVIEW_FILENAME).write_bytes(src_bytes)
 
     return {"session": _safe_session(session), "part": part_name, "parts": _list_parts(sdir)}
 
@@ -585,5 +732,5 @@ def run_part(session: str = Form(...), part: str = Form(...)):
         "--output", str(out_dir),
         "--no-export",
     ]
-    run_id = _start_run(cmd, out_dir)
+    run_id = _start_run(cmd, out_dir, deliver_name=_sanitize(part))
     return {"id": run_id, "part": _sanitize(part)}

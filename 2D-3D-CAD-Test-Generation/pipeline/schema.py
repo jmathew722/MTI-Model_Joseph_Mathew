@@ -256,6 +256,11 @@ class HoleCallout(BaseModel):
     )
     feature_ref: str = Field(default="", description="Feature ID (F###) this callout corresponds to; empty if none")
     view: str = Field(default="", description="View the callout appears in")
+    notes: str = Field(
+        default="",
+        description="Verbatim callout text or special notes for this hole (e.g. a "
+        "counterbore/thread note), or empty if none.",
+    )
 
     @field_validator("instance_positions")
     @classmethod

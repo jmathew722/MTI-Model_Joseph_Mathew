@@ -15,6 +15,9 @@ output/*.SLDPRT
 debug_extraction.json
 *.log
 
+# Web UI per-run deliverables (generated; one folder per part with sldprt/stl/etc.)
+UI_Output/
+
 # Extraction cache (hashed API results)
 .extraction_cache/
 **/.extraction_cache/

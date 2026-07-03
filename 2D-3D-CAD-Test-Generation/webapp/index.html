@@ -71,6 +71,13 @@
   .btn:disabled { opacity:.45; cursor:not-allowed; }
   .btn.secondary { background:#1a2740; color:var(--ink); border:1px solid var(--line); font-weight:600; }
   .btn.running { background:#243452; color:var(--accent2); }
+  .btn.danger { background:#3a1620; color:#ff9c9c; border:1px solid #6e2430; font-weight:600; }
+  .btn.danger:hover:not(:disabled) { background:#4a1c28; }
+  .progress-wrap { display:flex; align-items:center; gap:8px; }
+  .progress-track { width:150px; height:8px; border-radius:5px; background:#0d1521; overflow:hidden; border:1px solid var(--line); }
+  .progress-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2));
+                    transition:width .35s ease; }
+  .elapsed { font-variant-numeric:tabular-nums; color:var(--muted); font-size:12px; min-width:38px; text-align:right; }
   .status { color:var(--muted); font-size:13px; }
   .status.err { color:var(--err); } .status.ok { color:var(--ok); } .status.run { color:var(--accent2); }
   .spinner { width:14px; height:14px; border:2px solid #2a3d5c; border-top-color:var(--accent2);
@@ -144,6 +151,11 @@
       <div class="run-row">
         <div class="status" id="run-status">Select a part, then run the pipeline on it.</div>
         <div class="grow"></div>
+        <div class="progress-wrap" id="progress-wrap" style="display:none">
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          <span class="elapsed" id="elapsed-txt">0:00</span>
+        </div>
+        <button class="btn danger" id="cancel-btn" style="display:none">✕ Cancel</button>
         <button class="btn" id="run-btn" disabled>▶ Run Pipeline</button>
       </div>
       <pre id="inline-console" style="display:none"></pre>
@@ -333,17 +345,60 @@ document.getElementById('add-part-btn').addEventListener('click', async () => {
 
 // ── Run the selected part ────────────────────────────────────────────────────
 const runBtn = document.getElementById('run-btn'), runStatus = document.getElementById('run-status');
+const cancelBtn = document.getElementById('cancel-btn');
+const progressWrap = document.getElementById('progress-wrap'), progressFill = document.getElementById('progress-fill');
+const elapsedTxt = document.getElementById('elapsed-txt');
 const inlineConsole = document.getElementById('inline-console'), consolePre = document.getElementById('console-pre');
-let es = null, pollTimer = null;
+let es = null, pollTimer = null, currentRunId = null;
+let elapsedTimer = null, runStartedMs = null, progressPct = 0;
 function setStatus(msg, cls) { runStatus.innerHTML = msg; runStatus.className = 'status' + (cls ? ' ' + cls : ''); }
+
+// Stage lines look like "[1/2] ..." or "[1-2/4] ..." — turn the fraction into a
+// (non-decreasing) 0-92% progress estimate; the final 100% is reserved for the
+// actual 'done' event so the bar never claims completion early.
+function progressFromLine(line) {
+  const m = line.match(/\[(\d+(?:\.\d+)?)(?:-\d+)?\/(\d+)\]/);
+  if (!m) return null;
+  const frac = parseFloat(m[1]) / parseFloat(m[2]);
+  return Math.max(2, Math.min(92, Math.round(frac * 92)));
+}
+function setProgress(pct) { progressPct = Math.max(progressPct, pct); progressFill.style.width = progressPct + '%'; }
+function resetProgress() { progressPct = 0; progressFill.style.width = '0%'; }
+
+function fmtElapsed(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000)), m = Math.floor(s / 60), r = s % 60;
+  return m + ':' + String(r).padStart(2, '0');
+}
+function updateElapsed() { if (runStartedMs != null) elapsedTxt.textContent = fmtElapsed(Date.now() - runStartedMs); }
+function startElapsed() {
+  runStartedMs = Date.now(); updateElapsed();
+  if (elapsedTimer) clearInterval(elapsedTimer);
+  elapsedTimer = setInterval(updateElapsed, 500);
+}
+function stopElapsed() { if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; } }
+
 function setRunning(on) {
   isRunning = on;
   document.getElementById('add-part-btn').disabled = on;
   document.getElementById('demo-btn').disabled = on || !document.querySelector('#demo-sample option');
-  if (on) { runBtn.className = 'btn running'; runBtn.textContent = '⏳ Running…'; runBtn.disabled = true; }
-  else { runBtn.className = 'btn'; runBtn.textContent = '▶ Run Pipeline'; }
+  cancelBtn.style.display = on ? '' : 'none';
+  progressWrap.style.display = on ? '' : 'none';
+  if (on) {
+    runBtn.className = 'btn running'; runBtn.textContent = '⏳ Running…'; runBtn.disabled = true;
+    cancelBtn.disabled = false; resetProgress(); setProgress(2); startElapsed();
+  } else {
+    runBtn.className = 'btn'; runBtn.textContent = '▶ Run Pipeline'; stopElapsed();
+  }
   updateRunEnabled();
 }
+
+cancelBtn.addEventListener('click', async () => {
+  if (!currentRunId || !isRunning) return;
+  cancelBtn.disabled = true;
+  setStatus('<span class="spinner"></span>Cancelling…', 'run');
+  try { await fetch(`/api/runs/${currentRunId}/cancel`, { method: 'POST' }); }
+  catch (e) { setStatus('Cancel failed: ' + e.message, 'err'); cancelBtn.disabled = false; }
+});
 
 runBtn.addEventListener('click', async () => {
   if (!selectedPart || isRunning) return;
@@ -356,6 +411,7 @@ runBtn.addEventListener('click', async () => {
   try { res = await (await fetch('/api/run-part', { method:'POST', body:fd })).json(); }
   catch (e) { setStatus('Run failed: ' + e.message, 'err'); setRunning(false); return; }
   if (res.error || !res.id) { setStatus(res.detail || res.error || 'Run failed to start', 'err'); setRunning(false); return; }
+  currentRunId = res.id;
   monitorRun(res.id, selectedPart);
   showTab('console');
 });
@@ -363,8 +419,11 @@ runBtn.addEventListener('click', async () => {
 function monitorRun(id, partName) {
   if (es) es.close();
   es = new EventSource(`/api/runs/${id}/log`);
-  es.onmessage = ev => { const line = ev.data + '\n'; consolePre.textContent += line; inlineConsole.textContent += line;
-    consolePre.scrollTop = consolePre.scrollHeight; inlineConsole.scrollTop = inlineConsole.scrollHeight; };
+  es.onmessage = ev => {
+    const line = ev.data + '\n'; consolePre.textContent += line; inlineConsole.textContent += line;
+    consolePre.scrollTop = consolePre.scrollHeight; inlineConsole.scrollTop = inlineConsole.scrollHeight;
+    const p = progressFromLine(ev.data); if (p != null) setProgress(p);
+  };
   es.addEventListener('done', ev => { const line = `\n— pipeline exited (code ${ev.data}) —\n`; consolePre.textContent += line; inlineConsole.textContent += line; es.close(); });
 
   if (pollTimer) clearInterval(pollTimer);
@@ -373,10 +432,18 @@ function monitorRun(id, partName) {
     if (selectedPart === partName) fillOutputs(d);
     if (d.done) {
       clearInterval(pollTimer); pollTimer = null;
+      setProgress(100);
       setRunning(false);
+      currentRunId = null;
       // refresh the parts list so the "ran" badge appears
       try { const pl = await (await fetch(`/api/parts?session=${sessionId}`)).json(); partsData = pl.parts; renderParts(); } catch {}
-      if (d.exit === 0) setStatus(`✅ Pipeline finished for "${partName}". Outputs are in the tabs above.`, 'ok');
+      if (d.cancelled) setStatus(`🛑 Pipeline cancelled for "${partName}".`, 'err');
+      else if (d.exit === 0) {
+        let where = '';
+        if (d.delivered) where += ` Saved to <code>${d.delivered}</code>`;
+        if (d.delivered_downloads) where += ` and <code>${d.delivered_downloads}</code>`;
+        setStatus(`✅ Pipeline finished for "${partName}". Outputs are in the tabs above.${where}`, 'ok');
+      }
       else setStatus(`❌ Pipeline failed for "${partName}" (exit ${d.exit}). See Console. Partial outputs shown.`, 'err');
     }
   };
@@ -395,10 +462,15 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
   try { res = await (await fetch('/api/demo', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sample }) })).json(); }
   catch (e) { setStatus('Demo failed: ' + e.message, 'err'); setRunning(false); return; }
   if (res.error || !res.id) { setStatus(res.detail || res.error || 'Demo failed to start', 'err'); setRunning(false); return; }
+  currentRunId = res.id;
   // Demo is not tied to a part; fill tabs from the run id directly.
   if (es) es.close();
   es = new EventSource(`/api/runs/${res.id}/log`);
-  es.onmessage = ev => { const l = ev.data + '\n'; consolePre.textContent += l; inlineConsole.textContent += l; consolePre.scrollTop = consolePre.scrollHeight; inlineConsole.scrollTop = inlineConsole.scrollHeight; };
+  es.onmessage = ev => {
+    const l = ev.data + '\n'; consolePre.textContent += l; inlineConsole.textContent += l;
+    consolePre.scrollTop = consolePre.scrollHeight; inlineConsole.scrollTop = inlineConsole.scrollHeight;
+    const p = progressFromLine(ev.data); if (p != null) setProgress(p);
+  };
   es.addEventListener('done', () => es.close());
   if (pollTimer) clearInterval(pollTimer);
   const poll = async () => {
@@ -410,8 +482,11 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
       if (cat && cat.present) { const j = tab!=='verification'&&tab!=='modelcheck'; paintText('panel-'+tab, cat.name, j?prettyJSON(cat.text||''):cat.text); setTabFilled(tab, true); }
     }
     if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
-    if (d.done) { clearInterval(pollTimer); pollTimer = null; setRunning(false);
-      setStatus(d.exit === 0 ? '✅ Demo finished. See the output tabs.' : `❌ Demo exited ${d.exit}.`, d.exit === 0 ? 'ok' : 'err'); }
+    if (d.done) {
+      clearInterval(pollTimer); pollTimer = null; setProgress(100); setRunning(false); currentRunId = null;
+      if (d.cancelled) setStatus('🛑 Demo cancelled.', 'err');
+      else setStatus(d.exit === 0 ? '✅ Demo finished. See the output tabs.' : `❌ Demo exited ${d.exit}.`, d.exit === 0 ? 'ok' : 'err');
+    }
   };
   poll(); pollTimer = setInterval(poll, 1200);
   showTab('console');

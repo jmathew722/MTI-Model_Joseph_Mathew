@@ -269,13 +269,24 @@ def _run_batch(args) -> int:
     return 0 if n_ready == len(rows) else 8
 
 
+def _views_for_extraction(part):
+    """Orthographic views in canonical order, plus the full/overview drawing (as
+    whole-part CONTEXT) last when present. The overview is never built as a plane."""
+    from pipeline.view_ingest import OVERVIEW_VIEW
+
+    ordered = list(part.ordered_views)  # front, top, side, ... (per VIEW_ORDER)
+    if OVERVIEW_VIEW in part.views:
+        ordered.append((OVERVIEW_VIEW, part.views[OVERVIEW_VIEW]))
+    return ordered
+
+
 def _extract_part_views(part, page: int, cache_dir, usage: dict) -> dict:
     """Prepare each view image and run one combined multi-view extraction."""
     from utils.image_prep import prepare_image
     from pipeline.extractor import extract_drawing_data_multiview
 
     views = []
-    for view_type, path in part.ordered_views:
+    for view_type, path in _views_for_extraction(part):
         prepared = prepare_image(str(path), page=page, return_details=True)
         views.append((view_type, prepared.base64, prepared.media_type))
     data = extract_drawing_data_multiview(
@@ -321,7 +332,7 @@ def _run_views_folder(args) -> int:
 
     rows = []
     for part in parts:
-        present = ", ".join(v for v, _ in part.ordered_views) or "none"
+        present = ", ".join(v for v, _ in _views_for_extraction(part)) or "none"
         console.print(f"[1/2] {part.name}: extracting views ({present})...")
         for w in part.warnings:
             console.print(f"  [yellow]warning:[/yellow] {w}")
