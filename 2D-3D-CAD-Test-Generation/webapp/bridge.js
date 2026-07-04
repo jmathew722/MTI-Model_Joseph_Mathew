@@ -127,6 +127,54 @@
     });
   }
 
+  // Let the photo app (Tab 1) ACCEPT CAD files it cannot decode itself.
+  // Injects a script that (a) adds .dwg/.dxf/.edrw/.eprt/.easm to the file
+  // input's accept list and (b) wraps the app's global loadFile so CAD picks
+  // (file dialog OR drag-drop) are posted to the parent as {__mti:'cad-open'}.
+  // The parent converts them server-side and sends the PNG back via sendImage.
+  // Photo app sources stay unmodified.
+  function hookCadIntake(iframe) {
+    function hook() {
+      if (window.__mtiCadHook) return;
+      var CAD = /\.(dwg|dxf|edrw|eprt|easm)$/i;
+      var fi = document.getElementById('fileInput');
+      if (typeof window.loadFile !== 'function' || !fi) return; // app not ready yet
+      window.__mtiCadHook = true;
+      fi.setAttribute('accept', (fi.getAttribute('accept') || 'image/*') +
+        ',.dwg,.dxf,.edrw,.eprt,.easm');
+      var orig = window.loadFile;
+      window.loadFile = function (file) {
+        if (file && CAD.test(file.name || '')) {
+          file.arrayBuffer().then(function (buf) {
+            parent.postMessage({ __mti: 'cad-open', name: file.name, buf: buf }, '*', [buf]);
+          });
+          return;
+        }
+        return orig.apply(this, arguments);
+      };
+    }
+    function inject() {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (!doc || !doc.body || iframe.contentWindow.__mtiCadHook) return;
+        const s = doc.createElement('script');
+        s.textContent = '(' + hook.toString() + ')();';
+        doc.body.appendChild(s);
+      } catch (e) { /* frame not reachable yet; the load listener retries */ }
+    }
+    iframe.addEventListener('load', inject);
+    inject(); // the iframe usually finished loading long before first use
+    // Photo app defines loadFile in an end-of-body script; if we injected
+    // before it ran, retry briefly until the hook takes.
+    let tries = 0;
+    const t = setInterval(() => {
+      try {
+        if (iframe.contentWindow.__mtiCadHook || ++tries > 50) clearInterval(t);
+        else inject();
+      } catch (e) { clearInterval(t); }
+    }, 200);
+  }
+
   function dataURLtoBlob(dataURL) {
     const [head, b64] = dataURL.split(',');
     const mime = (head.match(/:(.*?);/) || [, 'image/jpeg'])[1];
@@ -136,5 +184,5 @@
     return new Blob([arr], { type: mime });
   }
 
-  window.MTIBridge = { collect, dataURLtoBlob, sendImage };
+  window.MTIBridge = { collect, dataURLtoBlob, sendImage, hookCadIntake };
 })();

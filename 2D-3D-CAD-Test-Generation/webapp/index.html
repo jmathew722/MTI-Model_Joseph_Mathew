@@ -612,6 +612,7 @@ function updateRunEnabled() {
 }
 function selectPart(name) {
   selectedPart = name;
+  previewOverride = false; // an explicit part selection reclaims the left panel
   renderParts(); updateRunEnabled();
   document.getElementById('viewer-part').textContent = name;
   // Split view left = this part's source thumbnail.
@@ -633,9 +634,12 @@ async function loadPartOutputs(name) {
   else setStatus(`Part "${name}" selected — not run yet.`, '');
 }
 
-// ── Shared preview: an unsaved upload shows in Tab 2's left panel too ────────
+// ── Shared preview: the input document always shows in Tab 2's left panel ────
+// Most recent action wins: uploading a document shows THAT document; clicking
+// a part card switches the panel back to the selected part's source.
+let previewOverride = false;
 function showSourcePreview(url, label) {
-  if (selectedPart) return; // a selected part owns the left panel
+  previewOverride = true;
   document.getElementById('viewer-part').textContent = label;
   const img = document.getElementById('src-img');
   img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none';
@@ -653,7 +657,10 @@ function updateSourceBadges() {
   const els = [document.getElementById('src-format'), document.getElementById('src-format-badge')];
   const sync = document.getElementById('src-sync');
   let fmt = '', syncTxt = '';
-  if (selectedPart) {
+  if (previewOverride && intake.source) {
+    fmt = intake.format || '';
+    syncTxt = '✓ current upload (unsaved)';
+  } else if (selectedPart) {
     const p = partsData.find(x => x.name === selectedPart);
     fmt = (p && p.source_format) || '';
     syncTxt = `✓ matches Part Setup source — ${selectedPart}`;
@@ -877,6 +884,20 @@ async function loadCadFile(f, stem, layoutName) {
 document.getElementById('sheet-load').addEventListener('click', () => {
   if (!pendingCad) return;
   loadCadFile(pendingCad.file, pendingCad.stem, document.getElementById('sheet-select').value);
+});
+
+// -- Tab 1 CAD intake: the cropper's own Open dialog / drag-drop now accepts
+// DWG/DXF/eDrawings (bridge hook). The file arrives here, is converted on the
+// server exactly like a Tab 2 upload, and the PNG is sent back into the cropper.
+window.MTIBridge.hookCadIntake(document.getElementById('photoapp'));
+window.addEventListener('message', async ev => {
+  const d = ev.data;
+  if (!d || d.__mti !== 'cad-open' || !d.buf) return;
+  const f = new File([d.buf], d.name, { type: 'application/octet-stream' });
+  const stem = d.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '_');
+  await loadCadFile(f, stem, '');
+  // Multi-sheet files need the sheet picker, which lives on the Part Setup tab.
+  if (pendingCad) showTab('intake');
 });
 
 // -- Pull queued crops from the (unmodified) photo app iframe
