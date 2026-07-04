@@ -134,6 +134,9 @@ class BuildStep:
     assumption_made: bool = False
     assumption_confidence: float = 1.0
     flag_tier: str = "HIGH"
+    # Additive (vector hole extraction): where hole positions came from.
+    position_source: str = ""          # dxf_entity | pdf_vector | hough | vision | ""
+    position_confidence: float = 0.0   # 0..1; 0.0 when not applicable
 
 
 @dataclass
@@ -527,6 +530,9 @@ def _enrich_feature_step(step: BuildStep, model: DrawingData, feature: Feature,
             step.positions_xy_meters = [
                 [_to_meters(x, model.units), _to_meters(y, model.units)] for x, y in pts
             ]
+            # Additive provenance from the vector hole-extraction stage.
+            step.position_source = h.position_source or ("vision" if h.position_known else "")
+            step.position_confidence = h.position_confidence
 
     step.assumption_made, step.assumption_confidence, step.flag_tier = \
         _worst_resolution(model, feature, resolution)
@@ -564,6 +570,9 @@ def _step_to_dict(s: BuildStep) -> dict[str, Any]:
         "assumption_made": s.assumption_made,
         "assumption_confidence": round(s.assumption_confidence, 3),
         "flag_tier": s.flag_tier,
+        # --- additive: vector hole-extraction provenance ---
+        "position_source": s.position_source,
+        "position_confidence": round(s.position_confidence, 3),
     }
 
 

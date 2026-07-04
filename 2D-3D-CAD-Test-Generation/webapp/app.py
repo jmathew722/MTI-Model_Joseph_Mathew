@@ -963,5 +963,9 @@ def run_part(session: str = Form(...), part: str = Form(...)):
     # Deliver the untouched original upload (if any) alongside the outputs.
     extras = sorted((_session_dir(session) / ORIGINALS_DIRNAME).glob(f"{_sanitize(part)}.*")) \
         if (_session_dir(session) / ORIGINALS_DIRNAME).is_dir() else []
+    # A vector original (PDF/DXF/DWG) also feeds the exact hole-position stage.
+    vector_original = next((p for p in extras if p.suffix.lower() in (".pdf", ".dxf", ".dwg")), None)
+    if vector_original is not None:
+        cmd += ["--source-file", str(vector_original)]
     run_id = _start_run(cmd, out_dir, deliver_name=_sanitize(part), extra_files=extras)
     return {"id": run_id, "part": _sanitize(part)}

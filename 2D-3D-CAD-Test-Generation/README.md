@@ -71,6 +71,7 @@ drawing/views ─► image_prep ─► extractor (Claude Vision) ─► resolver
 | Image prep | `utils/image_prep.py` | any OS |
 | Extraction | `pipeline/extractor.py` (`claude-sonnet-5`, forced tool call) | any OS |
 | Schema | `pipeline/schema.py` (Pydantic v2: views, hole callouts, relationships) | any OS |
+| **Vector hole extraction** | `pipeline/vector_extract/` + `pipeline/hole_resolution.py` (EXACT hole positions from DXF/DWG entities or vector-PDF paths; Hough fallback for scans; vision never overrides a vector coordinate) | any OS |
 | **Ambiguity resolution (Stage 2.5)** | `pipeline/resolver.py` (numeric `resolved_value` + flag tier per dimension; never blocks) | any OS |
 | Verification | `pipeline/validator.py` (dimensional closure, envelopes, advisory report) | any OS |
 | **Engineering review** | `pipeline/engineering_review.py` (severity-ranked human report) | any OS |
@@ -269,6 +270,7 @@ One source is required: `--drawing` · `--from-json` · `--batch` · `--views-fo
 |------|--------|
 | `--output DIR` | Output directory (default `./output`). |
 | `--page N` | Page to use for multi-page PDFs (default 1). |
+| `--source-file F` | Original vector drawing (PDF/DXF/DWG) for exact hole positions. Defaults to `--drawing` when it is already one of those; for `--views-folder`, any PDF/DXF/DWG inside the part folder is used. |
 | `--debug` | Also save intermediate extraction JSON. |
 | `--engine vba\|com` | `vba` (default, any OS) generates macros; `com` drives SolidWorks directly (Windows). |
 | `--validate-only` | Extract + verify only; no macros, no SolidWorks. |
@@ -383,6 +385,50 @@ independent; the web-UI delivery above is always on for successful part runs.)
 and an on-disk **extraction cache** (`<output>/.extraction_cache`) returns identical
 results with **zero** API calls on a re-run with the same images and output dir. Each
 extraction's token usage and USD cost are appended to `token_usage_log.txt`.
+
+---
+
+## Exact hole positions — vector extraction
+
+Hole placement no longer relies on vision coordinate estimation when a vector
+source exists. `pipeline/vector_extract/` reads the ORIGINAL drawing file and
+`pipeline/hole_resolution.py` merges what it finds into the extraction before
+Stage 2.5:
+
+- **DXF/DWG** (`ezdxf`): CIRCLE/ARC entities and block INSERTs give exact
+  centers and radii; `$INSUNITS` supplies the unit conversion. DWG needs the
+  free ODA File Converter — without it the run falls back (flagged, never
+  silent) to the raster path.
+- **Vector PDF** (PyMuPDF): circles (including the standard 4-Bézier circle
+  encoding) are fitted analytically with a circularity check; concentric pairs
+  confirm counterbores; centerline crosses confirm hole centers. Scanned PDFs
+  are detected and flagged `RASTER`.
+- **Raster fallback** (OpenCV): HoughCircles candidates with sub-pixel
+  refinement — positions are tagged `hough`, capped in confidence, and always
+  flagged; they never masquerade as exact.
+
+Precedence: **vector geometry owns POSITION** (vision never overrides it);
+**the callout owns SEMANTICS** (diameter value, thread, depth, counterbore).
+When they disagree the callout keeps the value, the vector keeps the position,
+and the hole is flagged CRITICAL. The drawing scale must be anchored by at
+least two agreeing dimension matches (part outline vs envelope callouts,
+declared DXF units); one anchor flags HIGH; zero leaves positions with vision
+(flagged). "N×" counts are verified against the number of matching circles.
+
+Results land in the existing schema shape (`instance_positions` in drawing
+units → `positions_xy_meters` in the build plan) plus two additive fields on
+each hole callout and build-plan step: `position_source`
+(`dxf_entity | pdf_vector | hough | vision`) and `position_confidence` (0..1).
+Old extraction JSONs load unchanged. Vector-derived centers are bit-exact
+across runs (regression-tested). See `HOLE_EXTRACTION_REPORT.md` for the
+before/after verification on real and synthetic parts.
+
+> Positioned-OCR note: eDOCr was evaluated for positioned dimension/GD&T text
+> but its TensorFlow stack does not install cleanly beside this pipeline. Its
+> role is covered by native positioned text (DXF TEXT/MTEXT, PDF words) and,
+> for raster drawings, `vector_extract.raster_holes.callout_crops()` — targeted
+> per-hole crops a caller can send to Claude Vision for "what is the callout at
+> this location" reads.
 
 ---
 

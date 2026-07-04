@@ -261,6 +261,18 @@ class HoleCallout(BaseModel):
         description="Verbatim callout text or special notes for this hole (e.g. a "
         "counterbore/thread note), or empty if none.",
     )
+    # Filled by the pipeline's vector-extraction stage — extraction must leave
+    # these at their defaults (additive fields; older JSONs load unchanged).
+    position_source: str = Field(
+        default="",
+        description="Set by the pipeline, leave default: where the position came from "
+        "(dxf_entity | pdf_vector | hough | vision).",
+    )
+    position_confidence: float = Field(
+        default=0.0,
+        description="Set by the pipeline, leave default: 0..1 confidence in the "
+        "resolved position.",
+    )
 
     @field_validator("instance_positions")
     @classmethod

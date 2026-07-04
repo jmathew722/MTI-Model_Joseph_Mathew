@@ -187,6 +187,53 @@ def _prepare_and_extract(args) -> dict | None:
     return None
 
 
+def _augment_holes(raw: dict, source_path: Path, page: int) -> dict:
+    """Vector-augment hole positions in a raw extraction dict (exception-safe).
+
+    Validates the dict into the schema model, lets the vector/consensus stage
+    write exact positions into the hole callouts, and returns the updated dict.
+    On any failure the ORIGINAL dict is returned untouched — this stage can
+    only improve the extraction, never break it.
+    """
+    try:
+        from pipeline.schema import DrawingData
+        from pipeline.vector_extract import augment_hole_positions
+
+        model = DrawingData.model_validate(raw)
+        report = augment_hole_positions(model, source_path, page=page)
+        if report is None:
+            return raw
+        n_exact = sum(1 for h in report.holes if h.outcome == "vector_exact")
+        n_flag = sum(len(h.flags) for h in report.holes)
+        console.print(
+            f"  [2.2/4] Vector hole extraction: {n_exact}/{len(report.holes)} callout(s) "
+            f"placed exactly from {source_path.suffix.lower().lstrip('.')} geometry "
+            f"({n_flag} flag(s); scale from {report.scale_anchors} anchor(s))."
+        )
+        return model.model_dump(mode="json")
+    except Exception as e:
+        console.print(f"  [yellow]Vector hole extraction skipped:[/yellow] {type(e).__name__}: {e}")
+        return raw
+
+
+def _views_part_source_file(part, args) -> Path | None:
+    """The vector source (PDF/DXF/DWG) for a views-folder part: an explicit
+    --source-file wins; otherwise any vector file sitting in the part's folder."""
+    explicit = getattr(args, "source_file", None)
+    if explicit:
+        p = Path(explicit)
+        return p if p.is_file() else None
+    try:
+        first_view = next(iter(part.views.values()))
+        folder = Path(first_view).parent
+        for pattern in ("*.pdf", "*.dxf", "*.dwg", "*.PDF", "*.DXF", "*.DWG"):
+            for cand in sorted(folder.glob(pattern)):
+                return cand
+    except (StopIteration, OSError):
+        pass
+    return None
+
+
 def _force_utf8_console() -> None:
     """Avoid UnicodeEncodeError on Windows cp1252 consoles (failure E008).
 
@@ -359,6 +406,11 @@ def _run_views_folder(args) -> int:
                                  f"{type(e).__name__}: {e}"[:300]))
             continue
         record_run(output_dir, data.get("part_number") or part.name, model, usage)
+        # Vector hole extraction: exact positions from an original PDF/DXF/DWG
+        # delivered with the part folder (or --source-file), merged before resolve.
+        vsrc = _views_part_source_file(part, args)
+        if vsrc is not None:
+            data = _augment_holes(data, vsrc, args.page)
         console.print("[2.5/2] resolving ambiguities + verifying + per-plane macros + .sldprt...")
         try:
             rows.append(process_drawing_data(data, part.name, output_dir,
@@ -420,6 +472,12 @@ def main() -> int:
     )
     parser.add_argument("--output", default="./output", help="Output directory.")
     parser.add_argument("--page", type=int, default=1, help="Page to use for multi-page PDFs (default 1).")
+    parser.add_argument(
+        "--source-file",
+        help="Original vector drawing (PDF/DXF/DWG) for EXACT hole positions. "
+        "Defaults to --drawing when that is already a PDF/DXF/DWG; for "
+        "--views-folder runs, any PDF/DXF/DWG inside the part folder is used.",
+    )
     parser.add_argument("--debug", action="store_true", help="Save intermediate extraction JSON.")
     parser.add_argument(
         "--no-extract-cache",
@@ -497,6 +555,17 @@ def main() -> int:
         debug_path = Path("debug_extraction.json")
         debug_path.write_text(json.dumps(drawing_data, indent=2))
         console.print(f"  Debug: extraction saved to {debug_path}")
+
+    # Vector hole extraction (additive): exact positions from the original
+    # PDF/DXF/DWG geometry, merged into the extraction BEFORE Stage 2.5 so the
+    # resolver never has to assume a position that the vector data pins exactly.
+    vector_src = None
+    if getattr(args, "source_file", None):
+        vector_src = Path(args.source_file)
+    elif args.drawing and Path(args.drawing).suffix.lower() in (".pdf", ".dxf", ".dwg"):
+        vector_src = Path(args.drawing)
+    if vector_src is not None and vector_src.is_file():
+        drawing_data = _augment_holes(drawing_data, vector_src, args.page)
 
     # The raw extraction is kept verbatim for traceability (saved as _extraction.json);
     # Stage 2.5 produces the resolved copy that actually drives verification + build.
