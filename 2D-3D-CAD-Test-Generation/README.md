@@ -96,11 +96,11 @@ get the model and STL.
   `.sldprt`/`.stl` and run the model check. Everything else works without it.
 - For PDF input: a PDF rasterizer — **PyMuPDF** (bundled in `requirements.txt`) or
   **poppler** (for `pdf2image`).
-- For **DWG** input (web UI): the free
-  [ODA File Converter](https://www.opendesign.com/guestfiles/oda_file_converter)
-  installed on the server machine (found automatically). DXF needs no extra install.
-  Without it, DWG uploads fail with a clear message — export the drawing as PDF/DXF
-  instead.
+- For **DWG** input: nothing extra to install. An engine chain converts DWG→DXF:
+  **ezdwg** (bundled pip package, DWG R14-2018) → the **SolidWorks translator**
+  (when SolidWorks is installed — covers even 1990s R13 files) → the ODA File
+  Converter if present. Only when every engine fails does the upload error, and
+  the message lists exactly what was tried. DXF needs no conversion at all.
 
 Python dependencies (`requirements.txt`): `anthropic`, `pillow`, `pdf2image`,
 `PyMuPDF`, `numpy`, `pydantic`, `python-dotenv`, `rich`, `pytest`, and `pywin32`
@@ -408,9 +408,9 @@ source exists. `pipeline/vector_extract/` reads the ORIGINAL drawing file and
 Stage 2.5:
 
 - **DXF/DWG** (`ezdxf`): CIRCLE/ARC entities and block INSERTs give exact
-  centers and radii; `$INSUNITS` supplies the unit conversion. DWG needs the
-  free ODA File Converter — without it the run falls back (flagged, never
-  silent) to the raster path.
+  centers and radii; `$INSUNITS` supplies the unit conversion. DWG converts via
+  the no-install engine chain (ezdwg → SolidWorks translator → ODA if present);
+  if every engine fails the run falls back (flagged, never silent) to raster.
 - **Vector PDF** (PyMuPDF): circles (including the standard 4-Bézier circle
   encoding) are fitted analytically with a circularity check; concentric pairs
   confirm counterbores; centerline crosses confirm hole centers. Scanned PDFs
@@ -541,5 +541,6 @@ SolidWorks before re-running that part. Skipped features are always listed in
   covered seed are emitted as TODO-marked macros (flagged HIGH).
 - The COM build path, `.sldprt`/`.stl` outputs, model check, and Tab 2's 3D content
   are exercised only on Windows + SolidWorks 2024.
-- **DWG input** requires the free ODA File Converter on the server machine; without
-  it, DWG uploads fail with an instructive message (DXF works out of the box).
+- **DWG input** needs no extra install: ezdwg (pip) covers DWG R14-2018, and the
+  SolidWorks translator covers the rest (incl. R13) when SolidWorks is present.
+  Only if every engine fails does the upload error, listing what was tried.

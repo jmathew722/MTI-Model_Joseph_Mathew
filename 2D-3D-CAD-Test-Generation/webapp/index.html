@@ -866,9 +866,13 @@ async function loadCadFile(f, stem, layoutName) {
   showSourcePreview(intake.source, stem + ' — unsaved upload');
   if (!partNameEl.value.trim()) partNameEl.value = stem;
   validateIntake();
+  // Also open the converted image in the Tab 1 cropper — the cropper cannot
+  // read DWG/eDrawings itself, so this is how those formats "open" on Tab 1.
+  try { await window.MTIBridge.sendImage(document.getElementById('photoapp'), url, stem + '.png'); }
+  catch (e) { console.warn('cropper load failed', e); }
   setStatus(isEdrw
-    ? `Extracted a STATIC preview from ${f.name} — labeled as such (not the interactive model). Check the orientation, then save.`
-    : `Converted ${f.name}${staticPreview ? '' : ''}${layoutName ? ' (sheet ' + layoutName + ')' : ''}. Check the orientation, then save.`, 'ok');
+    ? `Extracted a STATIC preview from ${f.name} — labeled as such (not the interactive model). Also opened in the Tab 1 cropper. Check the orientation, then save.`
+    : `Converted ${f.name}${layoutName ? ' (sheet ' + layoutName + ')' : ''} — also opened in the Tab 1 cropper for view cropping. Check the orientation, then save.`, 'ok');
 }
 document.getElementById('sheet-load').addEventListener('click', () => {
   if (!pendingCad) return;

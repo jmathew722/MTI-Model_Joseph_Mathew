@@ -864,31 +864,24 @@ async def convert_dwg(file: UploadFile = File(...), layout: str = Form("")):
         tool = "ezdxf+matplotlib"
 
         if suffix == ".dwg":
-            oda = _find_oda_converter()
-            if not oda:
+            # No-ODA engine chain: ezdwg (pip) → SolidWorks translator (COM,
+            # handles even R13 files) → ODA if it happens to be installed.
+            sys.path.insert(0, str(PROJECT_DIR))
+            from pipeline.vector_extract.dwg_convert import detect_dwg_version, dwg_to_dxf
+
+            conv_notes: list[str] = []
+            dxf_out = tdir / (src.stem + "_converted.dxf")
+            engine = dwg_to_dxf(src, dxf_out, conv_notes)
+            if engine is None:
+                version = detect_dwg_version(src)
                 raise HTTPException(
                     422,
-                    "DWG conversion needs the free ODA File Converter, which was not "
-                    "found on this machine. Install it from "
-                    "https://www.opendesign.com/guestfiles/oda_file_converter and "
-                    "retry — or export the drawing as PDF/DXF and upload that instead.",
+                    f"Could not convert '{name}' (DWG {version}). Tried: "
+                    + " | ".join(conv_notes)
+                    + " — export the drawing as DXF or PDF and upload that instead.",
                 )
-            out_dir = tdir / "dxf"
-            out_dir.mkdir()
-            # ODAFileConverter <in_dir> <out_dir> <outver> <outtype> <recurse> <audit> [filter]
-            proc = subprocess.run(
-                [oda, str(tdir), str(out_dir), "ACAD2018", "DXF", "0", "1", name],
-                capture_output=True, text=True, timeout=120,
-            )
-            dxfs = list(out_dir.glob("*.dxf"))
-            if not dxfs:
-                raise HTTPException(
-                    422,
-                    f"ODA File Converter could not convert '{name}' "
-                    f"(exit {proc.returncode}). {proc.stderr or proc.stdout or ''}".strip(),
-                )
-            src = dxfs[0]
-            tool = "ODA File Converter + ezdxf+matplotlib"
+            src = dxf_out
+            tool = f"{engine} + ezdxf+matplotlib"
 
         # Multi-sheet: offer the choice before rendering anything (like PDF pages).
         try:

@@ -44,28 +44,21 @@ _INSUNITS_TO_MM[9] = 0.0254  # mils, spelled out
 
 
 def _dwg_to_dxf(path: Path, notes: list[str]) -> Path | None:
-    """Convert a DWG to a temp DXF via the ODA File Converter, or None + note."""
-    try:
-        from ezdxf.addons import odafc
-    except Exception as e:  # pragma: no cover - import only fails on broken installs
-        notes.append(f"DWG conversion unavailable (ezdxf.addons.odafc import failed: {e}).")
-        return None
-    try:
-        import tempfile
+    """Convert a DWG to a temp DXF via the no-ODA engine chain
+    (ezdwg → SolidWorks translator → ODA if installed), or None + notes."""
+    import tempfile
 
-        out_dir = Path(tempfile.mkdtemp(prefix="mti_dwg2dxf_"))
-        out_path = out_dir / (path.stem + ".dxf")
-        odafc.convert(str(path), str(out_path), version="R2018")
-        if out_path.is_file():
-            return out_path
-        notes.append("ODA File Converter produced no DXF output.")
-        return None
-    except Exception as e:
-        notes.append(
-            "DWG could not be converted to DXF (is the free ODA File Converter "
-            f"installed?): {type(e).__name__}: {e}"
-        )
-        return None
+    from .dwg_convert import dwg_to_dxf
+
+    out_dir = Path(tempfile.mkdtemp(prefix="mti_dwg2dxf_"))
+    out_path = out_dir / (path.stem + ".dxf")
+    engine = dwg_to_dxf(path, out_path, notes)
+    if engine is not None:
+        notes.append(f"DWG converted to DXF via {engine}.")
+        return out_path
+    notes.append("DWG could not be converted by any available engine "
+                 "(ezdwg / SolidWorks / ODA) — see the notes above.")
+    return None
 
 
 def extract_dxf_geometry(path: str | Path) -> DocGeometry:

@@ -91,6 +91,42 @@
     });
   }
 
+  // Load an image INTO the photo app (Tab 1 cropper) from the parent — used so
+  // converted DWG/eDrawings images open in the cropper, which cannot read the
+  // proprietary formats itself. Injects a script that calls the photo app's own
+  // global loadFile(file); photo app sources stay unmodified.
+  function sendImage(iframe, dataURL, name) {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        const s = doc.createElement('script');
+        const payload = JSON.stringify({ dataURL, name: name || 'converted.png' });
+        s.textContent = '(async () => {\n' +
+          '  const p = ' + payload + ';\n' +
+          '  try {\n' +
+          '    const blob = await (await fetch(p.dataURL)).blob();\n' +
+          '    const f = new File([blob], p.name, { type: blob.type || "image/png" });\n' +
+          '    if (typeof loadFile === "function") loadFile(f);\n' +
+          '    parent.postMessage({ __mti: "img-loaded", ok: true }, "*");\n' +
+          '  } catch (e) {\n' +
+          '    parent.postMessage({ __mti: "img-loaded", ok: false, error: String(e) }, "*");\n' +
+          '  }\n' +
+          '})();';
+        function onMsg(ev) {
+          const d = ev.data;
+          if (!d || d.__mti !== 'img-loaded') return;
+          window.removeEventListener('message', onMsg);
+          d.ok ? resolve() : reject(new Error(d.error));
+        }
+        window.addEventListener('message', onMsg);
+        doc.body.appendChild(s);
+        setTimeout(() => { window.removeEventListener('message', onMsg); resolve(); }, 5000);
+      } catch (e) {
+        reject(new Error('Could not reach the photo app frame: ' + e.message));
+      }
+    });
+  }
+
   function dataURLtoBlob(dataURL) {
     const [head, b64] = dataURL.split(',');
     const mime = (head.match(/:(.*?);/) || [, 'image/jpeg'])[1];
@@ -100,5 +136,5 @@
     return new Blob([arr], { type: mime });
   }
 
-  window.MTIBridge = { collect, dataURLtoBlob };
+  window.MTIBridge = { collect, dataURLtoBlob, sendImage };
 })();
