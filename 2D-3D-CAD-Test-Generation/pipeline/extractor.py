@@ -359,14 +359,23 @@ def _parse(
         return DrawingData.model_validate(tool_use.input), response, tool_use
     except ValidationError as e:
         log.warning("Tool input failed validation; requesting a repair: %s", e)
+        # The API requires a tool_result for EVERY tool_use block in the
+        # assistant turn — the model may emit more than one — or the repair
+        # call itself 400s ("tool_use ids found without tool_result blocks").
+        all_tool_uses = [b for b in response.content
+                         if getattr(b, "type", None) == "tool_use"]
+        repair_text = (f"Your input did not match the required schema:\n{e}\n"
+                       f"Call {TOOL_NAME} again with corrected input.")
+        results = [{
+            "type": "tool_result",
+            "tool_use_id": tu.id,
+            "content": repair_text if tu.id == tool_use.id
+                       else "Duplicate call ignored; see the other tool_result.",
+            "is_error": True,
+        } for tu in all_tool_uses]
         repair_messages = messages + [
             {"role": "assistant", "content": response.content},
-            _tool_result_message(
-                tool_use.id,
-                f"Your input did not match the required schema:\n{e}\n"
-                f"Call {TOOL_NAME} again with corrected input.",
-                is_error=True,
-            ),
+            {"role": "user", "content": results},
         ]
         response2 = _call(client, model, repair_messages)
         if usage is not None:
@@ -474,6 +483,10 @@ def extract_drawing_data_multiview(
     # sketch_plane from the orthographic view it appears in.
     overview_views = {"full", "isometric", "iso", "overview", "pictorial", "3d"}
     content: list[dict[str, Any]] = []
+    # The API allows at most 4 cache_control blocks per request and the system
+    # prompt uses one, so cache at most 3 view images (a 4+-view part would
+    # otherwise 400 outright, and the re-query re-sends images uncached anyway).
+    cached_images = 0
     for view_type, b64, media_type in views:
         label = view_type.upper().replace("_", " ")
         if view_type.lower() in overview_views:
@@ -484,7 +497,8 @@ def extract_drawing_data_multiview(
         else:
             plane = VIEW_PLANES.get(view_type, "Front Plane")
             content.append({"type": "text", "text": f"=== {label} VIEW — sketch on {plane} ==="})
-        content.append(_image_block(b64, media_type, cache=True))
+        content.append(_image_block(b64, media_type, cache=cached_images < 3))
+        cached_images += 1
     content.append({"type": "text", "text": MULTIVIEW_USER_TEXT})
 
     log.info("Multi-view extraction: %d views, model %s", len(views), model)
@@ -502,7 +516,20 @@ def extract_drawing_data_multiview(
     if data.confidence < threshold and has_focus:
         log.warning("Confidence %.2f < %.2f — re-querying the views.", data.confidence, threshold)
         unclear = "; ".join(data.warnings) or "any dimensions you were unsure about"
-        requery = list(content)
+        # The user turn after an assistant tool_use MUST lead with a tool_result
+        # for EVERY tool_use block, or the API 400s ("tool_use ids were found
+        # without tool_result blocks immediately after").
+        requery: list[dict[str, Any]] = [
+            {"type": "tool_result", "tool_use_id": tu.id,
+             "content": "Received. Take another look before finalizing."}
+            for tu in response.content if getattr(tu, "type", None) == "tool_use"
+        ]
+        # Re-send the views WITHOUT cache_control: the originals already hold
+        # the cache breakpoints and the API caps cache_control blocks at 4.
+        for block in content:
+            b = dict(block)
+            b.pop("cache_control", None)
+            requery.append(b)
         requery.append({
             "type": "text",
             "text": (

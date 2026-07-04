@@ -160,7 +160,16 @@
   .side .body { flex:1 1 auto; min-height:0; position:relative; display:grid; place-items:center; background:#080d14; }
   .divider { cursor:col-resize; background:var(--line); position:relative; }
   .divider:hover, .divider.dragging { background:#33507a; }
-  #src-img { max-width:100%; max-height:100%; object-fit:contain; display:none; }
+  .cap.capflex { display:flex; align-items:center; gap:8px; }
+  .fmt-badge { display:inline-block; font-size:10px; font-weight:800; letter-spacing:.04em;
+               padding:1px 8px; border-radius:8px; background:#1e2b3f; color:var(--accent2);
+               border:1px solid #234; text-transform:none; }
+  .sync-badge { font-size:10px; font-weight:700; color:var(--ok); text-transform:none;
+                letter-spacing:0; white-space:nowrap; }
+  #src-box { overflow:hidden; }
+  #src-img { max-width:100%; max-height:100%; object-fit:contain; display:none;
+             cursor:grab; transform-origin:center center; }
+  #src-img:active { cursor:grabbing; }
   #stl-canvas-wrap { position:absolute; inset:0; }
   .emptynote { color:var(--muted); font-size:13px; text-align:center; padding:20px; max-width:360px; }
 
@@ -262,9 +271,15 @@
     <div class="intake-strip">
       <div class="gcol">
         <div class="grp-title">1 · Add images</div>
-        <label class="filebtn" for="intake-file">📄 Upload drawing <span class="hint">PDF · JPG · PNG · DWG</span></label>
-        <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf" style="display:none">
+        <label class="filebtn" for="intake-file">📄 Upload drawing <span class="hint">PDF · JPG · DWG · eDrawings</span></label>
+        <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf,.edrw,.eprt,.easm" style="display:none">
         <button class="btn secondary" id="pull-crops-btn">⬇ Pull queued crops</button>
+        <span class="fmt-badge" id="src-format" style="display:none"></span>
+        <div class="grp-row" id="sheet-picker" style="display:none">
+          <span class="hint">This drawing has multiple sheets:</span>
+          <select class="sel-input" id="sheet-select" style="padding:5px 8px;font-size:12px"></select>
+          <button class="btn secondary" id="sheet-load" style="padding:6px 12px">Load sheet</button>
+        </div>
         <span class="hint" style="max-width:220px">Crop views in Tab 1 and pull them here — or upload a single file directly.</span>
       </div>
       <div class="gcol">
@@ -288,10 +303,14 @@
 
     <div class="split" id="split-grid">
       <div class="side">
-        <div class="cap">Input Document — <span id="viewer-part">nothing loaded</span></div>
-        <div class="body">
+        <div class="cap capflex">Input Document — <span id="viewer-part">nothing loaded</span>
+          <span class="fmt-badge" id="src-format-badge" style="display:none"></span>
+          <span class="grow"></span>
+          <span class="sync-badge" id="src-sync" style="display:none"></span>
+        </div>
+        <div class="body" id="src-box">
           <img id="src-img" alt="source drawing" />
-          <div class="emptynote" id="src-empty">No PDF/DWG loaded yet — upload a drawing above or select a saved part in the Pipeline &amp; Results tab; it appears here.</div>
+          <div class="emptynote" id="src-empty">No PDF/DWG/eDrawings loaded yet — upload a drawing above or select a saved part in the Pipeline &amp; Results tab; it appears here. Scroll to zoom, drag to pan, double-click to reset.</div>
         </div>
       </div>
       <div class="divider" id="split-divider" title="Drag to resize · double-click to reset"></div>
@@ -597,9 +616,11 @@ function selectPart(name) {
   document.getElementById('viewer-part').textContent = name;
   // Split view left = this part's source thumbnail.
   const img = document.getElementById('src-img');
-  img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none'; };
+  img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none';
+                       if (window.__srcReset) window.__srcReset(); };
   img.onerror = () => { img.style.display = 'none'; document.getElementById('src-empty').style.display = ''; };
   img.src = `/api/parts/${sessionId}/${encodeURIComponent(name)}/thumb.jpg?t=` + Date.now();
+  updateSourceBadges();
   loadPartOutputs(name);
 }
 async function loadPartOutputs(name) {
@@ -617,9 +638,31 @@ function showSourcePreview(url, label) {
   if (selectedPart) return; // a selected part owns the left panel
   document.getElementById('viewer-part').textContent = label;
   const img = document.getElementById('src-img');
-  img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none'; };
+  img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none';
+                       if (window.__srcReset) window.__srcReset(); };
   img.onerror = () => { img.style.display = 'none'; document.getElementById('src-empty').style.display = ''; };
   img.src = url;
+  updateSourceBadges();
+}
+
+// ── Source format + state-sync badges (verification view left box) ──────────
+// The left box always mirrors what will run (the selected part, else the live
+// unsaved upload); these badges make that explicit so a reviewer never compares
+// the STL against a stale source.
+function updateSourceBadges() {
+  const els = [document.getElementById('src-format'), document.getElementById('src-format-badge')];
+  const sync = document.getElementById('src-sync');
+  let fmt = '', syncTxt = '';
+  if (selectedPart) {
+    const p = partsData.find(x => x.name === selectedPart);
+    fmt = (p && p.source_format) || '';
+    syncTxt = `✓ matches Part Setup source — ${selectedPart}`;
+  } else if (intake.source) {
+    fmt = intake.format || '';
+    syncTxt = '✓ current upload (unsaved)';
+  }
+  for (const el of els) { if (el) { el.textContent = fmt; el.style.display = fmt ? '' : 'none'; } }
+  if (sync) { sync.textContent = syncTxt; sync.style.display = syncTxt ? '' : 'none'; }
 }
 
 // ── Intake: upload / pull crops → orientation gallery → name → save ──────────
@@ -631,7 +674,7 @@ const ORIENTATIONS = [
 const ORIENT_TO_NAME = { front:'front', back:'back', top:'top', bottom:'bottom',
                          left:'left', right:'right', iso:'overview' };
 const ORTHO_SET = new Set(['top','bottom','left','right','back']);
-let intake = { items: [], source: null, originalFile: null, stem: 'drawing' };
+let intake = { items: [], source: null, originalFile: null, stem: 'drawing', format: '' };
 let intakeSeq = 0;
 
 const galleryEl = document.getElementById('orient-gallery');
@@ -757,28 +800,18 @@ intakeFile.addEventListener('change', async e => {
         urls.push(c.toDataURL('image/jpeg', 0.95));
       }
       intake.source = urls[0]; intake.originalFile = f; intake.stem = stem;
+      intake.format = 'PDF' + (pages > 1 ? ` · ${pages} pages` : '');
       addIntakeItems(urls.map((u, i) => ({ dataURL: u, label: `page ${i + 1}`,
         orientation: pages === 1 ? 'front' : '' })));
       showSourcePreview(intake.source, stem + ' — unsaved upload');
       setStatus(`Loaded ${pages} page(s) from ${f.name}. Assign an orientation to each.`, 'ok');
-    } else if (ext === 'dwg' || ext === 'dxf') {
-      setStatus('Converting ' + ext.toUpperCase() + ' on the server…', 'run');
-      const fd = new FormData(); fd.append('file', f, f.name);
-      const resp = await fetch('/api/convert-dwg', { method: 'POST', body: fd });
-      if (!resp.ok) {
-        let msg = 'DWG conversion failed.';
-        try { msg = (await resp.json()).detail || msg; } catch {}
-        setStatus('❌ ' + msg, 'err'); return;
-      }
-      const blob = await resp.blob();
-      const url = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(blob); });
-      intake.source = url; intake.originalFile = f; intake.stem = stem;
-      addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
-      showSourcePreview(intake.source, stem + ' — unsaved upload');
-      setStatus(`Converted ${f.name}. Check the orientation, then save.`, 'ok');
+    } else if (['dwg', 'dxf', 'edrw', 'eprt', 'easm'].includes(ext)) {
+      await loadCadFile(f, stem, '');
+      return; // loadCadFile handles naming/validation itself (may await sheet pick)
     } else {
       const url = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); });
       intake.source = url; intake.originalFile = f; intake.stem = stem;
+      intake.format = 'Image (' + ext.toUpperCase() + ')';
       addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
       showSourcePreview(intake.source, stem + ' — unsaved upload');
       setStatus(`Loaded ${f.name}. Assign orientations (add more views via Tab 1's cropper).`, 'ok');
@@ -790,6 +823,58 @@ intakeFile.addEventListener('change', async e => {
   }
 });
 
+// -- CAD conversion (DWG/DXF server-rendered; eDrawings static preview) -------
+// Multi-sheet DWG/DXF returns a JSON layout list first — the user picks a sheet
+// (mirroring multi-page PDF handling) and the file is re-posted with `layout`.
+let pendingCad = null;
+async function loadCadFile(f, stem, layoutName) {
+  const ext = (f.name.split('.').pop() || '').toLowerCase();
+  const isEdrw = ['edrw', 'eprt', 'easm'].includes(ext);
+  setStatus((isEdrw ? 'Extracting eDrawings preview' : 'Converting ' + ext.toUpperCase()) +
+            ' on the server…', 'run');
+  const fd = new FormData(); fd.append('file', f, f.name);
+  if (layoutName) fd.append('layout', layoutName);
+  let resp;
+  try { resp = await fetch('/api/convert-dwg', { method: 'POST', body: fd }); }
+  catch (e) { setStatus('❌ Conversion failed: ' + e.message, 'err'); return; }
+  if (!resp.ok) {
+    let msg = 'Conversion failed.';
+    try { msg = (await resp.json()).detail || msg; } catch {}
+    setStatus('❌ ' + msg, 'err'); return;
+  }
+  if ((resp.headers.get('content-type') || '').includes('application/json')) {
+    const d = await resp.json();   // multiple sheets — offer the picker
+    const sel = document.getElementById('sheet-select');
+    sel.innerHTML = '';
+    (d.layouts || []).forEach(n => {
+      const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o);
+    });
+    pendingCad = { file: f, stem };
+    document.getElementById('sheet-picker').style.display = '';
+    setStatus(`"${f.name}" has ${(d.layouts || []).length} sheets — pick one, then Load sheet.`, 'run');
+    return;
+  }
+  const staticPreview = resp.headers.get('x-static-preview') === '1';
+  const blob = await resp.blob();
+  const url = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(blob); });
+  intake.source = url; intake.originalFile = f; intake.stem = stem;
+  intake.format = isEdrw ? 'eDrawings (static preview)'
+                : ext.toUpperCase() + ' (converted)' + (layoutName ? ' · ' + layoutName : '');
+  pendingCad = null;
+  document.getElementById('sheet-picker').style.display = 'none';
+  addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
+  showSourcePreview(intake.source, stem + ' — unsaved upload');
+  if (!partNameEl.value.trim()) partNameEl.value = stem;
+  validateIntake();
+  setStatus(isEdrw
+    ? `Extracted a STATIC preview from ${f.name} — labeled as such (not the interactive model). Check the orientation, then save.`
+    : `Converted ${f.name}${staticPreview ? '' : ''}${layoutName ? ' (sheet ' + layoutName + ')' : ''}. Check the orientation, then save.`, 'ok');
+}
+document.getElementById('sheet-load').addEventListener('click', () => {
+  if (!pendingCad) return;
+  loadCadFile(pendingCad.file, pendingCad.stem, document.getElementById('sheet-select').value);
+});
+
 // -- Pull queued crops from the (unmodified) photo app iframe
 document.getElementById('pull-crops-btn').addEventListener('click', async () => {
   const iframe = document.getElementById('photoapp');
@@ -798,6 +883,7 @@ document.getElementById('pull-crops-btn').addEventListener('click', async () => 
   try { payload = await window.MTIBridge.collect(iframe); }
   catch (e) { setStatus(e.message, 'err'); return; }
   if (payload.source && !intake.source) intake.source = payload.source;
+  if (!intake.format) intake.format = 'Cropped views';
   if (!intake.items.length) intake.stem = payload.stem || intake.stem;
   addIntakeItems(payload.crops.map(c => ({ dataURL: c.dataURL, label: c.name,
                                            orientation: guessOrientation(c.name) })));
@@ -821,6 +907,7 @@ saveBtn.addEventListener('click', async () => {
   const fd = new FormData();
   fd.append('session', sessionId);
   fd.append('part', part);
+  fd.append('source_format', intake.format || '');
   if (intake.source) fd.append('source', window.MTIBridge.dataURLtoBlob(intake.source), 'source.jpg');
   if (intake.originalFile) fd.append('original', intake.originalFile, intake.originalFile.name);
   const counts = {};
@@ -837,7 +924,7 @@ saveBtn.addEventListener('click', async () => {
   catch (e) { setStatus('Save part failed: ' + e.message, 'err'); validateIntake(); return; }
   if (res.error || !res.parts) { setStatus(res.detail || res.error || 'Save part failed', 'err'); validateIntake(); return; }
   partsData = res.parts;
-  intake = { items: [], source: null, originalFile: null, stem: 'drawing' };
+  intake = { items: [], source: null, originalFile: null, stem: 'drawing', format: '' };
   partNameEl.value = '';
   renderGallery();
   selectPart(res.part);
@@ -1031,6 +1118,29 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
   poll(); pollTimer = setInterval(poll, 1200);
   showTab('console');
 });
+
+// ── Source panel pan/zoom (independent of the STL viewer's orbit controls) ──
+(() => {
+  const img = document.getElementById('src-img'), box = document.getElementById('src-box');
+  let s = 1, tx = 0, ty = 0, panning = false, px = 0, py = 0;
+  const apply = () => { img.style.transform = `translate(${tx}px,${ty}px) scale(${s})`; };
+  window.__srcReset = () => { s = 1; tx = 0; ty = 0; apply(); };
+  box.addEventListener('wheel', e => {
+    if (img.style.display === 'none') return;
+    e.preventDefault();
+    s = Math.min(12, Math.max(0.2, s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+    apply();
+  }, { passive: false });
+  box.addEventListener('mousedown', e => {
+    if (img.style.display === 'none') return;
+    panning = true; px = e.clientX - tx; py = e.clientY - ty; e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (panning) { tx = e.clientX - px; ty = e.clientY - py; apply(); }
+  });
+  window.addEventListener('mouseup', () => { panning = false; });
+  box.addEventListener('dblclick', () => window.__srcReset());
+})();
 
 // ── Three.js STL viewer ──────────────────────────────────────────────────────
 const viewer = (() => {

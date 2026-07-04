@@ -192,11 +192,17 @@ extraction (no API call).
 1. **Drawing Crop** — the DrawingCrop photo app, embedded **verbatim** and
    filling the whole tab: load a multi-view sheet and crop each view out.
 2. **Part Setup & 3D Model** — three labeled groups across the top:
-   **1 · Add images** (upload one PDF/JPG/PNG/DWG or pull the queued crops from
-   Tab 1), **2 · Assign orientations**, **3 · Name & save**. Below them, a
-   **resizable 50/50 split**: the active input document on the left, an
-   interactive **Three.js STL viewer** (drag-rotate, scroll-zoom, right-drag-pan)
-   on the right — the STL loads automatically once the pipeline produces it.
+   **1 · Add images** (upload one PDF/JPG/PNG/DWG/DXF/eDrawings file or pull the
+   queued crops from Tab 1), **2 · Assign orientations**, **3 · Name & save**.
+   Below them, the **side-by-side verification split** (resizable 50/50): the
+   left box mirrors the exact source that will run — same file, same sheet
+   selection — with a format badge (PDF / DWG converted / eDrawings static
+   preview) and a **"✓ matches Part Setup source"** indicator so a reviewer
+   never compares against a stale drawing; scroll-zoom / drag-pan / double-click
+   reset, independent of the right box. The right box is the interactive
+   **Three.js STL viewer** (drag-rotate, scroll-zoom, right-drag-pan) — the STL
+   loads automatically once the pipeline produces it. Changing the source or
+   selecting a different part updates the left box immediately, no re-upload.
 3. **Pipeline & Results** — the saved-parts picker and the primary
    **▶ Pull & Run Pipeline** button (plus demo run and Cancel), a slim status bar
    (stage strip, progress bar, run timer), a collapsible live-console strip, and
@@ -211,8 +217,14 @@ extraction (no API call).
 ### Run a part (upload → orient → name → run)
 
 1. **Get images in.** Either **📄 Upload drawing** — one PDF (each page becomes an
-   image), JPG/PNG, or DWG/DXF (converted server-side) — or crop views out of a
-   multi-view sheet in the cropper above and **⬇ Pull queued crops**.
+   image), JPG/PNG, DWG/DXF (converted server-side; multi-sheet drawings offer a
+   sheet picker, like PDF pages), or an **eDrawings** file (.edrw/.eprt/.easm —
+   the embedded raster preview is extracted and clearly labeled a *static
+   preview*, since no interactive eDrawings view exists server-side) — or crop
+   views out of a multi-view sheet in the cropper and **⬇ Pull queued crops**.
+   A format badge shows what was actually loaded (PDF / DWG / eDrawings / image),
+   and every conversion is cached (`webapp/.convert_cache/`) and logged
+   (`webapp/conversion_log.jsonl`: source format, tool, output).
 2. **Assign orientations.** Each image gets one of Front / Back / Top / Bottom /
    Left / Right / Isometric-Overview. Rotate 90° (⟳) for scanned drawings.
    Duplicate orientations show a warning badge and need a confirm on save.

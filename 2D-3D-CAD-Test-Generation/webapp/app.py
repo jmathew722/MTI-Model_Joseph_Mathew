@@ -10,6 +10,7 @@ Run:
 from __future__ import annotations
 
 import io
+import json
 import os
 import sys
 import time
@@ -708,8 +709,28 @@ def _find_oda_converter() -> str | None:
     return None
 
 
-def _render_dxf_to_png(dxf_path: Path, png_path: Path) -> None:
-    """Render a DXF's modelspace to a high-resolution PNG via ezdxf+matplotlib."""
+def _dxf_layouts(dxf_path: Path) -> list[str]:
+    """Non-empty layouts of a DXF: 'Model' plus any paper-space sheets that
+    actually contain entities (empty default sheets are noise, not choices)."""
+    import ezdxf
+
+    doc = ezdxf.readfile(str(dxf_path))
+    names = []
+    if len(doc.modelspace()) > 0:
+        names.append("Model")
+    for name in doc.layout_names_in_taborder():
+        if name == "Model":
+            continue
+        try:
+            if len(doc.layout(name)) > 0:
+                names.append(name)
+        except Exception:
+            continue
+    return names or ["Model"]
+
+
+def _render_dxf_to_png(dxf_path: Path, png_path: Path, layout: str = "Model") -> None:
+    """Render one DXF layout/sheet to a high-resolution PNG via ezdxf+matplotlib."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -719,31 +740,114 @@ def _render_dxf_to_png(dxf_path: Path, png_path: Path) -> None:
     import matplotlib.pyplot as plt
 
     doc = ezdxf.readfile(str(dxf_path))
-    msp = doc.modelspace()
+    space = doc.modelspace() if layout in ("", "Model") else doc.layout(layout)
     fig = plt.figure(figsize=(20, 14))
     ax = fig.add_axes([0, 0, 1, 1])
     ctx = RenderContext(doc)
-    Frontend(ctx, MatplotlibBackend(ax)).draw_layout(msp, finalize=True)
+    # Force BLACK line work on a WHITE page. Without this, entities drawn in
+    # the DXF default color (7 = white on AutoCAD's dark canvas) render
+    # white-on-white and the "converted" image is blank paper.
+    try:
+        from ezdxf.addons.drawing.config import BackgroundPolicy, ColorPolicy, Configuration
+
+        config = Configuration(background_policy=BackgroundPolicy.WHITE,
+                               color_policy=ColorPolicy.BLACK)
+        Frontend(ctx, MatplotlibBackend(ax), config=config).draw_layout(space, finalize=True)
+    except ImportError:  # older ezdxf without Configuration policies
+        ctx.set_current_layout(space)
+        Frontend(ctx, MatplotlibBackend(ax)).draw_layout(space, finalize=True)
     ax.set_facecolor("#ffffff")
     fig.patch.set_facecolor("#ffffff")
     fig.savefig(str(png_path), dpi=150, facecolor="#ffffff")
     plt.close(fig)
 
 
-@app.post("/api/convert-dwg")
-async def convert_dwg(file: UploadFile = File(...)):
-    """Convert an uploaded DWG (or DXF) to a viewable PNG.
+# Converted CAD artifacts are cached next to the uploads and every conversion is
+# logged (source format, tool, output) so a bad artifact is traceable later.
+CONVERT_CACHE = WEBAPP_DIR / ".convert_cache"
+CONVERSION_LOG = WEBAPP_DIR / "conversion_log.jsonl"
 
-    DXF renders directly (ezdxf). DWG needs the free ODA File Converter installed;
-    when it is missing a clear 422 explains exactly what to install — never a
-    silent failure."""
+
+def _log_conversion(source_name: str, source_format: str, tool: str,
+                    output: str, n_bytes: int) -> None:
+    import datetime
+
+    entry = {
+        "ts": datetime.datetime.now().isoformat(timespec="seconds"),
+        "source": source_name, "source_format": source_format,
+        "tool": tool, "output": output, "bytes": n_bytes,
+    }
+    try:
+        with CONVERSION_LOG.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass
+
+
+_EDRAWINGS_SUFFIXES = (".edrw", ".eprt", ".easm")
+
+
+@app.post("/api/convert-dwg")
+async def convert_dwg(file: UploadFile = File(...), layout: str = Form("")):
+    """Convert an uploaded CAD file (DWG, DXF, or eDrawings) to a viewable PNG.
+
+    - DXF renders directly (ezdxf+matplotlib). DWG converts DWG→DXF first via the
+      free ODA File Converter; when it is missing a clear 422 explains exactly
+      what to install — never a silent failure.
+    - Multi-sheet DWG/DXF: when the file has more than one non-empty layout and
+      no ``layout`` was chosen, a JSON body {"layouts": [...]} is returned so the
+      client can offer a sheet picker (mirrors multi-page PDF handling).
+    - eDrawings (.edrw/.eprt/.easm): a true interactive viewer is not feasible
+      server-side, so the largest embedded raster preview is extracted and
+      returned with ``X-Static-Preview: 1`` — the client must label it a static
+      preview, not the interactive model.
+
+    Responses carry ``X-Source-Format`` / ``X-Conversion-Tool``; every
+    conversion is cached (.convert_cache) and logged (conversion_log.jsonl).
+    """
+    import hashlib
     import tempfile
 
     name = Path(file.filename or "drawing.dwg").name
     suffix = Path(name).suffix.lower()
-    if suffix not in (".dwg", ".dxf"):
-        raise HTTPException(400, f"Expected a .dwg or .dxf file, got '{suffix}'.")
+    if suffix not in (".dwg", ".dxf") + _EDRAWINGS_SUFFIXES:
+        raise HTTPException(
+            400, f"Expected a .dwg, .dxf, or eDrawings (.edrw/.eprt/.easm) file, got '{suffix}'.")
 
+    blob = await file.read()
+    digest = hashlib.sha256(blob + layout.encode("utf-8")).hexdigest()[:32]
+    CONVERT_CACHE.mkdir(exist_ok=True)
+    cached = CONVERT_CACHE / f"{digest}.png"
+    src_format = "edrawings" if suffix in _EDRAWINGS_SUFFIXES else suffix.lstrip(".")
+    headers = {"X-Source-Format": src_format}
+    if src_format == "edrawings":
+        headers["X-Static-Preview"] = "1"
+
+    if cached.is_file():
+        _log_conversion(name, src_format, "cache", cached.name, cached.stat().st_size)
+        headers["X-Conversion-Tool"] = "cache"
+        return Response(cached.read_bytes(), media_type="image/png", headers=headers)
+
+    # ── eDrawings: extract the embedded static preview ──────────────────────
+    if src_format == "edrawings":
+        from preview_extract import extract_preview_png
+
+        png_bytes = extract_preview_png(blob)
+        if png_bytes is None:
+            raise HTTPException(
+                422,
+                f"'{name}' contains no extractable raster preview. A server-side "
+                "interactive eDrawings view is not available in this environment — "
+                "open the file in eDrawings and export a PDF or PNG (File → Save As), "
+                "then upload that.",
+            )
+        cached.write_bytes(png_bytes)
+        _log_conversion(name, "edrawings", "preview_extract(embedded raster)",
+                        cached.name, len(png_bytes))
+        headers["X-Conversion-Tool"] = "preview_extract"
+        return Response(png_bytes, media_type="image/png", headers=headers)
+
+    # ── DWG/DXF ──────────────────────────────────────────────────────────────
     try:
         import ezdxf  # noqa: F401
     except ImportError:
@@ -756,7 +860,8 @@ async def convert_dwg(file: UploadFile = File(...)):
     with tempfile.TemporaryDirectory() as td:
         tdir = Path(td)
         src = tdir / name
-        src.write_bytes(await file.read())
+        src.write_bytes(blob)
+        tool = "ezdxf+matplotlib"
 
         if suffix == ".dwg":
             oda = _find_oda_converter()
@@ -783,13 +888,32 @@ async def convert_dwg(file: UploadFile = File(...)):
                     f"(exit {proc.returncode}). {proc.stderr or proc.stdout or ''}".strip(),
                 )
             src = dxfs[0]
+            tool = "ODA File Converter + ezdxf+matplotlib"
+
+        # Multi-sheet: offer the choice before rendering anything (like PDF pages).
+        try:
+            layouts = _dxf_layouts(src)
+        except Exception as e:
+            raise HTTPException(422, f"Could not read '{name}': {type(e).__name__}: {e}")
+        if len(layouts) > 1 and not layout:
+            return JSONResponse({"layouts": layouts, "source_format": src_format},
+                                headers=headers)
+        chosen = layout or layouts[0]
+        if chosen not in layouts:
+            raise HTTPException(400, f"Unknown layout '{chosen}'; available: {layouts}")
 
         png = tdir / "render.png"
         try:
-            _render_dxf_to_png(src, png)
+            _render_dxf_to_png(src, png, layout=chosen)
         except Exception as e:
-            raise HTTPException(422, f"Could not render '{name}': {type(e).__name__}: {e}")
-        return Response(png.read_bytes(), media_type="image/png")
+            raise HTTPException(422, f"Could not render '{name}' ({chosen}): "
+                                     f"{type(e).__name__}: {e}")
+        data = png.read_bytes()
+        cached.write_bytes(data)
+        _log_conversion(name, src_format, tool, f"{cached.name} (layout={chosen})", len(data))
+        headers["X-Conversion-Tool"] = tool
+        headers["X-Layout"] = chosen
+        return Response(data, media_type="image/png", headers=headers)
 
 
 # ── Multi-part working set (Tab 1 part selector + per-part run) ────────────────
@@ -818,11 +942,14 @@ def _list_parts(sdir: Path) -> list[dict]:
     for pdir in sorted(p for p in sdir.iterdir() if p.is_dir() and not p.name.startswith(".")):
         views = sorted(v.name for v in pdir.glob("*.jpg") if v.name != OVERVIEW_FILENAME)
         out = pdir / "output"
+        fmt_file = pdir / ".source_format"
         parts.append({
             "name": pdir.name,
             "n_views": len(views),
             "views": views,
             "has_output": out.is_dir() and _categorize_output(out)["has_any"],
+            "source_format": fmt_file.read_text(encoding="utf-8").strip()
+                             if fmt_file.is_file() else "",
         })
     return parts
 
@@ -838,6 +965,7 @@ def new_session():
 async def add_part(
     session: str = Form(...),
     part: str = Form("drawing"),
+    source_format: str = Form(""),
     source: UploadFile | None = File(None),
     original: UploadFile | None = File(None),
     crops: list[UploadFile] = File(...),
@@ -853,6 +981,10 @@ async def add_part(
         for old in pdir.glob("*.jpg"):
             old.unlink()
     pdir.mkdir(parents=True, exist_ok=True)
+    # Remember what kind of file this part came from (PDF / DWG / eDrawings /
+    # image) so the verification view can label the source correctly.
+    if source_format.strip():
+        (pdir / ".source_format").write_text(source_format.strip()[:64], encoding="utf-8")
 
     used: set[str] = set()
     for i, up in enumerate(crops, start=1):

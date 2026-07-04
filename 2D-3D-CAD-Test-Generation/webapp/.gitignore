@@ -2,3 +2,5 @@
 runs/
 __pycache__/
 parts/
+.convert_cache/
+conversion_log.jsonl
