@@ -127,11 +127,14 @@
     });
   }
 
-  // Let the photo app (Tab 1) ACCEPT CAD files it cannot decode itself.
-  // Injects a script that (a) adds .dwg/.dxf/.edrw/.eprt/.easm to the file
-  // input's accept list and (b) wraps the app's global loadFile so CAD picks
-  // (file dialog OR drag-drop) are posted to the parent as {__mti:'cad-open'}.
-  // The parent converts them server-side and sends the PNG back via sendImage.
+  // Let the photo app (Tab 1) ACCEPT CAD files it cannot decode itself, and
+  // MIRROR whatever it displays to the parent. Injects a script that
+  // (a) adds .dwg/.dxf/.edrw/.eprt/.easm to the file input's accept list,
+  // (b) wraps the app's global loadFile so CAD picks (file dialog OR drag-drop)
+  //     are posted to the parent as {__mti:'cad-open'} for server conversion,
+  // (c) after any image/PDF loads into the cropper, posts the rendered drawing
+  //     as {__mti:'src-open'} so Tab 2's "input document" box shows the same
+  //     file that is open in the Tab 1 viewer.
   // Photo app sources stay unmodified.
   function hookCadIntake(iframe) {
     function hook() {
@@ -142,6 +145,28 @@
       window.__mtiCadHook = true;
       fi.setAttribute('accept', (fi.getAttribute('accept') || 'image/*') +
         ',.dwg,.dxf,.edrw,.eprt,.easm');
+      // Once the cropper's global `img` shows the new file (its src moved past
+      // `prev`), send a JPEG of it to the parent. `img` is a top-level `let` in
+      // the photo app — visible here because this script shares its global scope.
+      function postSource(name, prev) {
+        var tries = 0;
+        var t = setInterval(function () {
+          try {
+            /* eslint-disable no-undef */
+            if (typeof img !== 'undefined' && img && img.naturalWidth > 0 &&
+                img.src && img.src !== prev) {
+              var c = document.createElement('canvas');
+              c.width = img.naturalWidth; c.height = img.naturalHeight;
+              c.getContext('2d').drawImage(img, 0, 0);
+              parent.postMessage({ __mti: 'src-open', name: name,
+                                   dataURL: c.toDataURL('image/jpeg', 0.95) }, '*');
+              clearInterval(t);
+            }
+            /* eslint-enable no-undef */
+          } catch (e) { clearInterval(t); }
+          if (++tries > 60) clearInterval(t); // PDFs can take a while to rasterize
+        }, 250);
+      }
       var orig = window.loadFile;
       window.loadFile = function (file) {
         if (file && CAD.test(file.name || '')) {
@@ -150,7 +175,11 @@
           });
           return;
         }
-        return orig.apply(this, arguments);
+        // eslint-disable-next-line no-undef
+        var prev = (typeof img !== 'undefined' && img) ? img.src : '';
+        var r = orig.apply(this, arguments);
+        if (file && file.name) postSource(file.name, prev);
+        return r;
       };
     }
     function inject() {

@@ -833,7 +833,7 @@ intakeFile.addEventListener('change', async e => {
 // -- CAD conversion (DWG/DXF server-rendered; eDrawings static preview) -------
 // Multi-sheet DWG/DXF returns a JSON layout list first — the user picks a sheet
 // (mirroring multi-page PDF handling) and the file is re-posted with `layout`.
-let pendingCad = null;
+let pendingCad = null, expectEcho = null;
 async function loadCadFile(f, stem, layoutName) {
   const ext = (f.name.split('.').pop() || '').toLowerCase();
   const isEdrw = ['edrw', 'eprt', 'easm'].includes(ext);
@@ -875,6 +875,10 @@ async function loadCadFile(f, stem, layoutName) {
   validateIntake();
   // Also open the converted image in the Tab 1 cropper — the cropper cannot
   // read DWG/eDrawings itself, so this is how those formats "open" on Tab 1.
+  // The cropper mirrors loads back as 'src-open'; that echo is redundant here
+  // (this function already updated the left box) and can arrive seconds late,
+  // clobbering a part the user selected meanwhile — so flag it for dropping.
+  expectEcho = stem + '.png';
   try { await window.MTIBridge.sendImage(document.getElementById('photoapp'), url, stem + '.png'); }
   catch (e) { console.warn('cropper load failed', e); }
   setStatus(isEdrw
@@ -892,12 +896,29 @@ document.getElementById('sheet-load').addEventListener('click', () => {
 window.MTIBridge.hookCadIntake(document.getElementById('photoapp'));
 window.addEventListener('message', async ev => {
   const d = ev.data;
-  if (!d || d.__mti !== 'cad-open' || !d.buf) return;
-  const f = new File([d.buf], d.name, { type: 'application/octet-stream' });
-  const stem = d.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '_');
-  await loadCadFile(f, stem, '');
-  // Multi-sheet files need the sheet picker, which lives on the Part Setup tab.
-  if (pendingCad) showTab('intake');
+  if (!d || !d.__mti) return;
+  if (d.__mti === 'cad-open' && d.buf) {
+    const f = new File([d.buf], d.name, { type: 'application/octet-stream' });
+    const stem = d.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '_');
+    await loadCadFile(f, stem, '');
+    // Multi-sheet files need the sheet picker, which lives on the Part Setup tab.
+    if (pendingCad) showTab('intake');
+    return;
+  }
+  // Any image/PDF opened in the Tab 1 viewer mirrors to Tab 2's input-document
+  // box. A converted CAD file echoes back through this path too (as stem.png);
+  // loadCadFile already showed it, so drop that echo — it can arrive late.
+  if (d.__mti === 'src-open' && d.dataURL) {
+    if (expectEcho && d.name === expectEcho) { expectEcho = null; return; }
+    const stem = (d.name || 'drawing').replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '_');
+    if (!(intake.source && intake.stem === stem)) {
+      const ext = (d.name.split('.').pop() || '').toLowerCase();
+      intake.source = d.dataURL; intake.stem = stem; intake.originalFile = null;
+      intake.format = ext === 'pdf' ? 'PDF' : 'Image (' + ext.toUpperCase() + ')';
+      if (!partNameEl.value.trim()) partNameEl.value = stem;
+    }
+    showSourcePreview(intake.source, intake.stem + ' — unsaved upload');
+  }
 });
 
 // -- Pull queued crops from the (unmodified) photo app iframe
