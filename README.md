@@ -40,7 +40,11 @@ drawing(s) → image prep → Sonnet 5 extract → Stage 2.5 resolve → verify
 | Python 3.10+ | the whole pipeline |
 | `ANTHROPIC_API_KEY` | Sonnet 5 extraction (skipped on cache hits) |
 | SolidWorks 2024 (Windows) | building the `.sldprt` (optional — macros work anywhere) |
-| ODA File Converter (free) | DWG upload in the web UI only (DXF/PDF/JPG need nothing extra) |
+
+DWG needs **nothing extra to install**: a built-in engine chain converts it
+(ezdwg → SolidWorks translator → ODA only if already present) — even 1990s R13
+files open. DXF/PDF/JPG/PNG and eDrawings (.edrw/.eprt/.easm, static preview)
+also work out of the box.
 
 ## One-time setup
 
@@ -60,18 +64,24 @@ cd 2D-3D-CAD-Test-Generation\webapp
 # then open http://127.0.0.1:8092/
 ```
 
-One flow, no folder editing:
+Three tabs, one flow, no folder editing:
 
-1. **Upload one file** (PDF, JPG/PNG, or DWG/DXF) — or crop views out of a
-   multi-view sheet in the embedded cropper and pull them in.
-2. **Assign an orientation to each image** (Front / Back / Top / Bottom / Left /
-   Right / Isometric), rotating 90° where a scan is sideways. Front + one more
-   orthographic view are required before you can save.
-3. **Name the part** and save — the server writes the exact `--views-folder`
-   layout the CLI reads.
-4. **Run.** Progress shows per stage; results fill the tabs live: 3D viewer,
-   verification, **Engineering Flags** (severity-ranked), **Token / Cost**, and
-   **Files**. Outputs also land in `UI_Output/<Part>/` and
+1. **Tab 1 · Drawing Crop — open the drawing.** The full-tab cropper opens
+   PDF, JPG/PNG, **and DWG/DXF/eDrawings directly** (CAD formats convert
+   server-side automatically and appear in the cropper). Draw a box around
+   each view and **Queue View**. Whatever is open here is mirrored to Tab 2's
+   input-document box automatically. (Uploading on Tab 2 works too.)
+2. **Tab 2 · Part Setup & 3D Model — orient, name, save.** Pull the queued
+   crops (or upload), give each image an orientation (Front / Back / Top /
+   Bottom / Left / Right / Isometric; ⟳ rotates sideways scans). Front + one
+   more orthographic view are required to save. The left box shows the input
+   document with a format badge and sync indicator; the right box is the
+   interactive 3D STL viewer.
+3. **Tab 3 · Pipeline & Results — run.** Select the part, **▶ Pull & Run
+   Pipeline**. Progress shows per stage with a live console and Cancel;
+   results fill the sub-tabs live: extraction, build plan, verification,
+   **Engineering Flags** (severity-ranked), **Token / Cost**, and **Files**.
+   Outputs also land in `UI_Output/<Part>/` and
    `~/Downloads/SolidWorksModel_Parts/<Part>/` — same files everywhere.
 
 Full UI docs: [`2D-3D-CAD-Test-Generation/README.md`](2D-3D-CAD-Test-Generation/README.md).

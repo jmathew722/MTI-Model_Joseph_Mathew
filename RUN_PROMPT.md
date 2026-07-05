@@ -13,25 +13,38 @@ cd 2D-3D-CAD-Test-Generation/webapp
 ./run.sh                 # http://127.0.0.1:8092  (creates venv, installs deps)
 ```
 
-Then, in the browser:
+Then, in the browser (three tabs, in order):
 
-1. **Tab 1 — Image Preprocessing:** open a PDF/image in the embedded DrawingCrop
-   tool, draw bounding boxes, and **Queue View** for each (name them
-   front/top/side/left/bottom so the pipeline classifies them). DWG is not
-   supported — use PDF or an image.
-2. Click **➕ Add current part**. Load the next drawing and add it too, to build a
-   **part list**.
-3. **Select one part** (card highlights), then click **▶ Run Pipeline**. It runs
-   scoped to that single part: `main.py --views-folder <part> --output <part>/output`.
-   Watch the live console; the button shows **Running…** then a success/failure
-   message.
-4. Read the outputs in the tabs: **Extraction / Resolved / Build Plan /
-   Verification / Model Check / VBA Macros / Console**, and inspect the model in
-   **Tab 2 — Drawing vs 3D Model** (source drawing + interactive STL viewer).
+1. **Tab 1 — Drawing Crop:** open the drawing straight in the embedded
+   DrawingCrop tool — **PDF, JPG/PNG, DWG/DXF, or eDrawings
+   (.edrw/.eprt/.easm)** via its Open button or drag-and-drop. CAD formats are
+   converted server-side automatically (no ODA install needed; multi-sheet DWGs
+   offer a sheet picker) and open in the cropper. Draw a bounding box around
+   each view and **Queue View** (name them front/top/side/left/bottom so the
+   pipeline classifies them). Whatever is open here also displays on
+   **Tab 2's input-document box** automatically.
+2. **Tab 2 — Part Setup & 3D Model:** click **⬇ Pull queued crops** (or
+   **📄 Upload drawing** directly on this tab), assign each image an
+   **orientation** (Front / Back / Top / Bottom / Left / Right / Isometric —
+   ⟳ rotates sideways scans; Front + one more orthographic view are required),
+   **name the part**, and **💾 Save part**. The left box below shows the input
+   document (format badge + "✓ matches" sync indicator, scroll-zoom/drag-pan);
+   the right box is the interactive **3D STL viewer** — it loads the model
+   automatically after a successful run.
+3. **Tab 3 — Pipeline & Results:** select the part card, then **▶ Pull & Run
+   Pipeline**. It runs scoped to that single part
+   (`main.py --views-folder <part> --output <part>/output`) with a per-stage
+   progress strip, run timer, live console, and **✕ Cancel**.
+4. Read the outputs in the sub-tabs the moment they fill: **Extraction JSON /
+   Resolved Extraction / Build Plan / Verification / Engineering Flags
+   (severity-ranked — read this first) / Model Check / VBA Macros /
+   Token · Cost / Files / Console**, then inspect the model on Tab 2.
 
 Notes:
 - Live extraction needs `ANTHROPIC_API_KEY` in `2D-3D-CAD-Test-Generation/.env`.
   Without a key, use **▶ Run demo** to populate the tabs from a saved extraction.
+- Outputs are delivered to `UI_Output/<Part>/` and
+  `~/Downloads/SolidWorksModel_Parts/<Part>/` on every successful run.
 - On macOS/Linux (no SolidWorks) the `.sldprt`, `.stl`, and Model Check are not
   produced; run the generated `ZZZ_export_stl.vba` (or `RUN_ALL.vba`) on a
   SolidWorks machine to get the model and STL. The 3D viewer loads the STL

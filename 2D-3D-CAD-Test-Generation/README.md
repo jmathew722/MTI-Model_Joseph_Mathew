@@ -34,10 +34,12 @@ generates SolidWorks VBA macros and (on a SolidWorks machine) builds a real
 
 ## What you get
 
-- **Web UI** (`webapp/`) — the primary path: upload **one file** (PDF, JPG/PNG, or
-  DWG/DXF) or crop views out of a multi-view sheet, assign each image an
-  **orientation** (Front / Back / Top / Bottom / Left / Right / Isometric) with 90°
-  rotation for scanned drawings, name the part, and run. Progress shows **per stage**
+- **Web UI** (`webapp/`) — the primary path: open **one file** (PDF, JPG/PNG,
+  DWG/DXF, or eDrawings) directly in the Tab 1 cropper or upload it on Tab 2 —
+  both tabs always show the same document — crop views out of a multi-view
+  sheet, assign each image an **orientation** (Front / Back / Top / Bottom /
+  Left / Right / Isometric) with 90° rotation for scanned drawings, name the
+  part, and run. Progress shows **per stage**
   (Extracting → Resolving → Verifying → Building macros → Building .sldprt →
   Exporting → Done) with a run timer and Cancel. Results land live in tabs: the 3D
   **STL viewer**, verification, a severity-ranked **Engineering Flags** review,
@@ -190,19 +192,28 @@ extraction (no API call).
 ### Tabs
 
 1. **Drawing Crop** — the DrawingCrop photo app, embedded **verbatim** and
-   filling the whole tab: load a multi-view sheet and crop each view out.
+   filling the whole tab: load a multi-view sheet and crop each view out. Its
+   Open button / drag-and-drop accepts **PDF, JPG/PNG, and DWG/DXF/eDrawings
+   directly** — CAD formats are converted server-side automatically and the
+   rendered drawing opens in the cropper (a bridge hook feeds them through
+   `/api/convert-dwg`; the photo app's sources are untouched). Multi-sheet
+   DWG/DXF switches you to Tab 2's sheet picker. **Anything opened here is
+   mirrored to Tab 2's input-document box automatically**, so both tabs always
+   show the same file.
 2. **Part Setup & 3D Model** — three labeled groups across the top:
    **1 · Add images** (upload one PDF/JPG/PNG/DWG/DXF/eDrawings file or pull the
    queued crops from Tab 1), **2 · Assign orientations**, **3 · Name & save**.
    Below them, the **side-by-side verification split** (resizable 50/50): the
-   left box mirrors the exact source that will run — same file, same sheet
-   selection — with a format badge (PDF / DWG converted / eDrawings static
-   preview) and a **"✓ matches Part Setup source"** indicator so a reviewer
-   never compares against a stale drawing; scroll-zoom / drag-pan / double-click
-   reset, independent of the right box. The right box is the interactive
+   left **input-document box** shows the exact source that will run — same
+   file, same sheet selection — with a format badge (PDF / Image / DWG
+   converted / eDrawings static preview) and a sync indicator; scroll-zoom /
+   drag-pan / double-click reset, independent of the right box. *Most recent
+   action wins:* opening/uploading a document shows **that** document
+   ("✓ current upload (unsaved)"), clicking a saved part card switches to that
+   part's source ("✓ matches Part Setup source") — a reviewer never compares
+   against a stale drawing. The right box is the interactive
    **Three.js STL viewer** (drag-rotate, scroll-zoom, right-drag-pan) — the STL
-   loads automatically once the pipeline produces it. Changing the source or
-   selecting a different part updates the left box immediately, no re-upload.
+   loads automatically once the pipeline produces it.
 3. **Pipeline & Results** — the saved-parts picker and the primary
    **▶ Pull & Run Pipeline** button (plus demo run and Cancel), a slim status bar
    (stage strip, progress bar, run timer), a collapsible live-console strip, and
@@ -216,12 +227,20 @@ extraction (no API call).
 
 ### Run a part (upload → orient → name → run)
 
-1. **Get images in.** Either **📄 Upload drawing** — one PDF (each page becomes an
-   image), JPG/PNG, DWG/DXF (converted server-side; multi-sheet drawings offer a
-   sheet picker, like PDF pages), or an **eDrawings** file (.edrw/.eprt/.easm —
-   the embedded raster preview is extracted and clearly labeled a *static
-   preview*, since no interactive eDrawings view exists server-side) — or crop
-   views out of a multi-view sheet in the cropper and **⬇ Pull queued crops**.
+1. **Get images in** — two equal paths:
+   - **Open on Tab 1** (cropper): any supported file — PDF, JPG/PNG, DWG/DXF,
+     eDrawings — opens straight in the DrawingCrop tool (CAD converts
+     server-side automatically). Crop each view, **Queue View**, then
+     **⬇ Pull queued crops** on Tab 2. The opened file mirrors to Tab 2's
+     input-document box by itself.
+   - **📄 Upload drawing on Tab 2** — one PDF (each page becomes an image),
+     JPG/PNG, DWG/DXF (converted server-side; multi-sheet drawings offer a
+     sheet picker, like PDF pages), or an **eDrawings** file (.edrw/.eprt/.easm
+     — the embedded raster preview is extracted and clearly labeled a *static
+     preview*, since no interactive eDrawings view exists server-side).
+     Converted CAD drawings are also opened in the Tab 1 cropper automatically
+     for view cropping.
+
    A format badge shows what was actually loaded (PDF / DWG / eDrawings / image),
    and every conversion is cached (`webapp/.convert_cache/`) and logged
    (`webapp/conversion_log.jsonl`: source format, tool, output).
