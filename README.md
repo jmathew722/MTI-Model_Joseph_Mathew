@@ -17,7 +17,8 @@ To have an agent run + verify a batch for you, use
 ```
 drawing(s) → image prep → Sonnet 5 extract → Stage 2.5 resolve → verify
            → VBA macros + build_plan.json + resolved_extraction.json
-           → .sldprt (SolidWorks COM) → engineering review → token ledger
+           → .sldprt (SolidWorks COM) → final checks (overview cross-check
+           + human requirements grading) → engineering review → token ledger
            → copy to ~/Downloads
 ```
 
@@ -105,7 +106,10 @@ MyTest/
 ├── PART-A/
 │   ├── PART-A_front_view.png
 │   ├── PART-A_side_view.png
-│   └── PART-A.png              (overview — optional, ignored if unclassified)
+│   ├── PART-A.png              (overview — extraction context AND the final
+│   │                            cross-check: features it shows must be in the build)
+│   └── notes.txt               (optional must-meet notes, one per line — graded
+│                                met/partial/unmet; an unmet line gates READY)
 ├── PART-B/
 │   └── ...
 ```
@@ -146,7 +150,9 @@ Compress-Archive -Path "$env:USERPROFILE\Downloads\SolidWorksModel_Parts\*" `
 ├── <Part>_model_check.txt           # mass/bbox validation + any skipped features
 ├── <Part>_extraction.json           # raw Claude extraction (verbatim)
 ├── <Part>_resolved_extraction.json  # Stage 2.5: resolved_value + flag tier per dim
-├── <Part>_verification_report.txt   # READY / completeness score
+├── <Part>_verification_report.txt   # READY/NOT READY + Overview Verification +
+│                                    #   Human Requirements Compliance sections
+├── <Part>_requirements.json         # must-meet notes graded met/partial/unmet/not_applicable
 ├── <Part>_build_plan.json           # self-contained steps (dims, positions, flags, review)
 ├── <Part>_audit_report.json         # static self-validation of the macros
 └── macros/                          # 00_setup … ZZ_final_verify, RUN_ALL.vba, README.md
@@ -170,6 +176,9 @@ and follow `macros/README.md` — run the numbered macros in order (or `RUN_ALL.
 | `--batch DIR` | a flat folder of drawings / `*_extraction.json` |
 | `--from-json FILE` | rebuild from a saved extraction — **no API cost** |
 | `--output DIR` | where outputs go (keep stable to reuse the cache) |
+| `--requirements FILE` | explicit must-meet notes file (else `notes.txt` in the part folder is auto-discovered) |
+| `--skip-overview-check` | skip the final overview cross-check (auto-skips with a note when no overview exists) |
+| `--skip-requirements-check` | skip grading the must-meet notes |
 | `--no-resolve` | skip Stage 2.5 (legacy behavior) |
 | `--strict-gate` | BLOCK on a failing verification instead of building with assumptions |
 | `--no-sldprt` | macros + reports only, skip the `.sldprt` build |
@@ -188,11 +197,16 @@ python -m pytest tests/ -q
 ## Reading the results
 
 - **`*_engineering_review.txt` — read this first.** Every assumption, ambiguity
-  resolution, and skipped/manual feature in one ranked list, most urgent first.
-  Each item states what was ambiguous, the decision made, why, and what it
-  affects. Also shown in the UI's Engineering Flags tab.
-- **Summary table / `multiview_summary.csv`** — per part: status, readiness %,
-  macro count, features needing review, features skipped.
+  resolution, and skipped/manual feature in one ranked list, most urgent first —
+  plus the two final-check sections: **Overview Verification** (features the
+  overview drawing shows, diffed against the build) and **Human-Specified
+  Requirements** (your notes graded met/partial/unmet/not_applicable). Each
+  item states what was ambiguous, the decision made, why, and what it affects.
+  Also shown in the UI's Engineering Flags tab as labeled groups.
+- **Summary table / `multiview_summary.csv`** — per part: status (READY, or
+  **NOT READY** when a CRITICAL overview gap / unmet requirement gated it —
+  the model and macros are still produced), readiness %, macro count, features
+  needing review, features skipped.
 - **`*_build_plan.json` → `resolution_summary` / `engineering_review`** — the
   same review as structured data, plus per-step `flags[]` with actionable notes.
 - **`*_model_check.txt`** — if the `.sldprt` skipped a feature (e.g. an
