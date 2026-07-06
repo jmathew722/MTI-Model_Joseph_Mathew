@@ -27,10 +27,13 @@ Then, in the browser (three tabs, in order):
    **📄 Upload drawing** directly on this tab), assign each image an
    **orientation** (Front / Back / Top / Bottom / Left / Right / Isometric —
    ⟳ rotates sideways scans; Front + one more orthographic view are required),
-   **name the part**, and **💾 Save part**. The left box below shows the input
-   document (format badge + "✓ matches" sync indicator, scroll-zoom/drag-pan);
-   the right box is the interactive **3D STL viewer** — it loads the model
-   automatically after a successful run.
+   **name the part**, optionally type **must-meet notes** (one requirement per
+   line — graded against the built part; an unmet line blocks READY), and
+   **💾 Save part**. The left box below shows the input document (format badge
+   + "✓ matches" sync indicator, scroll-zoom/drag-pan); the middle panel shows
+   the part's **overview drawing** for visual comparison; the right box is the
+   interactive **3D STL viewer** — it loads the model automatically after a
+   successful run.
 3. **Tab 3 — Pipeline & Results:** select the part card, then **▶ Pull & Run
    Pipeline**. It runs scoped to that single part
    (`main.py --views-folder <part> --output <part>/output`) with a per-stage

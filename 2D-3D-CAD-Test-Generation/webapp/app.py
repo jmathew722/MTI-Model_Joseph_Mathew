@@ -936,6 +936,7 @@ def _list_parts(sdir: Path) -> list[dict]:
         views = sorted(v.name for v in pdir.glob("*.jpg") if v.name != OVERVIEW_FILENAME)
         out = pdir / "output"
         fmt_file = pdir / ".source_format"
+        notes_file = pdir / "notes.txt"
         parts.append({
             "name": pdir.name,
             "n_views": len(views),
@@ -943,6 +944,8 @@ def _list_parts(sdir: Path) -> list[dict]:
             "has_output": out.is_dir() and _categorize_output(out)["has_any"],
             "source_format": fmt_file.read_text(encoding="utf-8").strip()
                              if fmt_file.is_file() else "",
+            "notes": notes_file.read_text(encoding="utf-8", errors="replace")[:20000]
+                     if notes_file.is_file() else "",
         })
     return parts
 
@@ -959,6 +962,7 @@ async def add_part(
     session: str = Form(...),
     part: str = Form("drawing"),
     source_format: str = Form(""),
+    notes: str = Form(""),
     source: UploadFile | None = File(None),
     original: UploadFile | None = File(None),
     crops: list[UploadFile] = File(...),
@@ -978,6 +982,15 @@ async def add_part(
     # image) so the verification view can label the source correctly.
     if source_format.strip():
         (pdir / ".source_format").write_text(source_format.strip()[:64], encoding="utf-8")
+
+    # Human-authored must-meet notes (one requirement per line). Saved into the
+    # views folder as notes.txt — the pipeline discovers it there, grades every
+    # line against the build, and gates READY on unmet requirements.
+    notes_path = pdir / "notes.txt"
+    if notes.strip():
+        notes_path.write_text(notes.strip()[:20000] + "\n", encoding="utf-8")
+    elif notes_path.is_file():
+        notes_path.unlink()  # notes were cleared on re-save
 
     used: set[str] = set()
     for i, up in enumerate(crops, start=1):
@@ -1020,6 +1033,30 @@ def part_thumb(session: str, part: str):
     p = _session_dir(session) / ".thumbs" / f"{_sanitize(part)}.jpg"
     if not p.is_file():
         raise HTTPException(404, "No thumbnail")
+    return FileResponse(str(p), media_type="image/jpeg")
+
+
+@app.post("/api/parts/{session}/{part}/notes")
+def update_part_notes(session: str, part: str, notes: str = Form("")):
+    """Update a saved part's must-meet notes in place (graded on the next run)."""
+    pdir = _session_dir(session) / _sanitize(part)
+    if not pdir.is_dir():
+        raise HTTPException(404, "Unknown part")
+    notes_path = pdir / "notes.txt"
+    if notes.strip():
+        notes_path.write_text(notes.strip()[:20000] + "\n", encoding="utf-8")
+    elif notes_path.is_file():
+        notes_path.unlink()
+    return {"part": _sanitize(part), "parts": _list_parts(_session_dir(session))}
+
+
+@app.get("/api/parts/{session}/{part}/overview.jpg")
+def part_overview(session: str, part: str):
+    """The part's overview/full drawing (the '00_full.jpg' view) for Tab 2's
+    Overview panel. 404 when the part has no overview image."""
+    p = _session_dir(session) / _sanitize(part) / OVERVIEW_FILENAME
+    if not p.is_file():
+        raise HTTPException(404, "No overview image for this part")
     return FileResponse(str(p), media_type="image/jpeg")
 
 

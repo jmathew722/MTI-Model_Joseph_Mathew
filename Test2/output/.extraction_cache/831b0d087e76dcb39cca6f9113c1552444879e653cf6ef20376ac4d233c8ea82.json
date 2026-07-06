@@ -1,0 +1,60 @@
+{
+  "envelope": {
+    "width": 17.5,
+    "height": 11.25,
+    "depth": 1.0,
+    "units": "in"
+  },
+  "features": [
+    {
+      "kind": "counterbore",
+      "count": 4,
+      "description": "Drilled & counterbored holes for .500 socket head cap screws, located at corners of the plate (17.50 x 11.25 pattern)",
+      "location": "four corners of plate",
+      "clearly_visible": true
+    },
+    {
+      "kind": "hole",
+      "count": 4,
+      "description": ".531 DIA drill thru holes, inner rectangular pattern (7.000 x 6.000 spacing approx)",
+      "location": "central inner bolt pattern",
+      "clearly_visible": true
+    },
+    {
+      "kind": "pattern",
+      "count": 1,
+      "description": "4-hole corner counterbore mounting pattern",
+      "location": "plate corners",
+      "clearly_visible": true
+    },
+    {
+      "kind": "pattern",
+      "count": 1,
+      "description": "4-hole inner through-hole pattern",
+      "location": "center of plate",
+      "clearly_visible": true
+    },
+    {
+      "kind": "other",
+      "count": 2,
+      "description": "Short vertical hidden/construction lines near center-left of plate, unclear purpose (possibly edge of pocket or hidden feature)",
+      "location": "left-center area of top view",
+      "clearly_visible": false
+    },
+    {
+      "kind": "other",
+      "count": 1,
+      "description": "Dashed rectangular outline in center of plate, possibly indicating a pocket, boss, or hidden feature boundary",
+      "location": "center of plate",
+      "clearly_visible": false
+    },
+    {
+      "kind": "other",
+      "count": 1,
+      "description": "Small hidden-line detail visible in side/edge view near right end, possibly a slot or step",
+      "location": "right end of edge view",
+      "clearly_visible": false
+    }
+  ],
+  "notes": "Overview shows a rectangular plate, 17.50 x 11.25 x 1.00 in, with two bolt hole patterns: 4 counterbored clearance holes at corners for .500 socket head cap screws, and 4 straight .531 dia thru holes in an inner rectangular pattern. A thin edge/side view below confirms 1.00 in thickness and shows some hidden-line detail (possibly a slot or step) that is not clearly resolved. Faint dashed lines in the middle of the top view may indicate a hidden feature (pocket or boss) but are not clearly legible."
+}

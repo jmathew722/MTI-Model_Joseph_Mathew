@@ -108,6 +108,18 @@
   .ocard.dup .dupbadge { display:inline-block; }
   .intake-foot { display:flex; flex-direction:column; gap:var(--s2); align-items:stretch; }
   .intake-foot .rowline { display:flex; gap:var(--s2); align-items:center; }
+  #part-notes { width:100%; margin-top:8px; font:inherit; font-size:12px; background:#0d1521;
+                color:var(--ink); border:1px solid var(--line); border-radius:6px;
+                padding:6px 8px; resize:vertical; }
+  .flags-group { margin:14px 0 6px; padding:6px 10px; font-size:12px; font-weight:800;
+                 letter-spacing:.05em; text-transform:uppercase; color:var(--accent);
+                 border-left:3px solid var(--accent); background:#0d1624; }
+  .req-chip { display:inline-block; margin-left:8px; padding:1px 8px; border-radius:9px;
+              font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .req-chip.st-met { background:#123a26; color:#4ade80; }
+  .req-chip.st-partial { background:#3a2e12; color:#fbbf24; }
+  .req-chip.st-unmet { background:#3a1215; color:#f87171; }
+  .req-chip.st-not_applicable { background:#1e2634; color:#93a4bd; }
   .req-warn { color:var(--warn); font-size:12px; max-width:280px; }
   .req-warn.ok { color:var(--ok); }
 
@@ -153,7 +165,9 @@
   .logtoggle:hover { color:var(--ink); border-color:#33507a; }
 
   /* Split view — resizable */
-  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 6px 1fr; min-height:120px; }
+  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 6px 0.7fr 1.3fr; min-height:120px; }
+  .ovside { border-right:1px solid var(--line); }
+  #ov-img { max-width:100%; max-height:100%; object-fit:contain; display:none; }
   .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; }
   .side .cap { flex:0 0 auto; padding:9px 14px; font-size:12px; font-weight:700; letter-spacing:.04em;
                text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); background:#0c131f; }
@@ -297,6 +311,8 @@
             <button class="btn" id="save-part-btn" disabled>💾 Save part</button>
           </div>
         </div>
+        <textarea id="part-notes" rows="3" placeholder="Must-meet requirements — one per line (e.g. '4x Ø6 mm mounting holes', 'material 6061'). Each line is graded against the built part; an unmet line blocks READY."></textarea>
+        <button class="btn secondary" id="save-notes-btn" style="display:none;padding:5px 10px;font-size:12px">💾 Update notes for selected part</button>
       </div>
     </div>
     <div class="statusline"><span class="status" id="intake-status">Ready — crop views in Tab 1 or upload a drawing.</span></div>
@@ -314,6 +330,13 @@
         </div>
       </div>
       <div class="divider" id="split-divider" title="Drag to resize · double-click to reset"></div>
+      <div class="side ovside">
+        <div class="cap">Overview Drawing — reference</div>
+        <div class="body" id="ov-box">
+          <img id="ov-img" alt="overview drawing" />
+          <div class="emptynote" id="ov-empty">No overview image for this part.</div>
+        </div>
+      </div>
       <div class="side">
         <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan</div>
         <div class="body">
@@ -436,10 +459,13 @@ dockToggle.addEventListener('click', () => setDockOpen(dock.classList.contains('
     if (!dragging) return;
     const r = grid.getBoundingClientRect();
     const pct = Math.min(0.8, Math.max(0.2, (e.clientX - r.left) / r.width));
-    grid.style.gridTemplateColumns = `${pct}fr 6px ${1 - pct}fr`;
+    // 4 columns: input-doc | divider | overview | STL. The divider sets the
+    // input-doc share; the remainder splits 35/65 between overview and STL.
+    grid.style.gridTemplateColumns =
+      `${pct * 2}fr 6px ${(1 - pct) * 2 * 0.35}fr ${(1 - pct) * 2 * 0.65}fr`;
   });
   window.addEventListener('mouseup', () => { dragging = false; div.classList.remove('dragging'); });
-  div.addEventListener('dblclick', () => { grid.style.gridTemplateColumns = '1fr 6px 1fr'; });
+  div.addEventListener('dblclick', () => { grid.style.gridTemplateColumns = '1fr 6px 0.7fr 1.3fr'; });
 })();
 
 // ── Collapsible live console (slim log under the split view) ────────────────
@@ -511,14 +537,24 @@ function paintReview(review) {
   summary.textContent = items.length
     ? `${items.length} item(s): ${counts.CRITICAL} critical · ${counts.HIGH} high · ${counts.MEDIUM} medium · ${counts.LOW} low — most urgent first.`
     : 'No assumptions or manual steps — every dimension was read directly from the drawing.';
-  list.innerHTML = items.map(i => `
+  const item = i => `
     <div class="flag-item sev-${esc(i.severity)}">
-      <span class="sev">${esc(i.severity)}</span><span class="fid">${esc(i.id || '')} · ${esc(i.source)}</span>
+      <span class="sev">${esc(i.severity)}</span><span class="fid">${esc(i.id || '')} · ${esc(i.source)}</span>${
+        i.status ? `<span class="req-chip st-${esc(i.status)}">${esc(i.status.replace('_', ' '))}</span>` : ''}
       <div class="row"><b>What</b> ${esc(i.what)}</div>
       <div class="row"><b>Decision</b> ${esc(i.decision)}</div>
       <div class="row"><b>Why</b> ${esc(i.why)}</div>
       <div class="row"><b>Affects</b> ${esc(i.affects)}</div>
-    </div>`).join('');
+    </div>`;
+  // The two final-check sections render as their own labeled groups; everything
+  // else stays in the main ranked list.
+  const main = items.filter(i => i.source !== 'overview' && i.source !== 'requirement');
+  const overview = items.filter(i => i.source === 'overview');
+  const reqs = items.filter(i => i.source === 'requirement');
+  let html = main.map(item).join('');
+  if (overview.length) html += `<div class="flags-group">Overview Verification — features the overview drawing shows, checked against the build</div>` + overview.map(item).join('');
+  if (reqs.length) html += `<div class="flags-group">Human-Specified Requirements — your must-meet notes, graded against the build</div>` + reqs.map(item).join('');
+  list.innerHTML = html;
   empty.style.display = 'none'; scroll.style.display = '';
 }
 function paintUsage(usage) {
@@ -614,6 +650,13 @@ function selectPart(name) {
   selectedPart = name;
   previewOverride = false; // an explicit part selection reclaims the left panel
   renderParts(); updateRunEnabled();
+  // Show the selected part's saved must-meet notes for viewing/editing (only
+  // when there is no unsaved intake work to clobber).
+  const notesEl = document.getElementById('part-notes');
+  const pd = partsData.find(x => x.name === name);
+  if (notesEl && pd && !intake.items.length) notesEl.value = pd.notes || '';
+  const snb = document.getElementById('save-notes-btn');
+  if (snb) { snb.style.display = ''; snb.textContent = `💾 Update notes for ${name}`; }
   document.getElementById('viewer-part').textContent = name;
   // Split view left = this part's source thumbnail.
   const img = document.getElementById('src-img');
@@ -670,6 +713,25 @@ function updateSourceBadges() {
   }
   for (const el of els) { if (el) { el.textContent = fmt; el.style.display = fmt ? '' : 'none'; } }
   if (sync) { sync.textContent = syncTxt; sync.style.display = syncTxt ? '' : 'none'; }
+  updateOverviewBox();
+}
+
+// ── Tab 2 Overview panel: the part's full/overview drawing, next to the STL ─
+// Mirrors the same "most recent action wins" rule as the input-document box:
+// an unsaved upload shows itself (its source IS the overview); a selected part
+// shows its saved 00_full.jpg; otherwise a clear empty state.
+function updateOverviewBox() {
+  const img = document.getElementById('ov-img'), empty = document.getElementById('ov-empty');
+  if (!img) return;
+  const show = u => {
+    img.onload = () => { img.style.display = ''; empty.style.display = 'none'; };
+    img.onerror = () => { img.style.display = 'none'; empty.style.display = ''; };
+    img.src = u;
+  };
+  if (previewOverride && intake.source) show(intake.source);
+  else if (selectedPart) show(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/overview.jpg?t=${Date.now()}`);
+  else if (intake.source) show(intake.source);
+  else { img.style.display = 'none'; empty.style.display = ''; }
 }
 
 // ── Intake: upload / pull crops → orientation gallery → name → save ──────────
@@ -784,6 +846,21 @@ function renderGallery() {
   validateIntake();
 }
 partNameEl.addEventListener('input', validateIntake);
+
+// Update a SAVED part's must-meet notes in place (no re-upload needed).
+document.getElementById('save-notes-btn').addEventListener('click', async () => {
+  if (!selectedPart) return;
+  const fd = new FormData();
+  fd.append('notes', document.getElementById('part-notes').value || '');
+  try {
+    const r = await fetch(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/notes`,
+                          { method: 'POST', body: fd });
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    const d = await r.json();
+    partsData = d.parts || partsData;
+    setStatus(`Notes for "${selectedPart}" saved — they are graded on the next run.`, 'ok');
+  } catch (e) { setStatus('Could not save notes: ' + e.message, 'err'); }
+});
 
 // -- Upload a single file: PDF (each page), JPG/PNG (directly), DWG/DXF (server-converted)
 const intakeFile = document.getElementById('intake-file');
@@ -954,6 +1031,7 @@ saveBtn.addEventListener('click', async () => {
   fd.append('session', sessionId);
   fd.append('part', part);
   fd.append('source_format', intake.format || '');
+  fd.append('notes', document.getElementById('part-notes').value || '');
   if (intake.source) fd.append('source', window.MTIBridge.dataURLtoBlob(intake.source), 'source.jpg');
   if (intake.originalFile) fd.append('original', intake.originalFile, intake.originalFile.name);
   const counts = {};
@@ -972,6 +1050,7 @@ saveBtn.addEventListener('click', async () => {
   partsData = res.parts;
   intake = { items: [], source: null, originalFile: null, stem: 'drawing', format: '' };
   partNameEl.value = '';
+  document.getElementById('part-notes').value = '';
   renderGallery();
   selectPart(res.part);
   setStatus(`Saved part "${res.part}". Open the Pipeline &amp; Results tab and press ▶ Pull &amp; Run Pipeline.`, 'ok');
@@ -1020,7 +1099,7 @@ function stopElapsed() { if (elapsedTimer) { clearInterval(elapsedTimer); elapse
 
 // ── Per-stage progress strip (parses "[STAGE] ..." lines from the pipeline) ──
 const STAGE_LIST = ['Extracting', 'Resolving', 'Verifying', 'Building macros',
-                    'Building .sldprt', 'Exporting', 'Done'];
+                    'Building .sldprt', 'Final checks', 'Exporting', 'Done'];
 const stageStrip = document.getElementById('stage-strip');
 let stageIdx = -1;
 function resetStages() {

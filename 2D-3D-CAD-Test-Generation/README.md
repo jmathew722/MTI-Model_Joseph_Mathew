@@ -211,7 +211,10 @@ extraction (no API call).
    action wins:* opening/uploading a document shows **that** document
    ("✓ current upload (unsaved)"), clicking a saved part card switches to that
    part's source ("✓ matches Part Setup source") — a reviewer never compares
-   against a stale drawing. The right box is the interactive
+   against a stale drawing. The middle **Overview Drawing** panel shows the
+   part's full/overview image (fit-to-panel, reference only, with a clear
+   empty state when a part has none) so a human can eyeball the whole drawing
+   against the model. The right box is the interactive
    **Three.js STL viewer** (drag-rotate, scroll-zoom, right-drag-pan) — the STL
    loads automatically once the pipeline produces it.
 3. **Pipeline & Results** — the saved-parts picker and the primary
@@ -249,10 +252,13 @@ extraction (no API call).
    Duplicate orientations show a warning badge and need a confirm on save.
    The inline banner requires **Front + one more orthographic view** before saving
    is enabled — that is what extraction needs to resolve depth.
-3. **Name the part** (becomes the folder name) and **💾 Save part** — the images
-   are written server-side in the exact `--views-folder` layout, so the folder
-   works with the CLI unchanged. The untouched original upload is kept and
-   delivered with the outputs.
+3. **Name the part** (becomes the folder name), optionally type **must-meet
+   notes** (one requirement per line — each is graded against the built part
+   and an unmet line blocks READY; edit a saved part's notes in place with
+   **💾 Update notes**), and **💾 Save part** — the images are written
+   server-side in the exact `--views-folder` layout, so the folder works with
+   the CLI unchanged. The untouched original upload is kept and delivered with
+   the outputs.
 4. **Select the part** and click **▶ Run Pipeline**. It runs scoped to just that
    part's folder: `main.py --views-folder <part> --output <part>/output`.
 
@@ -305,6 +311,9 @@ One source is required: `--drawing` · `--from-json` · `--batch` · `--views-fo
 | `--debug` | Also save intermediate extraction JSON. |
 | `--engine vba\|com` | `vba` (default, any OS) generates macros; `com` drives SolidWorks directly (Windows). |
 | `--validate-only` | Extract + verify only; no macros, no SolidWorks. |
+| `--requirements F` | Human must-meet notes file (one per line) — graded met/partial/unmet/not_applicable against the build; an unmet line gates READY. Auto-discovered as `notes.txt` in a part folder. |
+| `--skip-overview-check` | Skip the final overview cross-check (auto-skips with a note when a part has no overview image). |
+| `--skip-requirements-check` | Skip grading the human notes. |
 | `--no-resolve` | Skip Stage 2.5 (legacy behavior). |
 | `--strict-gate` | Restore the v2 hard gate: a failing verification BLOCKS the run. |
 | `--no-sldprt` | Don't build the `.sldprt`/`.stl`; emit macros + text only. |
@@ -313,6 +322,28 @@ One source is required: `--drawing` · `--from-json` · `--batch` · `--views-fo
 
 Exit codes: `0` success (all parts READY) · `8` completed but not every part was
 READY · `2` bad path/arguments.
+
+### Final checks (after the build, before READY)
+
+Two checks run at the end of every part and can gate the status to **NOT
+READY** (macros and the model are still produced — only the status changes):
+
+- **Overview cross-check** — the part's overview/full drawing (the webapp's
+  `00_full.jpg`, or any `*overview*`/`*full*`/part-named image in the folder)
+  is re-examined ALONE with a focused vision pass listing every feature it
+  shows, then diffed against the build. A feature clearly visible in the
+  overview but missing from the build is **CRITICAL** (gates READY); a count
+  mismatch is HIGH; a possible/ambiguous feature is MEDIUM. Features in the
+  build but not visible in the overview are fine. The pass is cached and its
+  cost is logged to the token ledger. Results land in a **"Overview
+  Verification"** section of the engineering review and verification report.
+- **Human requirements compliance** — the operator's must-meet notes (web UI
+  Part Setup textarea → `notes.txt`, or `--requirements FILE`) are split into
+  one requirement per line, graded **met / partial / unmet / not_applicable**
+  (compliance is never fabricated — non-geometric notes are listed as
+  not_applicable for manual verification), persisted as
+  `<Part>_requirements.json`, and reported in a **"Human-Specified
+  Requirements Compliance"** section. An **unmet** requirement gates READY.
 
 ---
 
@@ -368,6 +399,7 @@ Test2/
 ├── <PartNumber>_extraction.json           # RAW extraction, verbatim (saved even when BLOCKED)
 ├── <PartNumber>_resolved_extraction.json  # Stage 2.5: each dim's resolved_value + flag tier + note
 ├── <PartNumber>_verification_report.txt   # verification report + readiness score
+├── <PartNumber>_requirements.json         # human must-meet notes, graded met/partial/unmet/not_applicable
 ├── <PartNumber>_build_plan.json           # SELF-CONTAINED steps + resolution_summary + engineering_review
 ├── <PartNumber>_audit_report.json         # static self-validation of the generated macros
 ├── macros/                                # 00_setup … ZZ_final_verify, ZZZ_export_stl, RUN_ALL.vba, README.md

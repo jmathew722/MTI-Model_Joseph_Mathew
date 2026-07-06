@@ -1,17 +1,17 @@
 {
-  "part_name": "",
+  "part_name": "Plate",
   "part_number": "A001271E",
   "revision": "",
-  "drawing_standard": "",
+  "drawing_standard": "ASME",
   "units": "inch",
   "scale": "",
   "material": "",
   "finish": "",
-  "general_tolerance": "\u00b1.005",
+  "general_tolerance": "\u00b1.005 on toleranced dimensions as noted",
   "views": [
     {
       "view_type": "Front",
-      "description": "Front face of the plate showing overall width, height, corner counterbore holes (4x), and center drill-through holes (4x)",
+      "description": "Plate face with 4 corner counterbored holes and 4 through holes in inner rectangular pattern",
       "dimensions_shown": [
         "D001",
         "D002",
@@ -23,8 +23,8 @@
         "D008",
         "D009",
         "D010",
-        "D010B",
-        "D010C"
+        "D011",
+        "D012"
       ],
       "visible_features": [
         "F001",
@@ -32,22 +32,20 @@
         "F003"
       ],
       "hidden_features": [],
-      "centerline_notes": "Four corner hole centerlines imply counterbore holes; four inner hole centerlines imply drill-through holes"
+      "centerline_notes": "Centerlines mark hole centers for the 4 corner c'bore holes and 4 inner through holes; horizontal/vertical centerlines confirm symmetry of inner pattern about plate center"
     },
     {
-      "view_type": "Right",
-      "description": "Side (right) view showing the plate thickness of 1.00 inch and hidden lines of counterbore/drill features near right end",
+      "view_type": "Side",
+      "description": "Thin edge view of plate showing overall thickness 1.00 and hidden hole/counterbore profiles",
       "dimensions_shown": [
-        "D011"
+        "D013"
       ],
-      "visible_features": [
-        "F001"
-      ],
+      "visible_features": [],
       "hidden_features": [
         "F002",
         "F003"
       ],
-      "centerline_notes": "Hidden lines near right edge indicate counterbore and thru-hole features"
+      "centerline_notes": "Dashed lines indicate hidden through-hole and counterbore profiles from the front view, thickness dimensioned as 1.00"
     }
   ],
   "dimensions": [
@@ -59,9 +57,9 @@
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "width",
-      "feature_ref": "F001",
-      "view": "Front",
+      "applies_to": "length",
+      "feature_ref": "",
+      "view": "front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -69,7 +67,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Overall width of part"
+      "notes": "overall width"
     },
     {
       "id": "D002",
@@ -79,9 +77,9 @@
       "tolerance_plus": 0.005,
       "tolerance_minus": 0.005,
       "tolerance_type": "bilateral",
-      "applies_to": "bolt-pattern width center-to-center corner holes",
-      "feature_ref": "F002",
-      "view": "Front",
+      "applies_to": "hole_spacing",
+      "feature_ref": "",
+      "view": "front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -89,10 +87,70 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Horizontal C-C distance between left and right corner counterbore holes"
+      "notes": "distance between left and right c'bore hole centers"
     },
     {
       "id": "D003",
+      "type": "linear",
+      "value": 0.844,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "edge_offset",
+      "feature_ref": "",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "left edge to left c'bore hole center (approx, at top-left)"
+    },
+    {
+      "id": "D004",
+      "type": "linear",
+      "value": 0.75,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "edge_offset",
+      "feature_ref": "",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "top edge to c'bore hole center"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 11.25,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_spacing",
+      "feature_ref": "",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "vertical distance between top and bottom c'bore hole centers"
+    },
+    {
+      "id": "D006",
       "type": "linear",
       "value": 14.0,
       "unit": "inch",
@@ -100,8 +158,8 @@
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
       "applies_to": "height",
-      "feature_ref": "F001",
-      "view": "Front",
+      "feature_ref": "",
+      "view": "front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -109,67 +167,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Overall height of part"
-    },
-    {
-      "id": "D004",
-      "type": "linear",
-      "value": 11.25,
-      "unit": "inch",
-      "tolerance_plus": 0.005,
-      "tolerance_minus": 0.005,
-      "tolerance_type": "bilateral",
-      "applies_to": "bolt-pattern height center-to-center corner holes",
-      "feature_ref": "F002",
-      "view": "Front",
-      "datum_ref": "",
-      "gdt_symbol": "",
-      "is_reference": false,
-      "value_unclear": false,
-      "ambiguity_reason": "",
-      "possible_values": [],
-      "resolution_required": false,
-      "notes": "Vertical C-C distance between top and bottom corner counterbore holes"
-    },
-    {
-      "id": "D005",
-      "type": "linear",
-      "value": 0.844,
-      "unit": "inch",
-      "tolerance_plus": 0.0,
-      "tolerance_minus": 0.0,
-      "tolerance_type": "reference",
-      "applies_to": "edge distance left to left corner hole centers",
-      "feature_ref": "F002",
-      "view": "Front",
-      "datum_ref": "",
-      "gdt_symbol": "",
-      "is_reference": false,
-      "value_unclear": false,
-      "ambiguity_reason": "",
-      "possible_values": [],
-      "resolution_required": false,
-      "notes": "Horizontal edge distance from left edge to corner hole column centerline"
-    },
-    {
-      "id": "D006",
-      "type": "linear",
-      "value": 0.75,
-      "unit": "inch",
-      "tolerance_plus": 0.0,
-      "tolerance_minus": 0.0,
-      "tolerance_type": "reference",
-      "applies_to": "edge distance top to top corner hole centers",
-      "feature_ref": "F002",
-      "view": "Front",
-      "datum_ref": "",
-      "gdt_symbol": "",
-      "is_reference": false,
-      "value_unclear": false,
-      "ambiguity_reason": "",
-      "possible_values": [],
-      "resolution_required": false,
-      "notes": "Vertical edge distance from top edge to corner hole row centerline"
+      "notes": "overall height"
     },
     {
       "id": "D007",
@@ -179,9 +177,9 @@
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "vertical distance top corner hole to upper inner hole row",
-      "feature_ref": "F003",
-      "view": "Front",
+      "applies_to": "edge_offset",
+      "feature_ref": "",
+      "view": "front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -189,7 +187,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Vertical spacing from top corner hole centerline down to upper inner hole centerline"
+      "notes": "top c'bore hole to inner hole row (upper)"
     },
     {
       "id": "D008",
@@ -199,9 +197,9 @@
       "tolerance_plus": 0.005,
       "tolerance_minus": 0.005,
       "tolerance_type": "bilateral",
-      "applies_to": "vertical center-to-center inner hole rows",
-      "feature_ref": "F003",
-      "view": "Front",
+      "applies_to": "hole_spacing",
+      "feature_ref": "",
+      "view": "front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -209,7 +207,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Vertical distance between upper and lower inner drill-through hole rows"
+      "notes": "vertical spacing between inner hole rows"
     },
     {
       "id": "D009",
@@ -219,9 +217,9 @@
       "tolerance_plus": 0.005,
       "tolerance_minus": 0.005,
       "tolerance_type": "bilateral",
-      "applies_to": "vertical distance lower inner hole to bottom corner hole row",
-      "feature_ref": "F003",
-      "view": "Front",
+      "applies_to": "edge_offset",
+      "feature_ref": "",
+      "view": "front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -229,39 +227,19 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Vertical distance from lower inner hole centerline to bottom corner hole centerline"
+      "notes": "bottom edge to lower inner hole row"
     },
     {
       "id": "D010",
-      "type": "linear",
-      "value": 7.0,
-      "unit": "inch",
-      "tolerance_plus": 0.005,
-      "tolerance_minus": 0.005,
-      "tolerance_type": "bilateral",
-      "applies_to": "horizontal position right inner hole column from left edge",
-      "feature_ref": "F003",
-      "view": "Front",
-      "datum_ref": "",
-      "gdt_symbol": "",
-      "is_reference": false,
-      "value_unclear": false,
-      "ambiguity_reason": "",
-      "possible_values": [],
-      "resolution_required": false,
-      "notes": "Horizontal distance from left edge to right inner hole column"
-    },
-    {
-      "id": "D010B",
       "type": "linear",
       "value": 6.781,
       "unit": "inch",
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "horizontal position left inner hole column from left edge",
-      "feature_ref": "F003",
-      "view": "Front",
+      "applies_to": "edge_offset",
+      "feature_ref": "",
+      "view": "front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -269,19 +247,19 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Horizontal distance from left edge to left inner hole column centerline"
+      "notes": "left edge to left inner hole column center"
     },
     {
-      "id": "D010C",
+      "id": "D011",
       "type": "linear",
       "value": 0.5,
       "unit": "inch",
       "tolerance_plus": 0.005,
       "tolerance_minus": 0.005,
       "tolerance_type": "bilateral",
-      "applies_to": "horizontal center-to-center spacing of inner hole columns",
-      "feature_ref": "F003",
-      "view": "Front",
+      "applies_to": "hole_spacing",
+      "feature_ref": "",
+      "view": "front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -289,19 +267,39 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Horizontal distance between the two inner hole columns; inconsistent with D010-D010B difference of 0.219 \u2014 see warnings"
+      "notes": "small offset between adjacent inner holes, near lower-left inner hole"
     },
     {
-      "id": "D011",
+      "id": "D012",
+      "type": "linear",
+      "value": 7.0,
+      "unit": "inch",
+      "tolerance_plus": 0.005,
+      "tolerance_minus": 0.005,
+      "tolerance_type": "bilateral",
+      "applies_to": "hole_spacing",
+      "feature_ref": "",
+      "view": "front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "horizontal spacing between inner hole columns"
+    },
+    {
+      "id": "D013",
       "type": "linear",
       "value": 1.0,
       "unit": "inch",
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "depth/thickness",
-      "feature_ref": "F001",
-      "view": "Right",
+      "applies_to": "thickness",
+      "feature_ref": "",
+      "view": "side",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -309,27 +307,70 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "Part thickness from side view"
+      "notes": "overall plate thickness"
+    },
+    {
+      "id": "D014",
+      "type": "diameter",
+      "value": 0.531,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_diameter",
+      "feature_ref": "F002",
+      "view": "",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": ".531 DR. THRU (4) HLS"
+    },
+    {
+      "id": "D015",
+      "type": "diameter",
+      "value": 0.5,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "hole_diameter",
+      "feature_ref": "F003",
+      "view": "",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "DR. & C'BORE FOR .500 SOC. HD. SCR (4) HLS - drill diameter for socket head cap screw clearance, counterbore diameter not explicitly dimensioned"
     }
   ],
   "hole_callouts": [
     {
       "id": "H001",
       "type": "counterbore",
-      "diameter": 0.5,
+      "diameter": 0.531,
       "thru": true,
       "depth": 0.0,
       "thread_spec": "",
-      "cbore_diameter": 0.0,
-      "cbore_depth": 0.0,
+      "cbore_diameter": 0.875,
+      "cbore_depth": 0.375,
       "csink_diameter": 0.0,
       "csink_angle": 0.0,
       "qty": 4,
-      "x_position": 0.844,
-      "y_position": 0.75,
+      "x_position": 0.0,
+      "y_position": 0.0,
       "position_known": true,
       "pattern": "none",
       "pattern_spacing": 0.0,
+      "bolt_circle_diameter": 0.0,
+      "bolt_circle_center": [],
+      "start_angle": 0.0,
       "instance_positions": [
         [
           0.844,
@@ -348,8 +389,11 @@
           12.0
         ]
       ],
-      "feature_ref": "F002",
-      "view": "Front"
+      "feature_ref": "F003",
+      "view": "front",
+      "notes": "DR. & C'BORE FOR .500 SOC. HD. SCR. (4) HLS. Drill sized for .500 socket head cap screw clearance; counterbore diameter/depth not explicitly given, estimated typical for .500 SHCS.",
+      "position_source": "",
+      "position_confidence": 0.0
     },
     {
       "id": "H002",
@@ -363,141 +407,159 @@
       "csink_diameter": 0.0,
       "csink_angle": 0.0,
       "qty": 4,
-      "x_position": 6.781,
-      "y_position": 7.75,
+      "x_position": 0.0,
+      "y_position": 0.0,
       "position_known": true,
       "pattern": "none",
       "pattern_spacing": 0.0,
+      "bolt_circle_diameter": 0.0,
+      "bolt_circle_center": [],
+      "start_angle": 0.0,
       "instance_positions": [
         [
           6.781,
-          7.75
+          6.5
         ],
         [
-          7.0,
-          7.75
+          13.781,
+          6.5
         ],
         [
           6.781,
-          1.75
+          12.5
         ],
         [
-          7.0,
-          1.75
+          13.781,
+          12.5
         ]
       ],
-      "feature_ref": "F003",
-      "view": "Front"
+      "feature_ref": "F002",
+      "view": "front",
+      "notes": ".531 DR. THRU (4) HLS.",
+      "position_source": "",
+      "position_confidence": 0.0
     }
   ],
   "features": [
     {
       "id": "F001",
       "type": "extrude_boss",
-      "description": "Rectangular base plate 17.50 wide x 14.00 tall x 1.00 thick",
+      "description": "Base rectangular plate 17.50 x 14.00 x 1.00 thick",
       "related_dimensions": [
         "D001",
-        "D003",
-        "D011"
+        "D006",
+        "D013"
       ],
       "sketch_plane": "front",
-      "depth_dimension_id": "D011",
+      "depth_dimension_id": "D013",
       "parent_feature": "",
       "offset_x": 0.0,
       "offset_y": 0.0,
       "position_known": false,
-      "quantity": 1
+      "quantity": 1,
+      "revolve_profile": [],
+      "mirror_plane": ""
     },
     {
       "id": "F002",
       "type": "hole",
-      "description": "4x drill and counterbore holes for 0.500 socket head cap screws at the four corners",
+      "description": ".531 DR. THRU (4) holes in inner rectangular pattern",
       "related_dimensions": [
-        "D002",
-        "D004",
-        "D005",
-        "D006"
+        "D014",
+        "D008",
+        "D009",
+        "D010",
+        "D011",
+        "D012"
       ],
       "sketch_plane": "front",
       "depth_dimension_id": "",
-      "parent_feature": "",
-      "offset_x": 0.844,
-      "offset_y": 0.75,
+      "parent_feature": "F001",
+      "offset_x": 6.781,
+      "offset_y": 6.5,
       "position_known": true,
-      "quantity": 4
+      "quantity": 4,
+      "revolve_profile": [],
+      "mirror_plane": ""
     },
     {
       "id": "F003",
       "type": "hole",
-      "description": "4x 0.531 drill through holes at inner pattern two columns two rows",
+      "description": "Drill & counterbore for .500 socket head cap screws (4) corner holes",
       "related_dimensions": [
-        "D007",
-        "D008",
-        "D009",
-        "D010",
-        "D010B",
-        "D010C"
+        "D015",
+        "D002",
+        "D003",
+        "D004",
+        "D005",
+        "D007"
       ],
       "sketch_plane": "front",
       "depth_dimension_id": "",
-      "parent_feature": "",
-      "offset_x": 6.781,
-      "offset_y": 7.75,
+      "parent_feature": "F001",
+      "offset_x": 0.844,
+      "offset_y": 0.75,
       "position_known": true,
-      "quantity": 4
+      "quantity": 4,
+      "revolve_profile": [],
+      "mirror_plane": ""
     }
   ],
   "geometric_tolerances": [],
   "relationships": {
     "symmetry": [
       {
-        "plane": "Vertical centerline X=8.75",
+        "plane": "Front - vertical centerline",
         "feature_ids": [
           "F002",
           "F003"
         ],
-        "description": "Corner counterbore holes and inner thru-holes symmetric about vertical midplane"
+        "description": "Inner hole pattern and corner c'bore holes are symmetric about the plate's vertical centerline"
       },
       {
-        "plane": "Horizontal centerline Y=7.00",
+        "plane": "Front - horizontal centerline",
         "feature_ids": [
           "F002",
           "F003"
         ],
-        "description": "Hole groups symmetric about horizontal midplane"
+        "description": "Inner hole pattern and corner c'bore holes are symmetric about the plate's horizontal centerline"
       }
     ],
     "concentric_groups": [],
-    "equal_spacing": [],
+    "equal_spacing": [
+      {
+        "feature_ref": "F003",
+        "qty": 4,
+        "spacing_value": 15.812,
+        "computed_from": "corner c'bore holes spaced 15.812 horizontally and 11.250 vertically, forming a rectangular pattern"
+      },
+      {
+        "feature_ref": "F002",
+        "qty": 4,
+        "spacing_value": 7.0,
+        "computed_from": "inner through-holes spaced 7.000 horizontally and 6.000 vertically"
+      }
+    ],
     "dimension_chains": [
       {
         "total_dimension_id": "D001",
         "component_dimension_ids": [
-          "D005",
-          "D002",
-          "D005"
+          "D003",
+          "D002"
         ],
-        "description": "Overall width = left edge + C-C width + right edge: 0.844 + 15.812 + 0.844 = 17.500"
+        "description": "Overall width 17.50 = left offset 0.844 + hole spacing 15.812 + right offset (~0.844, implied by symmetry)"
       },
       {
-        "total_dimension_id": "D003",
+        "total_dimension_id": "D006",
         "component_dimension_ids": [
-          "D006",
-          "D004"
+          "D004",
+          "D005"
         ],
-        "description": "Height chain: top edge 0.750 + C-C height 11.250 = 12.000; bottom edge = 14.000 - 12.000 = 2.000"
+        "description": "Overall height 14.00 = top offset 0.750 + hole spacing 11.250 + bottom offset (~2.0, implied)"
       }
     ],
     "derived_dimension_ids": [],
-    "reference_dimension_ids": [
-      "D001",
-      "D003",
-      "D005",
-      "D006",
-      "D007",
-      "D010B",
-      "D011"
-    ]
+    "reference_dimension_ids": []
   },
   "build_order": [
     "F001",
@@ -505,12 +567,12 @@
     "F003"
   ],
   "warnings": [
-    "Vertical dimension chain for inner holes does not close cleanly: D007 (6.250) + D008 (6.000) + D009 (6.500) = 18.750, which exceeds the corner-hole C-C height D004 (11.250). These dimensions likely reference different datums. D007 appears to be from the top corner hole down to the upper inner hole row; D008 is inner hole row spacing; D009 appears to be from the lower inner hole row down to the bottom corner hole. 6.250 + 6.000 = 12.250 > 11.250 C-C \u2014 inconsistency requires human resolution.",
-    "H001 counterbore diameter and depth not explicitly stated in the drawing \u2014 standard SHCS 1/2-inch counterbore values (cbore_diameter ~0.875 in, cbore_depth ~0.500 in) should be confirmed against applicable fastener standard.",
-    "Inner hole column spacing D010C reads 0.500 inch on drawing but the difference D010 - D010B = 7.000 - 6.781 = 0.219 inch. These are inconsistent; the 0.500 dimension may label a different feature or be misread. Human verification required.",
-    "Instance positions for H002 are approximate due to vertical dimension chain inconsistency noted above.",
-    "No title block data (part name, number, material, finish, revision, scale, drawing standard) found in the provided images.",
-    "Could not classify view for A001271E.png; skipped."
+    "Counterbore diameter and depth for the .500 SHCS holes are not explicitly dimensioned in the drawing; estimated as 0.875 dia x 0.375 deep typical for a .500 socket head cap screw - resolution_required flagged on related dimension.",
+    "No fillets or chamfers are called out anywhere in the drawing (front, side, or notes) - none were added.",
+    "Right and bottom edge offsets for the corner c'bore holes (mirroring 0.844 and 0.750) are implied by symmetry but not explicitly dimensioned; treated as derived.",
+    "Material, finish, part number, revision, and scale are not given in the provided views.",
+    "The counterbore diameter dimension D015 is ambiguous - it is described as the SHCS nominal size, not a direct measured diameter of the drill or counterbore; flagged for resolution.",
+    "Side view is very compressed/thin, actual counterbore and thru-hole depths in the thickness direction were inferred from standard practice, not explicitly labeled with numeric depth for counterbore."
   ],
-  "confidence": 0.82
+  "confidence": 0.78
 }

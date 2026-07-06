@@ -1,0 +1,45 @@
+ENGINEERING REVIEW - A001271E
+=============================
+Every assumption, ambiguity resolution, and skipped/manual feature from
+this run, sorted most urgent first.
+
+Severity guide (most urgent first):
+  CRITICAL  build proceeded on a guess that could produce a wrong part;
+            human must verify before this part is trusted
+  HIGH      resolved from limited information but reasonably confident;
+            spot-check recommended
+  MEDIUM    minor ambiguity, low risk if wrong
+  LOW       cosmetic/non-dimensional assumption, informational only
+
+Totals: 0 critical, 2 high, 0 medium, 3 low.
+Rebuild confidence 75%: 0 of 15 dimension(s) required an engineering assumption.
+
+1. [HIGH] F001 (feature)
+   What:     POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+   Decision: centered_on_parent
+   Why:      position not dimensioned on the drawing
+   Affects:  feature F001
+
+2. [HIGH] OV002 (overview)
+   What:     Count mismatch for hole: the overview shows 4, the build contains 8 (.531 DIA drill thru holes, inner rectangular pattern (7.000 x 6.000 spacing approx), central inner bolt pattern).
+   Decision: build kept its extracted count of 8
+   Why:      overview count disagrees with the consolidated extraction
+   Affects:  hole count
+
+3. [LOW] OV005 (overview)
+   What:     The overview shows a feature the checker cannot auto-match: Short vertical hidden/construction lines near center-left of plate, unclear purpose (possibly edge of pocket or hidden feature) (left-center area of top view)
+   Decision: not automatically verified against the build
+   Why:      feature kind has no direct counterpart in the build inventory
+   Affects:  manual visual comparison recommended
+
+4. [LOW] OV006 (overview)
+   What:     The overview shows a feature the checker cannot auto-match: Dashed rectangular outline in center of plate, possibly indicating a pocket, boss, or hidden feature boundary (center of plate)
+   Decision: not automatically verified against the build
+   Why:      feature kind has no direct counterpart in the build inventory
+   Affects:  manual visual comparison recommended
+
+5. [LOW] OV007 (overview)
+   What:     The overview shows a feature the checker cannot auto-match: Small hidden-line detail visible in side/edge view near right end, possibly a slot or step (right end of edge view)
+   Decision: not automatically verified against the build
+   Why:      feature kind has no direct counterpart in the build inventory
+   Affects:  manual visual comparison recommended

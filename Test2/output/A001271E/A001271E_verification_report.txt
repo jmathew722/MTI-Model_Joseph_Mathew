@@ -1,33 +1,47 @@
 VERIFICATION REPORT
 ===================
-Part: A001271E    Units: inch    Standard: unknown    Confidence: 0.82
-Total dimensions extracted: 13
+Part: A001271E    Units: inch    Standard: ASME    Confidence: 0.78
+Total dimensions extracted: 15
 Hole callouts extracted: 2
 Features identified: 3  (build order: 3)
 Dimensions flagged ambiguous: 0
-Dimensional closure: FAIL  ->  failed: D003 = D006 + D004
+Dimensional closure: FAIL  ->  failed: D001 = D003 + D002; D006 = D004 + D005
 Unit consistency: PASS
 View consistency: PASS
-Feature feasibility: PASS
+Feature feasibility: FAIL  ->  equal-spacing note for F003; equal-spacing note for F002
 Derived dimensions computed: 0
 
 DRAWING COMPLETENESS SCORE (Phase 4):
   Geometry completeness:  100%
   Dimension completeness: 100%
-  Cross-view consistency: 50%
-  Feature confidence:     82%
-  Macro readiness:        86%
+  Cross-view consistency: 0%
+  Feature confidence:     78%
+  Macro readiness:        74%
 
 ERRORS:
-  [ERROR] Dimensional closure FAILED: D003 = D006 + D004 → 12 != 14 (allowed slack 0.014 inch).
+  [ERROR] Dimensional closure FAILED: D001 = D003 + D002 → 16.656 != 17.5 (allowed slack 0.0175 inch).
+  [ERROR] Dimensional closure FAILED: D006 = D004 + D005 → 12 != 14 (allowed slack 0.014 inch).
+  [ERROR] Pattern infeasible: equal-spacing note for F003 spans 47.436 inch (4 x 15.812 spacing) but the largest envelope dimension is 17.5 inch.
+  [ERROR] Pattern infeasible: equal-spacing note for F002 spans 21 inch (4 x 7 spacing) but the largest envelope dimension is 17.5 inch.
 
 WARNINGS:
-  [WARN]  extraction: Vertical dimension chain for inner holes does not close cleanly: D007 (6.250) + D008 (6.000) + D009 (6.500) = 18.750, which exceeds the corner-hole C-C height D004 (11.250). These dimensions likely reference different datums. D007 appears to be from the top corner hole down to the upper inner hole row; D008 is inner hole row spacing; D009 appears to be from the lower inner hole row down to the bottom corner hole. 6.250 + 6.000 = 12.250 > 11.250 C-C — inconsistency requires human resolution.
-  [WARN]  extraction: H001 counterbore diameter and depth not explicitly stated in the drawing — standard SHCS 1/2-inch counterbore values (cbore_diameter ~0.875 in, cbore_depth ~0.500 in) should be confirmed against applicable fastener standard.
-  [WARN]  extraction: Inner hole column spacing D010C reads 0.500 inch on drawing but the difference D010 - D010B = 7.000 - 6.781 = 0.219 inch. These are inconsistent; the 0.500 dimension may label a different feature or be misread. Human verification required.
-  [WARN]  extraction: Instance positions for H002 are approximate due to vertical dimension chain inconsistency noted above.
-  [WARN]  extraction: No title block data (part name, number, material, finish, revision, scale, drawing standard) found in the provided images.
-  [WARN]  extraction: Could not classify view for A001271E.png; skipped.
-  [WARN]  Feature F001 is driven by REF dimension D011 — reference dimensions are non-controlling; verify a driving dimension exists.
+  [WARN]  extraction: Counterbore diameter and depth for the .500 SHCS holes are not explicitly dimensioned in the drawing; estimated as 0.875 dia x 0.375 deep typical for a .500 socket head cap screw - resolution_required flagged on related dimension.
+  [WARN]  extraction: No fillets or chamfers are called out anywhere in the drawing (front, side, or notes) - none were added.
+  [WARN]  extraction: Right and bottom edge offsets for the corner c'bore holes (mirroring 0.844 and 0.750) are implied by symmetry but not explicitly dimensioned; treated as derived.
+  [WARN]  extraction: Material, finish, part number, revision, and scale are not given in the provided views.
+  [WARN]  extraction: The counterbore diameter dimension D015 is ambiguous - it is described as the SHCS nominal size, not a direct measured diameter of the drill or counterbore; flagged for resolution.
+  [WARN]  extraction: Side view is very compressed/thin, actual counterbore and thru-hole depths in the thickness direction were inferred from standard practice, not explicitly labeled with numeric depth for counterbore.
 
 OVERALL STATUS: BLOCKED — RESOLVE ISSUES FIRST
+
+OVERVIEW VERIFICATION
+=====================
+(checked 7 overview feature(s): 4 finding(s))
+1. [HIGH] Count mismatch for hole: the overview shows 4, the build contains 8 (.531 DIA drill thru holes, inner rectangular pattern (7.000 x 6.000 spacing approx), central inner bolt pattern).
+2. [LOW] The overview shows a feature the checker cannot auto-match: Short vertical hidden/construction lines near center-left of plate, unclear purpose (possibly edge of pocket or hidden feature) (left-center area of top view)
+3. [LOW] The overview shows a feature the checker cannot auto-match: Dashed rectangular outline in center of plate, possibly indicating a pocket, boss, or hidden feature boundary (center of plate)
+4. [LOW] The overview shows a feature the checker cannot auto-match: Small hidden-line detail visible in side/edge view near right end, possibly a slot or step (right end of edge view)
+
+HUMAN-SPECIFIED REQUIREMENTS COMPLIANCE
+=======================================
+(skipped: no requirements/notes file for this part)

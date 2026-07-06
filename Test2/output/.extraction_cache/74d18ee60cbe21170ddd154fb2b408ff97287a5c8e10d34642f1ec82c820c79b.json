@@ -1,6 +1,6 @@
 {
   "part_name": "Plate",
-  "part_number": "A001271E",
+  "part_number": "",
   "revision": "",
   "drawing_standard": "ASME",
   "units": "inch",
@@ -67,14 +67,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "overall width",
-      "resolved_value": 17.5,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D001 (17.5) read directly from the drawing callout \u2014 no action needed."
+      "notes": "overall width"
     },
     {
       "id": "D002",
@@ -94,14 +87,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "distance between left and right c'bore hole centers",
-      "resolved_value": 15.812,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D002 (15.812) read directly from the drawing callout \u2014 no action needed."
+      "notes": "distance between left and right c'bore hole centers"
     },
     {
       "id": "D003",
@@ -121,14 +107,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "left edge to left c'bore hole center (approx, at top-left)",
-      "resolved_value": 0.844,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D003 (0.844) read directly from the drawing callout \u2014 no action needed."
+      "notes": "left edge to left c'bore hole center (approx, at top-left)"
     },
     {
       "id": "D004",
@@ -148,14 +127,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "top edge to c'bore hole center",
-      "resolved_value": 0.75,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D004 (0.75) read directly from the drawing callout \u2014 no action needed."
+      "notes": "top edge to c'bore hole center"
     },
     {
       "id": "D005",
@@ -175,14 +147,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "vertical distance between top and bottom c'bore hole centers",
-      "resolved_value": 11.25,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D005 (11.25) read directly from the drawing callout \u2014 no action needed."
+      "notes": "vertical distance between top and bottom c'bore hole centers"
     },
     {
       "id": "D006",
@@ -202,14 +167,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "overall height",
-      "resolved_value": 14.0,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D006 (14) read directly from the drawing callout \u2014 no action needed."
+      "notes": "overall height"
     },
     {
       "id": "D007",
@@ -229,14 +187,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "top c'bore hole to inner hole row (upper)",
-      "resolved_value": 6.25,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D007 (6.25) read directly from the drawing callout \u2014 no action needed."
+      "notes": "top c'bore hole to inner hole row (upper)"
     },
     {
       "id": "D008",
@@ -256,14 +207,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "vertical spacing between inner hole rows",
-      "resolved_value": 6.0,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D008 (6) read directly from the drawing callout \u2014 no action needed."
+      "notes": "vertical spacing between inner hole rows"
     },
     {
       "id": "D009",
@@ -283,14 +227,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "bottom edge to lower inner hole row",
-      "resolved_value": 6.5,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D009 (6.5) read directly from the drawing callout \u2014 no action needed."
+      "notes": "bottom edge to lower inner hole row"
     },
     {
       "id": "D010",
@@ -310,14 +247,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "left edge to left inner hole column center",
-      "resolved_value": 6.781,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D010 (6.781) read directly from the drawing callout \u2014 no action needed."
+      "notes": "left edge to left inner hole column center"
     },
     {
       "id": "D011",
@@ -337,14 +267,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "small offset between adjacent inner holes, near lower-left inner hole",
-      "resolved_value": 0.5,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D011 (0.5) read directly from the drawing callout \u2014 no action needed."
+      "notes": "small offset between adjacent inner holes, near lower-left inner hole"
     },
     {
       "id": "D012",
@@ -364,14 +287,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "horizontal spacing between inner hole columns",
-      "resolved_value": 7.0,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D012 (7) read directly from the drawing callout \u2014 no action needed."
+      "notes": "horizontal spacing between inner hole columns"
     },
     {
       "id": "D013",
@@ -391,14 +307,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "overall plate thickness",
-      "resolved_value": 1.0,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D013 (1) read directly from the drawing callout \u2014 no action needed."
+      "notes": "overall plate thickness"
     },
     {
       "id": "D014",
@@ -418,14 +327,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ".531 DR. THRU (4) HLS",
-      "resolved_value": 0.531,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D014 (0.531) read directly from the drawing callout \u2014 no action needed."
+      "notes": ".531 DR. THRU (4) HLS"
     },
     {
       "id": "D015",
@@ -445,14 +347,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "DR. & C'BORE FOR .500 SOC. HD. SCR (4) HLS - drill diameter for socket head cap screw clearance, counterbore diameter not explicitly dimensioned",
-      "resolved_value": 0.5,
-      "assumption_made": false,
-      "assumption_basis": "explicit_callout",
-      "chain_ids_used": [],
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH",
-      "human_note": "D015 (0.5) read directly from the drawing callout \u2014 no action needed."
+      "notes": "DR. & C'BORE FOR .500 SOC. HD. SCR (4) HLS - drill diameter for socket head cap screw clearance, counterbore diameter not explicitly dimensioned"
     }
   ],
   "hole_callouts": [
@@ -563,12 +458,7 @@
       "position_known": false,
       "quantity": 1,
       "revolve_profile": [],
-      "mirror_plane": "",
-      "build_status": "build",
-      "position_resolved": true,
-      "position_assumption": "centered_on_parent",
-      "flag_tier": "LOW",
-      "human_note": "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks."
+      "mirror_plane": ""
     },
     {
       "id": "F002",
@@ -590,12 +480,7 @@
       "position_known": true,
       "quantity": 4,
       "revolve_profile": [],
-      "mirror_plane": "",
-      "build_status": "build",
-      "position_resolved": true,
-      "position_assumption": "",
-      "flag_tier": "HIGH",
-      "human_note": "F002 position read from the drawing \u2014 no action needed."
+      "mirror_plane": ""
     },
     {
       "id": "F003",
@@ -617,12 +502,7 @@
       "position_known": true,
       "quantity": 4,
       "revolve_profile": [],
-      "mirror_plane": "",
-      "build_status": "build",
-      "position_resolved": true,
-      "position_assumption": "",
-      "flag_tier": "HIGH",
-      "human_note": "F003 position read from the drawing \u2014 no action needed."
+      "mirror_plane": ""
     }
   ],
   "geometric_tolerances": [],
@@ -694,15 +574,5 @@
     "The counterbore diameter dimension D015 is ambiguous - it is described as the SHCS nominal size, not a direct measured diameter of the drill or counterbore; flagged for resolution.",
     "Side view is very compressed/thin, actual counterbore and thru-hole depths in the thickness direction were inferred from standard practice, not explicitly labeled with numeric depth for counterbore."
   ],
-  "confidence": 0.78,
-  "resolution": {
-    "total_dimensions": 15,
-    "assumptions_made": 0,
-    "critical_flags": 0,
-    "low_flags": 1,
-    "medium_flags": 0,
-    "high_flags": 17,
-    "rebuild_confidence": 0.75,
-    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
-  }
+  "confidence": 0.78
 }

@@ -5,7 +5,7 @@
   "coordinate_origin": "lower_left_corner_of_base_solid",
   "x_direction": "positive_right",
   "y_direction": "positive_up",
-  "confidence": 0.82,
+  "confidence": 0.78,
   "audit": {
     "ok": true,
     "error_count": 0,
@@ -13,12 +13,12 @@
     "findings": []
   },
   "resolution_summary": {
-    "total_dimensions": 13,
+    "total_dimensions": 15,
     "assumptions_made": 0,
     "critical_flags": 0,
     "low_flags": 1,
     "medium_flags": 0,
-    "high_flags": 15,
+    "high_flags": 17,
     "rebuild_confidence": 0.75,
     "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
   },
@@ -45,14 +45,16 @@
       "edge_selection_note": "",
       "assumption_made": false,
       "assumption_confidence": 1.0,
-      "flag_tier": "HIGH"
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
     },
     {
       "seq": 1,
-      "macro_file": "01_F001_Rectangular_base_plate_17_50_wide_x_14_0.vba",
+      "macro_file": "01_F001_Base_rectangular_plate_17_50_x_14_00_x_1.vba",
       "feature_id": "F001",
       "type": "extrude_boss",
-      "description": "Rectangular base plate 17.50 wide x 14.00 tall x 1.00 thick",
+      "description": "Base rectangular plate 17.50 x 14.00 x 1.00 thick",
       "status": "generated",
       "dimensions_drawing_units": {
         "length": 17.5,
@@ -84,78 +86,16 @@
       "edge_selection_note": "",
       "assumption_made": false,
       "assumption_confidence": 0.92,
-      "flag_tier": "LOW"
+      "flag_tier": "LOW",
+      "position_source": "",
+      "position_confidence": 0.0
     },
     {
       "seq": 2,
-      "macro_file": "02_F002_4x_drill_and_counterbore_holes_for_0_500.vba",
+      "macro_file": "02_F002_531_DR_THRU_4_holes_in_inner_rectangular.vba",
       "feature_id": "F002",
       "type": "hole",
-      "description": "4x drill and counterbore holes for 0.500 socket head cap screws at the four corners",
-      "status": "generated",
-      "dimensions_drawing_units": {
-        "diameter": 0.5,
-        "qty": 4.0
-      },
-      "notes": "Hole positions read from drawing.",
-      "dimensions_meters": {
-        "diameter": 0.0127,
-        "qty": 4.0
-      },
-      "positions_xy": [
-        [
-          0.844,
-          0.75
-        ],
-        [
-          16.656,
-          0.75
-        ],
-        [
-          0.844,
-          12.0
-        ],
-        [
-          16.656,
-          12.0
-        ]
-      ],
-      "positions_xy_meters": [
-        [
-          0.0214376,
-          0.01905
-        ],
-        [
-          0.4230624,
-          0.01905
-        ],
-        [
-          0.0214376,
-          0.3048
-        ],
-        [
-          0.4230624,
-          0.3048
-        ]
-      ],
-      "sketch_plane": "front",
-      "parent_feature_id": "",
-      "depth_type": "through_all",
-      "flags": [],
-      "requires_input": false,
-      "auto_select_strategy": "",
-      "expected_edge_count": 0,
-      "edge_selection_note": "",
-      "assumption_made": false,
-      "assumption_confidence": 0.92,
-      "flag_tier": "HIGH"
-    },
-    {
-      "seq": 3,
-      "macro_file": "03_F003_4x_0_531_drill_through_holes_at_inner_pa.vba",
-      "feature_id": "F003",
-      "type": "hole",
-      "description": "4x 0.531 drill through holes at inner pattern two columns two rows",
+      "description": ".531 DR. THRU (4) holes in inner rectangular pattern",
       "status": "generated",
       "dimensions_drawing_units": {
         "diameter": 0.531,
@@ -169,41 +109,41 @@
       "positions_xy": [
         [
           6.781,
-          7.75
+          6.5
         ],
         [
-          7.0,
-          7.75
+          13.781,
+          6.5
         ],
         [
           6.781,
-          1.75
+          12.5
         ],
         [
-          7.0,
-          1.75
+          13.781,
+          12.5
         ]
       ],
       "positions_xy_meters": [
         [
           0.1722374,
-          0.19685
+          0.1651
         ],
         [
-          0.1778,
-          0.19685
+          0.3500374,
+          0.1651
         ],
         [
           0.1722374,
-          0.04445
+          0.3175
         ],
         [
-          0.1778,
-          0.04445
+          0.3500374,
+          0.3175
         ]
       ],
       "sketch_plane": "front",
-      "parent_feature_id": "",
+      "parent_feature_id": "F001",
       "depth_type": "through_all",
       "flags": [],
       "requires_input": false,
@@ -212,7 +152,79 @@
       "edge_selection_note": "",
       "assumption_made": false,
       "assumption_confidence": 0.92,
-      "flag_tier": "HIGH"
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F003_Drill_counterbore_for_500_socket_head_ca.vba",
+      "feature_id": "F003",
+      "type": "hole",
+      "description": "Drill & counterbore for .500 socket head cap screws (4) corner holes",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.531,
+        "qty": 4.0,
+        "cbore_diameter": 0.875,
+        "cbore_depth": 0.375
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0134874,
+        "qty": 4.0,
+        "cbore_diameter": 0.022225,
+        "cbore_depth": 0.009525
+      },
+      "positions_xy": [
+        [
+          0.844,
+          0.75
+        ],
+        [
+          16.656,
+          0.75
+        ],
+        [
+          0.844,
+          12.0
+        ],
+        [
+          16.656,
+          12.0
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0214376,
+          0.01905
+        ],
+        [
+          0.4230624,
+          0.01905
+        ],
+        [
+          0.0214376,
+          0.3048
+        ],
+        [
+          0.4230624,
+          0.3048
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0
     },
     {
       "seq": 999,
@@ -236,7 +248,35 @@
       "edge_selection_note": "",
       "assumption_made": false,
       "assumption_confidence": 1.0,
-      "flag_tier": "HIGH"
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1001,
+      "macro_file": "ZZZ_export_stl.vba",
+      "feature_id": "-",
+      "type": "export",
+      "description": "Export the part as an STL beside the .sldprt (same base name)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
     },
     {
       "seq": 1000,
@@ -260,9 +300,66 @@
       "edge_selection_note": "",
       "assumption_made": false,
       "assumption_confidence": 1.0,
-      "flag_tier": "HIGH"
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
     }
   ],
   "skipped_prohibited": [],
-  "needs_review": []
+  "needs_review": [],
+  "engineering_review": [
+    {
+      "severity": "HIGH",
+      "source": "feature",
+      "id": "F001",
+      "what": "POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location \u2014 verify placement in SolidWorks.",
+      "decision": "centered_on_parent",
+      "why": "position not dimensioned on the drawing",
+      "affects": "feature F001"
+    },
+    {
+      "severity": "HIGH",
+      "source": "overview",
+      "id": "OV002",
+      "what": "Count mismatch for hole: the overview shows 4, the build contains 8 (.531 DIA drill thru holes, inner rectangular pattern (7.000 x 6.000 spacing approx), central inner bolt pattern).",
+      "decision": "build kept its extracted count of 8",
+      "why": "overview count disagrees with the consolidated extraction",
+      "affects": "hole count"
+    },
+    {
+      "severity": "LOW",
+      "source": "overview",
+      "id": "OV005",
+      "what": "The overview shows a feature the checker cannot auto-match: Short vertical hidden/construction lines near center-left of plate, unclear purpose (possibly edge of pocket or hidden feature) (left-center area of top view)",
+      "decision": "not automatically verified against the build",
+      "why": "feature kind has no direct counterpart in the build inventory",
+      "affects": "manual visual comparison recommended"
+    },
+    {
+      "severity": "LOW",
+      "source": "overview",
+      "id": "OV006",
+      "what": "The overview shows a feature the checker cannot auto-match: Dashed rectangular outline in center of plate, possibly indicating a pocket, boss, or hidden feature boundary (center of plate)",
+      "decision": "not automatically verified against the build",
+      "why": "feature kind has no direct counterpart in the build inventory",
+      "affects": "manual visual comparison recommended"
+    },
+    {
+      "severity": "LOW",
+      "source": "overview",
+      "id": "OV007",
+      "what": "The overview shows a feature the checker cannot auto-match: Small hidden-line detail visible in side/edge view near right end, possibly a slot or step (right end of edge view)",
+      "decision": "not automatically verified against the build",
+      "why": "feature kind has no direct counterpart in the build inventory",
+      "affects": "manual visual comparison recommended"
+    }
+  ],
+  "overview_verification": {
+    "note": "checked 7 overview feature(s): 4 finding(s)",
+    "n_findings": 4
+  },
+  "requirements_compliance": {
+    "note": "skipped: no requirements/notes file for this part",
+    "requirements": []
+  }
 }

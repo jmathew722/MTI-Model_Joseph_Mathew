@@ -297,6 +297,9 @@ def _run_batch(args) -> int:
         sw_app=sw_app, template_path=template,
         resolve=not getattr(args, "no_resolve", False),
         strict_gate=getattr(args, "strict_gate", False),
+        requirements_file=Path(args.requirements) if getattr(args, "requirements", None) else None,
+        skip_overview_check=getattr(args, "skip_overview_check", False),
+        skip_requirements_check=getattr(args, "skip_requirements_check", False),
     )
     if not rows:
         console.print(f"[yellow]No drawings or *_extraction.json files found in[/yellow] {directory}")
@@ -305,7 +308,7 @@ def _run_batch(args) -> int:
     table = Table(title=f"Batch summary ({len(rows)} inputs)")
     for col in ("Part", "Status", "Readiness", "Macros", "Review", "Skipped", "Detail"):
         table.add_column(col, overflow="fold")
-    status_color = {"READY": "green", "BLOCKED": "red", "ERROR": "yellow"}
+    status_color = {"READY": "green", "NOT READY": "yellow", "BLOCKED": "red", "ERROR": "yellow"}
     for r in rows:
         color = status_color.get(r.status, "white")
         table.add_row(
@@ -412,11 +415,30 @@ def _run_views_folder(args) -> int:
         if vsrc is not None:
             data = _augment_holes(data, vsrc, args.page)
         console.print("[2.5/2] resolving ambiguities + verifying + per-plane macros + .sldprt...")
+        # Final-check inputs: the part's overview/full drawing (re-examined after
+        # the build) and the operator's must-meet notes file, if present.
+        from pipeline.requirements_check import find_notes_file
+        from pipeline.view_ingest import OVERVIEW_VIEW
+
+        overview_img = part.views.get(OVERVIEW_VIEW)
+        notes_file = None
+        if getattr(args, "requirements", None):
+            notes_file = Path(args.requirements)
+        else:
+            try:
+                part_folder = Path(next(iter(part.views.values()))).parent
+                notes_file = find_notes_file(part_folder, part.name)
+            except StopIteration:
+                pass
         try:
             rows.append(process_drawing_data(data, part.name, output_dir,
                                              sw_app=sw_app, template_path=template,
                                              resolve=not getattr(args, "no_resolve", False),
-                                             strict_gate=getattr(args, "strict_gate", False)))
+                                             strict_gate=getattr(args, "strict_gate", False),
+                                             overview_image=overview_img,
+                                             requirements_file=notes_file,
+                                             skip_overview_check=getattr(args, "skip_overview_check", False),
+                                             skip_requirements_check=getattr(args, "skip_requirements_check", False)))
         except Exception as e:  # one bad part must never sink the rest of the batch
             console.print(f"  [red]Processing failed:[/red] {type(e).__name__}: {e}")
             from pipeline.batch import BatchRow
@@ -427,7 +449,7 @@ def _run_views_folder(args) -> int:
     table = Table(title=f"Multi-view summary ({len(rows)} part(s))")
     for col in ("Part", "Status", "Readiness", "Macros", "Review", "Skipped", "Detail"):
         table.add_column(col, overflow="fold")
-    status_color = {"READY": "green", "BLOCKED": "red", "ERROR": "yellow"}
+    status_color = {"READY": "green", "NOT READY": "yellow", "BLOCKED": "red", "ERROR": "yellow"}
     for r in rows:
         color = status_color.get(r.status, "white")
         table.add_row(r.part, f"[{color}]{r.status}[/{color}]", f"{r.macro_readiness:.0%}",
@@ -509,6 +531,26 @@ def main() -> int:
         help="Restore the v2 hard gate: a BLOCKED verification stops the run with no "
         "macros. By default (resolver on) verification is advisory and the build "
         "proceeds with annotated assumptions.",
+    )
+    parser.add_argument(
+        "--requirements",
+        help="Human-authored must-meet notes file (one requirement per line). "
+        "Each line is tracked, graded (met/partial/unmet/not_applicable) against "
+        "the build, and reported; an unmet requirement gates READY. For "
+        "--views-folder runs a notes.txt / requirements.txt / <part>_notes.txt "
+        "inside the part folder is discovered automatically.",
+    )
+    parser.add_argument(
+        "--skip-overview-check",
+        action="store_true",
+        help="Skip the final overview cross-check (the pass that re-examines the "
+        "part's overview/full drawing and flags features missing from the build). "
+        "The check auto-skips with a note when no overview image exists.",
+    )
+    parser.add_argument(
+        "--skip-requirements-check",
+        action="store_true",
+        help="Skip grading the human-authored requirements notes against the build.",
     )
     parser.add_argument(
         "--no-sldprt",

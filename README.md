@@ -24,6 +24,12 @@ drawing(s) → image prep → Sonnet 5 extract → Stage 2.5 resolve → verify
 - **Stage 2.5 (chief-engineer pass):** every ambiguous / under-dimensioned value
   is resolved to a defensible number and flagged — the build never blocks on
   ambiguity.
+- **Final checks (after the build):** the part's **overview drawing is
+  re-examined** and diffed against the build (a feature clearly shown but
+  missing is CRITICAL and gates READY), and any **operator must-meet notes**
+  are graded met/partial/unmet/not_applicable (an unmet line gates READY).
+  The model and macros are still produced — only the status changes; override
+  with `--skip-overview-check` / `--skip-requirements-check`.
 - **`<Part>_engineering_review.txt`:** one ranked list per part of every
   assumption and skipped/manual feature, CRITICAL first, in plain language.
 - **`.sldprt` is built by default** when SolidWorks 2024 is available (Windows).
@@ -74,9 +80,11 @@ Three tabs, one flow, no folder editing:
 2. **Tab 2 · Part Setup & 3D Model — orient, name, save.** Pull the queued
    crops (or upload), give each image an orientation (Front / Back / Top /
    Bottom / Left / Right / Isometric; ⟳ rotates sideways scans). Front + one
-   more orthographic view are required to save. The left box shows the input
-   document with a format badge and sync indicator; the right box is the
-   interactive 3D STL viewer.
+   more orthographic view are required to save. Optionally type **must-meet
+   notes** (one requirement per line) — each line is graded against the built
+   part and an unmet line blocks READY. The left box shows the input document
+   with a format badge and sync indicator; the middle panel shows the part's
+   **overview drawing**; the right box is the interactive 3D STL viewer.
 3. **Tab 3 · Pipeline & Results — run.** Select the part, **▶ Pull & Run
    Pipeline**. Progress shows per stage with a live console and Cancel;
    results fill the sub-tabs live: extraction, build plan, verification,

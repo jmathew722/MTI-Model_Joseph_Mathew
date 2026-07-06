@@ -24,8 +24,11 @@ the numbered macros to isolate the step.
 6. `NN_fillets_chamfers.vba` (if present) is interactive: select the edge(s) in
    the graphics area first, then run the macro; it applies the exact radius /
    chamfer values from the drawing.
-7. Finish with `ZZ_final_verify.vba` — rebuild, mass properties, bounding-box
+7. Run `ZZ_final_verify.vba` — rebuild, mass properties, bounding-box
    check against the drawing envelope, save.
+8. Finish with `ZZZ_export_stl.vba` — exports `<part>.stl` next to the saved
+   `.sldprt` (same base name) so the web UI's 3D viewer can load it. (RUN_ALL
+   does this automatically as its last step.)
 
 Notes
 - Macros marked `TODO: VERIFY API CALL` describe a step to do manually
