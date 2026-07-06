@@ -1,9 +1,12 @@
 # Web UI deps only — the pipeline's own deps come from ../requirements.txt
-fastapi>=0.110
-uvicorn[standard]>=0.27
-python-multipart>=0.0.9
-# DWG/DXF intake: DXF files are rendered directly; DWG additionally requires the
-# free ODA File Converter (https://www.opendesign.com/guestfiles/oda_file_converter)
-# installed on this machine — the server finds it automatically.
-ezdxf>=1.3
-matplotlib>=3.8
+# PINNED to the exact versions the shipped UI was verified with, so every
+# clone gets the same run format and appearance. All frontend assets
+# (Three.js, pdf.js, the DrawingCrop photo app) are vendored in this repo —
+# nothing is fetched from a CDN at runtime.
+fastapi==0.139.0
+uvicorn[standard]==0.49.0
+python-multipart==0.0.32
+# DWG/DXF intake: DXF renders directly; DWG converts via the built-in engine
+# chain (ezdwg -> SolidWorks translator -> ODA only if already installed).
+ezdxf==1.4.4
+matplotlib==3.11.0

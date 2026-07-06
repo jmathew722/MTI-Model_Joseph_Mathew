@@ -177,13 +177,21 @@ or external uploads at runtime — Three.js and pdf.js are vendored locally.
 ### Launch
 
 ```bash
-# macOS/Linux (or a ready venv):
+# macOS/Linux:
 cd webapp && ./run.sh
 
-# Windows:
+# Windows (or double-click webapp\run.bat):
 cd webapp
+.\run.ps1
+
+# Windows, venv already prepared:
 .venv\Scripts\python.exe -m uvicorn app:app --app-dir . --host 127.0.0.1 --port 8092
 ```
+
+Both launchers create `.venv` on first run and install the **pinned**
+dependency set (`requirements.txt` + `requirements-ui.txt` use exact `==`
+versions), and every frontend asset is vendored in the repo — so a fresh clone
+reproduces this exact UI, byte for byte, on any machine.
 
 Then open <http://127.0.0.1:8092/>. Live extraction needs `ANTHROPIC_API_KEY` in
 `../.env`; without it, use **▶ Run demo**, which runs the pipeline from a saved

@@ -67,9 +67,15 @@ python setup.py                      # checks Python, installs deps, creates .en
 
 ```powershell
 cd 2D-3D-CAD-Test-Generation\webapp
-.venv\Scripts\python.exe -m uvicorn app:app --host 127.0.0.1 --port 8092
-# then open http://127.0.0.1:8092/
+.\run.ps1        # Windows — or double-click run.bat
+# macOS/Linux:  ./run.sh
+# -> http://127.0.0.1:8092/  (first run creates .venv + installs pinned deps)
 ```
+
+The UI is **fixed and fully reproducible from a clone**: every frontend asset
+(Three.js, pdf.js, the DrawingCrop photo app) is vendored in the repo — nothing
+loads from a CDN — and all Python dependencies are pinned to the exact
+verified versions, so every machine gets the same appearance and run format.
 
 Three tabs, one flow, no folder editing:
 
