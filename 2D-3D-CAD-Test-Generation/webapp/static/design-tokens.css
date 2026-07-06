@@ -2,119 +2,153 @@
    MTI 2D→3D Pipeline — Design tokens & shared components
    Single source of truth for BOTH documents (index.html and photoapp/).
    Full documentation: webapp/DESIGN.md
-   Direction: graphite / copper / slate-teal — machined engineering tool.
-   Depth strategy: borders only (no drop shadows). Spacing grid: 4px.
-   Component metrics translated from shadcn new-york-v4
-   (button / badge / tabs / card / table / progress).
+
+   Direction: BLUEPRINT ROOM — the digital drawing office. The product turns
+   2D drawings into parts, so the interface is built from the drawing's own
+   world: deep Prussian-navy surfaces (a cyanotype at night), cool drafting-
+   white ink, ONE blueprint-cyan accent (the line color of a print), hairline
+   rules, inspection-stamp semantics, and mono numerals everywhere a value is
+   a measurement.
+
+   Depth strategy: borders only (hairline, cool). Spacing grid: 4px.
+   Radius: 2 / 4 / 6 px — crisp, technical. No drop shadows.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Surfaces (graphite, darkest → lightest) ─────────────────────────── */
-  --well:      #101216;  /* deepest: canvas wells, console, viewport */
-  --bg:        #14161A;  /* page background */
-  --bg-raised: #1A1D22;  /* toolbars, strips, tab rails */
-  --surface:   #22262C;  /* cards, panels, popovers */
-  --surface-2: #282D34;  /* hover on cards, active list rows */
-  --input-bg:  #121418;  /* inputs sit BELOW their surroundings (inset) */
+  /* ── Surfaces (Prussian navy, darkest → lightest) ────────────────────── */
+  --well:      #0A0F16;  /* deepest: viewport wells, console, canvas */
+  --bg:        #0D131C;  /* page background */
+  --bg-raised: #111927;  /* toolbars, strips, tab rails, caps */
+  --surface:   #16202F;  /* cards, panels, chips */
+  --surface-2: #1B2738;  /* hover on cards, active rows */
+  --input-bg:  #090E15;  /* inputs sit BELOW their surroundings (inset) */
 
-  /* ── Ink (warm off-white, 4 tiers) ───────────────────────────────────── */
-  --ink:       #E8E6E1;  /* primary */
-  --ink-2:     #B9B5AD;  /* secondary */
-  --ink-3:     #8A867E;  /* muted / labels */
-  --ink-4:     #5F5B54;  /* faint / disabled */
+  /* ── Ink (cool drafting white, 4 tiers) ──────────────────────────────── */
+  --ink:       #E7EDF5;  /* primary */
+  --ink-2:     #AEBACB;  /* secondary */
+  --ink-3:     #7D8A9E;  /* muted / labels */
+  --ink-4:     #4E5A6C;  /* faint / disabled */
 
-  /* ── Borders (warm-white alpha; quiet by default) ────────────────────── */
-  --line:      rgba(232,230,225,0.08);
-  --line-soft: rgba(232,230,225,0.05);
-  --line-strong: rgba(232,230,225,0.16);
-  --ring:      rgba(217,139,63,0.45);   /* focus ring — copper */
+  /* ── Rules (cool alpha hairlines; quiet by default) ──────────────────── */
+  --line:        rgba(185,212,240,0.10);
+  --line-soft:   rgba(185,212,240,0.06);
+  --line-strong: rgba(185,212,240,0.20);
+  --ring:        rgba(95,191,228,0.50);   /* focus ring — blueprint cyan */
 
-  /* ── Copper — the ONE interactive accent ─────────────────────────────── */
-  --copper:        #C9762A;
-  --copper-bright: #D98B3F;   /* hover / emphasis */
-  --copper-text:   #E8A45C;   /* copper as text on dark surfaces */
-  --copper-dim:    rgba(217,139,63,0.14);  /* tints, selected fills */
-  --on-copper:     #1A0F04;   /* text on copper fills */
+  /* ── Blueprint cyan — the ONE interactive accent (the print's line) ──── */
+  --blueprint:        #3FA9D4;
+  --blueprint-bright: #5FBFE4;   /* hover / emphasis */
+  --blueprint-text:   #7ECFEE;   /* accent as text on dark surfaces */
+  --blueprint-dim:    rgba(95,191,228,0.12);  /* tints, selected fills */
+  --on-blueprint:     #04191F;   /* text on cyan fills */
 
-  /* ── Slate-teal — secondary, informational ───────────────────────────── */
-  --teal:      #4A7A78;
-  --teal-text: #7FB0AD;       /* teal as text on dark */
-  --teal-dim:  rgba(74,122,120,0.16);
+  /* ── Steel — secondary, informational (anodized fixture gray-blue) ───── */
+  --steel:      #5C7690;
+  --steel-text: #9FB6CC;
+  --steel-dim:  rgba(122,157,190,0.14);
 
-  /* ── Status ──────────────────────────────────────────────────────────── */
-  --ok:        #58A66C;
-  --ok-text:   #7CC48F;
+  /* ── Status (inspection: accept / reject / hold) ─────────────────────── */
+  --ok:        #3EAF7C;
+  --ok-text:   #6FD0A2;
   --err:       #E5484D;
-  --err-text:  #F2777B;
-  --warn:      #E2A33C;
+  --err-text:  #F3797E;
+  --warn:      #E3A93C;
 
-  /* ── Severity ladder (functional — flags, never decoration) ─────────── */
-  --sev-critical: #E5484D;  --on-sev-critical: #2A0507;
-  --sev-high:     #E29A3C;  --on-sev-high:     #2A1703;
-  --sev-medium:   #D4C14A;  --on-sev-medium:   #262104;
-  --sev-low:      #8FA0B2;  --on-sev-low:      #10151B;
+  /* ── Severity ladder (functional — flags, never decoration) ──────────── */
+  --sev-critical: #F0545C;  --on-sev-critical: #2A0507;
+  --sev-high:     #E3A13C;  --on-sev-high:     #2A1703;
+  --sev-medium:   #D2C355;  --on-sev-medium:   #242006;
+  --sev-low:      #8DA4BE;  --on-sev-low:      #0F151D;
+
+  /* ── Legacy aliases (photoapp + older recipes bind to these) ─────────── */
+  --copper:        var(--blueprint);
+  --copper-bright: var(--blueprint-bright);
+  --copper-text:   var(--blueprint-text);
+  --copper-dim:    var(--blueprint-dim);
+  --on-copper:     var(--on-blueprint);
+  --teal:          var(--steel);
+  --teal-text:     var(--steel-text);
+  --teal-dim:      var(--steel-dim);
 
   /* ── Typography ──────────────────────────────────────────────────────── */
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+  --sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont,
+          Roboto, "Helvetica Neue", sans-serif;
+  --mono: "Cascadia Mono", "Cascadia Code", ui-monospace, Consolas, "SF Mono",
+          Menlo, monospace;
   --fs-caption: 11px;   /* uppercase labels, chips */
   --fs-small:   12px;   /* secondary text, dense tables */
   --fs-body:    13px;   /* dense body (tool default) */
   --fs-control: 14px;   /* buttons, inputs, tab labels */
   --fs-h2:      16px;   /* panel/app titles */
   --fs-stat:    20px;   /* stat values */
-  --fs-display: 28px;   /* hero numbers, READY banner */
+  --fs-display: 30px;   /* hero numbers, READY stamp */
 
   /* ── Spacing (4px grid) ──────────────────────────────────────────────── */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
 
-  /* ── Radius scale ────────────────────────────────────────────────────── */
-  --r-sm: 4px;   /* chips, badges */
-  --r-md: 6px;   /* buttons, inputs (shadcn rounded-md) */
-  --r-lg: 8px;   /* cards, panels */
+  /* ── Radius scale (crisp, technical) ─────────────────────────────────── */
+  --r-sm: 2px;   /* chips, stamps */
+  --r-md: 4px;   /* buttons, inputs */
+  --r-lg: 6px;   /* cards, panels */
+
+  /* ── Signature: drafting centerline (long dash · gap · short dash) ───── */
+  --centerline-v: repeating-linear-gradient(180deg,
+      var(--line-strong) 0 16px, transparent 16px 21px,
+      var(--line-strong) 21px 25px, transparent 25px 30px);
+  --centerline-h: repeating-linear-gradient(90deg,
+      var(--line-strong) 0 16px, transparent 16px 21px,
+      var(--line-strong) 21px 25px, transparent 25px 30px);
+  /* Signature: ruler ticks (drafting scale under the title block) */
+  --ruler: repeating-linear-gradient(90deg,
+      rgba(185,212,240,0.22) 0 1px, transparent 1px 8px);
 }
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
 html { -webkit-font-smoothing: antialiased; }
-::selection { background: var(--copper-dim); }
+::selection { background: var(--blueprint-dim); }
 
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: rgba(232,230,225,0.12); border-radius: 5px;
+*::-webkit-scrollbar-thumb { background: rgba(185,212,240,0.14); border-radius: 5px;
                              border: 2px solid transparent; background-clip: content-box; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(232,230,225,0.22);
+*::-webkit-scrollbar-thumb:hover { background: rgba(185,212,240,0.26);
                                    border: 2px solid transparent; background-clip: content-box; }
-* { scrollbar-width: thin; scrollbar-color: rgba(232,230,225,0.16) transparent; }
+* { scrollbar-width: thin; scrollbar-color: rgba(185,212,240,0.18) transparent; }
 
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important;
+                           animation-duration: 0.01ms !important; }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    Shared components — one visual language for both documents.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Button (shadcn: h-9 · px-4 · rounded-md · text-sm · font-medium) ──── */
+/* ── Button ────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
   height: 36px; padding: 0 var(--sp-4); border-radius: var(--r-md);
-  font: 500 var(--fs-control)/1 var(--sans); letter-spacing: 0.01em;
+  font: 600 var(--fs-control)/1 var(--sans); letter-spacing: 0.01em;
   border: 1px solid transparent; cursor: pointer; white-space: nowrap;
-  background: var(--copper); color: var(--on-copper);
+  background: var(--blueprint); color: var(--on-blueprint);
   transition: background .12s, border-color .12s, color .12s, transform .1s;
 }
-.btn:hover:not(:disabled) { background: var(--copper-bright); }
+.btn:hover:not(:disabled) { background: var(--blueprint-bright); }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.secondary {
-  background: var(--surface); color: var(--ink); border-color: var(--line-strong);
+  background: var(--surface); color: var(--ink); border-color: var(--line-strong); font-weight: 500;
 }
-.btn.secondary:hover:not(:disabled) { background: var(--surface-2); border-color: rgba(232,230,225,0.24); }
+.btn.secondary:hover:not(:disabled) { background: var(--surface-2); border-color: rgba(185,212,240,0.3); }
 .btn.ghost { background: transparent; color: var(--ink-2); border-color: transparent; }
 .btn.ghost:hover:not(:disabled) { background: var(--surface); color: var(--ink); }
 .btn.danger { background: transparent; color: var(--err-text); border-color: rgba(229,72,77,0.4); }
 .btn.danger:hover:not(:disabled) { background: rgba(229,72,77,0.12); }
-.btn.running { background: var(--surface); color: var(--teal-text); border-color: var(--line-strong); }
+.btn.running { background: var(--surface); color: var(--blueprint-text); border-color: var(--line-strong); }
 .btn.sm { height: 28px; padding: 0 var(--sp-3); font-size: var(--fs-small); }
-.btn.xl { height: 44px; padding: 0 var(--sp-5); font-size: 15px; font-weight: 600; }
+.btn.xl { height: 46px; padding: 0 var(--sp-5); font-size: 15px; font-weight: 700; letter-spacing: .02em; }
 
 /* ── Icon button (square, quiet) ───────────────────────────────────────── */
 .ibtn {
@@ -126,7 +160,7 @@ html { -webkit-font-smoothing: antialiased; }
 }
 .ibtn:hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface-2); }
 
-/* ── Badge (shadcn: rounded-md · border · px-2 py-0.5 · text-xs · 500) ─── */
+/* ── Badge (quiet bordered tag) ────────────────────────────────────────── */
 .badge-c {
   display: inline-flex; align-items: center; gap: var(--sp-1); width: fit-content;
   padding: 2px var(--sp-2); border-radius: var(--r-sm);
@@ -134,24 +168,24 @@ html { -webkit-font-smoothing: antialiased; }
   border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
   white-space: nowrap;
 }
-.badge-c.copper { background: var(--copper-dim); color: var(--copper-text); border-color: rgba(217,139,63,0.35); }
-.badge-c.teal   { background: var(--teal-dim); color: var(--teal-text); border-color: rgba(74,122,120,0.4); }
-.badge-c.ok     { background: rgba(88,166,108,0.14); color: var(--ok-text); border-color: rgba(88,166,108,0.35); }
+.badge-c.copper, .badge-c.blueprint { background: var(--blueprint-dim); color: var(--blueprint-text); border-color: rgba(95,191,228,0.35); }
+.badge-c.teal, .badge-c.steel { background: var(--steel-dim); color: var(--steel-text); border-color: rgba(122,157,190,0.4); }
+.badge-c.ok     { background: rgba(62,175,124,0.13); color: var(--ok-text); border-color: rgba(62,175,124,0.35); }
 .badge-c.err    { background: rgba(229,72,77,0.12); color: var(--err-text); border-color: rgba(229,72,77,0.35); }
-.badge-c.warn   { background: rgba(226,163,60,0.12); color: var(--warn); border-color: rgba(226,163,60,0.35); }
+.badge-c.warn   { background: rgba(227,169,60,0.12); color: var(--warn); border-color: rgba(227,169,60,0.35); }
 .badge-c.mono   { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
-/* Severity badges — filled, unambiguous, identical everywhere */
+/* Severity stamps — bordered like an inspection stamp, identical everywhere */
 .badge-sev {
   display: inline-flex; align-items: center; width: fit-content;
   padding: 1px var(--sp-2); border-radius: var(--r-sm);
-  font: 700 10px/16px var(--sans); letter-spacing: 0.07em; text-transform: uppercase;
-  border: none; white-space: nowrap;
+  font: 700 10px/16px var(--sans); letter-spacing: 0.09em; text-transform: uppercase;
+  background: transparent; border: 1px solid; white-space: nowrap;
 }
-.badge-sev.critical { background: var(--sev-critical); color: var(--on-sev-critical); }
-.badge-sev.high     { background: var(--sev-high);     color: var(--on-sev-high); }
-.badge-sev.medium   { background: var(--sev-medium);   color: var(--on-sev-medium); }
-.badge-sev.low      { background: var(--sev-low);      color: var(--on-sev-low); }
+.badge-sev.critical { color: var(--sev-critical); border-color: var(--sev-critical); background: rgba(240,84,92,0.10); }
+.badge-sev.high     { color: var(--sev-high);     border-color: var(--sev-high);     background: rgba(227,161,60,0.10); }
+.badge-sev.medium   { color: var(--sev-medium);   border-color: var(--sev-medium);   background: rgba(210,195,85,0.08); }
+.badge-sev.low      { color: var(--sev-low);      border-color: var(--sev-low);      background: rgba(141,164,190,0.08); }
 
 /* ── Inputs (inset: darker than surroundings) ──────────────────────────── */
 .input-c, textarea.input-c, select.input-c {
@@ -161,7 +195,7 @@ html { -webkit-font-smoothing: antialiased; }
   transition: border-color .12s;
 }
 .input-c::placeholder { color: var(--ink-4); }
-.input-c:focus { outline: none; border-color: var(--copper); }
+.input-c:focus { outline: none; border-color: var(--blueprint); }
 .input-c.mono { font-family: var(--mono); }
 
 /* ── Tabs — underline rail (one pattern for top tabs and sub-tabs) ─────── */
@@ -173,7 +207,7 @@ html { -webkit-font-smoothing: antialiased; }
   transition: color .12s, border-color .12s;
 }
 .tab-c:hover { color: var(--ink-2); }
-.tab-c.active { color: var(--ink); border-bottom-color: var(--copper); }
+.tab-c.active { color: var(--ink); border-bottom-color: var(--blueprint); }
 .tab-c.sm { padding: 10px var(--sp-3); font-size: var(--fs-small); }
 
 /* ── Panel caption (uppercase micro-label used on every panel) ─────────── */
@@ -182,15 +216,15 @@ html { -webkit-font-smoothing: antialiased; }
   text-transform: uppercase; color: var(--ink-3);
 }
 
-/* ── Progress (shadcn: slim track + primary fill) ──────────────────────── */
+/* ── Progress (slim track + accent fill) ───────────────────────────────── */
 .progress-c { height: 6px; border-radius: 3px; background: var(--well);
               border: 1px solid var(--line-soft); overflow: hidden; }
-.progress-c > .fill { height: 100%; width: 0%; background: var(--copper);
+.progress-c > .fill { height: 100%; width: 0%; background: var(--blueprint);
                       transition: width .35s ease; }
 
 /* ── Console / build log ───────────────────────────────────────────────── */
 .console-c {
-  background: var(--well); color: #C9CDC4;
+  background: var(--well); color: #C2CCDA;
   font: 12px/1.6 var(--mono); white-space: pre-wrap;
 }
 
@@ -207,4 +241,4 @@ html { -webkit-font-smoothing: antialiased; }
   transition: background .12s, color .12s;
 }
 .seg-c > button:hover { color: var(--ink); }
-.seg-c > button.on { background: var(--copper); color: var(--on-copper); }
+.seg-c > button.on { background: var(--blueprint); color: var(--on-blueprint); }

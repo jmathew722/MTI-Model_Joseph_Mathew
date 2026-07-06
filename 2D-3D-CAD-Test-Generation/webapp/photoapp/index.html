@@ -389,7 +389,7 @@ function draw() {
   const cw=canvas.clientWidth, ch=canvas.clientHeight;
   canvas.width=cw*dpr; canvas.height=ch*dpr;
   gctx.scale(dpr, dpr);
-  gctx.fillStyle='#101216'; gctx.fillRect(0,0,cw,ch);
+  gctx.fillStyle='#0A0F16'; gctx.fillRect(0,0,cw,ch);
 
   if (!img) {
     drawGrid(cw,ch);
@@ -433,10 +433,10 @@ function drawSel(cw,ch) {
   gctx.fillRect(ox,dt,Math.max(0,dl-ox),dh);
   gctx.fillRect(dr,dt,Math.max(0,ox+iw-dr),dh);
 
-  gctx.strokeStyle='#D98B3F'; gctx.lineWidth=1.5; gctx.setLineDash([6,4]);
+  gctx.strokeStyle='#5FBFE4'; gctx.lineWidth=1.5; gctx.setLineDash([6,4]);
   gctx.strokeRect(dl+.5,dt+.5,dw,dh); gctx.setLineDash([]);
 
-  gctx.fillStyle='#D98B3F';
+  gctx.fillStyle='#5FBFE4';
   [[dl,dt],[dr,dt],[dl,db],[dr,db]].forEach(([hx,hy]) => {
     gctx.fillRect(hx-HANDLE_H, hy-HANDLE_H, HANDLE, HANDLE);
   });

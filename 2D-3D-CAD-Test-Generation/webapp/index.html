@@ -7,7 +7,9 @@
 <link rel="stylesheet" href="/static/design-tokens.css" />
 <style>
   /* ── Page styles — every value binds to /static/design-tokens.css ─────────
-     (palette, type scale, spacing grid, component recipes: see webapp/DESIGN.md) */
+     Direction: BLUEPRINT ROOM (see webapp/DESIGN.md). Signature elements:
+     title-block header · sheet tabs · centerline dividers · OP-numbered
+     stage chips · inspection-stamp severities. */
   * { box-sizing:border-box; }
   html,body { height:100%; }
   body { margin:0; font:var(--fs-body)/1.5 var(--sans); background:var(--bg); color:var(--ink);
@@ -19,28 +21,50 @@
   .hint { color:var(--ink-3); font-size:var(--fs-small); font-weight:400; }
   .grow { flex:1; }
 
-  header { display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-5); flex:0 0 auto;
-           background:var(--bg-raised); border-bottom:1px solid var(--line); }
-  .logo { width:32px; height:32px; border-radius:var(--r-md); flex:0 0 auto;
-          border:1px solid rgba(217,139,63,.45); background:var(--copper-dim); color:var(--copper-text);
-          display:grid; place-items:center; font-size:15px; }
-  header h1 { font-size:var(--fs-h2); font-weight:600; letter-spacing:-.01em; margin:0; }
-  header .sub { color:var(--ink-3); font-size:var(--fs-small); }
+  /* ── Header = the drawing's TITLE BLOCK: brand left, bordered data cells
+        right, a drafting-ruler tick strip along the bottom edge ──────────── */
+  header { display:flex; align-items:stretch; gap:var(--sp-4); padding:0 0 0 var(--sp-5);
+           flex:0 0 auto; background:var(--bg-raised); border-bottom:1px solid var(--line-strong);
+           position:relative; }
+  header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:5px;
+                  background:var(--ruler); background-size:auto 100%; opacity:.5;
+                  pointer-events:none; }
+  .brand { display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) 0; }
+  .logo { width:34px; height:34px; border-radius:var(--r-sm); flex:0 0 auto;
+          border:1px solid rgba(95,191,228,.5); background:var(--blueprint-dim);
+          color:var(--blueprint-text); display:grid; place-items:center;
+          font:600 15px/1 var(--mono); }
+  header h1 { font-size:var(--fs-h2); font-weight:650; letter-spacing:-.01em; margin:0; }
+  header h1 .thin { font-weight:400; color:var(--ink-2); }
+  header .sub { color:var(--ink-3); font-size:var(--fs-small); margin-top:1px; }
   header .spacer { flex:1; }
-  .pill { display:inline-flex; align-items:center; gap:var(--sp-2); padding:4px var(--sp-3);
-          border-radius:999px; border:1px solid var(--line); background:var(--surface);
+  .titleblock { display:flex; align-items:stretch; border-left:1px solid var(--line); }
+  .tb-cell { display:flex; flex-direction:column; justify-content:center; gap:3px;
+             padding:var(--sp-2) var(--sp-4); border-right:1px solid var(--line); min-width:120px; }
+  .tb-cell:last-child { border-right:0; padding-right:var(--sp-5); }
+  .tb-k { font:600 10px/1 var(--sans); letter-spacing:.1em; text-transform:uppercase;
+          color:var(--ink-4); }
+  .tb-v { font:500 var(--fs-small)/1.3 var(--mono); color:var(--ink-2); white-space:nowrap; }
+  .pill { display:inline-flex; align-items:center; gap:var(--sp-2);
           font:600 var(--fs-caption)/16px var(--sans); color:var(--ink-2); }
-  .pill .dot { width:7px; height:7px; border-radius:50%; background:var(--ink-4); }
-  .pill.live .dot { background:var(--ok); }
-  .pill.demo .dot { background:var(--warn); }
+  .pill .dot { width:7px; height:7px; border-radius:50%; background:var(--ink-4);
+               box-shadow:0 0 0 3px transparent; }
+  .pill.live .dot { background:var(--ok); box-shadow:0 0 6px rgba(62,175,124,.6); }
+  .pill.demo .dot { background:var(--warn); box-shadow:0 0 6px rgba(227,169,60,.5); }
 
-  /* ── Top-level tabs (rail; .tab-c does the work) ───────────────────────── */
-  .tabs { display:flex; gap:var(--sp-1); padding:0 var(--sp-3); background:var(--bg-raised);
+  /* ── Top-level tabs = SHEETS of the drawing set ────────────────────────── */
+  .tabs { display:flex; gap:var(--sp-1); padding:0 var(--sp-4); background:var(--bg-raised);
           border-bottom:1px solid var(--line); flex:0 0 auto; overflow-x:auto; }
+  .tab .sheet-no { font:600 10px/1 var(--mono); letter-spacing:.06em; color:var(--ink-4);
+                   border:1px solid var(--line); border-radius:var(--r-sm);
+                   padding:2px 5px; margin-right:var(--sp-2); vertical-align:1px;
+                   transition:color .12s, border-color .12s; }
+  .tab.active .sheet-no { color:var(--blueprint-text); border-color:rgba(95,191,228,.45);
+                          background:var(--blueprint-dim); }
   .tab .badge, .stab .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px;
-                border-radius:8px; font:600 10px/16px var(--mono); text-align:center;
+                border-radius:var(--r-sm); font:600 10px/16px var(--mono); text-align:center;
                 background:var(--surface); color:var(--ink-3); }
-  .tab.filled .badge, .stab.filled .badge { background:var(--ok); color:#0A1F10; }
+  .tab.filled .badge, .stab.filled .badge { background:var(--ok); color:#04160C; }
 
   main { flex:1 1 auto; min-height:0; position:relative; }
   main > .panel { position:absolute; inset:0; display:none; }
@@ -52,17 +76,17 @@
              font:500 var(--fs-small)/1 var(--sans); background:var(--surface); color:var(--ink);
              border:1px solid var(--line-strong); cursor:pointer;
              transition:background .12s, border-color .12s; }
-  .filebtn:hover { background:var(--surface-2); border-color:rgba(232,230,225,.24); }
+  .filebtn:hover { background:var(--surface-2); border-color:rgba(185,212,240,.3); }
   .filebtn .hint { font-size:var(--fs-caption); }
   .sel-input { font:400 var(--fs-small)/1.4 var(--sans); background:var(--input-bg); color:var(--ink);
                border:1px solid var(--line); border-radius:var(--r-md); padding:6px var(--sp-2); }
-  .sel-input:focus { outline:none; border-color:var(--copper); }
+  .sel-input:focus { outline:none; border-color:var(--blueprint); }
   #part-name { width:230px; }
 
   .status { color:var(--ink-3); font-size:var(--fs-body); }
-  .status.err { color:var(--err-text); } .status.ok { color:var(--ok-text); } .status.run { color:var(--teal-text); }
+  .status.err { color:var(--err-text); } .status.ok { color:var(--ok-text); } .status.run { color:var(--blueprint-text); }
   .status code { font-family:var(--mono); font-size:var(--fs-small); color:var(--ink-2); }
-  .spinner { width:13px; height:13px; border:2px solid var(--line-strong); border-top-color:var(--copper);
+  .spinner { width:13px; height:13px; border:2px solid var(--line-strong); border-top-color:var(--blueprint);
              border-radius:50%; display:inline-block; vertical-align:-2px; margin-right:var(--sp-2);
              animation:spin .8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
@@ -84,9 +108,10 @@
   .orient-gallery:empty { display:none; }
   .ocard { flex:0 0 auto; width:176px; border:1px solid var(--line); border-radius:var(--r-lg);
            background:var(--surface); overflow:hidden; position:relative; }
-  .ocard.assigned { border-color:rgba(88,166,108,.5); }
+  .ocard.assigned { border-color:rgba(62,175,124,.5); }
   .ocard.dup { border-color:var(--warn); }
-  .ocard img { width:100%; height:88px; object-fit:contain; background:#fff; display:block; }
+  .ocard img { width:100%; height:88px; object-fit:contain; background:#fff; display:block;
+               outline:1px solid rgba(0,0,0,.1); outline-offset:-1px; }
   .ocard .ctl { display:flex; gap:var(--sp-1); padding:var(--sp-2); align-items:flex-start; }
   .ocard .oseg { flex:1; display:flex; flex-wrap:wrap; min-width:0; }
   .ocard .dupbadge { position:absolute; top:var(--sp-1); left:var(--sp-1);
@@ -99,16 +124,16 @@
   .notes-label { margin-top:var(--sp-2); }
   #part-notes { width:100%; min-width:260px; resize:vertical; font-size:var(--fs-small); }
   .flags-group { margin:var(--sp-4) var(--sp-4) var(--sp-2); padding:var(--sp-2) var(--sp-3);
-                 font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.06em; text-transform:uppercase;
-                 color:var(--copper-text); border-left:3px solid var(--copper); background:var(--copper-dim);
+                 font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.08em; text-transform:uppercase;
+                 color:var(--blueprint-text); border-left:3px solid var(--blueprint); background:var(--blueprint-dim);
                  border-radius:0 var(--r-sm) var(--r-sm) 0; }
   .req-chip { display:inline-block; margin-left:var(--sp-2); padding:1px var(--sp-2); border-radius:var(--r-sm);
-              font:700 10px/16px var(--sans); letter-spacing:.05em; text-transform:uppercase;
-              border:1px solid transparent; }
-  .req-chip.st-met { background:rgba(88,166,108,.14); color:var(--ok-text); border-color:rgba(88,166,108,.35); }
-  .req-chip.st-partial { background:rgba(226,163,60,.12); color:var(--warn); border-color:rgba(226,163,60,.35); }
-  .req-chip.st-unmet { background:rgba(229,72,77,.12); color:var(--err-text); border-color:rgba(229,72,77,.35); }
-  .req-chip.st-not_applicable { background:var(--surface); color:var(--ink-3); border-color:var(--line); }
+              font:700 10px/16px var(--sans); letter-spacing:.07em; text-transform:uppercase;
+              background:transparent; border:1px solid transparent; }
+  .req-chip.st-met { color:var(--ok-text); border-color:rgba(62,175,124,.5); background:rgba(62,175,124,.1); }
+  .req-chip.st-partial { color:var(--warn); border-color:rgba(227,169,60,.5); background:rgba(227,169,60,.08); }
+  .req-chip.st-unmet { color:var(--err-text); border-color:rgba(229,72,77,.5); background:rgba(229,72,77,.08); }
+  .req-chip.st-not_applicable { color:var(--ink-3); border-color:var(--line-strong); }
   .req-warn { color:var(--warn); font-size:var(--fs-small); max-width:280px; }
   .req-warn.ok { color:var(--ok-text); }
 
@@ -128,16 +153,16 @@
            background:var(--surface); cursor:pointer; overflow:hidden; transition:border-color .12s;
            position:relative; }
   .pcard:hover { border-color:var(--line-strong); }
-  .pcard.sel { border-color:var(--copper); box-shadow:0 0 0 1px var(--copper); }
+  .pcard.sel { border-color:var(--blueprint); box-shadow:0 0 0 1px var(--blueprint); }
   .pcard .thumb { width:100%; height:76px; object-fit:cover; background:var(--well); display:block; }
   .pcard .meta { padding:var(--sp-2); }
   .pcard .nm { font-size:var(--fs-small); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .pcard .vw { font-size:var(--fs-caption); color:var(--ink-3); font-family:var(--mono); }
-  .pcard .ran { position:absolute; top:var(--sp-2); right:var(--sp-2); background:var(--ok); color:#0A1F10;
+  .pcard .ran { position:absolute; top:var(--sp-2); right:var(--sp-2); background:var(--ok); color:#04160C;
                 font:700 9px/14px var(--sans); letter-spacing:.05em; text-transform:uppercase;
                 padding:1px 6px; border-radius:var(--r-sm); }
-  .pcard.sel .tickbadge { position:absolute; top:var(--sp-2); left:var(--sp-2); background:var(--copper);
-                color:var(--on-copper); font:700 9px/14px var(--sans); letter-spacing:.03em;
+  .pcard.sel .tickbadge { position:absolute; top:var(--sp-2); left:var(--sp-2); background:var(--blueprint);
+                color:var(--on-blueprint); font:700 9px/14px var(--sans); letter-spacing:.03em;
                 padding:1px 6px; border-radius:var(--r-sm); }
 
   .statusbar { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-3);
@@ -145,49 +170,59 @@
   .progress-wrap { display:flex; align-items:center; gap:var(--sp-2); }
   .progress-track { width:160px; height:6px; border-radius:3px; background:var(--well);
                     overflow:hidden; border:1px solid var(--line-soft); }
-  .progress-fill { height:100%; width:0%; background:var(--copper); transition:width .35s ease; }
+  .progress-fill { height:100%; width:0%; background:var(--blueprint); transition:width .35s ease; }
   .elapsed { font:400 var(--fs-small)/1 var(--mono); font-variant-numeric:tabular-nums;
              color:var(--ink-3); min-width:38px; text-align:right; }
+  /* Stage chips numbered like a machining traveler: OP 01 · EXTRACTING … */
   .stage-strip { display:flex; gap:var(--sp-1); align-items:center; flex-wrap:wrap; counter-reset:stage; }
-  .stage-chip { font:600 10px/16px var(--sans); padding:1px var(--sp-2); border-radius:var(--r-sm);
+  .stage-chip { font:600 10px/16px var(--sans); letter-spacing:.04em; text-transform:uppercase;
+                padding:1px var(--sp-2); border-radius:var(--r-sm);
                 background:var(--well); color:var(--ink-4); border:1px solid var(--line); white-space:nowrap; }
-  .stage-chip::before { counter-increment:stage; content:counter(stage, decimal-leading-zero) " ";
-                        font-family:var(--mono); opacity:.65; }
-  .stage-chip.done { color:var(--teal-text); border-color:rgba(74,122,120,.5); }
-  .stage-chip.now { color:var(--copper-text); border-color:var(--copper); background:var(--copper-dim); }
+  .stage-chip::before { counter-increment:stage; content:"OP " counter(stage, decimal-leading-zero) " · ";
+                        font-family:var(--mono); letter-spacing:0; opacity:.6; }
+  .stage-chip.done { color:var(--steel-text); border-color:rgba(122,157,190,.45); }
+  .stage-chip.done::after { content:" ✓"; color:var(--ok-text); }
+  .stage-chip.now { color:var(--blueprint-text); border-color:var(--blueprint); background:var(--blueprint-dim); }
   .logtoggle { font:600 var(--fs-caption)/1 var(--sans); padding:5px var(--sp-3); border-radius:var(--r-sm);
                cursor:pointer; background:var(--surface); color:var(--ink-3); border:1px solid var(--line); }
   .logtoggle:hover { color:var(--ink); border-color:var(--line-strong); }
 
-  /* Post-run READY banner — the most prominent element when a run completes */
-  #run-banner { flex:0 0 auto; display:flex; align-items:baseline; gap:var(--sp-3);
+  /* Post-run banner — the inspection stamp. THE focal element after a run:
+     an outlined, letterspaced verdict like a rubber stamp on the traveler. */
+  #run-banner { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-4);
                 padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--line);
-                border-left:4px solid var(--copper); background:var(--copper-dim); }
-  #run-banner .rb-main { font:700 var(--fs-stat)/1.2 var(--mono); letter-spacing:.04em;
-                         color:var(--copper-text); font-variant-numeric:tabular-nums; }
+                background:linear-gradient(90deg, rgba(62,175,124,.08), transparent 60%); }
+  #run-banner .rb-main { font:700 var(--fs-stat)/1.1 var(--mono); letter-spacing:.14em;
+                         text-transform:uppercase; color:var(--ok-text);
+                         border:2px solid var(--ok); border-radius:var(--r-sm);
+                         padding:var(--sp-1) var(--sp-3); font-variant-numeric:tabular-nums; }
   #run-banner .rb-sub { font:400 var(--fs-small)/1.4 var(--sans); color:var(--ink-2); }
-  #run-banner.warn { border-left-color:var(--warn); background:rgba(226,163,60,.1); }
-  #run-banner.warn .rb-main { color:var(--warn); }
-  #run-banner.err { border-left-color:var(--err); background:rgba(229,72,77,.08); }
-  #run-banner.err .rb-main { color:var(--err-text); }
+  #run-banner.warn { background:linear-gradient(90deg, rgba(227,169,60,.09), transparent 60%); }
+  #run-banner.warn .rb-main { color:var(--warn); border-color:var(--warn); }
+  #run-banner.err { background:linear-gradient(90deg, rgba(229,72,77,.08), transparent 60%); }
+  #run-banner.err .rb-main { color:var(--err-text); border-color:var(--err); }
 
   /* Split view — resizable */
   .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 6px 0.7fr 1.3fr; min-height:120px; }
   .ovside { border-right:1px solid var(--line); }
-  #ov-img { max-width:100%; max-height:100%; object-fit:contain; display:none; }
+  /* NOTE: src-img/ov-img start hidden via an INLINE style attribute (not here) —
+     the JS reveals them with style.display='' which must win over the sheet. */
+  #ov-img { max-width:100%; max-height:100%; object-fit:contain; }
   .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; }
   .side .cap { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); font:600 var(--fs-caption)/1.6 var(--sans);
                letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
                border-bottom:1px solid var(--line); background:var(--bg-raised); }
   .side .body { flex:1 1 auto; min-height:0; position:relative; display:grid; place-items:center;
                 background:var(--well); }
-  .divider { cursor:col-resize; background:var(--line); position:relative; }
-  .divider:hover, .divider.dragging { background:var(--copper); }
+  /* Split dividers carry the drafting CENTERLINE (long dash · short dash) */
+  .divider { cursor:col-resize; background:var(--centerline-v); background-color:transparent;
+             position:relative; transition:background-color .12s; }
+  .divider:hover, .divider.dragging { background-color:var(--blueprint-dim); }
   .cap.capflex { display:flex; align-items:center; gap:var(--sp-2); }
   .fmt-badge { text-transform:none; letter-spacing:.02em; }
   .sync-badge { text-transform:none; letter-spacing:0; }
   #src-box { overflow:hidden; }
-  #src-img { max-width:100%; max-height:100%; object-fit:contain; display:none;
+  #src-img { max-width:100%; max-height:100%; object-fit:contain;
              cursor:grab; transform-origin:center center; }
   #src-img:active { cursor:grabbing; }
   #stl-canvas-wrap { position:absolute; inset:0; }
@@ -218,34 +253,36 @@
                   background:var(--bg-raised); font-size:var(--fs-small); color:var(--ink-3); }
   .out .toolbar .grow { flex:1; }
   .out pre { flex:1 1 auto; margin:0; overflow:auto; padding:var(--sp-4);
-             font:12px/1.6 var(--mono); color:#C9C6BE; background:var(--well); white-space:pre; }
+             font:12px/1.6 var(--mono); color:#C2CCDA; background:var(--well); white-space:pre; }
   .out .empty { flex:1 1 auto; display:grid; place-items:center; color:var(--ink-3);
                 padding:var(--sp-5); text-align:center; }
   .macro-tabs { display:flex; gap:var(--sp-1); flex-wrap:wrap; }
   .macro-tabs button { font:500 var(--fs-caption)/1.5 var(--mono); padding:2px var(--sp-2);
                        border-radius:var(--r-sm); cursor:pointer; background:var(--surface);
                        color:var(--ink-3); border:1px solid var(--line); }
-  .macro-tabs button.active { color:var(--copper-text); border-color:var(--copper); background:var(--copper-dim); }
+  .macro-tabs button.active { color:var(--blueprint-text); border-color:var(--blueprint); background:var(--blueprint-dim); }
 
-  /* Engineering flags — severity colors come ONLY from the --sev-* tokens */
+  /* Engineering flags — severity rendered as INSPECTION STAMPS (outlined,
+     letterspaced). Colors come ONLY from the --sev-* tokens. */
   .flag-item { border:1px solid var(--line); border-left:3px solid var(--ink-4); border-radius:var(--r-md);
                padding:var(--sp-3) var(--sp-4); margin:var(--sp-3) var(--sp-4); background:var(--surface);
                font-size:var(--fs-body); }
   .flag-item .sev { display:inline-flex; align-items:center; font:700 10px/16px var(--sans);
-                    letter-spacing:.07em; text-transform:uppercase; padding:1px var(--sp-2);
-                    border-radius:var(--r-sm); margin-right:var(--sp-2); }
+                    letter-spacing:.09em; text-transform:uppercase; padding:1px var(--sp-2);
+                    border-radius:var(--r-sm); margin-right:var(--sp-2);
+                    background:transparent; border:1px solid; }
   .flag-item .fid { color:var(--ink-3); font:400 var(--fs-caption)/1.6 var(--mono); }
   .flag-item .row { margin-top:var(--sp-1); color:var(--ink-2); }
   .flag-item .row b { color:var(--ink-3); font:600 var(--fs-caption)/1.6 var(--sans);
                       letter-spacing:.04em; text-transform:uppercase; display:inline-block; min-width:66px; }
   .flag-item.sev-CRITICAL { border-left-color:var(--sev-critical); }
-  .flag-item.sev-CRITICAL .sev { background:var(--sev-critical); color:var(--on-sev-critical); }
+  .flag-item.sev-CRITICAL .sev { color:var(--sev-critical); border-color:var(--sev-critical); background:rgba(240,84,92,.1); }
   .flag-item.sev-HIGH { border-left-color:var(--sev-high); }
-  .flag-item.sev-HIGH .sev { background:var(--sev-high); color:var(--on-sev-high); }
+  .flag-item.sev-HIGH .sev { color:var(--sev-high); border-color:var(--sev-high); background:rgba(227,161,60,.1); }
   .flag-item.sev-MEDIUM { border-left-color:var(--sev-medium); }
-  .flag-item.sev-MEDIUM .sev { background:var(--sev-medium); color:var(--on-sev-medium); }
+  .flag-item.sev-MEDIUM .sev { color:var(--sev-medium); border-color:var(--sev-medium); background:rgba(210,195,85,.08); }
   .flag-item.sev-LOW { border-left-color:var(--sev-low); }
-  .flag-item.sev-LOW .sev { background:var(--sev-low); color:var(--on-sev-low); }
+  .flag-item.sev-LOW .sev { color:var(--sev-low); border-color:var(--sev-low); background:rgba(141,164,190,.08); }
   .flags-scroll { flex:1 1 auto; overflow:auto; padding-bottom:var(--sp-3); }
   .flags-summary { padding:var(--sp-3) var(--sp-4) 0; font-size:var(--fs-body); color:var(--ink-3); }
 
@@ -257,8 +294,8 @@
                   font-variant-numeric:tabular-nums; }
   .cost-card .k { font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.05em;
                   text-transform:uppercase; color:var(--ink-3); margin-top:var(--sp-1); }
-  .cost-cards .cost-card:first-child { border-color:rgba(217,139,63,.4); }
-  .cost-cards .cost-card:first-child .v { color:var(--copper-text); }
+  .cost-cards .cost-card:first-child { border-color:rgba(95,191,228,.45); }
+  .cost-cards .cost-card:first-child .v { color:var(--blueprint-text); }
 
   /* Files */
   .files-scroll { flex:1 1 auto; overflow:auto; }
@@ -266,7 +303,7 @@
   .files-table td { padding:6px var(--sp-4); border-bottom:1px solid var(--line-soft); }
   .files-table td.sz { color:var(--ink-3); text-align:right; white-space:nowrap;
                        font-family:var(--mono); font-variant-numeric:tabular-nums; }
-  .files-table a { color:var(--copper-text); text-decoration:none; }
+  .files-table a { color:var(--blueprint-text); text-decoration:none; }
   .files-table a:hover { text-decoration:underline; }
   .files-paths { padding:var(--sp-3) var(--sp-4); font-size:var(--fs-small); color:var(--ink-3);
                  border-bottom:1px solid var(--line); }
@@ -275,19 +312,25 @@
 </head>
 <body>
 <header>
-  <div class="logo">△</div>
-  <div>
-    <h1>MTI 2D → 3D SolidWorks Pipeline</h1>
-    <div class="sub">Crop in Tab 1 · set up the part and view the 3D model in Tab 2 · run the pipeline and inspect outputs in Tab 3.</div>
+  <div class="brand">
+    <div class="logo">⌖</div>
+    <div>
+      <h1>MTI <span class="thin">2D→3D</span> SolidWorks Pipeline</h1>
+      <div class="sub">Crop the drawing · set up the part · run the pipeline and inspect every output.</div>
+    </div>
   </div>
   <div class="spacer"></div>
-  <span class="pill" id="key-pill"><span class="dot"></span><span id="key-txt">checking…</span></span>
+  <div class="titleblock">
+    <div class="tb-cell"><span class="tb-k">Extraction engine</span><span class="tb-v">Claude Sonnet 5</span></div>
+    <div class="tb-cell"><span class="tb-k">Deliverables</span><span class="tb-v">.SLDPRT · .STL · VBA</span></div>
+    <div class="tb-cell"><span class="tb-k">API status</span><span class="pill" id="key-pill"><span class="dot"></span><span id="key-txt">checking…</span></span></div>
+  </div>
 </header>
 
 <nav class="tabs" id="tabbar">
-  <button class="tab tab-c active" data-tab="crop">1 · Drawing Crop</button>
-  <button class="tab tab-c" data-tab="intake">2 · Part Setup &amp; 3D Model <span class="badge">·</span></button>
-  <button class="tab tab-c" data-tab="pipeline">3 · Pipeline &amp; Results</button>
+  <button class="tab tab-c active" data-tab="crop"><span class="sheet-no">SHEET 1</span>Drawing Crop</button>
+  <button class="tab tab-c" data-tab="intake"><span class="sheet-no">SHEET 2</span>Part Setup &amp; 3D Model <span class="badge">·</span></button>
+  <button class="tab tab-c" data-tab="pipeline"><span class="sheet-no">SHEET 3</span>Pipeline &amp; Results</button>
 </nav>
 
 <main>
@@ -343,7 +386,7 @@
           <span class="badge-c ok sync-badge" id="src-sync" style="display:none"></span>
         </div>
         <div class="body" id="src-box">
-          <img id="src-img" alt="source drawing" />
+          <img id="src-img" alt="source drawing" style="display:none" />
           <div class="emptynote" id="src-empty">No PDF/DWG/eDrawings loaded yet — upload a drawing above or select a saved part in the Pipeline &amp; Results tab; it appears here. Scroll to zoom, drag to pan, double-click to reset.</div>
         </div>
       </div>
@@ -351,7 +394,7 @@
       <div class="side ovside">
         <div class="cap">Overview Drawing — reference</div>
         <div class="body" id="ov-box">
-          <img id="ov-img" alt="overview drawing" />
+          <img id="ov-img" alt="overview drawing" style="display:none" />
           <div class="emptynote" id="ov-empty">No overview image for this part.</div>
         </div>
       </div>
@@ -1330,14 +1373,14 @@ const viewer = (() => {
     wrap = document.getElementById('stl-canvas-wrap');
     // Scene palette mirrors the design tokens: graphite well (--well), warm key
     // light, faint slate-teal rim so machined edges read against the dark bg.
-    scene = new THREE.Scene(); scene.background = new THREE.Color(0x101216);
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0f16);
     camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000); camera.position.set(120, 90, 160);
     renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(window.devicePixelRatio || 1);
     wrap.appendChild(renderer.domElement);
     controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08;
-    scene.add(new THREE.HemisphereLight(0xdcd6cc, 0x14161a, 0.9));
-    const key = new THREE.DirectionalLight(0xffe3c4, 0.9); key.position.set(1, 1, 1); scene.add(key);
-    const rim = new THREE.DirectionalLight(0x4a7a78, 0.4); rim.position.set(-1, 0.4, -0.8); scene.add(rim);
+    scene.add(new THREE.HemisphereLight(0xd6e4f2, 0x0d131c, 0.9));
+    const key = new THREE.DirectionalLight(0xeaf3fc, 0.9); key.position.set(1, 1, 1); scene.add(key);
+    const rim = new THREE.DirectionalLight(0x3fa9d4, 0.35); rim.position.set(-1, 0.4, -0.8); scene.add(rim);
     inited = true; resize(); animate();
     new ResizeObserver(() => { needResize = true; }).observe(wrap);
   }
@@ -1350,7 +1393,7 @@ const viewer = (() => {
     camera.position.set(maxDim*1.4,maxDim*1.1,maxDim*1.8); camera.near=maxDim/100; camera.far=maxDim*100; camera.updateProjectionMatrix();
     controls.target.set(0,0,0); controls.update();
     const old=scene.getObjectByName('grid2'); if (old) scene.remove(old);
-    const g=new THREE.GridHelper(maxDim*3,20,0x2a2a26,0x1b1b18); g.name='grid2'; g.position.y=-size.y/2; scene.add(g);
+    const g=new THREE.GridHelper(maxDim*3,20,0x223140,0x141d29); g.name='grid2'; g.position.y=-size.y/2; scene.add(g);
   }
   return {
     onShow() { if (!inited) init(); else needResize = true; },
@@ -1359,7 +1402,7 @@ const viewer = (() => {
       if (url === loadedURL) return; loadedURL = url;
       new THREE.STLLoader().load(url, geo => {
         if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
-        const mat = new THREE.MeshStandardMaterial({ color: 0xb3aca1, metalness: 0.3, roughness: 0.5 });
+        const mat = new THREE.MeshStandardMaterial({ color: 0xa9b8c6, metalness: 0.35, roughness: 0.45 });
         mesh = new THREE.Mesh(geo, mat); scene.add(mesh); frame(geo);
         document.getElementById('stl-empty').style.display = 'none';
       }, undefined, err => console.warn('STL load failed', err));
