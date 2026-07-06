@@ -4,204 +4,208 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>MTI 2D→3D Pipeline</title>
+<link rel="stylesheet" href="/static/design-tokens.css" />
 <style>
-  /* ── Design tokens ─────────────────────────────────────────────────────── */
-  :root {
-    --bg:#0a0e16; --bg2:#0f1622; --panel:#111a28; --line:#1d2a3c;
-    --ink:#e6edf6; --muted:#8aa0bd; --accent:#4f86ff; --accent2:#2dd4bf;
-    --ok:#34d399; --warn:#fbbf24; --err:#f87171;
-    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
-    --r1:7px; --r2:10px; --r3:12px;
-  }
+  /* ── Page styles — every value binds to /static/design-tokens.css ─────────
+     (palette, type scale, spacing grid, component recipes: see webapp/DESIGN.md) */
   * { box-sizing:border-box; }
   html,body { height:100%; }
-  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-         background:var(--bg); color:var(--ink); display:flex; flex-direction:column; height:100vh; }
+  body { margin:0; font:var(--fs-body)/1.5 var(--sans); background:var(--bg); color:var(--ink);
+         display:flex; flex-direction:column; height:100vh; }
 
   /* Typography hierarchy: h1 (header) > .grp-title (section) > label/.hint (support) */
-  .grp-title { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
-               color:var(--muted); }
-  .hint { color:var(--muted); font-size:12px; font-weight:400; }
+  .grp-title { font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.08em;
+               text-transform:uppercase; color:var(--ink-3); }
+  .hint { color:var(--ink-3); font-size:var(--fs-small); font-weight:400; }
   .grow { flex:1; }
 
-  header { display:flex; align-items:center; gap:14px; padding:var(--s3) 20px; flex:0 0 auto;
-           background:linear-gradient(180deg,#16243a,#0f1622); border-bottom:1px solid var(--line); }
-  .logo { width:34px; height:34px; border-radius:8px; flex:0 0 auto;
-          background:linear-gradient(135deg,var(--accent),var(--accent2)); display:grid; place-items:center; font-size:18px; }
-  header h1 { font-size:16px; margin:0; }
-  header .sub { color:var(--muted); font-size:12px; }
+  header { display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-5); flex:0 0 auto;
+           background:var(--bg-raised); border-bottom:1px solid var(--line); }
+  .logo { width:32px; height:32px; border-radius:var(--r-md); flex:0 0 auto;
+          border:1px solid rgba(217,139,63,.45); background:var(--copper-dim); color:var(--copper-text);
+          display:grid; place-items:center; font-size:15px; }
+  header h1 { font-size:var(--fs-h2); font-weight:600; letter-spacing:-.01em; margin:0; }
+  header .sub { color:var(--ink-3); font-size:var(--fs-small); }
   header .spacer { flex:1; }
-  .pill { display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:999px;
-          border:1px solid var(--line); background:#0d1521; font-size:12px; font-weight:600; }
-  .pill .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); }
-  .pill.live .dot { background:var(--ok); box-shadow:0 0 8px var(--ok); }
-  .pill.demo .dot { background:var(--warn); box-shadow:0 0 8px var(--warn); }
+  .pill { display:inline-flex; align-items:center; gap:var(--sp-2); padding:4px var(--sp-3);
+          border-radius:999px; border:1px solid var(--line); background:var(--surface);
+          font:600 var(--fs-caption)/16px var(--sans); color:var(--ink-2); }
+  .pill .dot { width:7px; height:7px; border-radius:50%; background:var(--ink-4); }
+  .pill.live .dot { background:var(--ok); }
+  .pill.demo .dot { background:var(--warn); }
 
-  /* ── Top-level tabs (2) ────────────────────────────────────────────────── */
-  .tabs { display:flex; gap:2px; padding:0 14px; background:#0c131f; border-bottom:1px solid var(--line);
-          flex:0 0 auto; overflow-x:auto; }
-  .tab { padding:12px 20px; font-size:14px; font-weight:700; color:var(--muted); background:none; border:none;
-         border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; margin-bottom:-1px; }
-  .tab:hover { color:#cbd5e1; }
-  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-  .tab .badge, .stab .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px; border-radius:9px;
-                font-size:10px; line-height:16px; text-align:center; background:#1e2b3f; color:var(--muted); }
-  .tab.filled .badge, .stab.filled .badge { background:var(--ok); color:#04120b; }
+  /* ── Top-level tabs (rail; .tab-c does the work) ───────────────────────── */
+  .tabs { display:flex; gap:var(--sp-1); padding:0 var(--sp-3); background:var(--bg-raised);
+          border-bottom:1px solid var(--line); flex:0 0 auto; overflow-x:auto; }
+  .tab .badge, .stab .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px;
+                border-radius:8px; font:600 10px/16px var(--mono); text-align:center;
+                background:var(--surface); color:var(--ink-3); }
+  .tab.filled .badge, .stab.filled .badge { background:var(--ok); color:#0A1F10; }
 
   main { flex:1 1 auto; min-height:0; position:relative; }
   main > .panel { position:absolute; inset:0; display:none; }
   main > .panel.active { display:flex; flex-direction:column; }
 
-  /* ── Buttons & inputs ──────────────────────────────────────────────────── */
-  .btn { font:inherit; font-weight:700; border:0; border-radius:9px; padding:10px 18px; cursor:pointer;
-         background:linear-gradient(135deg,var(--accent),#3b6fe0); color:#fff; }
-  .btn:disabled { opacity:.45; cursor:not-allowed; }
-  .btn.xl { padding:13px 28px; font-size:15px; border-radius:11px;
-            box-shadow:0 4px 18px rgba(79,134,255,.28); }
-  .btn.secondary { background:#1a2740; color:var(--ink); border:1px solid var(--line); font-weight:600; }
-  .btn.running { background:#243452; color:var(--accent2); box-shadow:none; }
-  .btn.danger { background:#3a1620; color:#ff9c9c; border:1px solid #6e2430; font-weight:600; }
-  .btn.danger:hover:not(:disabled) { background:#4a1c28; }
-  .filebtn { display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:13px;
-             padding:8px 14px; border-radius:9px; background:#1a2740; color:var(--ink);
-             border:1px solid var(--line); cursor:pointer; }
-  .filebtn:hover { border-color:#33507a; }
-  .sel-input { font:inherit; font-size:13px; background:#0d1521; color:var(--ink);
-               border:1px solid var(--line); border-radius:9px; padding:8px 10px; }
-  #part-name { font:inherit; font-size:13px; background:#0d1521; color:var(--ink);
-               border:1px solid var(--line); border-radius:9px; padding:8px 12px; width:230px; }
-  #part-name:focus { outline:none; border-color:var(--accent); }
-  .ibtn { flex:0 0 auto; width:24px; height:24px; border-radius:6px; border:1px solid var(--line);
-          background:#111a28; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; }
-  .ibtn:hover { color:var(--ink); border-color:#33507a; }
+  /* ── Controls bound to the shared recipes ──────────────────────────────── */
+  .filebtn { display:inline-flex; align-items:center; justify-content:center; gap:var(--sp-2);
+             height:28px; padding:0 var(--sp-3); border-radius:var(--r-md);
+             font:500 var(--fs-small)/1 var(--sans); background:var(--surface); color:var(--ink);
+             border:1px solid var(--line-strong); cursor:pointer;
+             transition:background .12s, border-color .12s; }
+  .filebtn:hover { background:var(--surface-2); border-color:rgba(232,230,225,.24); }
+  .filebtn .hint { font-size:var(--fs-caption); }
+  .sel-input { font:400 var(--fs-small)/1.4 var(--sans); background:var(--input-bg); color:var(--ink);
+               border:1px solid var(--line); border-radius:var(--r-md); padding:6px var(--sp-2); }
+  .sel-input:focus { outline:none; border-color:var(--copper); }
+  #part-name { width:230px; }
 
-  .status { color:var(--muted); font-size:13px; }
-  .status.err { color:var(--err); } .status.ok { color:var(--ok); } .status.run { color:var(--accent2); }
-  .spinner { width:14px; height:14px; border:2px solid #2a3d5c; border-top-color:var(--accent2);
-             border-radius:50%; display:inline-block; vertical-align:-2px; margin-right:7px; animation:spin .8s linear infinite; }
+  .status { color:var(--ink-3); font-size:var(--fs-body); }
+  .status.err { color:var(--err-text); } .status.ok { color:var(--ok-text); } .status.run { color:var(--teal-text); }
+  .status code { font-family:var(--mono); font-size:var(--fs-small); color:var(--ink-2); }
+  .spinner { width:13px; height:13px; border:2px solid var(--line-strong); border-top-color:var(--copper);
+             border-radius:50%; display:inline-block; vertical-align:-2px; margin-right:var(--sp-2);
+             animation:spin .8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
 
   /* ── Tab 1 · Drawing Crop (the cropper owns the whole tab) ─────────────── */
-  #panel-crop iframe { flex:1 1 auto; width:100%; border:0; background:#080d14; min-height:0; }
+  #panel-crop iframe { flex:1 1 auto; width:100%; border:0; background:var(--well); min-height:0; }
 
   /* ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────────── */
   .intake-strip { flex:0 0 auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto;
-                  background:var(--bg2); border-bottom:1px solid var(--line); max-height:38vh; overflow:auto; }
-  .gcol { padding:var(--s3) var(--s4); border-right:1px solid #131d2c; min-width:0;
-          display:flex; flex-direction:column; gap:var(--s2); align-items:flex-start; }
+                  background:var(--bg); border-bottom:1px solid var(--line); max-height:38vh; overflow:auto; }
+  .gcol { padding:var(--sp-3) var(--sp-4); border-right:1px solid var(--line-soft); min-width:0;
+          display:flex; flex-direction:column; gap:var(--sp-2); align-items:flex-start; }
   .gcol:last-child { border-right:0; }
   .gcol .orient-gallery { width:100%; }
-  .statusline { flex:0 0 auto; padding:var(--s2) var(--s4); border-bottom:1px solid var(--line); background:#0c131f; }
+  .statusline { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); border-bottom:1px solid var(--line);
+                background:var(--bg-raised); }
 
-  .orient-gallery { display:flex; gap:10px; overflow-x:auto; padding:var(--s1) 0 var(--s2); min-height:0; }
+  .orient-gallery { display:flex; gap:var(--sp-3); overflow-x:auto; padding:var(--sp-1) 0 var(--sp-2); min-height:0; }
   .orient-gallery:empty { display:none; }
-  .ocard { flex:0 0 auto; width:150px; border:2px solid var(--line); border-radius:var(--r2);
-           background:#0d1521; overflow:hidden; position:relative; }
-  .ocard.assigned { border-color:#2b5a43; }
+  .ocard { flex:0 0 auto; width:176px; border:1px solid var(--line); border-radius:var(--r-lg);
+           background:var(--surface); overflow:hidden; position:relative; }
+  .ocard.assigned { border-color:rgba(88,166,108,.5); }
   .ocard.dup { border-color:var(--warn); }
-  .ocard img { width:100%; height:92px; object-fit:contain; background:#fff; display:block; }
-  .ocard .ctl { display:flex; gap:4px; padding:6px; align-items:center; }
-  .ocard select { flex:1; font:inherit; font-size:11px; background:#111a28; color:var(--ink);
-                  border:1px solid var(--line); border-radius:6px; padding:3px 4px; min-width:0; }
-  .ocard .dupbadge { position:absolute; top:4px; left:4px; background:var(--warn); color:#3a2a00;
-                     font-size:9px; font-weight:700; padding:1px 6px; border-radius:8px; display:none; }
+  .ocard img { width:100%; height:88px; object-fit:contain; background:#fff; display:block; }
+  .ocard .ctl { display:flex; gap:var(--sp-1); padding:var(--sp-2); align-items:flex-start; }
+  .ocard .oseg { flex:1; display:flex; flex-wrap:wrap; min-width:0; }
+  .ocard .dupbadge { position:absolute; top:var(--sp-1); left:var(--sp-1);
+                     background:var(--warn); color:var(--on-sev-high); font:700 9px/14px var(--sans);
+                     letter-spacing:.05em; text-transform:uppercase; padding:1px 6px;
+                     border-radius:var(--r-sm); display:none; }
   .ocard.dup .dupbadge { display:inline-block; }
-  .intake-foot { display:flex; flex-direction:column; gap:var(--s2); align-items:stretch; }
-  .intake-foot .rowline { display:flex; gap:var(--s2); align-items:center; }
-  #part-notes { width:100%; margin-top:8px; font:inherit; font-size:12px; background:#0d1521;
-                color:var(--ink); border:1px solid var(--line); border-radius:6px;
-                padding:6px 8px; resize:vertical; }
-  .flags-group { margin:14px 0 6px; padding:6px 10px; font-size:12px; font-weight:800;
-                 letter-spacing:.05em; text-transform:uppercase; color:var(--accent);
-                 border-left:3px solid var(--accent); background:#0d1624; }
-  .req-chip { display:inline-block; margin-left:8px; padding:1px 8px; border-radius:9px;
-              font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
-  .req-chip.st-met { background:#123a26; color:#4ade80; }
-  .req-chip.st-partial { background:#3a2e12; color:#fbbf24; }
-  .req-chip.st-unmet { background:#3a1215; color:#f87171; }
-  .req-chip.st-not_applicable { background:#1e2634; color:#93a4bd; }
-  .req-warn { color:var(--warn); font-size:12px; max-width:280px; }
-  .req-warn.ok { color:var(--ok); }
+  .intake-foot { display:flex; flex-direction:column; gap:var(--sp-2); align-items:stretch; }
+  .intake-foot .rowline { display:flex; gap:var(--sp-2); align-items:center; }
+  .notes-label { margin-top:var(--sp-2); }
+  #part-notes { width:100%; min-width:260px; resize:vertical; font-size:var(--fs-small); }
+  .flags-group { margin:var(--sp-4) var(--sp-4) var(--sp-2); padding:var(--sp-2) var(--sp-3);
+                 font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.06em; text-transform:uppercase;
+                 color:var(--copper-text); border-left:3px solid var(--copper); background:var(--copper-dim);
+                 border-radius:0 var(--r-sm) var(--r-sm) 0; }
+  .req-chip { display:inline-block; margin-left:var(--sp-2); padding:1px var(--sp-2); border-radius:var(--r-sm);
+              font:700 10px/16px var(--sans); letter-spacing:.05em; text-transform:uppercase;
+              border:1px solid transparent; }
+  .req-chip.st-met { background:rgba(88,166,108,.14); color:var(--ok-text); border-color:rgba(88,166,108,.35); }
+  .req-chip.st-partial { background:rgba(226,163,60,.12); color:var(--warn); border-color:rgba(226,163,60,.35); }
+  .req-chip.st-unmet { background:rgba(229,72,77,.12); color:var(--err-text); border-color:rgba(229,72,77,.35); }
+  .req-chip.st-not_applicable { background:var(--surface); color:var(--ink-3); border-color:var(--line); }
+  .req-warn { color:var(--warn); font-size:var(--fs-small); max-width:280px; }
+  .req-warn.ok { color:var(--ok-text); }
 
-  /* ── Tab 2 · Pipeline & Results ────────────────────────────────────────── */
-  .pipe-top { flex:0 0 auto; display:flex; gap:var(--s4); align-items:stretch;
-              padding:var(--s3) var(--s4); background:var(--bg2); border-bottom:1px solid var(--line); }
+  /* ── Tab 3 · Pipeline & Results ────────────────────────────────────────── */
+  .pipe-top { flex:0 0 auto; display:flex; gap:var(--sp-4); align-items:stretch;
+              padding:var(--sp-3) var(--sp-4); background:var(--bg); border-bottom:1px solid var(--line); }
   .pt-parts { flex:1 1 auto; min-width:0; }
-  .pt-parts .grp-title { margin-bottom:var(--s2); }
-  .pt-actions { flex:0 0 auto; display:flex; flex-direction:column; gap:var(--s2);
+  .pt-parts .grp-title { margin-bottom:var(--sp-2); }
+  .pt-actions { flex:0 0 auto; display:flex; flex-direction:column; gap:var(--sp-2);
                 align-items:stretch; justify-content:center; }
-  .demo-row { display:flex; gap:var(--s2); }
+  .demo-row { display:flex; gap:var(--sp-2); }
   .demo-row .btn, .demo-row .sel-input { flex:1; }
 
-  .parts-list { display:flex; gap:10px; overflow-x:auto; padding:2px; min-height:96px; }
-  .parts-list .empty { color:var(--muted); font-size:12px; align-self:center; padding:10px; }
-  .pcard { flex:0 0 auto; width:132px; border:2px solid var(--line); border-radius:var(--r2); background:#0d1521;
-           cursor:pointer; overflow:hidden; transition:.12s; position:relative; }
-  .pcard:hover { border-color:#33507a; }
-  .pcard.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 4px 16px rgba(79,134,255,.25); }
-  .pcard .thumb { width:100%; height:76px; object-fit:cover; background:#080d14; display:block; }
-  .pcard .meta { padding:6px 8px; }
-  .pcard .nm { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pcard .vw { font-size:11px; color:var(--muted); }
-  .pcard .ran { position:absolute; top:6px; right:6px; background:var(--ok); color:#04120b; font-size:10px;
-                font-weight:700; padding:1px 6px; border-radius:8px; }
-  .pcard.sel .tickbadge { position:absolute; top:6px; left:6px; background:var(--accent); color:#fff;
-                font-size:10px; font-weight:700; padding:1px 6px; border-radius:8px; }
+  .parts-list { display:flex; gap:var(--sp-3); overflow-x:auto; padding:2px; min-height:96px; }
+  .parts-list .empty { color:var(--ink-3); font-size:var(--fs-small); align-self:center; padding:var(--sp-3); }
+  .pcard { flex:0 0 auto; width:132px; border:1px solid var(--line); border-radius:var(--r-lg);
+           background:var(--surface); cursor:pointer; overflow:hidden; transition:border-color .12s;
+           position:relative; }
+  .pcard:hover { border-color:var(--line-strong); }
+  .pcard.sel { border-color:var(--copper); box-shadow:0 0 0 1px var(--copper); }
+  .pcard .thumb { width:100%; height:76px; object-fit:cover; background:var(--well); display:block; }
+  .pcard .meta { padding:var(--sp-2); }
+  .pcard .nm { font-size:var(--fs-small); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pcard .vw { font-size:var(--fs-caption); color:var(--ink-3); font-family:var(--mono); }
+  .pcard .ran { position:absolute; top:var(--sp-2); right:var(--sp-2); background:var(--ok); color:#0A1F10;
+                font:700 9px/14px var(--sans); letter-spacing:.05em; text-transform:uppercase;
+                padding:1px 6px; border-radius:var(--r-sm); }
+  .pcard.sel .tickbadge { position:absolute; top:var(--sp-2); left:var(--sp-2); background:var(--copper);
+                color:var(--on-copper); font:700 9px/14px var(--sans); letter-spacing:.03em;
+                padding:1px 6px; border-radius:var(--r-sm); }
 
-  .statusbar { flex:0 0 auto; display:flex; align-items:center; gap:var(--s3);
-               padding:var(--s2) var(--s4); border-bottom:1px solid var(--line); background:#0c131f; }
-  .progress-wrap { display:flex; align-items:center; gap:8px; }
-  .progress-track { width:150px; height:8px; border-radius:5px; background:#0d1521; overflow:hidden; border:1px solid var(--line); }
-  .progress-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2));
-                    transition:width .35s ease; }
-  .elapsed { font-variant-numeric:tabular-nums; color:var(--muted); font-size:12px; min-width:38px; text-align:right; }
-  .stage-strip { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
-  .stage-chip { font-size:10px; font-weight:700; padding:2px 8px; border-radius:8px;
-                background:#0d1521; color:var(--muted); border:1px solid var(--line); white-space:nowrap; }
-  .stage-chip.done { color:var(--ok); border-color:#1d4636; }
-  .stage-chip.now { color:var(--accent2); border-color:var(--accent2); }
-  .logtoggle { font:inherit; font-size:11px; font-weight:700; padding:4px 10px; border-radius:8px; cursor:pointer;
-               background:#111a28; color:var(--muted); border:1px solid var(--line); }
-  .logtoggle:hover { color:var(--ink); border-color:#33507a; }
+  .statusbar { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-3);
+               padding:var(--sp-2) var(--sp-4); border-bottom:1px solid var(--line); background:var(--bg-raised); }
+  .progress-wrap { display:flex; align-items:center; gap:var(--sp-2); }
+  .progress-track { width:160px; height:6px; border-radius:3px; background:var(--well);
+                    overflow:hidden; border:1px solid var(--line-soft); }
+  .progress-fill { height:100%; width:0%; background:var(--copper); transition:width .35s ease; }
+  .elapsed { font:400 var(--fs-small)/1 var(--mono); font-variant-numeric:tabular-nums;
+             color:var(--ink-3); min-width:38px; text-align:right; }
+  .stage-strip { display:flex; gap:var(--sp-1); align-items:center; flex-wrap:wrap; counter-reset:stage; }
+  .stage-chip { font:600 10px/16px var(--sans); padding:1px var(--sp-2); border-radius:var(--r-sm);
+                background:var(--well); color:var(--ink-4); border:1px solid var(--line); white-space:nowrap; }
+  .stage-chip::before { counter-increment:stage; content:counter(stage, decimal-leading-zero) " ";
+                        font-family:var(--mono); opacity:.65; }
+  .stage-chip.done { color:var(--teal-text); border-color:rgba(74,122,120,.5); }
+  .stage-chip.now { color:var(--copper-text); border-color:var(--copper); background:var(--copper-dim); }
+  .logtoggle { font:600 var(--fs-caption)/1 var(--sans); padding:5px var(--sp-3); border-radius:var(--r-sm);
+               cursor:pointer; background:var(--surface); color:var(--ink-3); border:1px solid var(--line); }
+  .logtoggle:hover { color:var(--ink); border-color:var(--line-strong); }
+
+  /* Post-run READY banner — the most prominent element when a run completes */
+  #run-banner { flex:0 0 auto; display:flex; align-items:baseline; gap:var(--sp-3);
+                padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--line);
+                border-left:4px solid var(--copper); background:var(--copper-dim); }
+  #run-banner .rb-main { font:700 var(--fs-stat)/1.2 var(--mono); letter-spacing:.04em;
+                         color:var(--copper-text); font-variant-numeric:tabular-nums; }
+  #run-banner .rb-sub { font:400 var(--fs-small)/1.4 var(--sans); color:var(--ink-2); }
+  #run-banner.warn { border-left-color:var(--warn); background:rgba(226,163,60,.1); }
+  #run-banner.warn .rb-main { color:var(--warn); }
+  #run-banner.err { border-left-color:var(--err); background:rgba(229,72,77,.08); }
+  #run-banner.err .rb-main { color:var(--err-text); }
 
   /* Split view — resizable */
   .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 6px 0.7fr 1.3fr; min-height:120px; }
   .ovside { border-right:1px solid var(--line); }
   #ov-img { max-width:100%; max-height:100%; object-fit:contain; display:none; }
   .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; }
-  .side .cap { flex:0 0 auto; padding:9px 14px; font-size:12px; font-weight:700; letter-spacing:.04em;
-               text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); background:#0c131f; }
-  .side .body { flex:1 1 auto; min-height:0; position:relative; display:grid; place-items:center; background:#080d14; }
+  .side .cap { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); font:600 var(--fs-caption)/1.6 var(--sans);
+               letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
+               border-bottom:1px solid var(--line); background:var(--bg-raised); }
+  .side .body { flex:1 1 auto; min-height:0; position:relative; display:grid; place-items:center;
+                background:var(--well); }
   .divider { cursor:col-resize; background:var(--line); position:relative; }
-  .divider:hover, .divider.dragging { background:#33507a; }
-  .cap.capflex { display:flex; align-items:center; gap:8px; }
-  .fmt-badge { display:inline-block; font-size:10px; font-weight:800; letter-spacing:.04em;
-               padding:1px 8px; border-radius:8px; background:#1e2b3f; color:var(--accent2);
-               border:1px solid #234; text-transform:none; }
-  .sync-badge { font-size:10px; font-weight:700; color:var(--ok); text-transform:none;
-                letter-spacing:0; white-space:nowrap; }
+  .divider:hover, .divider.dragging { background:var(--copper); }
+  .cap.capflex { display:flex; align-items:center; gap:var(--sp-2); }
+  .fmt-badge { text-transform:none; letter-spacing:.02em; }
+  .sync-badge { text-transform:none; letter-spacing:0; }
   #src-box { overflow:hidden; }
   #src-img { max-width:100%; max-height:100%; object-fit:contain; display:none;
              cursor:grab; transform-origin:center center; }
   #src-img:active { cursor:grabbing; }
   #stl-canvas-wrap { position:absolute; inset:0; }
-  .emptynote { color:var(--muted); font-size:13px; text-align:center; padding:20px; max-width:360px; }
+  .emptynote { color:var(--ink-3); font-size:var(--fs-body); text-align:center; padding:var(--sp-5);
+               max-width:360px; }
+  .emptynote b { color:var(--ink-2); }
 
-  #inline-console { flex:0 0 auto; margin:0; max-height:120px; overflow:auto; padding:10px 16px;
-                    border-top:1px solid var(--line); font:11px/1.5 ui-monospace,Menlo,monospace;
-                    color:#a9c2e6; background:#080d14; white-space:pre-wrap; }
+  #inline-console { flex:0 0 auto; margin:0; max-height:132px; overflow:auto;
+                    padding:var(--sp-3) var(--sp-4); border-top:1px solid var(--line);
+                    font-size:11px; }
 
   /* Run-outputs dock: sub-tabs hosting every output panel */
-  .dock { flex:1 1 auto; min-height:0; border-top:1px solid var(--line); background:var(--bg2);
+  .dock { flex:1 1 auto; min-height:0; border-top:1px solid var(--line); background:var(--bg);
           display:flex; flex-direction:column; }
   .dock.collapsed { flex:0 0 auto; }
-  .stabs { flex:0 0 auto; display:flex; align-items:center; gap:2px; padding:0 var(--s3);
-           background:#0c131f; border-bottom:1px solid var(--line); overflow-x:auto; }
-  .stabs .dock-label { padding:0 var(--s2); white-space:nowrap; }
-  .stab { padding:9px 12px; font-size:12px; font-weight:600; color:var(--muted); background:none; border:none;
-          border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; margin-bottom:-1px; }
-  .stab:hover { color:#cbd5e1; }
-  .stab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .stabs { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-1); padding:0 var(--sp-3);
+           background:var(--bg-raised); border-bottom:1px solid var(--line); overflow-x:auto; }
+  .stabs .dock-label { padding:0 var(--sp-2); white-space:nowrap; }
   .dock-body { flex:1 1 auto; min-height:0; position:relative; }
   .dock.collapsed .dock-body { display:none; }
   .subpanel { position:absolute; inset:0; display:none; }
@@ -209,52 +213,64 @@
 
   /* Output panel internals */
   .out { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
-  .out .toolbar { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:8px 16px;
-                  border-bottom:1px solid var(--line); background:#0c131f; font-size:12px; color:var(--muted); }
+  .out .toolbar { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-3);
+                  padding:var(--sp-2) var(--sp-4); border-bottom:1px solid var(--line);
+                  background:var(--bg-raised); font-size:var(--fs-small); color:var(--ink-3); }
   .out .toolbar .grow { flex:1; }
-  .out pre { flex:1 1 auto; margin:0; overflow:auto; padding:16px; font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
-             color:#d7e2f2; white-space:pre; }
-  .out .empty { flex:1 1 auto; display:grid; place-items:center; color:var(--muted); padding:20px; text-align:center; }
-  .macro-tabs { display:flex; gap:6px; flex-wrap:wrap; }
-  .macro-tabs button { font:inherit; font-size:11px; padding:3px 9px; border-radius:7px; cursor:pointer;
-                       background:#111a28; color:var(--muted); border:1px solid var(--line); }
-  .macro-tabs button.active { color:var(--accent); border-color:var(--accent); }
+  .out pre { flex:1 1 auto; margin:0; overflow:auto; padding:var(--sp-4);
+             font:12px/1.6 var(--mono); color:#C9C6BE; background:var(--well); white-space:pre; }
+  .out .empty { flex:1 1 auto; display:grid; place-items:center; color:var(--ink-3);
+                padding:var(--sp-5); text-align:center; }
+  .macro-tabs { display:flex; gap:var(--sp-1); flex-wrap:wrap; }
+  .macro-tabs button { font:500 var(--fs-caption)/1.5 var(--mono); padding:2px var(--sp-2);
+                       border-radius:var(--r-sm); cursor:pointer; background:var(--surface);
+                       color:var(--ink-3); border:1px solid var(--line); }
+  .macro-tabs button.active { color:var(--copper-text); border-color:var(--copper); background:var(--copper-dim); }
 
-  /* Engineering flags */
-  .flag-item { border:1px solid var(--line); border-left:4px solid var(--muted); border-radius:8px;
-               padding:10px 14px; margin:10px 16px; background:#0d1521; font-size:13px; }
-  .flag-item .sev { display:inline-block; font-size:10px; font-weight:800; letter-spacing:.06em;
-                    padding:1px 8px; border-radius:8px; margin-right:8px; }
-  .flag-item .fid { color:var(--muted); font-size:11px; }
-  .flag-item .row { margin-top:4px; color:#c6d4e8; }
-  .flag-item .row b { color:var(--muted); font-weight:600; display:inline-block; min-width:66px; }
-  .flag-item.sev-CRITICAL { border-left-color:var(--err); }
-  .flag-item.sev-CRITICAL .sev { background:var(--err); color:#2a0505; }
-  .flag-item.sev-HIGH { border-left-color:#fb923c; }
-  .flag-item.sev-HIGH .sev { background:#fb923c; color:#2a1200; }
-  .flag-item.sev-MEDIUM { border-left-color:var(--warn); }
-  .flag-item.sev-MEDIUM .sev { background:var(--warn); color:#2a2000; }
-  .flag-item.sev-LOW { border-left-color:#60a5fa; }
-  .flag-item.sev-LOW .sev { background:#60a5fa; color:#001a3a; }
-  .flags-scroll { flex:1 1 auto; overflow:auto; padding-bottom:12px; }
-  .flags-summary { padding:10px 16px 0; font-size:13px; color:var(--muted); }
+  /* Engineering flags — severity colors come ONLY from the --sev-* tokens */
+  .flag-item { border:1px solid var(--line); border-left:3px solid var(--ink-4); border-radius:var(--r-md);
+               padding:var(--sp-3) var(--sp-4); margin:var(--sp-3) var(--sp-4); background:var(--surface);
+               font-size:var(--fs-body); }
+  .flag-item .sev { display:inline-flex; align-items:center; font:700 10px/16px var(--sans);
+                    letter-spacing:.07em; text-transform:uppercase; padding:1px var(--sp-2);
+                    border-radius:var(--r-sm); margin-right:var(--sp-2); }
+  .flag-item .fid { color:var(--ink-3); font:400 var(--fs-caption)/1.6 var(--mono); }
+  .flag-item .row { margin-top:var(--sp-1); color:var(--ink-2); }
+  .flag-item .row b { color:var(--ink-3); font:600 var(--fs-caption)/1.6 var(--sans);
+                      letter-spacing:.04em; text-transform:uppercase; display:inline-block; min-width:66px; }
+  .flag-item.sev-CRITICAL { border-left-color:var(--sev-critical); }
+  .flag-item.sev-CRITICAL .sev { background:var(--sev-critical); color:var(--on-sev-critical); }
+  .flag-item.sev-HIGH { border-left-color:var(--sev-high); }
+  .flag-item.sev-HIGH .sev { background:var(--sev-high); color:var(--on-sev-high); }
+  .flag-item.sev-MEDIUM { border-left-color:var(--sev-medium); }
+  .flag-item.sev-MEDIUM .sev { background:var(--sev-medium); color:var(--on-sev-medium); }
+  .flag-item.sev-LOW { border-left-color:var(--sev-low); }
+  .flag-item.sev-LOW .sev { background:var(--sev-low); color:var(--on-sev-low); }
+  .flags-scroll { flex:1 1 auto; overflow:auto; padding-bottom:var(--sp-3); }
+  .flags-summary { padding:var(--sp-3) var(--sp-4) 0; font-size:var(--fs-body); color:var(--ink-3); }
 
-  /* Token / cost */
-  .cost-cards { display:flex; gap:12px; padding:14px 16px 4px; flex-wrap:wrap; }
-  .cost-card { border:1px solid var(--line); border-radius:var(--r2); background:#0d1521;
-               padding:10px 16px; min-width:150px; }
-  .cost-card .v { font-size:20px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
-  .cost-card .k { font-size:11px; color:var(--muted); margin-top:2px; }
+  /* Token / cost — mono, tabular; the part total leads */
+  .cost-cards { display:flex; gap:var(--sp-3); padding:var(--sp-4) var(--sp-4) var(--sp-1); flex-wrap:wrap; }
+  .cost-card { border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface);
+               padding:var(--sp-3) var(--sp-4); min-width:150px; }
+  .cost-card .v { font:600 var(--fs-stat)/1.25 var(--mono); color:var(--ink);
+                  font-variant-numeric:tabular-nums; }
+  .cost-card .k { font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.05em;
+                  text-transform:uppercase; color:var(--ink-3); margin-top:var(--sp-1); }
+  .cost-cards .cost-card:first-child { border-color:rgba(217,139,63,.4); }
+  .cost-cards .cost-card:first-child .v { color:var(--copper-text); }
 
   /* Files */
   .files-scroll { flex:1 1 auto; overflow:auto; }
-  .files-table { width:100%; border-collapse:collapse; font-size:12px; }
-  .files-table td { padding:5px 16px; border-bottom:1px solid #131d2c; }
-  .files-table td.sz { color:var(--muted); text-align:right; white-space:nowrap; }
-  .files-table a { color:var(--accent); text-decoration:none; }
+  .files-table { width:100%; border-collapse:collapse; font-size:var(--fs-small); }
+  .files-table td { padding:6px var(--sp-4); border-bottom:1px solid var(--line-soft); }
+  .files-table td.sz { color:var(--ink-3); text-align:right; white-space:nowrap;
+                       font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .files-table a { color:var(--copper-text); text-decoration:none; }
   .files-table a:hover { text-decoration:underline; }
-  .files-paths { padding:10px 16px; font-size:12px; color:var(--muted); border-bottom:1px solid var(--line); }
-  .files-paths code { color:#a9c2e6; }
+  .files-paths { padding:var(--sp-3) var(--sp-4); font-size:var(--fs-small); color:var(--ink-3);
+                 border-bottom:1px solid var(--line); }
+  .files-paths code { color:var(--ink-2); font-family:var(--mono); }
 </style>
 </head>
 <body>
@@ -269,9 +285,9 @@
 </header>
 
 <nav class="tabs" id="tabbar">
-  <button class="tab active" data-tab="crop">1 · Drawing Crop</button>
-  <button class="tab" data-tab="intake">2 · Part Setup &amp; 3D Model <span class="badge">·</span></button>
-  <button class="tab" data-tab="pipeline">3 · Pipeline &amp; Results</button>
+  <button class="tab tab-c active" data-tab="crop">1 · Drawing Crop</button>
+  <button class="tab tab-c" data-tab="intake">2 · Part Setup &amp; 3D Model <span class="badge">·</span></button>
+  <button class="tab tab-c" data-tab="pipeline">3 · Pipeline &amp; Results</button>
 </nav>
 
 <main>
@@ -285,10 +301,10 @@
     <div class="intake-strip">
       <div class="gcol">
         <div class="grp-title">1 · Add images</div>
-        <label class="filebtn" for="intake-file">📄 Upload drawing <span class="hint">PDF · JPG · DWG · eDrawings</span></label>
+        <label class="filebtn" for="intake-file">Upload drawing <span class="hint">PDF · JPG · DWG · eDrawings</span></label>
         <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf,.edrw,.eprt,.easm" style="display:none">
-        <button class="btn secondary" id="pull-crops-btn">⬇ Pull queued crops</button>
-        <span class="fmt-badge" id="src-format" style="display:none"></span>
+        <button class="btn secondary" id="pull-crops-btn">Pull queued crops</button>
+        <span class="badge-c teal fmt-badge" id="src-format" style="display:none"></span>
         <div class="grp-row" id="sheet-picker" style="display:none">
           <span class="hint">This drawing has multiple sheets:</span>
           <select class="sel-input" id="sheet-select" style="padding:5px 8px;font-size:12px"></select>
@@ -307,12 +323,14 @@
         <div class="intake-foot" id="intake-foot" style="display:none">
           <span class="req-warn" id="req-warn"></span>
           <div class="rowline">
-            <input type="text" id="part-name" placeholder="Part name (becomes the folder name)">
-            <button class="btn" id="save-part-btn" disabled>💾 Save part</button>
+            <input type="text" class="input-c" id="part-name" placeholder="Part name (becomes the folder name)">
+            <button class="btn" id="save-part-btn" disabled>Save part</button>
           </div>
         </div>
-        <textarea id="part-notes" rows="3" placeholder="Must-meet requirements — one per line (e.g. '4x Ø6 mm mounting holes', 'material 6061'). Each line is graded against the built part; an unmet line blocks READY."></textarea>
-        <button class="btn secondary" id="save-notes-btn" style="display:none;padding:5px 10px;font-size:12px">💾 Update notes for selected part</button>
+        <label class="grp-title notes-label" for="part-notes">Must-meet specifications</label>
+        <span class="hint" style="max-width:280px">One requirement per line — each is graded against the built part; an unmet line blocks READY.</span>
+        <textarea id="part-notes" class="input-c" rows="3" placeholder="e.g.&#10;4x Ø6 mm mounting holes&#10;material 6061"></textarea>
+        <button class="btn secondary sm" id="save-notes-btn" style="display:none">Update notes for selected part</button>
       </div>
     </div>
     <div class="statusline"><span class="status" id="intake-status">Ready — crop views in Tab 1 or upload a drawing.</span></div>
@@ -320,9 +338,9 @@
     <div class="split" id="split-grid">
       <div class="side">
         <div class="cap capflex">Input Document — <span id="viewer-part">nothing loaded</span>
-          <span class="fmt-badge" id="src-format-badge" style="display:none"></span>
+          <span class="badge-c teal fmt-badge" id="src-format-badge" style="display:none"></span>
           <span class="grow"></span>
-          <span class="sync-badge" id="src-sync" style="display:none"></span>
+          <span class="badge-c ok sync-badge" id="src-sync" style="display:none"></span>
         </div>
         <div class="body" id="src-box">
           <img id="src-img" alt="source drawing" />
@@ -356,6 +374,7 @@
       </div>
       <div class="pt-actions">
         <button class="btn xl" id="run-btn" disabled>▶ Pull &amp; Run Pipeline</button>
+
         <button class="btn danger" id="cancel-btn" style="display:none">✕ Cancel</button>
         <div class="demo-row">
           <select id="demo-sample" class="sel-input"></select>
@@ -375,21 +394,26 @@
       <button class="logtoggle" id="log-toggle" title="Show / hide the live console">▤ Log</button>
     </div>
 
-    <pre id="inline-console" style="display:none"></pre>
+    <div id="run-banner" style="display:none">
+      <span class="rb-main" id="rb-main"></span>
+      <span class="rb-sub" id="rb-sub"></span>
+    </div>
+
+    <pre id="inline-console" class="console-c" style="display:none"></pre>
 
     <div class="dock" id="dock">
       <div class="stabs" id="stabbar">
         <span class="grp-title dock-label">Run outputs</span>
-        <button class="stab active" data-tab="extraction">Extraction JSON <span class="badge">·</span></button>
-        <button class="stab" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
-        <button class="stab" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
-        <button class="stab" data-tab="verification">Verification <span class="badge">·</span></button>
-        <button class="stab" data-tab="flags">Engineering Flags <span class="badge">·</span></button>
-        <button class="stab" data-tab="modelcheck">Model Check <span class="badge">·</span></button>
-        <button class="stab" data-tab="macros">VBA Macros <span class="badge">·</span></button>
-        <button class="stab" data-tab="cost">Token / Cost <span class="badge">·</span></button>
-        <button class="stab" data-tab="files">Files <span class="badge">·</span></button>
-        <button class="stab" data-tab="console">Console</button>
+        <button class="stab tab-c sm active" data-tab="extraction">Extraction JSON <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="verification">Verification <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="flags">Engineering Flags <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="modelcheck">Model Check <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="macros">VBA Macros <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="cost">Token / Cost <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="files">Files <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="console">Console</button>
         <span class="grow"></span>
         <button class="ibtn" id="dock-toggle" title="Collapse / expand run outputs">▾</button>
       </div>
@@ -415,7 +439,7 @@
           <div class="empty">No part run yet.</div>
           <div class="files-scroll" style="display:none"><div class="files-paths" id="files-paths"></div><table class="files-table"><tbody id="files-tbody"></tbody></table></div>
         </div></section>
-        <section class="subpanel" id="panel-console"><div class="out"><div class="toolbar"><span class="nm">Live pipeline output</span></div><pre id="console-pre"></pre></div></section>
+        <section class="subpanel" id="panel-console"><div class="out"><div class="toolbar"><span class="nm">Live pipeline output</span></div><pre id="console-pre" class="console-c"></pre></div></section>
       </div>
     </div>
   </section>
@@ -656,7 +680,7 @@ function selectPart(name) {
   const pd = partsData.find(x => x.name === name);
   if (notesEl && pd && !intake.items.length) notesEl.value = pd.notes || '';
   const snb = document.getElementById('save-notes-btn');
-  if (snb) { snb.style.display = ''; snb.textContent = `💾 Update notes for ${name}`; }
+  if (snb) { snb.style.display = ''; snb.textContent = `Update notes for ${name}`; }
   document.getElementById('viewer-part').textContent = name;
   // Split view left = this part's source thumbnail.
   const img = document.getElementById('src-img');
@@ -742,6 +766,8 @@ const ORIENTATIONS = [
 // Orientation → the crop filename the server's VIEW_MAP / view_ingest classify.
 const ORIENT_TO_NAME = { front:'front', back:'back', top:'top', bottom:'bottom',
                          left:'left', right:'right', iso:'overview' };
+// Short labels for the segmented orientation control on each image card.
+const ORIENT_SHORT = { front:'F', back:'B', top:'T', bottom:'Bo', left:'L', right:'R', iso:'ISO' };
 const ORTHO_SET = new Set(['top','bottom','left','right','back']);
 let intake = { items: [], source: null, originalFile: null, stem: 'drawing', format: '' };
 let intakeSeq = 0;
@@ -825,20 +851,24 @@ function renderGallery() {
     card.className = 'ocard' + (it.orientation ? ' assigned' : '') + (dups.has(it.orientation) ? ' dup' : '');
     const img = document.createElement('img'); img.src = it.dataURL; img.title = it.label || '';
     const ctl = document.createElement('div'); ctl.className = 'ctl';
-    const sel = document.createElement('select');
+    // Segmented orientation control (replaces the raw dropdown; same state).
+    const seg = document.createElement('div'); seg.className = 'seg-c oseg';
     for (const [v, label] of ORIENTATIONS) {
-      const o = document.createElement('option'); o.value = v; o.textContent = label;
-      if (v === it.orientation) o.selected = true;
-      sel.appendChild(o);
+      if (!v) continue;
+      const b = document.createElement('button'); b.type = 'button';
+      b.textContent = ORIENT_SHORT[v];
+      b.title = label + (v === it.orientation ? ' — click again to unassign' : '');
+      if (v === it.orientation) b.classList.add('on');
+      b.onclick = () => { it.orientation = it.orientation === v ? '' : v; renderGallery(); };
+      seg.appendChild(b);
     }
-    sel.onchange = () => { it.orientation = sel.value; renderGallery(); };
     const rot = document.createElement('button'); rot.className = 'ibtn'; rot.textContent = '⟳';
     rot.title = 'Rotate 90° (scanned drawings are often rotated)';
     rot.onclick = async () => { it.dataURL = await rotateDataURL(it.dataURL); renderGallery(); };
     const del = document.createElement('button'); del.className = 'ibtn'; del.textContent = '✕';
     del.title = 'Remove this image';
     del.onclick = () => { intake.items = intake.items.filter(x => x.id !== it.id); renderGallery(); };
-    ctl.append(sel, rot, del);
+    ctl.append(seg, rot, del);
     const badge = document.createElement('span'); badge.className = 'dupbadge'; badge.textContent = 'duplicate';
     card.append(img, ctl, badge);
     galleryEl.appendChild(card);
@@ -903,7 +933,7 @@ intakeFile.addEventListener('change', async e => {
     if (!partNameEl.value.trim()) partNameEl.value = intake.stem;
     validateIntake();
   } catch (err) {
-    setStatus('❌ Could not load file: ' + err.message, 'err');
+    setStatus('✕ Could not load file: ' + err.message, 'err');
   }
 });
 
@@ -920,11 +950,11 @@ async function loadCadFile(f, stem, layoutName) {
   if (layoutName) fd.append('layout', layoutName);
   let resp;
   try { resp = await fetch('/api/convert-dwg', { method: 'POST', body: fd }); }
-  catch (e) { setStatus('❌ Conversion failed: ' + e.message, 'err'); return; }
+  catch (e) { setStatus('✕ Conversion failed: ' + e.message, 'err'); return; }
   if (!resp.ok) {
     let msg = 'Conversion failed.';
     try { msg = (await resp.json()).detail || msg; } catch {}
-    setStatus('❌ ' + msg, 'err'); return;
+    setStatus('✕ ' + msg, 'err'); return;
   }
   if ((resp.headers.get('content-type') || '').includes('application/json')) {
     const d = await resp.json();   // multiple sheets — offer the picker
@@ -1073,6 +1103,29 @@ function setStatus(msg, cls) {
   }
 }
 
+// ── Post-run READY banner (the dominant element once a run completes) ───────
+const runBanner = document.getElementById('run-banner');
+function hideRunBanner() { runBanner.style.display = 'none'; }
+function showRunBanner(main, sub, cls) {
+  runBanner.className = cls || '';
+  document.getElementById('rb-main').textContent = main;
+  document.getElementById('rb-sub').textContent = sub || '';
+  runBanner.style.display = '';
+}
+// The pipeline summary prints "N/N READY" (and per-part READY / NOT READY).
+function bannerFromRun(d, partName) {
+  if (d.cancelled) { hideRunBanner(); return; }
+  const text = consolePre.textContent;
+  const frac = [...text.matchAll(/(\d+)\s*\/\s*(\d+)\s+READY/g)].pop();
+  const notReady = /\bNOT READY\b/.test(text);
+  const label = partName ? `— ${partName}` : '';
+  if (d.exit === 0 && frac) showRunBanner(`✓ ${frac[1]}/${frac[2]} READY`, `all parts passed final checks ${label}`);
+  else if (d.exit === 0 && !notReady) showRunBanner('✓ READY', `run complete ${label}`);
+  else if (frac || notReady) showRunBanner(frac ? `${frac[1]}/${frac[2]} READY` : 'NOT READY',
+    `completed with gating flags — read the Engineering Flags tab ${label}`, 'warn');
+  else showRunBanner(`✕ FAILED (exit ${d.exit})`, `see the Console tab ${label}`, 'err');
+}
+
 // Stage lines look like "[1/2] ..." or "[1-2/4] ..." — turn the fraction into a
 // (non-decreasing) 0-92% progress estimate; the final 100% is reserved for the
 // actual 'done' event so the bar never claims completion early.
@@ -1129,7 +1182,8 @@ function setRunning(on) {
   progressWrap.style.display = on ? '' : 'none';
   stageStrip.style.display = on || stageIdx >= 0 ? '' : 'none';
   if (on) {
-    runBtn.className = 'btn xl running'; runBtn.textContent = '⏳ Running…'; runBtn.disabled = true;
+    hideRunBanner();
+    runBtn.className = 'btn xl running'; runBtn.textContent = 'Running…'; runBtn.disabled = true;
     cancelBtn.disabled = false; resetProgress(); setProgress(2); startElapsed(); resetStages(); paintStages();
   } else {
     runBtn.className = 'btn xl'; runBtn.textContent = '▶ Pull & Run Pipeline'; stopElapsed();
@@ -1187,14 +1241,15 @@ function monitorRun(id, partName) {
       try { const pl = await (await fetch(`/api/parts?session=${sessionId}`)).json(); partsData = pl.parts; renderParts(); } catch {}
       // refresh outputs once more so delivered paths land in the Files tab
       if (selectedPart === partName) { try { const d2 = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(partName)}/outputs`)).json(); if (d2.has_any) fillOutputs(d2); } catch {} }
-      if (d.cancelled) setStatus(`🛑 Pipeline cancelled for "${partName}".`, 'err');
+      bannerFromRun(d, partName);
+      if (d.cancelled) setStatus(`Pipeline cancelled for "${partName}".`, 'err');
       else if (d.exit === 0) {
         let where = '';
         if (d.delivered) where += ` Saved to <code>${d.delivered}</code>`;
         if (d.delivered_downloads) where += ` and <code>${d.delivered_downloads}</code>`;
-        setStatus(`✅ Pipeline finished for "${partName}". Outputs are in the Run outputs panel below.${where}`, 'ok');
+        setStatus(`✓ Pipeline finished for "${partName}". Outputs are in the Run outputs panel below.${where}`, 'ok');
       }
-      else setStatus(`❌ Pipeline failed for "${partName}" (exit ${d.exit}). See Console. Partial outputs shown.`, 'err');
+      else setStatus(`✕ Pipeline failed for "${partName}" (exit ${d.exit}). See Console. Partial outputs shown.`, 'err');
     }
   };
   poll(); pollTimer = setInterval(poll, 1200);
@@ -1236,8 +1291,9 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
     if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
     if (d.done) {
       clearInterval(pollTimer); pollTimer = null; setProgress(100); setRunning(false); currentRunId = null;
-      if (d.cancelled) setStatus('🛑 Demo cancelled.', 'err');
-      else setStatus(d.exit === 0 ? '✅ Demo finished. See the Run outputs panel below.' : `❌ Demo exited ${d.exit}.`, d.exit === 0 ? 'ok' : 'err');
+      bannerFromRun(d, 'demo');
+      if (d.cancelled) setStatus('Demo cancelled.', 'err');
+      else setStatus(d.exit === 0 ? '✓ Demo finished. See the Run outputs panel below.' : `✕ Demo exited ${d.exit}.`, d.exit === 0 ? 'ok' : 'err');
     }
   };
   poll(); pollTimer = setInterval(poll, 1200);
@@ -1272,13 +1328,16 @@ const viewer = (() => {
   let renderer, scene, camera, controls, mesh, wrap, inited = false, needResize = false, loadedURL = null;
   function init() {
     wrap = document.getElementById('stl-canvas-wrap');
-    scene = new THREE.Scene(); scene.background = new THREE.Color(0x080d14);
+    // Scene palette mirrors the design tokens: graphite well (--well), warm key
+    // light, faint slate-teal rim so machined edges read against the dark bg.
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x101216);
     camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000); camera.position.set(120, 90, 160);
     renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(window.devicePixelRatio || 1);
     wrap.appendChild(renderer.domElement);
     controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08;
-    scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x202830, 1.0));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.85); dir.position.set(1, 1, 1); scene.add(dir);
+    scene.add(new THREE.HemisphereLight(0xdcd6cc, 0x14161a, 0.9));
+    const key = new THREE.DirectionalLight(0xffe3c4, 0.9); key.position.set(1, 1, 1); scene.add(key);
+    const rim = new THREE.DirectionalLight(0x4a7a78, 0.4); rim.position.set(-1, 0.4, -0.8); scene.add(rim);
     inited = true; resize(); animate();
     new ResizeObserver(() => { needResize = true; }).observe(wrap);
   }
@@ -1291,7 +1350,7 @@ const viewer = (() => {
     camera.position.set(maxDim*1.4,maxDim*1.1,maxDim*1.8); camera.near=maxDim/100; camera.far=maxDim*100; camera.updateProjectionMatrix();
     controls.target.set(0,0,0); controls.update();
     const old=scene.getObjectByName('grid2'); if (old) scene.remove(old);
-    const g=new THREE.GridHelper(maxDim*3,20,0x1d2a3c,0x141d2b); g.name='grid2'; g.position.y=-size.y/2; scene.add(g);
+    const g=new THREE.GridHelper(maxDim*3,20,0x2a2a26,0x1b1b18); g.name='grid2'; g.position.y=-size.y/2; scene.add(g);
   }
   return {
     onShow() { if (!inited) init(); else needResize = true; },
@@ -1300,7 +1359,7 @@ const viewer = (() => {
       if (url === loadedURL) return; loadedURL = url;
       new THREE.STLLoader().load(url, geo => {
         if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
-        const mat = new THREE.MeshStandardMaterial({ color: 0x8fb3ff, metalness: 0.15, roughness: 0.55 });
+        const mat = new THREE.MeshStandardMaterial({ color: 0xb3aca1, metalness: 0.3, roughness: 0.5 });
         mesh = new THREE.Mesh(geo, mat); scene.add(mesh); frame(geo);
         document.getElementById('stl-empty').style.display = 'none';
       }, undefined, err => console.warn('STL load failed', err));

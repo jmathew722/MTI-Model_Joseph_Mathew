@@ -75,6 +75,7 @@ app = FastAPI(title="MTI 2D->3D Pipeline UI")
 # Static assets: the verbatim photo app (Tab 1) and the vendored 3D-viewer libs.
 app.mount("/photoapp", StaticFiles(directory=str(WEBAPP_DIR / "photoapp"), html=True), name="photoapp")
 app.mount("/vendor", StaticFiles(directory=str(WEBAPP_DIR / "vendor")), name="vendor")
+app.mount("/static", StaticFiles(directory=str(WEBAPP_DIR / "static")), name="static")  # design tokens (shared by both documents)
 
 # id -> {"lines": list[str], "done": bool, "exit": int|None, "output": Path}
 RUNS: dict[str, dict] = {}

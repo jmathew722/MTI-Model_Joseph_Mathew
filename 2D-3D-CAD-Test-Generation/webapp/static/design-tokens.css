@@ -1,0 +1,210 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MTI 2D→3D Pipeline — Design tokens & shared components
+   Single source of truth for BOTH documents (index.html and photoapp/).
+   Full documentation: webapp/DESIGN.md
+   Direction: graphite / copper / slate-teal — machined engineering tool.
+   Depth strategy: borders only (no drop shadows). Spacing grid: 4px.
+   Component metrics translated from shadcn new-york-v4
+   (button / badge / tabs / card / table / progress).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Surfaces (graphite, darkest → lightest) ─────────────────────────── */
+  --well:      #101216;  /* deepest: canvas wells, console, viewport */
+  --bg:        #14161A;  /* page background */
+  --bg-raised: #1A1D22;  /* toolbars, strips, tab rails */
+  --surface:   #22262C;  /* cards, panels, popovers */
+  --surface-2: #282D34;  /* hover on cards, active list rows */
+  --input-bg:  #121418;  /* inputs sit BELOW their surroundings (inset) */
+
+  /* ── Ink (warm off-white, 4 tiers) ───────────────────────────────────── */
+  --ink:       #E8E6E1;  /* primary */
+  --ink-2:     #B9B5AD;  /* secondary */
+  --ink-3:     #8A867E;  /* muted / labels */
+  --ink-4:     #5F5B54;  /* faint / disabled */
+
+  /* ── Borders (warm-white alpha; quiet by default) ────────────────────── */
+  --line:      rgba(232,230,225,0.08);
+  --line-soft: rgba(232,230,225,0.05);
+  --line-strong: rgba(232,230,225,0.16);
+  --ring:      rgba(217,139,63,0.45);   /* focus ring — copper */
+
+  /* ── Copper — the ONE interactive accent ─────────────────────────────── */
+  --copper:        #C9762A;
+  --copper-bright: #D98B3F;   /* hover / emphasis */
+  --copper-text:   #E8A45C;   /* copper as text on dark surfaces */
+  --copper-dim:    rgba(217,139,63,0.14);  /* tints, selected fills */
+  --on-copper:     #1A0F04;   /* text on copper fills */
+
+  /* ── Slate-teal — secondary, informational ───────────────────────────── */
+  --teal:      #4A7A78;
+  --teal-text: #7FB0AD;       /* teal as text on dark */
+  --teal-dim:  rgba(74,122,120,0.16);
+
+  /* ── Status ──────────────────────────────────────────────────────────── */
+  --ok:        #58A66C;
+  --ok-text:   #7CC48F;
+  --err:       #E5484D;
+  --err-text:  #F2777B;
+  --warn:      #E2A33C;
+
+  /* ── Severity ladder (functional — flags, never decoration) ─────────── */
+  --sev-critical: #E5484D;  --on-sev-critical: #2A0507;
+  --sev-high:     #E29A3C;  --on-sev-high:     #2A1703;
+  --sev-medium:   #D4C14A;  --on-sev-medium:   #262104;
+  --sev-low:      #8FA0B2;  --on-sev-low:      #10151B;
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+  --fs-caption: 11px;   /* uppercase labels, chips */
+  --fs-small:   12px;   /* secondary text, dense tables */
+  --fs-body:    13px;   /* dense body (tool default) */
+  --fs-control: 14px;   /* buttons, inputs, tab labels */
+  --fs-h2:      16px;   /* panel/app titles */
+  --fs-stat:    20px;   /* stat values */
+  --fs-display: 28px;   /* hero numbers, READY banner */
+
+  /* ── Spacing (4px grid) ──────────────────────────────────────────────── */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+
+  /* ── Radius scale ────────────────────────────────────────────────────── */
+  --r-sm: 4px;   /* chips, badges */
+  --r-md: 6px;   /* buttons, inputs (shadcn rounded-md) */
+  --r-lg: 8px;   /* cards, panels */
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+html { -webkit-font-smoothing: antialiased; }
+::selection { background: var(--copper-dim); }
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(232,230,225,0.12); border-radius: 5px;
+                             border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(232,230,225,0.22);
+                                   border: 2px solid transparent; background-clip: content-box; }
+* { scrollbar-width: thin; scrollbar-color: rgba(232,230,225,0.16) transparent; }
+
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Shared components — one visual language for both documents.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Button (shadcn: h-9 · px-4 · rounded-md · text-sm · font-medium) ──── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  height: 36px; padding: 0 var(--sp-4); border-radius: var(--r-md);
+  font: 500 var(--fs-control)/1 var(--sans); letter-spacing: 0.01em;
+  border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+  background: var(--copper); color: var(--on-copper);
+  transition: background .12s, border-color .12s, color .12s, transform .1s;
+}
+.btn:hover:not(:disabled) { background: var(--copper-bright); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.secondary {
+  background: var(--surface); color: var(--ink); border-color: var(--line-strong);
+}
+.btn.secondary:hover:not(:disabled) { background: var(--surface-2); border-color: rgba(232,230,225,0.24); }
+.btn.ghost { background: transparent; color: var(--ink-2); border-color: transparent; }
+.btn.ghost:hover:not(:disabled) { background: var(--surface); color: var(--ink); }
+.btn.danger { background: transparent; color: var(--err-text); border-color: rgba(229,72,77,0.4); }
+.btn.danger:hover:not(:disabled) { background: rgba(229,72,77,0.12); }
+.btn.running { background: var(--surface); color: var(--teal-text); border-color: var(--line-strong); }
+.btn.sm { height: 28px; padding: 0 var(--sp-3); font-size: var(--fs-small); }
+.btn.xl { height: 44px; padding: 0 var(--sp-5); font-size: 15px; font-weight: 600; }
+
+/* ── Icon button (square, quiet) ───────────────────────────────────────── */
+.ibtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-3);
+  cursor: pointer; font: 500 var(--fs-small)/1 var(--sans);
+  transition: color .12s, border-color .12s, background .12s;
+}
+.ibtn:hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface-2); }
+
+/* ── Badge (shadcn: rounded-md · border · px-2 py-0.5 · text-xs · 500) ─── */
+.badge-c {
+  display: inline-flex; align-items: center; gap: var(--sp-1); width: fit-content;
+  padding: 2px var(--sp-2); border-radius: var(--r-sm);
+  font: 600 var(--fs-caption)/16px var(--sans); letter-spacing: 0.02em;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  white-space: nowrap;
+}
+.badge-c.copper { background: var(--copper-dim); color: var(--copper-text); border-color: rgba(217,139,63,0.35); }
+.badge-c.teal   { background: var(--teal-dim); color: var(--teal-text); border-color: rgba(74,122,120,0.4); }
+.badge-c.ok     { background: rgba(88,166,108,0.14); color: var(--ok-text); border-color: rgba(88,166,108,0.35); }
+.badge-c.err    { background: rgba(229,72,77,0.12); color: var(--err-text); border-color: rgba(229,72,77,0.35); }
+.badge-c.warn   { background: rgba(226,163,60,0.12); color: var(--warn); border-color: rgba(226,163,60,0.35); }
+.badge-c.mono   { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Severity badges — filled, unambiguous, identical everywhere */
+.badge-sev {
+  display: inline-flex; align-items: center; width: fit-content;
+  padding: 1px var(--sp-2); border-radius: var(--r-sm);
+  font: 700 10px/16px var(--sans); letter-spacing: 0.07em; text-transform: uppercase;
+  border: none; white-space: nowrap;
+}
+.badge-sev.critical { background: var(--sev-critical); color: var(--on-sev-critical); }
+.badge-sev.high     { background: var(--sev-high);     color: var(--on-sev-high); }
+.badge-sev.medium   { background: var(--sev-medium);   color: var(--on-sev-medium); }
+.badge-sev.low      { background: var(--sev-low);      color: var(--on-sev-low); }
+
+/* ── Inputs (inset: darker than surroundings) ──────────────────────────── */
+.input-c, textarea.input-c, select.input-c {
+  font: 400 var(--fs-body)/1.45 var(--sans); color: var(--ink);
+  background: var(--input-bg); border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: 7px var(--sp-3);
+  transition: border-color .12s;
+}
+.input-c::placeholder { color: var(--ink-4); }
+.input-c:focus { outline: none; border-color: var(--copper); }
+.input-c.mono { font-family: var(--mono); }
+
+/* ── Tabs — underline rail (one pattern for top tabs and sub-tabs) ─────── */
+.tab-c {
+  appearance: none; background: none; border: none; cursor: pointer;
+  padding: var(--sp-3) var(--sp-4); margin-bottom: -1px; white-space: nowrap;
+  font: 500 var(--fs-control)/1 var(--sans); color: var(--ink-3);
+  border-bottom: 2px solid transparent;
+  transition: color .12s, border-color .12s;
+}
+.tab-c:hover { color: var(--ink-2); }
+.tab-c.active { color: var(--ink); border-bottom-color: var(--copper); }
+.tab-c.sm { padding: 10px var(--sp-3); font-size: var(--fs-small); }
+
+/* ── Panel caption (uppercase micro-label used on every panel) ─────────── */
+.cap-c {
+  font: 600 var(--fs-caption)/1.4 var(--sans); letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+
+/* ── Progress (shadcn: slim track + primary fill) ──────────────────────── */
+.progress-c { height: 6px; border-radius: 3px; background: var(--well);
+              border: 1px solid var(--line-soft); overflow: hidden; }
+.progress-c > .fill { height: 100%; width: 0%; background: var(--copper);
+                      transition: width .35s ease; }
+
+/* ── Console / build log ───────────────────────────────────────────────── */
+.console-c {
+  background: var(--well); color: #C9CDC4;
+  font: 12px/1.6 var(--mono); white-space: pre-wrap;
+}
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+.card-c { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+
+/* ── Segmented control (orientation picker etc.) ───────────────────────── */
+.seg-c { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-md);
+         background: var(--input-bg); padding: 2px; gap: 2px; }
+.seg-c > button {
+  appearance: none; border: none; background: transparent; cursor: pointer;
+  border-radius: var(--r-sm); padding: 3px 7px;
+  font: 600 10px/1.4 var(--sans); letter-spacing: 0.02em; color: var(--ink-3);
+  transition: background .12s, color .12s;
+}
+.seg-c > button:hover { color: var(--ink); }
+.seg-c > button.on { background: var(--copper); color: var(--on-copper); }

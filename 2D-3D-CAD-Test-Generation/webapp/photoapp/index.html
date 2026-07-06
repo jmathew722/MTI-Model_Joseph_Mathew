@@ -4,42 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DrawingCrop</title>
+  <link rel="stylesheet" href="/static/design-tokens.css">
   <style>
+    /* DrawingCrop — page styles. All values bind to /static/design-tokens.css
+       (shared with the host app; see webapp/DESIGN.md). */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --ground:     #080d14;
-      --panel:      #0d1520;
-      --panel2:     #111d2b;
-      --accent:     #00b4d8;
-      --accent-dim: #005f73;
-      --border:     #1a2840;
-      --text:       #cdd9e5;
-      --muted:      #4a6070;
-      --success:    #4ade80;
-      --warn:       #fbbf24;
-      --danger:     #ef4444;
-      --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-    }
-
-    html, body { height: 100%; background: var(--ground); color: var(--text);
-      font-family: var(--mono); font-size: 12px; overflow: hidden;
+    html, body { height: 100%; background: var(--well); color: var(--ink);
+      font: var(--fs-small)/1.5 var(--sans); overflow: hidden;
       -webkit-font-smoothing: antialiased; }
 
     #app { display: flex; flex-direction: column; height: 100vh; }
 
     /* Toolbar */
-    #toolbar { display: flex; align-items: center; gap: 6px;
-      padding: 0 10px; height: 42px; background: var(--panel);
-      border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    #toolbar { display: flex; align-items: center; gap: var(--sp-2);
+      padding: 0 var(--sp-3); height: 44px; background: var(--bg-raised);
+      border-bottom: 1px solid var(--line); flex-shrink: 0; }
 
-    .logo { font-size: 11px; font-weight: 700; letter-spacing: 3px;
-      color: var(--accent); margin-right: 4px; user-select: none; }
+    .logo { font: 700 var(--fs-caption)/1 var(--mono); letter-spacing: 3px;
+      color: var(--copper-text); margin-right: var(--sp-1); user-select: none; }
 
-    .vsep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    .vsep { width: 1px; height: 20px; background: var(--line); margin: 0 var(--sp-1); }
     .spacer { flex: 1; }
 
-    #fileLabel { font-size: 10px; color: var(--muted); letter-spacing: 0.4px; }
+    #fileLabel { font: 400 var(--fs-caption)/1.4 var(--mono); color: var(--ink-3);
+      font-variant-numeric: tabular-nums; }
 
     /* Main */
     #main { display: flex; flex: 1; overflow: hidden; }
@@ -48,105 +37,81 @@
     #canvasWrap { flex: 1; position: relative; overflow: hidden; }
     #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
-    /* Sidebar */
-    #sidebar { width: 240px; flex-shrink: 0; background: var(--panel);
-      border-left: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; }
-    #sidebar::-webkit-scrollbar { width: 4px; }
-    #sidebar::-webkit-scrollbar-track { background: var(--panel); }
-    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    /* Sidebar — same ground as the canvas, separated by a quiet border */
+    #sidebar { width: 248px; flex-shrink: 0; background: var(--bg);
+      border-left: 1px solid var(--line); overflow-y: auto; overflow-x: hidden; }
 
-    #sideInner { padding: 12px; display: flex; flex-direction: column; min-height: 100%; }
+    #sideInner { padding: var(--sp-3); display: flex; flex-direction: column; min-height: 100%; }
 
-    .info-chip { background: var(--panel2); border: 1px solid var(--border);
-      border-radius: 3px; padding: 6px 8px; font-size: 10px; color: var(--muted);
-      margin-bottom: 14px; line-height: 1.6; word-break: break-all; white-space: pre-wrap; }
+    .info-chip { background: var(--well); border: 1px solid var(--line);
+      border-radius: var(--r-sm); padding: var(--sp-2); font: 400 10px/1.6 var(--mono);
+      color: var(--ink-3); margin-bottom: var(--sp-4); word-break: break-all; white-space: pre-wrap; }
 
-    .section-hdr { font-size: 8px; font-weight: 700; letter-spacing: 3px;
-      color: var(--accent); border-bottom: 1px solid var(--accent-dim);
-      padding-bottom: 5px; margin-bottom: 8px; }
+    .section-hdr { font: 600 var(--fs-caption)/1.4 var(--sans); letter-spacing: .08em;
+      text-transform: uppercase; color: var(--ink-3);
+      border-bottom: 1px solid var(--line); padding-bottom: 5px; margin-bottom: var(--sp-2); }
 
-    .field-label { display: block; font-size: 8px; color: var(--muted);
-      margin-bottom: 3px; letter-spacing: 0.5px; }
+    .field-label { display: block; font: 600 10px/1.4 var(--sans); letter-spacing: .05em;
+      text-transform: uppercase; color: var(--ink-4); margin-bottom: 3px; }
 
-    .gap-s { margin-bottom: 6px; }
-    .gap-m { margin-bottom: 10px; }
-    .gap-l { margin-bottom: 16px; }
+    .gap-s { margin-bottom: var(--sp-2); }
+    .gap-m { margin-bottom: var(--sp-3); }
+    .gap-l { margin-bottom: var(--sp-4); }
 
-    .divider { height: 1px; background: var(--border); margin: 14px 0; }
+    .divider { height: 1px; background: var(--line); margin: var(--sp-4) 0; }
     .push { flex: 1; }
 
-    /* Form */
+    /* Form (inset inputs; native select keeps a token chevron) */
     select, input[type="text"], input[type="number"] {
-      width: 100%; background: var(--panel2); color: var(--text);
-      border: 1px solid var(--border); border-radius: 3px;
-      padding: 4px 8px; font-size: 11px; font-family: var(--mono);
+      width: 100%; background: var(--input-bg); color: var(--ink);
+      border: 1px solid var(--line); border-radius: var(--r-md);
+      padding: 6px var(--sp-2); font: 400 var(--fs-small)/1.4 var(--sans);
       outline: none; -webkit-appearance: none; appearance: none; }
-    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%234a6070'/%3E%3C/svg%3E");
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238A867E'/%3E%3C/svg%3E");
       background-repeat: no-repeat; background-position: right 8px center;
       padding-right: 22px; cursor: pointer; }
-    select:focus, input:focus { border-color: var(--accent); }
+    select:focus, input:focus { border-color: var(--copper); }
 
-    /* Buttons */
-    button { font-family: var(--mono); border: none; border-radius: 3px;
-      cursor: pointer; font-size: 11px; padding: 5px 12px;
-      transition: background 0.1s, color 0.1s, border-color 0.1s; }
-    button:disabled { cursor: default; }
+    /* Buttons: the shared .btn recipes come from design-tokens.css */
+    #dlZipBtn {
+      display: inline-flex; align-items: center; height: 28px;
+      padding: 0 var(--sp-3); border-radius: var(--r-md);
+      background: var(--surface); color: var(--ink-3);
+      border: 1px solid var(--line-strong);
+      font: 600 var(--fs-caption)/1 var(--sans); letter-spacing: .02em;
+      cursor: pointer; transition: background .12s, color .12s, border-color .12s;
+    }
+    #dlZipBtn.ready { background: var(--copper); color: var(--on-copper); border-color: var(--copper); }
+    #dlZipBtn.ready:hover { background: var(--copper-bright); }
+    #dlZipBtn:disabled { cursor: default; opacity: .55; }
 
-    .btn-primary { background: var(--accent); color: #000; font-weight: 700; letter-spacing: 0.5px; }
-    .btn-primary:hover:not(:disabled) { background: #00d0f0; }
-    .btn-primary:disabled { background: var(--accent-dim); color: #1a3a44; }
+    .badge { display: inline-block; background: var(--well); color: var(--copper-text);
+      border-radius: 8px; font: 700 10px/16px var(--mono); font-variant-numeric: tabular-nums;
+      padding: 0 5px; margin-left: 6px; min-width: 18px; text-align: center; }
+    #dlZipBtn.ready .badge { background: rgba(0,0,0,0.25); color: var(--on-copper); }
 
-    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
-    .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-    .btn-ghost:disabled { color: var(--muted); }
-
-    .btn-danger { background: transparent; color: var(--danger); border: 1px solid #7f1d1d; font-size: 10px; padding: 4px 10px; letter-spacing: 0.5px; }
-    .btn-danger:hover { background: #7f1d1d; color: #fca5a5; }
-
-    .btn-dim { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-dim); font-weight: 700; padding: 4px 10px; }
-    .btn-dim:hover { background: var(--accent); color: #000; border-color: var(--accent); }
-
-    .btn-muted { background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 9px; padding: 3px 8px; }
-    .btn-muted:hover { color: var(--danger); border-color: var(--danger); }
+    /* Lists — technical content, mono */
+    .list-box { background: var(--well); border: 1px solid var(--line);
+      border-radius: var(--r-sm); padding: var(--sp-1); list-style: none;
+      overflow-y: auto; font: 400 10px/1.7 var(--mono); }
+    .list-box.views { height: 76px; }
+    .list-box.features { height: 100px; color: var(--warn); }
+    .list-box li { padding: 1px var(--sp-1); }
+    .list-box.views li { color: var(--ok-text); }
+    .list-box.views li.pending { color: var(--ink-4); font-style: italic; }
 
     .btn-full { width: 100%; }
 
-    /* Download ZIP button — the hero action */
-    #dlZipBtn {
-      background: var(--panel2); color: var(--muted);
-      border: 1px solid var(--border);
-      font-size: 11px; padding: 4px 12px; font-weight: 700;
-      letter-spacing: 0.3px; transition: all 0.15s;
-    }
-    #dlZipBtn.ready {
-      background: var(--accent); color: #000; border-color: var(--accent);
-    }
-    #dlZipBtn.ready:hover { background: #00d0f0; }
-    #dlZipBtn:disabled { cursor: default; }
-
-    .badge { display: inline-block; background: #000; color: var(--accent);
-      border-radius: 9px; font-size: 9px; padding: 1px 5px;
-      margin-left: 5px; font-weight: 700; min-width: 18px; text-align: center; }
-    #dlZipBtn.ready .badge { background: rgba(0,0,0,0.25); color: #000; }
-
-    /* Lists */
-    .list-box { background: var(--panel2); border: 1px solid var(--border);
-      border-radius: 3px; padding: 4px; list-style: none; overflow-y: auto; font-size: 10px; }
-    .list-box.views { height: 76px; }
-    .list-box.features { height: 100px; color: var(--warn); }
-    .list-box li { padding: 1px 4px; line-height: 1.6; }
-    .list-box.views li { color: var(--success); }
-    .list-box.views li.pending { color: var(--muted); font-style: italic; }
-
     /* Count row */
-    .count-row { display: flex; gap: 6px; align-items: stretch; }
+    .count-row { display: flex; gap: var(--sp-2); align-items: stretch; }
     .count-row input { flex: 1; }
 
     /* Status bar */
-    #statusbar { height: 26px; display: flex; align-items: center;
-      padding: 0 12px; background: var(--panel);
-      border-top: 1px solid var(--border); color: var(--muted);
-      font-size: 10px; letter-spacing: 0.3px; flex-shrink: 0; }
+    #statusbar { height: 28px; display: flex; align-items: center;
+      padding: 0 var(--sp-3); background: var(--bg-raised);
+      border-top: 1px solid var(--line); color: var(--ink-3);
+      font: 400 var(--fs-caption)/1 var(--mono); font-variant-numeric: tabular-nums;
+      flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -155,8 +120,8 @@
   <div id="toolbar">
     <span class="logo">DRAWINGCROP</span>
     <div class="vsep"></div>
-    <button class="btn-primary" id="openBtn" style="font-size:11px;padding:4px 12px">Open Drawing</button>
-    <button class="btn-ghost"   id="clearBtn" style="font-size:11px;padding:4px 12px" disabled>Clear Selection</button>
+    <button class="btn sm" id="openBtn">Open Drawing</button>
+    <button class="btn sm secondary" id="clearBtn" disabled>Clear Selection</button>
     <input type="file" id="fileInput" accept="image/*,.pdf,application/pdf" style="display:none">
     <div class="spacer"></div>
     <span id="fileLabel"></span>
@@ -164,7 +129,7 @@
     <button id="dlZipBtn" disabled>
       ⬇ Download ZIP<span class="badge" id="zipBadge">0</span>
     </button>
-    <button class="btn-danger" id="resetBtn">RESET</button>
+    <button class="btn sm danger" id="resetBtn">Reset</button>
   </div>
 
   <div id="main">
@@ -182,7 +147,7 @@
         <select id="presetSel" class="gap-s"></select>
         <label class="field-label">CUSTOM NAME (overrides preset)</label>
         <input type="text" id="customName" placeholder="e.g. iso_detail" class="gap-m">
-        <button class="btn-primary btn-full gap-m" id="saveViewBtn" disabled>Queue View</button>
+        <button class="btn btn-full gap-m" id="saveViewBtn" disabled>Queue View</button>
         <label class="field-label">QUEUED VIEWS</label>
         <ul class="list-box views gap-l" id="savedList"></ul>
 
@@ -194,17 +159,17 @@
         <label class="field-label">COUNT</label>
         <div class="count-row gap-m">
           <input type="number" id="countIn" value="1" min="0" max="999">
-          <button class="btn-dim" id="addBtn">Add</button>
+          <button class="btn sm secondary" id="addBtn">Add</button>
         </div>
         <label class="field-label">TALLIED</label>
         <ul class="list-box features gap-s" id="featList"></ul>
         <div style="display:flex;gap:6px;margin-top:4px;margin-bottom:14px">
-          <button class="btn-muted" id="clearTallyBtn" style="flex:1">Clear</button>
+          <button class="btn sm ghost" id="clearTallyBtn" style="flex:1">Clear</button>
         </div>
 
         <div class="push"></div>
 
-        <button class="btn-primary btn-full" id="dlZipSideBtn" disabled style="margin-bottom:0">
+        <button class="btn btn-full" id="dlZipSideBtn" disabled style="margin-bottom:0">
           ⬇ Download ZIP
         </button>
 
@@ -424,11 +389,11 @@ function draw() {
   const cw=canvas.clientWidth, ch=canvas.clientHeight;
   canvas.width=cw*dpr; canvas.height=ch*dpr;
   gctx.scale(dpr, dpr);
-  gctx.fillStyle='#080d14'; gctx.fillRect(0,0,cw,ch);
+  gctx.fillStyle='#101216'; gctx.fillRect(0,0,cw,ch);
 
   if (!img) {
     drawGrid(cw,ch);
-    gctx.fillStyle='rgba(74,96,112,0.6)';
+    gctx.fillStyle='rgba(138,134,126,0.65)';
     gctx.font='12px ui-monospace,monospace';
     gctx.textAlign='center'; gctx.textBaseline='middle';
     gctx.fillText('Open an engineering drawing to begin', cw/2, ch/2);
@@ -438,7 +403,7 @@ function draw() {
   gctx.imageSmoothingEnabled=true; gctx.imageSmoothingQuality='high';
   gctx.drawImage(img, ox, oy, img.naturalWidth*scale, img.naturalHeight*scale);
   if (sel && validSel()) drawSel(cw,ch);
-  gctx.fillStyle='rgba(74,96,112,0.45)';
+  gctx.fillStyle='rgba(138,134,126,0.45)';
   gctx.font='10px ui-monospace,monospace';
   gctx.textAlign='left'; gctx.textBaseline='bottom';
   gctx.fillText('drag to select  ·  drag corners to resize  ·  Esc to clear', 10, ch-8);
@@ -446,10 +411,10 @@ function draw() {
 
 function drawGrid(cw,ch) {
   const step=40;
-  gctx.strokeStyle='rgba(0,180,216,0.06)'; gctx.lineWidth=1;
+  gctx.strokeStyle='rgba(217,139,63,0.05)'; gctx.lineWidth=1;
   for (let x=0;x<=cw;x+=step) { gctx.beginPath();gctx.moveTo(x+.5,0);gctx.lineTo(x+.5,ch);gctx.stroke(); }
   for (let y=0;y<=ch;y+=step) { gctx.beginPath();gctx.moveTo(0,y+.5);gctx.lineTo(cw,y+.5);gctx.stroke(); }
-  gctx.strokeStyle='rgba(0,180,216,0.13)'; gctx.setLineDash([4,6]);
+  gctx.strokeStyle='rgba(217,139,63,0.12)'; gctx.setLineDash([4,6]);
   gctx.beginPath();gctx.moveTo(Math.round(cw/2)+.5,0);gctx.lineTo(Math.round(cw/2)+.5,ch);gctx.stroke();
   gctx.beginPath();gctx.moveTo(0,Math.round(ch/2)+.5);gctx.lineTo(cw,Math.round(ch/2)+.5);gctx.stroke();
   gctx.setLineDash([]);
@@ -468,15 +433,15 @@ function drawSel(cw,ch) {
   gctx.fillRect(ox,dt,Math.max(0,dl-ox),dh);
   gctx.fillRect(dr,dt,Math.max(0,ox+iw-dr),dh);
 
-  gctx.strokeStyle='#00b4d8'; gctx.lineWidth=1.5; gctx.setLineDash([6,4]);
+  gctx.strokeStyle='#D98B3F'; gctx.lineWidth=1.5; gctx.setLineDash([6,4]);
   gctx.strokeRect(dl+.5,dt+.5,dw,dh); gctx.setLineDash([]);
 
-  gctx.fillStyle='#00b4d8';
+  gctx.fillStyle='#D98B3F';
   [[dl,dt],[dr,dt],[dl,db],[dr,db]].forEach(([hx,hy]) => {
     gctx.fillRect(hx-HANDLE_H, hy-HANDLE_H, HANDLE, HANDLE);
   });
 
-  gctx.fillStyle='rgba(0,180,216,0.9)';
+  gctx.fillStyle='rgba(232,164,92,0.95)';
   gctx.font='11px ui-monospace,monospace';
   gctx.textAlign='center'; gctx.textBaseline='middle';
   gctx.fillText(`${n.w} × ${n.h}`, dl+dw/2, dt+dh/2);
