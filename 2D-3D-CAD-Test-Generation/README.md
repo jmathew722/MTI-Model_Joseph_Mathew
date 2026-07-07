@@ -35,11 +35,11 @@ generates SolidWorks VBA macros and (on a SolidWorks machine) builds a real
 ## What you get
 
 - **Web UI** (`webapp/`) — the primary path: open **one file** (PDF, JPG/PNG,
-  DWG/DXF, or eDrawings) directly in the Tab 1 cropper or upload it on Tab 2 —
-  both tabs always show the same document — crop views out of a multi-view
-  sheet, assign each image an **orientation** (Front / Back / Top / Bottom /
-  Left / Right / Isometric) with 90° rotation for scanned drawings, name the
-  part, and run. Progress shows **per stage**
+  DWG/DXF, or eDrawings) directly in the Tab 1 cropper or upload it on Tab 2,
+  crop views out of a multi-view sheet, assign each image a **view type** from a
+  dropdown (Front View / Back View / Left Side View / Right Side View / Top View
+  / Bottom View / Full Overview View) with 90° rotation for scanned drawings,
+  name the part, and run. Progress shows **per stage**
   (Extracting → Resolving → Verifying → Building macros → Building .sldprt →
   Exporting → Done) with a run timer and Cancel. Results land live in tabs: the 3D
   **STL viewer**, verification, a severity-ranked **Engineering Flags** review,
@@ -71,10 +71,10 @@ drawing/views ─► image_prep ─► extractor (Claude Vision) ─► resolver
 | Stage | Module | Runs on |
 |-------|--------|---------|
 | Image prep | `utils/image_prep.py` | any OS |
-| Extraction | `pipeline/extractor.py` (`claude-sonnet-5`, forced tool call) | any OS |
+| Extraction | `pipeline/extractor.py` (`claude-sonnet-5`, forced tool call; **must-meet specs injected into the prompt — specs-first**) | any OS |
 | Schema | `pipeline/schema.py` (Pydantic v2: views, hole callouts, relationships) | any OS |
 | **Vector hole extraction** | `pipeline/vector_extract/` + `pipeline/hole_resolution.py` (EXACT hole positions from DXF/DWG entities or vector-PDF paths; Hough fallback for scans; vision never overrides a vector coordinate) | any OS |
-| **Ambiguity resolution (Stage 2.5)** | `pipeline/resolver.py` (numeric `resolved_value` + flag tier per dimension; never blocks) | any OS |
+| **Ambiguity resolution (Stage 2.5)** | `pipeline/resolver.py` (numeric `resolved_value` + flag tier per dimension; a must-meet spec value that clarifies an ambiguity **takes precedence** → `spec_driven`; never blocks) | any OS |
 | Verification | `pipeline/validator.py` (dimensional closure, envelopes, advisory report) | any OS |
 | **Engineering review** | `pipeline/engineering_review.py` (severity-ranked human report) | any OS |
 | **VBA macros** | `pipeline/macro_generator.py` (incl. `ZZZ_export_stl.vba`; unsupported features become numbered MANUAL-step macros) | any OS (macros run on any SolidWorks machine) |
@@ -205,26 +205,17 @@ extraction (no API call).
    directly** — CAD formats are converted server-side automatically and the
    rendered drawing opens in the cropper (a bridge hook feeds them through
    `/api/convert-dwg`; the photo app's sources are untouched). Multi-sheet
-   DWG/DXF switches you to Tab 2's sheet picker. **Anything opened here is
-   mirrored to Tab 2's input-document box automatically**, so both tabs always
-   show the same file.
+   DWG/DXF switches you to Tab 2's sheet picker.
 2. **Part Setup & 3D Model** — three labeled groups across the top:
    **1 · Add images** (upload one PDF/JPG/PNG/DWG/DXF/eDrawings file or pull the
-   queued crops from Tab 1), **2 · Assign orientations**, **3 · Name & save**.
-   Below them, the **side-by-side verification split** (resizable 50/50): the
-   left **input-document box** shows the exact source that will run — same
-   file, same sheet selection — with a format badge (PDF / Image / DWG
-   converted / eDrawings static preview) and a sync indicator; scroll-zoom /
-   drag-pan / double-click reset, independent of the right box. *Most recent
-   action wins:* opening/uploading a document shows **that** document
-   ("✓ current upload (unsaved)"), clicking a saved part card switches to that
-   part's source ("✓ matches Part Setup source") — a reviewer never compares
-   against a stale drawing. The middle **Overview Drawing** panel shows the
-   part's full/overview image (fit-to-panel, reference only, with a clear
-   empty state when a part has none) so a human can eyeball the whole drawing
-   against the model. The right box is the interactive
-   **Three.js STL viewer** (drag-rotate, scroll-zoom, right-drag-pan) — the STL
-   loads automatically once the pipeline produces it.
+   queued crops from Tab 1), **2 · Assign view types**, **3 · Name & save**.
+   Below them, **two half-screen panels** side by side: the left **Full Overview
+   View** panel shows the image tagged "Full Overview View" for the current part
+   (fit-to-panel, scroll-zoom / drag-pan / double-click reset, with a clear
+   *"No overview image provided for this part"* empty state) so a human can
+   eyeball the whole drawing against the model; the right panel is the
+   interactive **Three.js STL viewer** (drag-rotate, scroll-zoom,
+   right-drag-pan) — the STL loads automatically once the pipeline produces it.
 3. **Pipeline & Results** — the saved-parts picker and the primary
    **▶ Pull & Run Pipeline** button (plus demo run and Cancel), a slim status bar
    (stage strip, progress bar, run timer), a collapsible live-console strip, and
@@ -242,8 +233,7 @@ extraction (no API call).
    - **Open on Tab 1** (cropper): any supported file — PDF, JPG/PNG, DWG/DXF,
      eDrawings — opens straight in the DrawingCrop tool (CAD converts
      server-side automatically). Crop each view, **Queue View**, then
-     **⬇ Pull queued crops** on Tab 2. The opened file mirrors to Tab 2's
-     input-document box by itself.
+     **⬇ Pull queued crops** on Tab 2.
    - **📄 Upload drawing on Tab 2** — one PDF (each page becomes an image),
      JPG/PNG, DWG/DXF (converted server-side; multi-sheet drawings offer a
      sheet picker, like PDF pages), or an **eDrawings** file (.edrw/.eprt/.easm
@@ -255,14 +245,19 @@ extraction (no API call).
    A format badge shows what was actually loaded (PDF / DWG / eDrawings / image),
    and every conversion is cached (`webapp/.convert_cache/`) and logged
    (`webapp/conversion_log.jsonl`: source format, tool, output).
-2. **Assign orientations.** Each image gets one of Front / Back / Top / Bottom /
-   Left / Right / Isometric-Overview. Rotate 90° (⟳) for scanned drawings.
-   Duplicate orientations show a warning badge and need a confirm on save.
-   The inline banner requires **Front + one more orthographic view** before saving
-   is enabled — that is what extraction needs to resolve depth.
+2. **Assign view types.** Each image gets one of the seven canonical view types
+   from a dropdown — **Front View / Back View / Left Side View / Right Side View
+   / Top View / Bottom View / Full Overview View**. Rotate 90° (⟳) for scanned
+   drawings. Duplicate view types show a warning badge and need a confirm on
+   save. The inline banner requires **Front + one more orthographic view** before
+   saving is enabled — that is what extraction needs to resolve depth. An image
+   tagged **Full Overview View** becomes the canonical `00_full.jpg` overview
+   (whole-part extraction context and the post-build overview cross-check), and
+   appears live in the left panel below.
 3. **Name the part** (becomes the folder name), optionally type **must-meet
-   notes** (one requirement per line — each is graded against the built part
-   and an unmet line blocks READY; edit a saved part's notes in place with
+   specifications** (one requirement per line — applied from the start of
+   extraction and Stage 2.5 resolution, then graded against the built part; an
+   unmet line blocks READY; edit a saved part's notes in place with
    **💾 Update notes**), and **💾 Save part** — the images are written
    server-side in the exact `--views-folder` layout, so the folder works with
    the CLI unchanged. The untouched original upload is kept and delivered with
@@ -345,13 +340,38 @@ READY** (macros and the model are still produced — only the status changes):
   build but not visible in the overview are fine. The pass is cached and its
   cost is logged to the token ledger. Results land in a **"Overview
   Verification"** section of the engineering review and verification report.
-- **Human requirements compliance** — the operator's must-meet notes (web UI
-  Part Setup textarea → `notes.txt`, or `--requirements FILE`) are split into
-  one requirement per line, graded **met / partial / unmet / not_applicable**
+- **Human requirements compliance** — the operator's must-meet specifications
+  (web UI Part Setup textarea → `notes.txt`, or `--requirements FILE`) are split
+  into one requirement per line, graded **met / partial / unmet / not_applicable**
   (compliance is never fabricated — non-geometric notes are listed as
   not_applicable for manual verification), persisted as
   `<Part>_requirements.json`, and reported in a **"Human-Specified
   Requirements Compliance"** section. An **unmet** requirement gates READY.
+  This is the *final* re-grade against the built part — the same specs are
+  enforced **specs-first**, before and during extraction/resolution (see below),
+  so requirements shape the model from the start rather than only being checked
+  at the end.
+
+### Specs-first (must-meet specifications enforced from the start)
+
+The operator's must-meet specifications are not merely checked at the end — they
+are read **before** extraction and drive every stage:
+
+- **Extraction** (`pipeline/extractor.py`): the spec lines are injected into the
+  Claude Vision prompt so the model actively looks for and prioritizes the
+  features/dimensions they name. The spec text is part of the extraction cache
+  key, so changed specs force a fresh extraction (no spec-blind cached result).
+- **Resolution** (`pipeline/resolver.py`, Stage 2.5): a spec value that clarifies
+  an ambiguous/illegible dimension **takes precedence** over the generic decision
+  tree; that dimension is flagged `assumption_basis="spec_driven"`. Numbers are
+  still never fabricated — a spec only wins when it matches a candidate reading.
+- **Early pre-check**: right after resolution (before the build) the specs are
+  graded against the resolved model, so an unmet spec surfaces early in the run
+  console (`[SPEC] …`), not only in the final gate.
+- **Final gate**: the same specs are re-graded against the built part; an unmet
+  line gates READY (above). The engineering review and verification report state
+  the specs were *applied during extraction/resolution and verified against the
+  build*, not just checked post-hoc.
 
 ---
 

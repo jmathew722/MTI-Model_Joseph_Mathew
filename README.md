@@ -15,13 +15,21 @@ To have an agent run + verify a batch for you, use
 ## What one run does (the whole flow)
 
 ```
-drawing(s) → image prep → Sonnet 5 extract → Stage 2.5 resolve → verify
+drawing(s) + must-meet specs → image prep → Sonnet 5 extract (specs injected)
+           → Stage 2.5 resolve (specs take precedence) → verify
            → VBA macros + build_plan.json + resolved_extraction.json
            → .sldprt (SolidWorks COM) → final checks (overview cross-check
            + human requirements grading) → engineering review → token ledger
            → copy to ~/Downloads
 ```
 
+- **Specs-first (must-meet requirements applied from the start):** the operator's
+  must-meet specifications are read **before** extraction and injected into the
+  Claude Vision prompt so the model actively looks for those features; in Stage
+  2.5 a spec value that clarifies an ambiguous dimension **takes precedence** and
+  is flagged `spec_driven`; and the same specs are re-graded against the final
+  build (an unmet line gates READY). They are enforced at every stage, not just
+  checked at the end.
 - **Stage 2.5 (chief-engineer pass):** every ambiguous / under-dimensioned value
   is resolved to a defensible number and flagged — the build never blocks on
   ambiguity.
@@ -82,16 +90,18 @@ Three tabs, one flow, no folder editing:
 1. **Tab 1 · Drawing Crop — open the drawing.** The full-tab cropper opens
    PDF, JPG/PNG, **and DWG/DXF/eDrawings directly** (CAD formats convert
    server-side automatically and appear in the cropper). Draw a box around
-   each view and **Queue View**. Whatever is open here is mirrored to Tab 2's
-   input-document box automatically. (Uploading on Tab 2 works too.)
-2. **Tab 2 · Part Setup & 3D Model — orient, name, save.** Pull the queued
-   crops (or upload), give each image an orientation (Front / Back / Top /
-   Bottom / Left / Right / Isometric; ⟳ rotates sideways scans). Front + one
-   more orthographic view are required to save. Optionally type **must-meet
-   notes** (one requirement per line) — each line is graded against the built
-   part and an unmet line blocks READY. The left box shows the input document
-   with a format badge and sync indicator; the middle panel shows the part's
-   **overview drawing**; the right box is the interactive 3D STL viewer.
+   each view and **Queue View**. (Uploading on Tab 2 works too.)
+2. **Tab 2 · Part Setup & 3D Model — tag view types, name, save.** Pull the
+   queued crops (or upload), then give each image a **view type** from the
+   dropdown — exactly seven options: **Front View, Back View, Left Side View,
+   Right Side View, Top View, Bottom View, Full Overview View** (⟳ rotates
+   sideways scans). Front + one more orthographic view are required to save.
+   Optionally type **must-meet specifications** (one requirement per line) —
+   these are applied from the start of extraction and resolution, then graded
+   against the built part (an unmet line blocks READY). Below, two half-screen
+   panels: the part's **Full Overview View** on the left (the image tagged in
+   the dropdown, or a clear empty state), and the interactive **3D STL viewer**
+   on the right.
 3. **Tab 3 · Pipeline & Results — run.** Select the part, **▶ Pull & Run
    Pipeline**. Progress shows per stage with a live console and Cancel;
    results fill the sub-tabs live: extraction, build plan, verification,
@@ -206,9 +216,10 @@ python -m pytest tests/ -q
   resolution, and skipped/manual feature in one ranked list, most urgent first —
   plus the two final-check sections: **Overview Verification** (features the
   overview drawing shows, diffed against the build) and **Human-Specified
-  Requirements** (your notes graded met/partial/unmet/not_applicable). Each
-  item states what was ambiguous, the decision made, why, and what it affects.
-  Also shown in the UI's Engineering Flags tab as labeled groups.
+  Requirements** (your must-meet specs — applied during extraction and Stage 2.5
+  resolution, then graded met/partial/unmet/not_applicable against the build).
+  Each item states what was ambiguous, the decision made, why, and what it
+  affects. Also shown in the UI's Engineering Flags tab as labeled groups.
 - **Summary table / `multiview_summary.csv`** — per part: status (READY, or
   **NOT READY** when a CRITICAL overview gap / unmet requirement gated it —
   the model and macros are still produced), readiness %, macro count, features
