@@ -112,8 +112,8 @@
   .ocard.dup { border-color:var(--warn); }
   .ocard img { width:100%; height:88px; object-fit:contain; background:#fff; display:block;
                outline:1px solid rgba(0,0,0,.1); outline-offset:-1px; }
-  .ocard .ctl { display:flex; gap:var(--sp-1); padding:var(--sp-2); align-items:flex-start; }
-  .ocard .oseg { flex:1; display:flex; flex-wrap:wrap; min-width:0; }
+  .ocard .ctl { display:flex; gap:var(--sp-1); padding:var(--sp-2); align-items:center; }
+  .ocard .oselect { flex:1; min-width:0; font-size:var(--fs-caption); padding:4px var(--sp-1); }
   .ocard .dupbadge { position:absolute; top:var(--sp-1); left:var(--sp-1);
                      background:var(--warn); color:var(--on-sev-high); font:700 9px/14px var(--sans);
                      letter-spacing:.05em; text-transform:uppercase; padding:1px 6px;
@@ -202,29 +202,24 @@
   #run-banner.err { background:linear-gradient(90deg, rgba(229,72,77,.08), transparent 60%); }
   #run-banner.err .rb-main { color:var(--err-text); border-color:var(--err); }
 
-  /* Split view — resizable */
-  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 6px 0.7fr 1.3fr; min-height:120px; }
+  /* Split view — exactly two half-screen panels: Full Overview View | STL */
+  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:120px; }
   .ovside { border-right:1px solid var(--line); }
-  /* NOTE: src-img/ov-img start hidden via an INLINE style attribute (not here) —
-     the JS reveals them with style.display='' which must win over the sheet. */
-  #ov-img { max-width:100%; max-height:100%; object-fit:contain; }
   .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; }
   .side .cap { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); font:600 var(--fs-caption)/1.6 var(--sans);
                letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
                border-bottom:1px solid var(--line); background:var(--bg-raised); }
   .side .body { flex:1 1 auto; min-height:0; position:relative; display:grid; place-items:center;
                 background:var(--well); }
-  /* Split dividers carry the drafting CENTERLINE (long dash · short dash) */
-  .divider { cursor:col-resize; background:var(--centerline-v); background-color:transparent;
-             position:relative; transition:background-color .12s; }
-  .divider:hover, .divider.dragging { background-color:var(--blueprint-dim); }
   .cap.capflex { display:flex; align-items:center; gap:var(--sp-2); }
+  .cap.capflex .hint { text-transform:none; letter-spacing:0; }
   .fmt-badge { text-transform:none; letter-spacing:.02em; }
-  .sync-badge { text-transform:none; letter-spacing:0; }
-  #src-box { overflow:hidden; }
-  #src-img { max-width:100%; max-height:100%; object-fit:contain;
-             cursor:grab; transform-origin:center center; }
-  #src-img:active { cursor:grabbing; }
+  /* NOTE: ov-img starts hidden via an INLINE style attribute (not here) —
+     the JS reveals it with style.display='' which must win over the sheet. */
+  #ov-box { overflow:hidden; }
+  #ov-img { max-width:100%; max-height:100%; object-fit:contain;
+            cursor:grab; transform-origin:center center; }
+  #ov-img:active { cursor:grabbing; }
   #stl-canvas-wrap { position:absolute; inset:0; }
   .emptynote { color:var(--ink-3); font-size:var(--fs-body); text-align:center; padding:var(--sp-5);
                max-width:360px; }
@@ -356,8 +351,8 @@
         <span class="hint" style="max-width:220px">Crop views in Tab 1 and pull them here — or upload a single file directly.</span>
       </div>
       <div class="gcol">
-        <div class="grp-title">2 · Assign orientations</div>
-        <div class="hint" id="intake-empty">No images yet — upload a drawing or pull crops. Each image then gets an orientation (rotate ⟳ if a scan is sideways).</div>
+        <div class="grp-title">2 · Assign view types</div>
+        <div class="hint" id="intake-empty">No images yet — upload a drawing or pull crops. Each image then gets a view type from the dropdown (rotate ⟳ if a scan is sideways).</div>
         <div class="orient-gallery" id="orient-gallery"></div>
       </div>
       <div class="gcol">
@@ -379,23 +374,14 @@
     <div class="statusline"><span class="status" id="intake-status">Ready — crop views in Tab 1 or upload a drawing.</span></div>
 
     <div class="split" id="split-grid">
-      <div class="side">
-        <div class="cap capflex">Input Document — <span id="viewer-part">nothing loaded</span>
-          <span class="badge-c teal fmt-badge" id="src-format-badge" style="display:none"></span>
-          <span class="grow"></span>
-          <span class="badge-c ok sync-badge" id="src-sync" style="display:none"></span>
-        </div>
-        <div class="body" id="src-box">
-          <img id="src-img" alt="source drawing" style="display:none" />
-          <div class="emptynote" id="src-empty">No PDF/DWG/eDrawings loaded yet — upload a drawing above or select a saved part in the Pipeline &amp; Results tab; it appears here. Scroll to zoom, drag to pan, double-click to reset.</div>
-        </div>
-      </div>
-      <div class="divider" id="split-divider" title="Drag to resize · double-click to reset"></div>
       <div class="side ovside">
-        <div class="cap">Overview Drawing — reference</div>
+        <div class="cap capflex">Full Overview View — <span id="viewer-part">no part loaded</span>
+          <span class="grow"></span>
+          <span class="hint">scroll zoom · drag pan · double-click reset</span>
+        </div>
         <div class="body" id="ov-box">
-          <img id="ov-img" alt="overview drawing" style="display:none" />
-          <div class="emptynote" id="ov-empty">No overview image for this part.</div>
+          <img id="ov-img" alt="full overview drawing" style="display:none" />
+          <div class="emptynote" id="ov-empty">No overview image provided for this part.</div>
         </div>
       </div>
       <div class="side">
@@ -517,24 +503,6 @@ const dock = document.getElementById('dock'), dockToggle = document.getElementBy
 function setDockOpen(open) { dock.classList.toggle('collapsed', !open); dockToggle.textContent = open ? '▾' : '▸'; }
 dockToggle.addEventListener('click', () => setDockOpen(dock.classList.contains('collapsed')));
 
-// ── Resizable split (drag the divider; double-click resets 50/50) ────────────
-(() => {
-  const grid = document.getElementById('split-grid'), div = document.getElementById('split-divider');
-  let dragging = false;
-  div.addEventListener('mousedown', e => { dragging = true; div.classList.add('dragging'); e.preventDefault(); });
-  window.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    const r = grid.getBoundingClientRect();
-    const pct = Math.min(0.8, Math.max(0.2, (e.clientX - r.left) / r.width));
-    // 4 columns: input-doc | divider | overview | STL. The divider sets the
-    // input-doc share; the remainder splits 35/65 between overview and STL.
-    grid.style.gridTemplateColumns =
-      `${pct * 2}fr 6px ${(1 - pct) * 2 * 0.35}fr ${(1 - pct) * 2 * 0.65}fr`;
-  });
-  window.addEventListener('mouseup', () => { dragging = false; div.classList.remove('dragging'); });
-  div.addEventListener('dblclick', () => { grid.style.gridTemplateColumns = '1fr 6px 0.7fr 1.3fr'; });
-})();
-
 // ── Collapsible live console (slim log under the split view) ────────────────
 document.getElementById('log-toggle').addEventListener('click', () => {
   const c = document.getElementById('inline-console');
@@ -620,7 +588,7 @@ function paintReview(review) {
   const reqs = items.filter(i => i.source === 'requirement');
   let html = main.map(item).join('');
   if (overview.length) html += `<div class="flags-group">Overview Verification — features the overview drawing shows, checked against the build</div>` + overview.map(item).join('');
-  if (reqs.length) html += `<div class="flags-group">Human-Specified Requirements — your must-meet notes, graded against the build</div>` + reqs.map(item).join('');
+  if (reqs.length) html += `<div class="flags-group">Human-Specified Requirements — applied during extraction &amp; resolution, graded against the build</div>` + reqs.map(item).join('');
   list.innerHTML = html;
   empty.style.display = 'none'; scroll.style.display = '';
 }
@@ -725,12 +693,6 @@ function selectPart(name) {
   const snb = document.getElementById('save-notes-btn');
   if (snb) { snb.style.display = ''; snb.textContent = `Update notes for ${name}`; }
   document.getElementById('viewer-part').textContent = name;
-  // Split view left = this part's source thumbnail.
-  const img = document.getElementById('src-img');
-  img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none';
-                       if (window.__srcReset) window.__srcReset(); };
-  img.onerror = () => { img.style.display = 'none'; document.getElementById('src-empty').style.display = ''; };
-  img.src = `/api/parts/${sessionId}/${encodeURIComponent(name)}/thumb.jpg?t=` + Date.now();
   updateSourceBadges();
   loadPartOutputs(name);
 }
@@ -744,73 +706,64 @@ async function loadPartOutputs(name) {
   else setStatus(`Part "${name}" selected — not run yet.`, '');
 }
 
-// ── Shared preview: the input document always shows in Tab 2's left panel ────
-// Most recent action wins: uploading a document shows THAT document; clicking
-// a part card switches the panel back to the selected part's source.
+// ── Shared preview: unsaved intake work claims Tab 2's Overview panel ───────
+// Most recent action wins: uploading a document shows THAT document's overview;
+// clicking a part card switches the panel back to the selected part's overview.
 let previewOverride = false;
 function showSourcePreview(url, label) {
   previewOverride = true;
   document.getElementById('viewer-part').textContent = label;
-  const img = document.getElementById('src-img');
-  img.onload = () => { img.style.display = ''; document.getElementById('src-empty').style.display = 'none';
-                       if (window.__srcReset) window.__srcReset(); };
-  img.onerror = () => { img.style.display = 'none'; document.getElementById('src-empty').style.display = ''; };
-  img.src = url;
   updateSourceBadges();
 }
 
-// ── Source format + state-sync badges (verification view left box) ──────────
-// The left box always mirrors what will run (the selected part, else the live
-// unsaved upload); these badges make that explicit so a reviewer never compares
-// the STL against a stale source.
+// ── Source format badge (intake strip) + Overview panel refresh ─────────────
 function updateSourceBadges() {
-  const els = [document.getElementById('src-format'), document.getElementById('src-format-badge')];
-  const sync = document.getElementById('src-sync');
-  let fmt = '', syncTxt = '';
-  if (previewOverride && intake.source) {
-    fmt = intake.format || '';
-    syncTxt = '✓ current upload (unsaved)';
-  } else if (selectedPart) {
+  const el = document.getElementById('src-format');
+  let fmt = '';
+  if (previewOverride && intake.source) fmt = intake.format || '';
+  else if (selectedPart) {
     const p = partsData.find(x => x.name === selectedPart);
     fmt = (p && p.source_format) || '';
-    syncTxt = `✓ matches Part Setup source — ${selectedPart}`;
-  } else if (intake.source) {
-    fmt = intake.format || '';
-    syncTxt = '✓ current upload (unsaved)';
-  }
-  for (const el of els) { if (el) { el.textContent = fmt; el.style.display = fmt ? '' : 'none'; } }
-  if (sync) { sync.textContent = syncTxt; sync.style.display = syncTxt ? '' : 'none'; }
+  } else if (intake.source) fmt = intake.format || '';
+  if (el) { el.textContent = fmt; el.style.display = fmt ? '' : 'none'; }
   updateOverviewBox();
 }
 
-// ── Tab 2 Overview panel: the part's full/overview drawing, next to the STL ─
-// Mirrors the same "most recent action wins" rule as the input-document box:
-// an unsaved upload shows itself (its source IS the overview); a selected part
-// shows its saved 00_full.jpg; otherwise a clear empty state.
+// ── Tab 2 Overview panel: the part's Full Overview View, next to the STL ────
+// Most recent action wins: unsaved intake work shows its overview (an image
+// tagged "Full Overview View" wins over the raw upload); a selected part shows
+// its saved 00_full.jpg; otherwise a clear empty state.
 function updateOverviewBox() {
   const img = document.getElementById('ov-img'), empty = document.getElementById('ov-empty');
   if (!img) return;
   const show = u => {
-    img.onload = () => { img.style.display = ''; empty.style.display = 'none'; };
+    img.onload = () => { img.style.display = ''; empty.style.display = 'none';
+                         if (window.__ovReset) window.__ovReset(); };
     img.onerror = () => { img.style.display = 'none'; empty.style.display = ''; };
     img.src = u;
   };
-  if (previewOverride && intake.source) show(intake.source);
+  const ovItem = intake.items.find(i => i.orientation === 'overview');
+  const intakeOverview = ovItem ? ovItem.dataURL : intake.source;
+  if (previewOverride && intakeOverview) show(intakeOverview);
   else if (selectedPart) show(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/overview.jpg?t=${Date.now()}`);
-  else if (intake.source) show(intake.source);
+  else if (intakeOverview) show(intakeOverview);
   else { img.style.display = 'none'; empty.style.display = ''; }
 }
 
-// ── Intake: upload / pull crops → orientation gallery → name → save ──────────
+// ── Intake: upload / pull crops → view-type dropdown → name → save ──────────
+// The canonical view-type list (exactly these seven, in this order). Internal
+// keys stay stable ('overview' is the canonical key for the full/overview
+// drawing — the same concept the pipeline classifies as the "full" view and
+// the Overview Cross-Verification re-examines after the build).
 const ORIENTATIONS = [
-  ['', '— orientation —'], ['front', 'Front'], ['back', 'Back'], ['top', 'Top'],
-  ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['iso', 'Isometric / Overview'],
+  ['front', 'Front View'], ['back', 'Back View'], ['left', 'Left Side View'],
+  ['right', 'Right Side View'], ['top', 'Top View'], ['bottom', 'Bottom View'],
+  ['overview', 'Full Overview View'],
 ];
 // Orientation → the crop filename the server's VIEW_MAP / view_ingest classify.
+// 'overview' becomes the canonical 00_full.jpg overview image on the server.
 const ORIENT_TO_NAME = { front:'front', back:'back', top:'top', bottom:'bottom',
-                         left:'left', right:'right', iso:'overview' };
-// Short labels for the segmented orientation control on each image card.
-const ORIENT_SHORT = { front:'F', back:'B', top:'T', bottom:'Bo', left:'L', right:'R', iso:'ISO' };
+                         left:'left', right:'right', overview:'overview' };
 const ORTHO_SET = new Set(['top','bottom','left','right','back']);
 let intake = { items: [], source: null, originalFile: null, stem: 'drawing', format: '' };
 let intakeSeq = 0;
@@ -829,7 +782,7 @@ function guessOrientation(name) {
   if (n.includes('top') || n.includes('plan')) return 'top';
   if (n.includes('left')) return 'left';
   if (n.includes('right') || n.includes('side')) return 'right';
-  if (n.includes('iso') || n.includes('overview') || n.includes('full')) return 'iso';
+  if (n.includes('iso') || n.includes('overview') || n.includes('full')) return 'overview';
   return '';
 }
 
@@ -894,29 +847,31 @@ function renderGallery() {
     card.className = 'ocard' + (it.orientation ? ' assigned' : '') + (dups.has(it.orientation) ? ' dup' : '');
     const img = document.createElement('img'); img.src = it.dataURL; img.title = it.label || '';
     const ctl = document.createElement('div'); ctl.className = 'ctl';
-    // Segmented orientation control (replaces the raw dropdown; same state).
-    const seg = document.createElement('div'); seg.className = 'seg-c oseg';
+    // View-type dropdown: exactly the seven canonical views, in canonical order.
+    const sel = document.createElement('select'); sel.className = 'sel-input oselect';
+    const ph = document.createElement('option');
+    ph.value = ''; ph.textContent = '— view type —';
+    sel.appendChild(ph);
     for (const [v, label] of ORIENTATIONS) {
-      if (!v) continue;
-      const b = document.createElement('button'); b.type = 'button';
-      b.textContent = ORIENT_SHORT[v];
-      b.title = label + (v === it.orientation ? ' — click again to unassign' : '');
-      if (v === it.orientation) b.classList.add('on');
-      b.onclick = () => { it.orientation = it.orientation === v ? '' : v; renderGallery(); };
-      seg.appendChild(b);
+      const o = document.createElement('option');
+      o.value = v; o.textContent = label;
+      sel.appendChild(o);
     }
+    sel.value = it.orientation || '';
+    sel.onchange = () => { it.orientation = sel.value; renderGallery(); };
     const rot = document.createElement('button'); rot.className = 'ibtn'; rot.textContent = '⟳';
     rot.title = 'Rotate 90° (scanned drawings are often rotated)';
     rot.onclick = async () => { it.dataURL = await rotateDataURL(it.dataURL); renderGallery(); };
     const del = document.createElement('button'); del.className = 'ibtn'; del.textContent = '✕';
     del.title = 'Remove this image';
     del.onclick = () => { intake.items = intake.items.filter(x => x.id !== it.id); renderGallery(); };
-    ctl.append(seg, rot, del);
+    ctl.append(sel, rot, del);
     const badge = document.createElement('span'); badge.className = 'dupbadge'; badge.textContent = 'duplicate';
     card.append(img, ctl, badge);
     galleryEl.appendChild(card);
   }
   validateIntake();
+  updateOverviewBox(); // a (re)tagged Full Overview View shows in the panel live
 }
 partNameEl.addEventListener('input', validateIntake);
 
@@ -1094,10 +1049,10 @@ saveBtn.addEventListener('click', async () => {
   if (!sessionId) { setStatus('Session not ready yet, try again.', 'err'); return; }
   const dups = dupOrientations();
   if (dups.size && !confirm(
-      `The same orientation is assigned to more than one image (${[...dups].join(', ')}).\n` +
+      `The same view type is assigned to more than one image (${[...dups].join(', ')}).\n` +
       'Some parts legitimately have two candidates — the pipeline keeps the first and warns.\n\nSave anyway?')) return;
   const unassigned = intake.items.filter(i => !i.orientation).length;
-  if (unassigned && !confirm(`${unassigned} image(s) have no orientation and will be skipped. Save anyway?`)) return;
+  if (unassigned && !confirm(`${unassigned} image(s) have no view type and will be skipped. Save anyway?`)) return;
 
   const part = partNameEl.value.trim() || intake.stem || 'drawing';
   const fd = new FormData();
@@ -1343,12 +1298,12 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
   showTab('console');
 });
 
-// ── Source panel pan/zoom (independent of the STL viewer's orbit controls) ──
+// ── Overview panel pan/zoom (independent of the STL viewer's orbit controls) ─
 (() => {
-  const img = document.getElementById('src-img'), box = document.getElementById('src-box');
+  const img = document.getElementById('ov-img'), box = document.getElementById('ov-box');
   let s = 1, tx = 0, ty = 0, panning = false, px = 0, py = 0;
   const apply = () => { img.style.transform = `translate(${tx}px,${ty}px) scale(${s})`; };
-  window.__srcReset = () => { s = 1; tx = 0; ty = 0; apply(); };
+  window.__ovReset = () => { s = 1; tx = 0; ty = 0; apply(); };
   box.addEventListener('wheel', e => {
     if (img.style.display === 'none') return;
     e.preventDefault();
@@ -1363,7 +1318,7 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
     if (panning) { tx = e.clientX - px; ty = e.clientY - py; apply(); }
   });
   window.addEventListener('mouseup', () => { panning = false; });
-  box.addEventListener('dblclick', () => window.__srcReset());
+  box.addEventListener('dblclick', () => window.__ovReset());
 })();
 
 // ── Three.js STL viewer ──────────────────────────────────────────────────────

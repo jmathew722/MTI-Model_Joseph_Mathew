@@ -207,7 +207,8 @@ def review_items(reqs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "what": f"Operator requirement: \"{r['text']}\"",
             "decision": f"status: {status.upper()}",
             "why": r.get("note", ""),
-            "affects": "human-specified must-meet requirement",
+            "affects": ("human-specified must-meet requirement (applied during "
+                        "extraction & Stage 2.5 resolution, verified against the build)"),
         })
     return items
 

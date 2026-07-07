@@ -68,6 +68,12 @@ VIEW_MAP: dict[str, tuple[int, str]] = {
     "left": (4, "second_side"),
     "back": (4, "second_side"),
     "bottom": (5, "bottom"),
+    # The "Full Overview View" dropdown option — the canonical way the overview
+    # image is tagged. Saved as 00_full.jpg (OVERVIEW_FILENAME) so view_ingest
+    # classifies it as the "full" overview view (whole-part context, and the
+    # image the post-build Overview Cross-Verification re-examines).
+    "overview": (0, "full"),
+    "full": (0, "full"),
 }
 
 app = FastAPI(title="MTI 2D->3D Pipeline UI")
@@ -485,13 +491,6 @@ async def run_views(
     out_dir = run_root / "output"
     in_dir.mkdir(parents=True, exist_ok=True)
 
-    # Full original drawing: kept for Tab 2's left panel AND fed into extraction as
-    # whole-part context (saved in the views folder as the "full" overview view).
-    if source is not None:
-        src_bytes = await source.read()
-        (run_root / "source.jpg").write_bytes(src_bytes)
-        (in_dir / OVERVIEW_FILENAME).write_bytes(src_bytes)
-
     used: set[str] = set()
     for i, up in enumerate(crops, start=1):
         stem = Path(up.filename or f"view{i}").stem
@@ -501,6 +500,15 @@ async def run_views(
             fname = f"{Path(fname).stem}_{i}{Path(fname).suffix}"
         used.add(fname)
         (in_dir / fname).write_bytes(await up.read())
+
+    # Full original drawing: kept for Tab 2's Overview panel AND fed into extraction
+    # as whole-part context (saved in the views folder as the "full" overview view).
+    # A crop tagged "Full Overview View" is canonical and wins over the source mirror.
+    if source is not None:
+        src_bytes = await source.read()
+        (run_root / "source.jpg").write_bytes(src_bytes)
+        if OVERVIEW_FILENAME not in used:
+            (in_dir / OVERVIEW_FILENAME).write_bytes(src_bytes)
 
     cmd = [
         sys.executable, "main.py",
@@ -1009,7 +1017,10 @@ async def add_part(
         (thumbs / f"{part_name}.jpg").write_bytes(src_bytes)
         # Also feed the FULL drawing into extraction as whole-part context: saved in
         # the views folder as an overview view (00_full.jpg -> classified "full").
-        (pdir / OVERVIEW_FILENAME).write_bytes(src_bytes)
+        # A crop explicitly tagged "Full Overview View" is the canonical overview
+        # and takes precedence — never clobber it with the mirrored source.
+        if OVERVIEW_FILENAME not in used:
+            (pdir / OVERVIEW_FILENAME).write_bytes(src_bytes)
 
     # Keep the untouched original upload (PDF/JPG/DWG) OUTSIDE the views folder
     # so it is never mis-classified as a view; it is delivered with the outputs.

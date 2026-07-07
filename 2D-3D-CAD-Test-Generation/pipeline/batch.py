@@ -229,13 +229,36 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     """
     # [STAGE] markers: machine-readable progress lines for the web UI's stepper.
     raw_extraction = drawing_data
+
+    # ── Specs-first: the operator's must-meet specifications are read at the
+    # START of processing so Stage 2.5 resolution treats them as a first-class
+    # input (they are still verified against the final build afterwards).
+    spec_lines: list[str] = []
+    if not skip_requirements_check and requirements_file is not None:
+        try:
+            from pipeline.requirements_check import parse_requirements
+
+            notes_text = Path(requirements_file).read_text(encoding="utf-8",
+                                                           errors="replace")
+            spec_lines = [r["text"] for r in parse_requirements(notes_text)]
+            if spec_lines:
+                print(f"[SPEC] Enforcing {len(spec_lines)} must-meet specification(s) "
+                      "from the start (extraction + resolution + final gate).", flush=True)
+        except OSError as e:
+            log.warning("Could not read requirements file %s: %s", requirements_file, e)
+
     resolution = None
     if resolve:
         from pipeline.resolver import resolve_extraction
 
         print("[STAGE] Resolving", flush=True)
-        resolution = resolve_extraction(raw_extraction)
+        resolution = resolve_extraction(raw_extraction, requirements=spec_lines)
         drawing_data = resolution.clean_extraction
+        n_spec = sum(1 for r in resolution.dim_resolutions.values()
+                     if r.assumption_basis == "spec_driven")
+        if n_spec:
+            print(f"[SPEC] {n_spec} ambiguous dimension(s) resolved spec-driven "
+                  "(operator specification took precedence).", flush=True)
 
     print("[STAGE] Verifying", flush=True)
     model, report = run_verification(drawing_data)
@@ -265,6 +288,28 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     (part_dir / f"{safe}_verification_report.txt").write_text(
         verification_text, encoding="utf-8"
     )
+
+    # Early compliance pre-check (specs-first): grade the must-meet specs against
+    # the resolved extraction IMMEDIATELY after resolution, so an unmet spec
+    # surfaces before the build — not only in the final gate (which still
+    # re-grades against the final build below and gates READY).
+    if spec_lines:
+        try:
+            from pipeline.requirements_check import check_requirements, parse_requirements
+
+            early = check_requirements(
+                parse_requirements("\n".join(spec_lines)), drawing_data)
+            n_early_unmet = sum(1 for r in early if r.get("status") == "unmet")
+            if n_early_unmet:
+                print(f"[SPEC] Early check after resolution: {n_early_unmet} "
+                      "specification(s) not yet satisfied by the extracted/resolved "
+                      "model — build proceeds; the final gate re-grades against the "
+                      "built part.", flush=True)
+            else:
+                print("[SPEC] Early check after resolution: every checkable "
+                      "specification is addressed in the resolved model.", flush=True)
+        except Exception as e:  # advisory only — never sink a build over the pre-check
+            log.warning("Early requirements pre-check failed (non-fatal): %s", e)
 
     # Genuinely uncoercible data always blocks; otherwise only --strict-gate blocks.
     if model is None or (not report.ok and strict_gate):
@@ -395,6 +440,11 @@ def _append_final_checks_report(report_path: Path, overview_items: list,
         lines.append("No gaps: every feature visible in the overview is accounted "
                      "for in the build.")
     lines += ["", "HUMAN-SPECIFIED REQUIREMENTS COMPLIANCE", "=" * 39, f"({req_note})"]
+    if reqs:
+        lines += ["Specs-first: these specifications were applied DURING extraction and",
+                  "Stage 2.5 resolution (injected into the extraction prompt; spec values",
+                  "took precedence over ambiguous readings), then verified here against",
+                  "the final build — not just checked post-hoc."]
     for r in reqs:
         lines.append(f"{r['id']} [{r.get('status', '?').upper()}] {r['text']}")
         if r.get("note"):

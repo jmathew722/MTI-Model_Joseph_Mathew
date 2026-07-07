@@ -97,6 +97,23 @@ def _extract_cache_dir(args) -> Path | None:
     return Path(args.output) / ".extraction_cache"
 
 
+def _spec_lines_from_args(args) -> list[str]:
+    """Operator must-meet specification lines from --requirements, if given.
+    Read up-front (specs-first) so they shape extraction and Stage 2.5, not
+    just the final compliance check."""
+    req_path = getattr(args, "requirements", None)
+    if not req_path or getattr(args, "skip_requirements_check", False):
+        return []
+    try:
+        from pipeline.requirements_check import parse_requirements
+
+        text = Path(req_path).read_text(encoding="utf-8", errors="replace")
+        return [r["text"] for r in parse_requirements(text)]
+    except OSError as e:
+        console.print(f"  [yellow]Could not read --requirements file:[/yellow] {e}")
+        return []
+
+
 def _resolve_stage(args, drawing_data: dict):
     """Stage 2.5: resolve every ambiguity to a numeric value (chief-engineer pass).
 
@@ -104,13 +121,16 @@ def _resolve_stage(args, drawing_data: dict):
     data unchanged and ``None`` (the legacy v2 BLOCKED-gate behavior). Otherwise the
     returned ``resolved_data`` has every dimension carrying a ``resolved_value`` and
     every feature marked ``build_status='build'``; the resolution summary is printed.
+    Operator must-meet specifications (--requirements) are a first-class input:
+    a spec value clarifying an ambiguous dimension takes precedence (spec-driven).
     """
     if getattr(args, "no_resolve", False):
         return drawing_data, None
     from pipeline.resolver import resolve_extraction
 
     console.print("[2.5/4] Resolving ambiguities (chief-engineer pass)...")
-    resolution = resolve_extraction(drawing_data)
+    resolution = resolve_extraction(drawing_data,
+                                    requirements=_spec_lines_from_args(args))
     _print_resolution_summary(resolution)
     # clean_extraction (resolved values, schema-valid) drives verification + build;
     # resolution.resolved_extraction (rich, annotated) is written to disk.
@@ -157,6 +177,10 @@ def _prepare_and_extract(args) -> dict | None:
     from pipeline.extractor import DEFAULT_MODEL
 
     usage: dict[str, int] = {}
+    spec_lines = _spec_lines_from_args(args)
+    if spec_lines:
+        console.print(f"  [cyan]Specs-first:[/cyan] {len(spec_lines)} must-meet "
+                      "specification(s) injected into extraction.")
     try:
         data = extract_drawing_data(
             prepared.base64,
@@ -164,6 +188,7 @@ def _prepare_and_extract(args) -> dict | None:
             prep_warnings=prepared.warnings,
             cache_dir=_extract_cache_dir(args),
             usage_out=usage,
+            requirements=spec_lines,
         )
         # Record tokens + cost for this API run into the output-root ledger.
         from pipeline.usage_log import record_run
@@ -262,7 +287,8 @@ def _save_extraction(output_dir: Path, folder_name: str, drawing_data: dict) -> 
     return path
 
 
-def _extract_one_drawing(path: Path, page: int, cache_dir: Path | None) -> dict:
+def _extract_one_drawing(path: Path, page: int, cache_dir: Path | None,
+                         requirements: list | None = None) -> dict:
     """Image-prep + Claude extraction for a single drawing file (used by batch)."""
     from utils.image_prep import prepare_image
     from pipeline.extractor import extract_drawing_data
@@ -270,7 +296,7 @@ def _extract_one_drawing(path: Path, page: int, cache_dir: Path | None) -> dict:
     prepared = prepare_image(str(path), page=page, return_details=True)
     return extract_drawing_data(
         prepared.base64, media_type=prepared.media_type, prep_warnings=prepared.warnings,
-        cache_dir=cache_dir,
+        cache_dir=cache_dir, requirements=requirements,
     )
 
 
@@ -291,9 +317,11 @@ def _run_batch(args) -> int:
 
     sw_app = _connect_solidworks_optional(args)
     template = _os.getenv("SOLIDWORKS_TEMPLATE_PATH")
+    batch_specs = _spec_lines_from_args(args)  # specs-first: into every extraction
     rows, csv_path = run_batch(
         directory, output_dir,
-        extract_fn=lambda p: _extract_one_drawing(p, args.page, cache_dir),
+        extract_fn=lambda p: _extract_one_drawing(p, args.page, cache_dir,
+                                                  requirements=batch_specs),
         sw_app=sw_app, template_path=template,
         resolve=not getattr(args, "no_resolve", False),
         strict_gate=getattr(args, "strict_gate", False),
@@ -333,8 +361,13 @@ def _views_for_extraction(part):
     return ordered
 
 
-def _extract_part_views(part, page: int, cache_dir, usage: dict) -> dict:
-    """Prepare each view image and run one combined multi-view extraction."""
+def _extract_part_views(part, page: int, cache_dir, usage: dict,
+                        requirements: list | None = None) -> dict:
+    """Prepare each view image and run one combined multi-view extraction.
+
+    ``requirements`` (operator must-meet spec lines) are injected into the
+    extraction prompt — specs-first: the model actively looks for those
+    features from the start rather than being checked only after the fact."""
     from utils.image_prep import prepare_image
     from pipeline.extractor import extract_drawing_data_multiview
 
@@ -343,7 +376,8 @@ def _extract_part_views(part, page: int, cache_dir, usage: dict) -> dict:
         prepared = prepare_image(str(path), page=page, return_details=True)
         views.append((view_type, prepared.base64, prepared.media_type))
     data = extract_drawing_data_multiview(
-        views, cache_dir=cache_dir, usage_out=usage, prep_warnings=part.warnings
+        views, cache_dir=cache_dir, usage_out=usage, prep_warnings=part.warnings,
+        requirements=requirements,
     )
     # Stamp the part number from the folder name when the model didn't read one.
     # An illegible title block can come back as quote/placeholder junk (e.g. '""')
@@ -394,13 +428,40 @@ def _run_views_folder(args) -> int:
     rows = []
     for part in parts:
         present = ", ".join(v for v, _ in _views_for_extraction(part)) or "none"
+        # ── Specs-first: read the operator's must-meet notes BEFORE extraction
+        # so the specifications shape the extraction prompt and Stage 2.5
+        # resolution from the start (they are re-verified against the build in
+        # the final gate). Also the input to the final requirements check.
+        from pipeline.requirements_check import find_notes_file, parse_requirements
+
+        notes_file = None
+        if getattr(args, "requirements", None):
+            notes_file = Path(args.requirements)
+        else:
+            try:
+                part_folder = Path(next(iter(part.views.values()))).parent
+                notes_file = find_notes_file(part_folder, part.name)
+            except StopIteration:
+                pass
+        spec_lines: list[str] = []
+        if notes_file is not None and notes_file.is_file() \
+                and not getattr(args, "skip_requirements_check", False):
+            try:
+                spec_lines = [r["text"] for r in parse_requirements(
+                    notes_file.read_text(encoding="utf-8", errors="replace"))]
+            except OSError as e:
+                console.print(f"  [yellow]Could not read notes file:[/yellow] {e}")
         print(f"[STAGE] Extracting {part.name}", flush=True)
         console.print(f"[1/2] {part.name}: extracting views ({present})...")
+        if spec_lines:
+            console.print(f"  [cyan]Specs-first:[/cyan] {len(spec_lines)} must-meet "
+                          "specification(s) injected into extraction + resolution.")
         for w in part.warnings:
             console.print(f"  [yellow]warning:[/yellow] {w}")
         usage: dict = {}
         try:
-            data = _extract_part_views(part, args.page, cache_dir, usage)
+            data = _extract_part_views(part, args.page, cache_dir, usage,
+                                       requirements=spec_lines)
         except Exception as e:
             console.print(f"  [red]Extraction failed:[/red] {type(e).__name__}: {e}")
             from pipeline.batch import BatchRow
@@ -415,21 +476,11 @@ def _run_views_folder(args) -> int:
         if vsrc is not None:
             data = _augment_holes(data, vsrc, args.page)
         console.print("[2.5/2] resolving ambiguities + verifying + per-plane macros + .sldprt...")
-        # Final-check inputs: the part's overview/full drawing (re-examined after
-        # the build) and the operator's must-meet notes file, if present.
-        from pipeline.requirements_check import find_notes_file
+        # Final-check input: the part's overview/full drawing (re-examined after
+        # the build); the notes file was already discovered above (specs-first).
         from pipeline.view_ingest import OVERVIEW_VIEW
 
         overview_img = part.views.get(OVERVIEW_VIEW)
-        notes_file = None
-        if getattr(args, "requirements", None):
-            notes_file = Path(args.requirements)
-        else:
-            try:
-                part_folder = Path(next(iter(part.views.values()))).parent
-                notes_file = find_notes_file(part_folder, part.name)
-            except StopIteration:
-                pass
         try:
             rows.append(process_drawing_data(data, part.name, output_dir,
                                              sw_app=sw_app, template_path=template,

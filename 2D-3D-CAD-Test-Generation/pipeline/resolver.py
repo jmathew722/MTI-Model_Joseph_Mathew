@@ -287,6 +287,43 @@ def _closing_candidate(
 
 
 # --------------------------------------------------------------------------- #
+# Operator must-meet specifications (specs-first enforcement)
+# --------------------------------------------------------------------------- #
+def _spec_numbers(requirements: Optional[list[str]]) -> list[tuple[float, str]]:
+    """``(value, spec_text)`` for every numeric value in the operator's
+    must-meet specification lines. These are first-class inputs to ambiguity
+    resolution: a spec value that matches a candidate reading takes precedence
+    over the generic decision tree (and is flagged as spec-driven)."""
+    import re
+
+    out: list[tuple[float, str]] = []
+    for line in requirements or []:
+        text = (line or "").strip()
+        if not text:
+            continue
+        for m in re.findall(r"\d+(?:\.\d+)?", text):
+            try:
+                v = float(m)
+            except ValueError:
+                continue
+            if v > 0:
+                out.append((v, text))
+    return out
+
+
+def _spec_match(cands: list[float],
+                spec_vals: list[tuple[float, str]]) -> Optional[tuple[float, str]]:
+    """The first candidate (best-guess order) that agrees with a spec value
+    within 1.5% (inch<->mm conversions tried), plus the matching spec text."""
+    for cand in cands:
+        for sv, text in spec_vals:
+            for conv in (sv, sv * 25.4, sv / 25.4):
+                if conv > 0 and abs(cand - conv) / max(conv, 1e-9) <= 0.015:
+                    return cand, text
+    return None
+
+
+# --------------------------------------------------------------------------- #
 # Per-dimension resolution (the Step 1-4 decision tree)
 # --------------------------------------------------------------------------- #
 def _needs_resolution(dim: dict) -> bool:
@@ -297,7 +334,8 @@ def _needs_resolution(dim: dict) -> bool:
     )
 
 
-def _resolve_dimension(dim: dict, model: DrawingData) -> DimResolution:
+def _resolve_dimension(dim: dict, model: DrawingData,
+                       spec_vals: Optional[list[tuple[float, str]]] = None) -> DimResolution:
     dim_id = dim.get("id", "?")
     applies = dim.get("applies_to", "") or dim.get("type", "value")
     cands = _candidates(dim)
@@ -318,6 +356,21 @@ def _resolve_dimension(dim: dict, model: DrawingData) -> DimResolution:
 
     # Did the model offer genuine ALTERNATIVE readings to choose between?
     has_alternatives = len(cands) >= 2
+
+    # --- STEP 0: operator must-meet specification (specs-first precedence) ---
+    # A human-authored spec that clarifies an ambiguous reading takes precedence
+    # over the generic decision tree: when a candidate agrees with a spec value,
+    # resolve to it and flag the resolution as spec-driven.
+    if cands and spec_vals:
+        matched = _spec_match(cands, spec_vals)
+        if matched is not None:
+            value, spec_text = matched
+            note = (
+                f"Resolved {dim_id} to {_fmt(value)} from the operator must-meet "
+                f"specification \"{spec_text}\" (spec-driven; applied at resolution "
+                f"time, verified against the build afterwards)."
+            )
+            return DimResolution(dim_id, value, True, "spec_driven", [], 0.90, "HIGH", note)
 
     # --- STEP 1: arithmetic chain check ---
     if cands:
@@ -585,8 +638,13 @@ def schema_clean(resolved: dict) -> dict:
 # --------------------------------------------------------------------------- #
 # Public entry point
 # --------------------------------------------------------------------------- #
-def resolve_extraction(raw: dict) -> ResolutionResult:
+def resolve_extraction(raw: dict,
+                       requirements: Optional[list[str]] = None) -> ResolutionResult:
     """Run the Stage 2.5 resolution pass over a raw extraction dict.
+
+    ``requirements`` (operator must-meet specification lines) are a first-class
+    input: a spec value that clarifies an ambiguous dimension takes precedence
+    over the generic decision tree, and that resolution is flagged spec-driven.
 
     Returns a :class:`ResolutionResult` carrying the enriched
     ``resolved_extraction`` dict (every dimension has ``resolved_value`` and a
@@ -599,6 +657,7 @@ def resolve_extraction(raw: dict) -> ResolutionResult:
     """
     resolved = copy.deepcopy(raw)
     result = ResolutionResult(resolved_extraction=resolved)
+    spec_vals = _spec_numbers(requirements)
 
     try:
         model = DrawingData.model_validate(raw)
@@ -610,7 +669,7 @@ def resolve_extraction(raw: dict) -> ResolutionResult:
     # --- Dimensions ---
     dims = resolved.get("dimensions", []) or []
     for dim in dims:
-        res = _resolve_dimension(dim, model)
+        res = _resolve_dimension(dim, model, spec_vals)
         result.dim_resolutions[res.dimension_id] = res
         dim.update(res.as_fields())
         # Once resolved, the value becomes the resolved value and the soft-block

@@ -47,7 +47,9 @@ TOOL_NAME = "report_drawing_data"
 # extraction instead of silently returning a result captured under the old prompt.
 # v3: emphatic fillet/chamfer capture + extrude-depth & per-instance-hole rules.
 # v4: revolve half-profiles, bolt-circle patterns, and mirror features.
-PROMPT_VERSION = "4"
+# v5: operator must-meet specifications injected into the extraction prompt
+#     (specs-first enforcement; the spec text is also mixed into the cache key).
+PROMPT_VERSION = "5"
 
 # Token usage fields summed across the (possibly several) calls of one extraction.
 _USAGE_FIELDS = (
@@ -77,14 +79,40 @@ def _accumulate_usage(acc: dict[str, int], response: Any) -> None:
 
 
 # --- Extraction cache: skip the API entirely for an already-seen image ------- #
-def _cache_key(image_b64: str, model: str) -> str:
+def _cache_key(image_b64: str, model: str,
+               requirements: Optional[list[str]] = None) -> str:
     h = hashlib.sha256()
     h.update(PROMPT_VERSION.encode("utf-8"))
     h.update(b"\0")
     h.update(model.encode("utf-8"))
     h.update(b"\0")
     h.update(image_b64.encode("utf-8"))
+    # Must-meet specs shape the extraction prompt, so changed notes must
+    # invalidate the cache (never serve a spec-blind cached extraction).
+    for req in requirements or []:
+        h.update(b"\0req\0")
+        h.update(req.encode("utf-8"))
     return h.hexdigest()
+
+
+def _requirements_block(requirements: Optional[list[str]]) -> Optional[str]:
+    """The specs-first prompt block: operator must-meet specifications are given
+    to the model BEFORE it extracts, so it actively looks for those features from
+    the start (they are re-verified against the final build afterwards)."""
+    reqs = [r.strip() for r in (requirements or []) if r and r.strip()]
+    if not reqs:
+        return None
+    lines = "\n".join(f"- {r}" for r in reqs)
+    return (
+        "OPERATOR MUST-MEET SPECIFICATIONS (human-authored, highest priority):\n"
+        f"{lines}\n"
+        "Actively look for and extract EVERY feature, dimension, and callout these "
+        "specifications reference — do not miss them. If a specification names a "
+        "value that clarifies an ambiguous or illegible callout, list that value in "
+        "possible_values for the dimension (the drawing remains the source of "
+        "truth: never fabricate a number that appears in neither the drawing nor "
+        "these specifications, and report disagreements honestly in warnings)."
+    )
 
 
 def _cache_lookup(cache_dir: Optional[Union[str, Path]], key: str) -> Optional[dict]:
@@ -429,7 +457,8 @@ MULTIVIEW_USER_TEXT = (
 )
 
 
-def _multiview_cache_key(views: list[tuple[str, str, str]], model: str) -> str:
+def _multiview_cache_key(views: list[tuple[str, str, str]], model: str,
+                         requirements: Optional[list[str]] = None) -> str:
     h = hashlib.sha256()
     h.update(PROMPT_VERSION.encode("utf-8"))
     h.update(b"\0")
@@ -439,6 +468,9 @@ def _multiview_cache_key(views: list[tuple[str, str, str]], model: str) -> str:
         h.update(view_type.encode("utf-8"))
         h.update(b"\0")
         h.update(b64.encode("utf-8"))
+    for req in requirements or []:
+        h.update(b"\0req\0")
+        h.update(req.encode("utf-8"))
     return h.hexdigest()
 
 
@@ -448,12 +480,17 @@ def extract_drawing_data_multiview(
     prep_warnings: Optional[list[str]] = None,
     cache_dir: Optional[Union[str, Path]] = None,
     usage_out: Optional[dict[str, int]] = None,
+    requirements: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     """Extract one combined part from SEPARATE per-view images.
 
     Args:
         views: ordered ``(view_type, image_b64, media_type)`` — one per view,
             in canonical order (front, top, side, second_side, bottom).
+        requirements: operator must-meet specification lines (specs-first
+            enforcement): injected into the extraction prompt so the model
+            actively looks for those features from the start. Also part of the
+            cache key, so changed notes force a fresh extraction.
         Other args mirror :func:`extract_drawing_data`.
 
     Each view image is labeled with its sketch plane so the model sets every
@@ -466,7 +503,7 @@ def extract_drawing_data_multiview(
     if not views:
         raise ExtractionError("No view images supplied for multi-view extraction.")
 
-    key = _multiview_cache_key(views, model)
+    key = _multiview_cache_key(views, model, requirements)
     cached = _cache_lookup(cache_dir, key)
     if cached is not None:
         log.info("Multi-view extraction cache HIT (%s…) — skipping API call.", key[:12])
@@ -499,6 +536,11 @@ def extract_drawing_data_multiview(
             content.append({"type": "text", "text": f"=== {label} VIEW — sketch on {plane} ==="})
         content.append(_image_block(b64, media_type, cache=cached_images < 3))
         cached_images += 1
+    req_block = _requirements_block(requirements)
+    if req_block:
+        content.append({"type": "text", "text": req_block})
+        log.info("Specs-first: %d must-meet specification(s) injected into extraction.",
+                 len([r for r in requirements or [] if r and r.strip()]))
     content.append({"type": "text", "text": MULTIVIEW_USER_TEXT})
 
     log.info("Multi-view extraction: %d views, model %s", len(views), model)
@@ -569,6 +611,7 @@ def extract_drawing_data(
     prep_warnings: Optional[list[str]] = None,
     cache_dir: Optional[Union[str, Path]] = None,
     usage_out: Optional[dict[str, int]] = None,
+    requirements: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     """Extract structured drawing data from a base64 image.
 
@@ -582,6 +625,8 @@ def extract_drawing_data(
             an exact re-run returns the cached result with NO API call (zero tokens).
         usage_out: If given, a dict updated with summed token usage for this call
             (``input_tokens``/``output_tokens``/cache fields/``calls``).
+        requirements: operator must-meet specification lines, injected into the
+            extraction prompt (specs-first) and mixed into the cache key.
 
     Returns:
         A JSON-serializable dict conforming to :class:`DrawingData`.
@@ -593,7 +638,7 @@ def extract_drawing_data(
     model = model or os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL
 
     # --- Extraction cache: identical image+model returns the saved result free ---
-    key = _cache_key(image_b64, model)
+    key = _cache_key(image_b64, model, requirements)
     cached = _cache_lookup(cache_dir, key)
     if cached is not None:
         log.info("Extraction cache HIT (%s…) — skipping API call.", key[:12])
@@ -606,15 +651,14 @@ def extract_drawing_data(
     usage: dict[str, int] = {}
 
     log.info("Extracting drawing data with model %s", model)
-    messages: list[dict[str, Any]] = [
-        {
-            "role": "user",
-            "content": [
-                _image_block(image_b64, media_type, cache=True),
-                {"type": "text", "text": INITIAL_USER_TEXT},
-            ],
-        }
-    ]
+    single_content: list[dict[str, Any]] = [_image_block(image_b64, media_type, cache=True)]
+    req_block = _requirements_block(requirements)
+    if req_block:
+        single_content.append({"type": "text", "text": req_block})
+        log.info("Specs-first: %d must-meet specification(s) injected into extraction.",
+                 len([r for r in requirements or [] if r and r.strip()]))
+    single_content.append({"type": "text", "text": INITIAL_USER_TEXT})
+    messages: list[dict[str, Any]] = [{"role": "user", "content": single_content}]
 
     data, response, tool_use = _parse(client, model, messages, usage)
     log.info(
