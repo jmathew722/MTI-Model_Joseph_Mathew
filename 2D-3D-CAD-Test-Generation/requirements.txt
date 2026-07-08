@@ -9,7 +9,10 @@ PyMuPDF==1.28.0
 ezdxf==1.4.4
 ezdwg==0.9.0
 opencv-python-headless==5.0.0.93
-numpy==2.5.0
+# numpy is capped below 2.5: numba (pulled in by cadquery below) requires
+# numpy<2.5, and opencv above requires numpy>=2 -- 2.4.6 satisfies both. Bumping
+# to 2.5.x makes the cadquery/numba install fail to resolve.
+numpy==2.4.6
 pydantic==2.13.4
 python-dotenv==1.2.2
 rich==15.0.0
@@ -18,5 +21,12 @@ pytest==9.1.1
 # check before SolidWorks) + trimesh post-build STL verification.
 cadquery==2.8.0
 trimesh==4.12.2
+# scipy is REQUIRED by the post-build STL verification (constraint_verify.py):
+# trimesh's mesh.section(...).discrete pulls it in lazily. trimesh's base wheel
+# does NOT install scipy (it's an optional trimesh extra), so it must be pinned
+# explicitly here -- otherwise post-build must-meet verification dies with
+# "No module named 'scipy'" whenever cadquery (which also happens to pull scipy)
+# is absent.
+scipy==1.18.0
 networkx==3.6.1
 shapely==2.1.2

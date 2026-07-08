@@ -100,6 +100,27 @@ def _fit_circles(loops: list, axis: int) -> list[dict]:
     return out
 
 
+def _ensure_mesh_deps() -> None:
+    """Fail fast with an actionable message if the STL-measurement stack is
+    incomplete. trimesh's cross-section (``mesh.section(...).discrete``) needs
+    scipy, which is NOT part of trimesh's base install -- so a partial
+    environment otherwise dies deep inside trimesh with a bare
+    ``No module named 'scipy'``. See requirements.txt."""
+    missing = []
+    for mod in ("trimesh", "scipy", "networkx"):
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append(mod)
+    if missing:
+        raise RuntimeError(
+            "post-build STL verification needs "
+            + ", ".join(missing)
+            + " (not installed). Install the pinned pipeline deps: "
+            "pip install -r requirements.txt"
+        )
+
+
 def measure_holes_from_stl(stl_path: Path,
                            expected_thickness_in: Optional[float] = None
                            ) -> tuple[list[dict], float]:
@@ -107,6 +128,7 @@ def measure_holes_from_stl(stl_path: Path,
     ``([{x, y, diameter, through}], thickness_in)`` — all inches, in the
     section plane's 2D frame (consistent across holes, which is all the
     constraint checks compare)."""
+    _ensure_mesh_deps()
     import trimesh
 
     mesh = trimesh.load(str(stl_path), force="mesh")

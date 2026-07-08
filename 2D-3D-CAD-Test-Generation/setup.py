@@ -30,8 +30,23 @@ REQUIREMENTS = [
     ("dotenv", "python-dotenv>=1.0.0", False),
     ("rich", "rich>=13.0.0", False),
     ("pytest", "pytest>=7.0.0", False),
+    ("trimesh", "trimesh>=4.0.0", False),
+    # scipy is required by trimesh's cross-section measurement used in the
+    # post-build must-meet verification (it is NOT in trimesh's base install).
+    ("scipy", "scipy>=1.10.0", False),
+    # DWG/DXF intake: DXF renders directly (ezdxf); DWG converts via the engine
+    # chain whose first, always-available link is the ezdwg pip package.
+    ("ezdxf", "ezdxf>=1.4.0", False),
+    ("ezdwg", "ezdwg>=0.9.0", False),
     ("win32com", "pywin32>=306", True),
 ]
+
+# Python version window. Lower bound: pipeline/UI features. Upper bound is a
+# HARD ceiling: the CadQuery pre-validation stage pulls in numba, which has no
+# wheel for Python 3.13+, so the dependency install fails there. Keep in sync
+# with webapp/run.ps1.
+PY_MIN = (3, 10)
+PY_MAX_EXCL = (3, 13)
 
 # ANSI fallbacks if rich is not yet installed.
 GREEN, RED, YELLOW, RESET = "\033[92m", "\033[91m", "\033[93m", "\033[0m"
@@ -44,13 +59,20 @@ def _result(label: str, status: str, detail: str = "") -> bool:
 
 
 def check_python() -> bool:
-    major, minor = sys.version_info[:2]
-    ok = (major, minor) >= (3, 10)
-    return _result(
-        "Python 3.10+",
-        "PASS" if ok else "FAIL",
-        f"found {platform.python_version()}",
-    )
+    ver = sys.version_info[:2]
+    ok = PY_MIN <= ver < PY_MAX_EXCL
+    label = f"Python >={PY_MIN[0]}.{PY_MIN[1]},<{PY_MAX_EXCL[0]}.{PY_MAX_EXCL[1]}"
+    if ok:
+        detail = f"found {platform.python_version()}"
+    elif ver >= PY_MAX_EXCL:
+        detail = (
+            f"found {platform.python_version()} - too new; numba/cadquery have no "
+            f"wheel for {PY_MAX_EXCL[0]}.{PY_MAX_EXCL[1]}+. Install Python 3.12 "
+            "(winget install Python.Python.3.12)."
+        )
+    else:
+        detail = f"found {platform.python_version()} - too old"
+    return _result(label, "PASS" if ok else "FAIL", detail)
 
 
 def _pip_install(spec: str) -> bool:
