@@ -76,6 +76,26 @@ def worst_tier(*tiers: str) -> str:
     return max(valid, key=lambda t: _TIER_RANK[t])
 
 
+# Which PRIORITY TIER resolved a value/flag (recorded on every resolution and
+# flag for traceability — "why was this value chosen"):
+#   tier0_spec       — operator must-meet specification (human-authoritative)
+#   tier1_per_view   — per-view extraction (most precise on individual dimensions)
+#   tier2_overview   — Stage 1.5 holistic overview analysis (authoritative on
+#                      cross-view relationships / symmetry / through-vs-blind)
+TIER_SPEC = "tier0_spec"
+TIER_PER_VIEW = "tier1_per_view"
+TIER_OVERVIEW = "tier2_overview"
+
+
+def tier_for_basis(assumption_basis: str) -> str:
+    """The priority tier that produced a resolution, from its basis keyword."""
+    if assumption_basis == "spec_driven":
+        return TIER_SPEC
+    if assumption_basis.startswith("overview"):
+        return TIER_OVERVIEW
+    return TIER_PER_VIEW
+
+
 @dataclass
 class DimResolution:
     """The resolution record added to one dimension object."""
@@ -89,6 +109,10 @@ class DimResolution:
     flag_tier: str                 # HIGH | MEDIUM | LOW | CRITICAL
     human_note: str
 
+    @property
+    def resolved_by_tier(self) -> str:
+        return tier_for_basis(self.assumption_basis)
+
     def as_fields(self) -> dict[str, Any]:
         return {
             "resolved_value": self.resolved_value,
@@ -97,6 +121,7 @@ class DimResolution:
             "chain_ids_used": list(self.chain_ids_used),
             "assumption_confidence": round(self.assumption_confidence, 3),
             "flag_tier": self.flag_tier,
+            "resolved_by_tier": self.resolved_by_tier,
             "human_note": self.human_note,
         }
 
@@ -321,6 +346,80 @@ def _spec_match(cands: list[float],
                 if conv > 0 and abs(cand - conv) / max(conv, 1e-9) <= 0.015:
                     return cand, text
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Stage 1.5 overview analysis (tier 2 — cross-view relationships)
+# --------------------------------------------------------------------------- #
+_OVERVIEW_SEVERITY_TO_TIER = {
+    "CRITICAL": "CRITICAL", "HIGH": "MEDIUM", "MEDIUM": "MEDIUM", "LOW": "LOW",
+}
+
+
+def _overview_flags(overview: dict, raw: dict) -> list[dict[str, Any]]:
+    """Build-plan flags contributed by the Stage 1.5 holistic overview analysis.
+
+    Two sources:
+      * every ``cross_view_conflicts`` entry the analysis reported (its severity
+        maps to a flag tier; CRITICAL stays CRITICAL) with the recommendation
+        text folded into the human note;
+      * a deterministic count cross-check — a global note stating a feature
+        COUNT (e.g. "(6) HLS" -> resolved_count 6) that no extracted hole
+        callout group satisfies means the per-view extraction and the sheet's
+        own callout disagree: exactly the class of error a cropped view cannot
+        resolve alone (an occluded 6th hole). Flagged CRITICAL, never dropped.
+
+    Every flag records ``resolved_by_tier = tier2_overview`` and
+    ``source = overview_analysis`` so it is traceable to this stage.
+    """
+    flags: list[dict[str, Any]] = []
+
+    for i, c in enumerate(overview.get("cross_view_conflicts", []) or [], 1):
+        desc = (c.get("description") or "").strip()
+        if not desc:
+            continue
+        rec = (c.get("recommendation") or "").strip()
+        views = ", ".join(c.get("views_involved", []) or [])
+        tier = _OVERVIEW_SEVERITY_TO_TIER.get(
+            str(c.get("severity", "")).upper(), "MEDIUM")
+        note = f"CROSS-VIEW CONFLICT ({views or 'sheet'}): {desc}"
+        if rec:
+            note += f" Recommendation: {rec}"
+        flags.append({
+            "dimension_id": f"OV-{i:03d}",
+            "flag_tier": tier,
+            "human_note": note,
+            "macro_behavior": behavior_for_tier(tier),
+            "resolved_by_tier": TIER_OVERVIEW,
+            "source": "overview_analysis",
+        })
+
+    # Deterministic count cross-check: overview note count vs extracted callouts.
+    holes = raw.get("hole_callouts", []) or []
+    qtys = [int(h.get("qty") or 0) for h in holes]
+    for note_obj in overview.get("global_notes", []) or []:
+        count = note_obj.get("resolved_count")
+        if not isinstance(count, int) or count <= 0 or not holes:
+            continue
+        if count in qtys or count == sum(qtys):
+            continue
+        note_text = (note_obj.get("note") or "").strip()
+        flags.append({
+            "dimension_id": "OV-COUNT",
+            "flag_tier": "CRITICAL",
+            "human_note": (
+                f"HOLE-COUNT DISAGREEMENT: the sheet's global callout \"{note_text}\" "
+                f"states {count} instance(s), but the per-view extraction captured "
+                f"hole group(s) of {qtys} (total {sum(qtys)}). A cropped view cannot "
+                f"resolve this alone — check for an occluded instance (behind the "
+                f"title block or a leader line) before building, or the part will "
+                f"silently miss a feature."
+            ),
+            "macro_behavior": behavior_for_tier("CRITICAL"),
+            "resolved_by_tier": TIER_OVERVIEW,
+            "source": "overview_analysis",
+        })
+    return flags
 
 
 # --------------------------------------------------------------------------- #
@@ -611,12 +710,12 @@ def behavior_for_tier(tier: str) -> str:
 # schema-valid (extra='forbid') copy for verification / model building.
 _DIM_EXTRA_KEYS = (
     "resolved_value", "assumption_made", "assumption_basis", "chain_ids_used",
-    "assumption_confidence", "flag_tier", "human_note",
+    "assumption_confidence", "flag_tier", "resolved_by_tier", "human_note",
 )
 _FEATURE_EXTRA_KEYS = (
     "build_status", "position_resolved", "position_assumption", "flag_tier", "human_note",
 )
-_TOP_EXTRA_KEYS = ("resolution",)
+_TOP_EXTRA_KEYS = ("resolution", "overview_analysis")
 
 
 def schema_clean(resolved: dict) -> dict:
@@ -639,12 +738,21 @@ def schema_clean(resolved: dict) -> dict:
 # Public entry point
 # --------------------------------------------------------------------------- #
 def resolve_extraction(raw: dict,
-                       requirements: Optional[list[str]] = None) -> ResolutionResult:
+                       requirements: Optional[list[str]] = None,
+                       overview_analysis: Optional[dict] = None) -> ResolutionResult:
     """Run the Stage 2.5 resolution pass over a raw extraction dict.
 
     ``requirements`` (operator must-meet specification lines) are a first-class
     input: a spec value that clarifies an ambiguous dimension takes precedence
     over the generic decision tree, and that resolution is flagged spec-driven.
+
+    ``overview_analysis`` (the Stage 1.5 holistic pass over the FULL drawing
+    sheet) is the tier-2 input: authoritative on cross-view relationships that
+    a single cropped view cannot determine. Its cross-view conflicts (and a
+    deterministic callout-count cross-check) become flags sourced
+    ``overview_analysis`` with ``resolved_by_tier = tier2_overview``. Priority
+    when sources disagree: tier0 spec > tier1 per-view values > tier2 overview
+    relationships; every flag records which tier resolved it.
 
     Returns a :class:`ResolutionResult` carrying the enriched
     ``resolved_extraction`` dict (every dimension has ``resolved_value`` and a
@@ -694,6 +802,8 @@ def resolve_extraction(raw: dict,
     _ensure_buildable_extrudes(resolved, model, result)
 
     # --- Surface flags (MEDIUM and worse) for the build plan & stdout ---
+    # Every flag records which priority tier resolved it (tier0 spec / tier1
+    # per-view / tier2 overview) so the choice of value is always traceable.
     for res in result.dim_resolutions.values():
         if res.flag_tier in ("MEDIUM", "LOW", "CRITICAL"):
             result.flags.append({
@@ -701,6 +811,7 @@ def resolve_extraction(raw: dict,
                 "flag_tier": res.flag_tier,
                 "human_note": res.human_note,
                 "macro_behavior": behavior_for_tier(res.flag_tier),
+                "resolved_by_tier": res.resolved_by_tier,
             })
     for fres in result.feature_resolutions.values():
         if fres.flag_tier in ("MEDIUM", "LOW", "CRITICAL"):
@@ -709,13 +820,44 @@ def resolve_extraction(raw: dict,
                 "flag_tier": fres.flag_tier,
                 "human_note": fres.human_note,
                 "macro_behavior": behavior_for_tier(fres.flag_tier),
+                "resolved_by_tier": TIER_PER_VIEW,
             })
     for hole in resolved.get("hole_callouts", []) or []:
         flag = _resolve_hole_position_flag(hole, "")
         if flag:
+            flag["resolved_by_tier"] = TIER_PER_VIEW
             result.flags.append(flag)
 
+    # --- Tier 2: Stage 1.5 holistic overview analysis (cross-view conflicts
+    # + callout-count cross-check). Only adds flags — never changes a tier-1
+    # extracted value (per-view extraction stays authoritative on dimensions).
+    if overview_analysis:
+        ov_flags = _overview_flags(overview_analysis, resolved)
+        result.flags.extend(ov_flags)
+        resolved["overview_analysis"] = {
+            "overall_shape_summary": overview_analysis.get("overall_shape_summary", ""),
+            "views_detected": overview_analysis.get("views_detected", []),
+            "symmetry": overview_analysis.get("symmetry", {}),
+            "n_conflicts": len(overview_analysis.get("cross_view_conflicts", []) or []),
+            "flags_contributed": ov_flags,
+        }
+        for f in ov_flags:
+            log.info("overview flag [%s]: %s", f["flag_tier"], f["human_note"])
+
     _summarize(result)
+    # Overview-contributed flags count toward the summary tiers (they are not
+    # dimension resolutions, so _summarize alone would miss them).
+    for f in result.flags:
+        if f.get("source") == "overview_analysis":
+            t = f.get("flag_tier")
+            if t == "CRITICAL":
+                result.summary.critical_flags += 1
+                result.summary.rebuild_confidence = min(
+                    result.summary.rebuild_confidence, 0.55)
+            elif t == "MEDIUM":
+                result.summary.medium_flags += 1
+            elif t == "LOW":
+                result.summary.low_flags += 1
     # Stamp the summary onto the resolved extraction for traceability.
     resolved["resolution"] = _summary_dict(result.summary)
     # The schema-valid twin that drives verification + the build.

@@ -59,7 +59,7 @@ generates SolidWorks VBA macros and (on a SolidWorks machine) builds a real
 ## How it works (pipeline)
 
 ```
-drawing/views ─► image_prep ─► extractor (Claude Vision) ─► resolver (Stage 2.5)
+drawing/views ─► image_prep ─► overview analysis (Stage 1.5, full sheet) ─► extractor (Claude Vision) ─► resolver (Stage 2.5)
                                                                    │
                                             ┌──────────────────────┘
                                             ▼
@@ -71,10 +71,11 @@ drawing/views ─► image_prep ─► extractor (Claude Vision) ─► resolver
 | Stage | Module | Runs on |
 |-------|--------|---------|
 | Image prep | `utils/image_prep.py` | any OS |
+| **Holistic overview analysis (Stage 1.5)** | `pipeline/overview_analysis.py` (`claude-sonnet-5` on the FULL uncropped sheet — cross-view correspondences, overall shape, conflicts, symmetry, global notes; NOT per-dimension extraction. Output `overview_analysis.json`, fed to Stage 2.5 as tier 2; own token-ledger line `stage_1_5_overview_analysis`; skipped gracefully without a key) | any OS |
 | Extraction | `pipeline/extractor.py` (`claude-sonnet-5`, forced tool call; **must-meet specs injected into the prompt — specs-first**) | any OS |
 | Schema | `pipeline/schema.py` (Pydantic v2: views, hole callouts, relationships) | any OS |
 | **Vector hole extraction** | `pipeline/vector_extract/` + `pipeline/hole_resolution.py` (EXACT hole positions from DXF/DWG entities or vector-PDF paths; Hough fallback for scans; vision never overrides a vector coordinate) | any OS |
-| **Ambiguity resolution (Stage 2.5)** | `pipeline/resolver.py` (numeric `resolved_value` + flag tier per dimension; a must-meet spec value that clarifies an ambiguity **takes precedence** → `spec_driven`; never blocks) | any OS |
+| **Ambiguity resolution (Stage 2.5)** | `pipeline/resolver.py` (numeric `resolved_value` + flag tier per dimension; a must-meet spec value that clarifies an ambiguity **takes precedence** → `spec_driven`; never blocks. Priority tiers when sources disagree: **tier 0** operator specs → **tier 1** per-view extraction (owns dimension values) → **tier 2** overview analysis (owns cross-view relationships); every resolution/flag records `resolved_by_tier`) | any OS |
 | Verification | `pipeline/validator.py` (dimensional closure, envelopes, advisory report) | any OS |
 | **Engineering review** | `pipeline/engineering_review.py` (severity-ranked human report) | any OS |
 | **VBA macros** | `pipeline/macro_generator.py` (incl. `ZZZ_export_stl.vba`; unsupported features become numbered MANUAL-step macros) | any OS (macros run on any SolidWorks machine) |

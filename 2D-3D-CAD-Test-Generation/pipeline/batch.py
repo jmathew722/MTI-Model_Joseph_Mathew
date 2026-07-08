@@ -212,6 +212,7 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
                          sw_app=None, template_path: Optional[str] = None,
                          resolve: bool = True, strict_gate: bool = False,
                          overview_image: Optional[Path] = None,
+                         overview_analysis: Optional[dict] = None,
                          requirements_file: Optional[Path] = None,
                          skip_overview_check: bool = False,
                          skip_requirements_check: bool = False) -> BatchRow:
@@ -225,6 +226,11 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     When ``sw_app`` is provided (a connected SolidWorks application), a real
     ``.sldprt`` is also built into the part folder — making the 3D model a
     standard output of every run, not just the VBA macros.
+
+    ``overview_analysis`` is the Stage 1.5 holistic pass over the FULL drawing
+    sheet (run before per-view extraction): it is persisted as
+    ``overview_analysis.json`` in the part folder and fed into Stage 2.5 as the
+    tier-2 input (cross-view relationships; its conflicts become flags).
 
     Final checks (both graceful no-ops when their input is absent):
       * ``overview_image`` — the part's overview/full drawing is re-examined
@@ -290,8 +296,9 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
                 from pipeline.extractor import DEFAULT_MODEL
                 from pipeline.usage_log import record_run
 
-                record_run(output_dir, f"{source} (spec reconciliation)",
-                           _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL, mm_usage)
+                record_run(output_dir, source,
+                           _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL, mm_usage,
+                           stage="stage_2_6_spec_reconciliation")
             except Exception:
                 pass
 
@@ -300,8 +307,17 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
         from pipeline.resolver import resolve_extraction
 
         print("[STAGE] Resolving", flush=True)
-        resolution = resolve_extraction(work_extraction, requirements=spec_lines)
+        resolution = resolve_extraction(work_extraction, requirements=spec_lines,
+                                        overview_analysis=overview_analysis)
         drawing_data = resolution.clean_extraction
+        n_overview = sum(1 for f in resolution.flags
+                         if f.get("source") == "overview_analysis")
+        if n_overview:
+            print(f"[OVERVIEW] Stage 1.5 contributed {n_overview} cross-view "
+                  "flag(s) to resolution (tier2_overview).", flush=True)
+            for f in resolution.flags:
+                if f.get("source") == "overview_analysis":
+                    print(f"[OVERVIEW] {f['flag_tier']}: {f['human_note']}", flush=True)
         n_spec = sum(1 for r in resolution.dim_resolutions.values()
                      if r.assumption_basis == "spec_driven")
         if n_spec:
@@ -338,6 +354,13 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
         (part_dir / f"{safe}_resolved_extraction.json").write_text(
             json.dumps(resolution.resolved_extraction, indent=2), encoding="utf-8"
         )
+    if overview_analysis:
+        try:
+            from pipeline.overview_analysis import save_overview_analysis
+
+            save_overview_analysis(part_dir, overview_analysis)
+        except OSError as e:
+            log.warning("Could not persist overview_analysis.json: %s", e)
     verification_text = format_verification_report(model, report)
     (part_dir / f"{safe}_verification_report.txt").write_text(
         verification_text, encoding="utf-8"
@@ -486,8 +509,9 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
                 from pipeline.extractor import DEFAULT_MODEL
                 from pipeline.usage_log import record_run
 
-                record_run(output_dir, f"{safe} (overview check)",
-                           _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL, usage_o)
+                record_run(output_dir, safe,
+                           _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL, usage_o,
+                           stage="final_overview_check")
             except Exception:
                 pass
     log.info("%s overview check: %s", part, overview_note)
@@ -675,13 +699,16 @@ def run_batch(
     requirements_file: Optional[Path] = None,
     skip_overview_check: bool = False,
     skip_requirements_check: bool = False,
+    overview_fn: Optional[Callable[[Path], Optional[dict]]] = None,
 ) -> tuple[list[BatchRow], Path]:
     """Process every input in ``directory`` and write ``batch_summary.csv``.
 
     ``extract_fn`` is required only if drawing files (not just ``*_extraction.json``)
-    are present; it maps a drawing path to an extraction dict. When ``sw_app`` is
-    given, each READY part is also built into a real ``.sldprt``. ``resolve`` /
-    ``strict_gate`` are forwarded to :func:`process_drawing_data`.
+    are present; it maps a drawing path to an extraction dict. ``overview_fn``
+    (optional) maps a drawing path to its Stage 1.5 holistic overview analysis;
+    it runs BEFORE extraction and its result feeds Stage 2.5 (tier 2). When
+    ``sw_app`` is given, each READY part is also built into a real ``.sldprt``.
+    ``resolve`` / ``strict_gate`` are forwarded to :func:`process_drawing_data`.
     """
     directory = Path(directory)
     output_dir = Path(output_dir)
@@ -691,6 +718,7 @@ def run_batch(
     for path, is_json in iter_inputs(directory):
         log.info("batch: processing %s", path.name)
         try:
+            overview_analysis = None
             if is_json:
                 drawing_data = json.loads(path.read_text(encoding="utf-8"))
             else:
@@ -698,10 +726,19 @@ def run_batch(
                     rows.append(BatchRow(path.name, path.stem, "ERROR", 0, 0, 0, 0, 0,
                                          0, 0, 0, "No extractor provided for a drawing file."))
                     continue
+                # Stage 1.5 runs on the FULL sheet BEFORE per-view extraction;
+                # a failure only loses the extra signal, never the run.
+                if overview_fn is not None:
+                    try:
+                        overview_analysis = overview_fn(path)
+                    except Exception as e:
+                        log.warning("batch: overview analysis failed for %s "
+                                    "(stage skipped): %s", path.name, e)
                 drawing_data = extract_fn(path)
             rows.append(process_drawing_data(drawing_data, path.name, output_dir,
                                              sw_app=sw_app, template_path=template_path,
                                              resolve=resolve, strict_gate=strict_gate,
+                                             overview_analysis=overview_analysis,
                                              requirements_file=requirements_file,
                                              skip_overview_check=skip_overview_check,
                                              skip_requirements_check=skip_requirements_check))

@@ -128,6 +128,29 @@ def _macro_items(pkg) -> list[dict[str, Any]]:
     return items
 
 
+def _overview_analysis_items(resolution) -> list[dict[str, Any]]:
+    """Stage 1.5 holistic overview flags (cross-view conflicts, count
+    disagreements). These carry ``source='overview_analysis'`` and record that
+    tier 2 (the whole-sheet relational pass) raised them — exactly the class of
+    finding a single cropped view cannot produce."""
+    items: list[dict[str, Any]] = []
+    for fl in getattr(resolution, "flags", []) or []:
+        if fl.get("source") != "overview_analysis":
+            continue
+        severity = _RESOLVER_TIER_TO_SEVERITY.get(fl.get("flag_tier", ""), "MEDIUM")
+        items.append(_item(
+            severity, "overview_analysis", fl.get("dimension_id", ""),
+            what=fl.get("human_note", ""),
+            decision="flagged for human verification; the per-view extracted "
+                     "geometry was kept (tier 1 owns dimensions)",
+            why="raised by the Stage 1.5 holistic overview analysis "
+                f"({fl.get('resolved_by_tier', 'tier2_overview')}) — cross-view "
+                "context a single cropped view cannot provide",
+            affects="cross-view consistency of the whole part",
+        ))
+    return items
+
+
 def _build_items(build_skipped, build_caveats) -> list[dict[str, Any]]:
     """COM-build outcomes: skipped features are CRITICAL, caveats MEDIUM."""
     items: list[dict[str, Any]] = []
@@ -164,6 +187,7 @@ def build_review_items(
     if resolution is not None:
         items.extend(_dim_items(resolution))
         items.extend(_feature_items(resolution))
+        items.extend(_overview_analysis_items(resolution))
     if pkg is not None:
         items.extend(_macro_items(pkg))
     items.extend(_build_items(build_skipped, build_caveats))

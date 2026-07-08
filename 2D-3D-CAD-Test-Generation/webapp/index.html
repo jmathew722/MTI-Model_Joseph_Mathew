@@ -251,6 +251,41 @@
             cursor:grab; transform-origin:center center; }
   #ov-img:active { cursor:grabbing; }
   #stl-canvas-wrap { position:absolute; inset:0; }
+
+  /* Stage 1.5 — Holistic Overview Analysis: collapsible panel directly under
+     the Full Overview View render (the model's whole-sheet relational read). */
+  .ovan { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg-raised);
+          max-height:42%; overflow:auto; }
+  .ovan summary { cursor:pointer; padding:var(--sp-2) var(--sp-4); user-select:none;
+                  font:600 var(--fs-caption)/1.6 var(--sans); letter-spacing:.08em;
+                  text-transform:uppercase; color:var(--ink-3); list-style:none;
+                  display:flex; align-items:center; gap:var(--sp-2); }
+  .ovan summary::-webkit-details-marker { display:none; }
+  .ovan summary .twist { font-family:var(--mono); }
+  .ovan summary .twist::before { content:'▸'; }
+  .ovan[open] summary .twist::before { content:'▾'; }
+  .ovan summary .conf-badge { font:700 10px/16px var(--sans); letter-spacing:.06em;
+                              padding:1px var(--sp-2); border-radius:var(--r-sm);
+                              border:1px solid var(--sev-critical, var(--err));
+                              color:var(--sev-critical, var(--err-text)); }
+  .ovan summary .ok-badge { font:700 10px/16px var(--sans); letter-spacing:.06em;
+                            padding:1px var(--sp-2); border-radius:var(--r-sm);
+                            border:1px solid var(--ok); color:var(--ok-text); }
+  .ovan-body { padding:0 var(--sp-4) var(--sp-3); font-size:var(--fs-small);
+               color:var(--ink-2); line-height:1.55; }
+  .ovan-body .shape { color:var(--ink-1, var(--blueprint-text)); margin:0 0 var(--sp-2); }
+  .ovan-body .sec-t { font:600 var(--fs-caption)/1.8 var(--sans); letter-spacing:.07em;
+                      text-transform:uppercase; color:var(--ink-3); margin-top:var(--sp-2); }
+  .ovan-body .vchip { display:inline-block; font:500 var(--fs-caption)/1.6 var(--mono);
+                      border:1px solid var(--line); border-radius:var(--r-sm);
+                      padding:0 var(--sp-2); margin:1px var(--sp-1) 1px 0; color:var(--ink-2); }
+  .ovan-body .conf { border-left:3px solid var(--sev-critical, var(--err));
+                     padding:var(--sp-1) var(--sp-3); margin:var(--sp-2) 0;
+                     background:var(--surface); border-radius:var(--r-sm); }
+  .ovan-body .conf.sev-MEDIUM, .ovan-body .conf.sev-LOW { border-left-color:var(--warn); }
+  .ovan-body .conf .sv { font:700 10px/16px var(--sans); letter-spacing:.08em; }
+  .ovan-body .conf .rec { color:var(--ink-3); }
+  .ovan-body ul { margin:var(--sp-1) 0; padding-left:18px; }
   .emptynote { color:var(--ink-3); font-size:var(--fs-body); text-align:center; padding:var(--sp-5);
                max-width:360px; }
   .emptynote b { color:var(--ink-2); }
@@ -424,6 +459,11 @@
           <img id="ov-img" alt="full overview drawing" style="display:none" />
           <div class="emptynote" id="ov-empty">No overview image provided for this part.</div>
         </div>
+        <details class="ovan" id="ovan-panel" style="display:none">
+          <summary><span class="twist"></span>Overview Analysis — holistic cross-view read (Stage 1.5)
+            <span class="grow"></span><span id="ovan-badge"></span></summary>
+          <div class="ovan-body" id="ovan-body"></div>
+        </details>
       </div>
       <div class="side">
         <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan<span class="stl-badge" id="stl-badge">PRE-VALIDATED (CadQuery)</span></div>
@@ -702,6 +742,46 @@ function paintMustMeet(mm, stlSource) {
   box.style.display = '';
 }
 
+// ── Stage 1.5 overview analysis panel (Tab 2, under the Full Overview View) ──
+// The model's holistic read of the whole sheet — overall shape + cross-view
+// conflicts inline, so a reviewer sees it before drilling into per-view detail.
+function paintOverviewAnalysis(ov) {
+  const panel = document.getElementById('ovan-panel');
+  if (!panel) return;
+  const body = document.getElementById('ovan-body'), badge = document.getElementById('ovan-badge');
+  if (!ov || !ov.present || !ov.data) { panel.style.display = 'none'; body.innerHTML = ''; badge.innerHTML = ''; return; }
+  const d = ov.data;
+  const conflicts = d.cross_view_conflicts || [];
+  const nCrit = conflicts.filter(c => String(c.severity).toUpperCase() === 'CRITICAL').length;
+  badge.innerHTML = conflicts.length
+    ? `<span class="conf-badge">${conflicts.length} conflict${conflicts.length === 1 ? '' : 's'}${nCrit ? ` · ${nCrit} critical` : ''}</span>`
+    : `<span class="ok-badge">views agree</span>`;
+  let html = '';
+  if (d.overall_shape_summary) html += `<p class="shape"><b>Overall shape:</b> ${esc(d.overall_shape_summary)}</p>`;
+  if ((d.views_detected || []).length)
+    html += `<div class="sec-t">Views detected</div>` + d.views_detected.map(v =>
+      `<span class="vchip" title="${esc(v.description || '')}">${esc(v.view_id)}</span>`).join('');
+  if (conflicts.length) {
+    html += `<div class="sec-t">Cross-view conflicts</div>` + conflicts.map(c => {
+      const sev = String(c.severity || 'MEDIUM').toUpperCase();
+      return `<div class="conf sev-${esc(sev)}"><span class="sv">${esc(sev)}</span> ${esc(c.description || '')}` +
+             (c.recommendation ? `<div class="rec">→ ${esc(c.recommendation)}</div>` : '') + `</div>`;
+    }).join('');
+  }
+  if ((d.cross_view_correspondences || []).length)
+    html += `<div class="sec-t">Cross-view correspondences</div><ul>` +
+      d.cross_view_correspondences.map(x =>
+        `<li><b>${esc(x.feature)}</b> (${esc((x.seen_in || []).join(' + '))}): ${esc(x.relation || '')}</li>`).join('') + `</ul>`;
+  if ((d.global_notes || []).length)
+    html += `<div class="sec-t">Global notes</div><ul>` + d.global_notes.map(n =>
+      `<li>“${esc(n.note)}” — ${esc(n.applies_to || 'whole part')}${n.resolved_count != null ? ` (count: ${esc(n.resolved_count)})` : ''}</li>`).join('') + `</ul>`;
+  if (d.symmetry && d.symmetry.type)
+    html += `<div class="sec-t">Symmetry</div><div>${esc(d.symmetry.type)}${d.symmetry.notes ? ` — ${esc(d.symmetry.notes)}` : ''}</div>`;
+  body.innerHTML = html;
+  panel.style.display = '';
+  if (conflicts.length) panel.open = true; // conflicts must be seen, not hidden
+}
+
 function fillOutputs(payload) {
   const c = payload.categories || {};
   for (const tab of ['extraction','resolved','buildplan','verification','modelcheck']) {
@@ -717,6 +797,7 @@ function fillOutputs(payload) {
   if (c.files && c.files.present && (c.files.list || []).length) { paintFiles(c.files, payload); setTabFilled('files', true); }
   if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
   paintMustMeet(c.must_meet, payload.stl_source);
+  paintOverviewAnalysis(c.overview_analysis);
   if (c.stl && c.stl.present && selectedPart) {
     setModelTabFilled(true);
     viewer.load(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/model.stl?t=${payload.stl_mtime || ''}`);
@@ -766,6 +847,7 @@ function selectPart(name) {
 async function loadPartOutputs(name) {
   resetOutputs('Waiting for pipeline output…');
   paintMustMeet(null, null);
+  paintOverviewAnalysis(null);
   document.getElementById('stl-empty').style.display = '';
   let d;
   try { d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(name)}/outputs`)).json(); } catch { return; }

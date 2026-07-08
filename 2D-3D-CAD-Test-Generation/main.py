@@ -114,7 +114,7 @@ def _spec_lines_from_args(args) -> list[str]:
         return []
 
 
-def _resolve_stage(args, drawing_data: dict):
+def _resolve_stage(args, drawing_data: dict, overview_analysis: dict | None = None):
     """Stage 2.5: resolve every ambiguity to a numeric value (chief-engineer pass).
 
     Returns ``(resolved_data, resolution)``. When --no-resolve is set, returns the
@@ -123,6 +123,7 @@ def _resolve_stage(args, drawing_data: dict):
     every feature marked ``build_status='build'``; the resolution summary is printed.
     Operator must-meet specifications (--requirements) are a first-class input:
     a spec value clarifying an ambiguous dimension takes precedence (spec-driven).
+    The Stage 1.5 overview analysis (when available) feeds resolution as tier 2.
     """
     if getattr(args, "no_resolve", False):
         return drawing_data, None
@@ -130,7 +131,8 @@ def _resolve_stage(args, drawing_data: dict):
 
     console.print("[2.5/4] Resolving ambiguities (chief-engineer pass)...")
     resolution = resolve_extraction(drawing_data,
-                                    requirements=_spec_lines_from_args(args))
+                                    requirements=_spec_lines_from_args(args),
+                                    overview_analysis=overview_analysis)
     _print_resolution_summary(resolution)
     # clean_extraction (resolved values, schema-valid) drives verification + build;
     # resolution.resolved_extraction (rich, annotated) is written to disk.
@@ -150,14 +152,19 @@ def _print_resolution_summary(resolution) -> None:
     color = {"CRITICAL": "red", "LOW": "yellow", "MEDIUM": "cyan"}
     for f in surfaced:
         tier = f.get("flag_tier", "")
+        by = f.get("resolved_by_tier", "")
         console.print(
-            f"    [{color.get(tier, 'white')}]{tier}[/] {f.get('dimension_id', '')}: "
-            f"{f.get('human_note', '')}"
+            f"    [{color.get(tier, 'white')}]{tier}[/] {f.get('dimension_id', '')}"
+            f"{f' [{by}]' if by else ''}: {f.get('human_note', '')}"
         )
 
 
-def _prepare_and_extract(args) -> dict | None:
-    """Stages 1-2: image prep + Claude extraction. Returns the extraction dict."""
+def _prepare_and_extract(args) -> tuple[dict | None, dict | None]:
+    """Stages 1-2: image prep + Stage 1.5 overview analysis + Claude extraction.
+
+    Returns ``(extraction_dict, overview_analysis)`` — extraction is ``None`` on
+    failure; overview_analysis is ``None`` whenever that stage was unavailable
+    (it can only add signal, never block)."""
     console.print("[1/4] Preparing drawing image...")
     from utils.image_prep import ImagePrepError, prepare_image
 
@@ -165,16 +172,42 @@ def _prepare_and_extract(args) -> dict | None:
         prepared = prepare_image(args.drawing, page=args.page, return_details=True)
     except ImagePrepError as e:
         console.print(f"[red]Image preparation failed:[/red] {e}")
-        return None
+        return None, None
     for w in prepared.warnings:
         console.print(f"  [yellow]warning:[/yellow] {w}")
     console.print(f"  Prepared {prepared.width}x{prepared.height} PNG (page {prepared.page}).")
 
-    console.print("[2/4] Extracting drawing data with Claude Vision...")
-    from pipeline.extractor import ExtractionError, extract_drawing_data
-
     import os as _os
     from pipeline.extractor import DEFAULT_MODEL
+
+    model = _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL
+
+    # ── Stage 1.5: Holistic Overview Analysis on the SAME prepared full-sheet
+    # image (no re-rasterization) — cross-view relationships before extraction.
+    console.print("[1.5/4] Holistic overview analysis (full sheet, cross-view)...")
+    from pipeline.overview_analysis import STAGE_TAG, analyze_overview
+    from pipeline.usage_log import record_run
+
+    usage_ov: dict[str, int] = {}
+    overview_analysis = analyze_overview(
+        prepared.base64, media_type=prepared.media_type,
+        cache_dir=_extract_cache_dir(args), usage_out=usage_ov,
+    )
+    if usage_ov.get("calls") or usage_ov.get("cache_hits"):
+        part_hint = Path(args.drawing).stem
+        record_run(Path(args.output), part_hint, model, usage_ov, stage=STAGE_TAG)
+    if overview_analysis is not None:
+        console.print(
+            f"  Overview: {len(overview_analysis.get('views_detected', []) or [])} view(s), "
+            f"{len(overview_analysis.get('cross_view_conflicts', []) or [])} conflict(s); "
+            f"shape: {overview_analysis.get('overall_shape_summary', '')[:100]}"
+        )
+    else:
+        console.print("  [yellow]Overview analysis unavailable — proceeding with "
+                      "per-view extraction only.[/yellow]")
+
+    console.print("[2/4] Extracting drawing data with Claude Vision...")
+    from pipeline.extractor import ExtractionError, extract_drawing_data
 
     usage: dict[str, int] = {}
     spec_lines = _spec_lines_from_args(args)
@@ -191,16 +224,13 @@ def _prepare_and_extract(args) -> dict | None:
             requirements=spec_lines,
         )
         # Record tokens + cost for this API run into the output-root ledger.
-        from pipeline.usage_log import record_run
-
-        model = _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL
         part = data.get("part_number") or data.get("part_name") or "part"
         ledger = record_run(Path(args.output), part, model, usage)
         console.print(
             f"  Tokens: in={usage.get('input_tokens', 0)} out={usage.get('output_tokens', 0)} "
             f"cache_read={usage.get('cache_read_input_tokens', 0)} -> ledger {ledger}"
         )
-        return data
+        return data, overview_analysis
     except EnvironmentError as e:
         console.print(f"[red]Extraction failed (configuration):[/red] {e}")
     except ExtractionError as e:
@@ -209,7 +239,7 @@ def _prepare_and_extract(args) -> dict | None:
         # The extractor wraps an external API: auth, rate-limit, and network
         # failures surface as the SDK's own exception types. Present cleanly.
         console.print(f"[red]Extraction failed (API error):[/red] {type(e).__name__}: {e}")
-    return None
+    return None, overview_analysis
 
 
 def _augment_holes(raw: dict, source_path: Path, page: int) -> dict:
@@ -318,10 +348,28 @@ def _run_batch(args) -> int:
     sw_app = _connect_solidworks_optional(args)
     template = _os.getenv("SOLIDWORKS_TEMPLATE_PATH")
     batch_specs = _spec_lines_from_args(args)  # specs-first: into every extraction
+
+    # Stage 1.5 for batch drawings: the drawing file IS the full sheet — analyze
+    # it holistically before extraction and log the cost as its own stage.
+    def _overview_for(p: Path):
+        from pipeline.extractor import DEFAULT_MODEL
+        from pipeline.overview_analysis import STAGE_TAG, analyze_overview_file
+        from pipeline.usage_log import record_run
+
+        usage_ov: dict = {}
+        result = analyze_overview_file(p, page=args.page, part_number=p.stem,
+                                       cache_dir=cache_dir, usage_out=usage_ov)
+        if usage_ov.get("calls") or usage_ov.get("cache_hits"):
+            record_run(output_dir, p.stem,
+                       _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL,
+                       usage_ov, stage=STAGE_TAG)
+        return result
+
     rows, csv_path = run_batch(
         directory, output_dir,
         extract_fn=lambda p: _extract_one_drawing(p, args.page, cache_dir,
                                                   requirements=batch_specs),
+        overview_fn=_overview_for,
         sw_app=sw_app, template_path=template,
         resolve=not getattr(args, "no_resolve", False),
         strict_gate=getattr(args, "strict_gate", False),
@@ -453,6 +501,37 @@ def _run_views_folder(args) -> int:
                     notes_file.read_text(encoding="utf-8", errors="replace"))]
             except OSError as e:
                 console.print(f"  [yellow]Could not read notes file:[/yellow] {e}")
+        # ── Stage 1.5: Holistic Overview Analysis — the FULL drawing sheet is
+        # analyzed relationally (cross-view correspondences, overall shape,
+        # conflicts, symmetry) BEFORE per-view extraction, so Stage 2.5 gets the
+        # whole-sheet context a cropped view can never provide. Reuses the
+        # already-saved overview image; its cost is a separate ledger line.
+        from pipeline.view_ingest import OVERVIEW_VIEW
+
+        overview_img = part.views.get(OVERVIEW_VIEW)
+        overview_analysis = None
+        if overview_img is not None:
+            from pipeline.overview_analysis import STAGE_TAG, analyze_overview_file
+
+            print(f"[STAGE] Overview analysis {part.name}", flush=True)
+            console.print(f"[1.5/2] {part.name}: holistic overview analysis (full sheet)...")
+            usage_ov: dict = {}
+            overview_analysis = analyze_overview_file(
+                overview_img, page=args.page, part_number=part.name,
+                cache_dir=cache_dir, usage_out=usage_ov,
+            )
+            if usage_ov.get("calls") or usage_ov.get("cache_hits"):
+                record_run(output_dir, part.name, model, usage_ov, stage=STAGE_TAG)
+            if overview_analysis is not None:
+                n_conf = len(overview_analysis.get("cross_view_conflicts", []) or [])
+                console.print(
+                    f"  Overview: {len(overview_analysis.get('views_detected', []) or [])} "
+                    f"view(s) detected, {n_conf} cross-view conflict(s); "
+                    f"shape: {overview_analysis.get('overall_shape_summary', '')[:100]}"
+                )
+            else:
+                console.print("  [yellow]Overview analysis unavailable — proceeding "
+                              "with per-view extraction only.[/yellow]")
         print(f"[STAGE] Extracting {part.name}", flush=True)
         console.print(f"[1/2] {part.name}: extracting views ({present})...")
         if spec_lines:
@@ -479,16 +558,15 @@ def _run_views_folder(args) -> int:
             data = _augment_holes(data, vsrc, args.page)
         console.print("[2.5/2] resolving ambiguities + verifying + per-plane macros + .sldprt...")
         # Final-check input: the part's overview/full drawing (re-examined after
-        # the build); the notes file was already discovered above (specs-first).
-        from pipeline.view_ingest import OVERVIEW_VIEW
-
-        overview_img = part.views.get(OVERVIEW_VIEW)
+        # the build); the notes file was already discovered above (specs-first),
+        # and the Stage 1.5 overview analysis feeds resolution as tier 2.
         try:
             rows.append(process_drawing_data(data, part.name, output_dir,
                                              sw_app=sw_app, template_path=template,
                                              resolve=not getattr(args, "no_resolve", False),
                                              strict_gate=getattr(args, "strict_gate", False),
                                              overview_image=overview_img,
+                                             overview_analysis=overview_analysis,
                                              requirements_file=notes_file,
                                              skip_overview_check=getattr(args, "skip_overview_check", False),
                                              skip_requirements_check=getattr(args, "skip_requirements_check", False)))
@@ -630,6 +708,7 @@ def main() -> int:
         return _run_views_folder(args)
 
     # --- [1-2/4] Source the extraction ---
+    overview_analysis = None
     if args.from_json:
         json_path = Path(args.from_json)
         if not json_path.exists():
@@ -641,8 +720,17 @@ def main() -> int:
         except json.JSONDecodeError as e:
             console.print(f"[red]Could not parse {json_path}:[/red] {e}")
             return 2
+        # A saved overview_analysis.json next to the extraction is reused, so
+        # --from-json re-runs keep the Stage 1.5 signal at zero API cost.
+        saved_ov = json_path.parent / "overview_analysis.json"
+        if saved_ov.is_file():
+            try:
+                overview_analysis = json.loads(saved_ov.read_text(encoding="utf-8"))
+                console.print(f"  Reusing saved overview analysis: {saved_ov}")
+            except json.JSONDecodeError:
+                pass
     else:
-        drawing_data = _prepare_and_extract(args)
+        drawing_data, overview_analysis = _prepare_and_extract(args)
         if drawing_data is None:
             return 3
 
@@ -665,7 +753,7 @@ def main() -> int:
     # The raw extraction is kept verbatim for traceability (saved as _extraction.json);
     # Stage 2.5 produces the resolved copy that actually drives verification + build.
     raw_extraction = drawing_data
-    drawing_data, resolution = _resolve_stage(args, raw_extraction)
+    drawing_data, resolution = _resolve_stage(args, raw_extraction, overview_analysis)
 
     # --- [3/4] Verification (advisory by default; hard gate only with --strict-gate) ---
     console.print("[3/4] Verifying extracted data...")
@@ -689,6 +777,11 @@ def main() -> int:
     extraction_path = _save_extraction(output_dir, folder_name, raw_extraction)
     console.print(f"  Extraction saved to {extraction_path}")
     safe_base = extraction_path.name.removesuffix("_extraction.json")
+    if overview_analysis:
+        from pipeline.overview_analysis import save_overview_analysis
+
+        ov_path = save_overview_analysis(extraction_path.parent, overview_analysis)
+        console.print(f"  Overview analysis saved to {ov_path}")
     if resolution is not None:
         resolved_path = extraction_path.parent / f"{safe_base}_resolved_extraction.json"
         resolved_path.write_text(json.dumps(resolution.resolved_extraction, indent=2), encoding="utf-8")

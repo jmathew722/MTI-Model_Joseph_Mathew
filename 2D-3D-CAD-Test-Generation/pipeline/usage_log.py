@@ -41,8 +41,13 @@ def estimate_cost(usage: dict[str, int], model: str) -> float:
     )
 
 
-def record_run(output_dir: Path | str, part: str, model: str, usage: dict[str, int]) -> Path:
+def record_run(output_dir: Path | str, part: str, model: str, usage: dict[str, int],
+               stage: str = "extraction") -> Path:
     """Append one run to the ledger and rewrite the human-readable total.
+
+    ``stage`` tags the cost center for the row (e.g. ``extraction``,
+    ``stage_1_5_overview_analysis``, ``spec_reconciliation``, ``overview_check``)
+    so distinct pipeline stages show as distinct line items in the ledger.
 
     Returns the path to the human-readable ``token_usage_log.txt``.
     """
@@ -54,6 +59,7 @@ def record_run(output_dir: Path | str, part: str, model: str, usage: dict[str, i
     row = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "part": part or "?",
+        "stage": stage or "extraction",
         "model": model,
         "input_tokens": usage.get("input_tokens", 0),
         "output_tokens": usage.get("output_tokens", 0),
@@ -91,22 +97,23 @@ def record_run(output_dir: Path | str, part: str, model: str, usage: dict[str, i
         "cache write 1.25x input, cache read 0.10x input).",
         "Only extraction runs hit the API; --from-json and cache hits cost $0.",
         "",
-        f"{'TIMESTAMP':<20}  {'PART':<16}  {'MODEL':<18}  "
+        f"{'TIMESTAMP':<20}  {'PART':<16}  {'STAGE':<28}  {'MODEL':<18}  "
         f"{'IN':>9}  {'OUT':>8}  {'CACHE_RD':>9}  {'CALLS':>5}  {'COST_USD':>9}",
-        "-" * 110,
+        "-" * 140,
     ]
     for r in rows:
         note = "  (cache hit)" if r.get("cache_hit") else ""
         note += "  [unpriced model]" if not r.get("model_priced", True) else ""
         lines.append(
             f"{r.get('timestamp',''):<20}  {str(r.get('part',''))[:16]:<16}  "
+            f"{str(r.get('stage', 'extraction'))[:28]:<28}  "
             f"{str(r.get('model',''))[:18]:<18}  {r.get('input_tokens',0):>9,}  "
             f"{r.get('output_tokens',0):>8,}  {r.get('cache_read_tokens',0):>9,}  "
             f"{r.get('api_calls',0):>5}  {r.get('cost_usd',0.0):>9.4f}{note}"
         )
     lines += [
-        "-" * 110,
-        f"{'TOTAL':<20}  {len(rows)} run(s){'':<8}  {'':<18}  "
+        "-" * 140,
+        f"{'TOTAL':<20}  {len(rows)} run(s){'':<8}  {'':<28}  {'':<18}  "
         f"{total_in:>9,}  {total_out:>8,}  {total_cread:>9,}  {'':>5}  {total_cost:>9.4f}",
         "",
         f"TOTAL API COST TO DATE: ${total_cost:.4f}",

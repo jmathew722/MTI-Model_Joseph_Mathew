@@ -712,6 +712,21 @@ def _mm_summary(out: Path) -> dict:
     }
 
 
+def _overview_analysis_summary(out: Path) -> dict:
+    """Stage 1.5 payload for the collapsible panel under the Full Overview View:
+    the parsed overview_analysis.json (holistic cross-view read of the sheet)."""
+    import json as _json
+
+    p = _first(out, ["overview_analysis.json"])
+    if p is None:
+        return {"present": False}
+    try:
+        data = _json.loads(p.read_text(encoding="utf-8", errors="replace"))
+    except Exception:
+        return {"present": False}
+    return {"present": True, "name": p.name, "data": data}
+
+
 def _categorize_output(out: Path) -> dict:
     """Categorise a pipeline output dir into the shape the output tabs consume.
     Shared by run-id-scoped and per-part outputs so both render identically —
@@ -751,6 +766,7 @@ def _categorize_output(out: Path) -> dict:
             "stl": {"present": stl is not None, "name": stl.name if stl else None,
                     "source": stl_source},
             "must_meet": _mm_summary(out),
+            "overview_analysis": _overview_analysis_summary(out),
             "files": {"present": out.exists(), "list": _file_listing(out)},
         },
     }
