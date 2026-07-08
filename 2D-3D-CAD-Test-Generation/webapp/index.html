@@ -295,19 +295,47 @@
   .mark-box .mb-role { position:absolute; left:0; top:-15px; font:600 9px/12px var(--mono);
                        letter-spacing:.04em; color:#fff; background:rgba(15,20,28,.75);
                        padding:0 4px; border-radius:2px; white-space:nowrap; pointer-events:none; }
-  /* Region list (under the overview render) — role/value editing per box. */
-  .regions-body .rg-group { margin:var(--sp-2) 0; }
+  /* Markup workspace: drawing LEFT, region sidebar RIGHT. */
+  .mark-split { flex:1 1 auto; min-height:0; display:flex; }
+  .mark-split #mk-box { flex:1 1 auto; }
+  .mark-side { flex:0 0 360px; min-width:0; display:flex; flex-direction:column;
+               border-left:1px solid var(--line); background:var(--bg); }
+  .ms-head { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-2);
+             padding:var(--sp-2) var(--sp-3); border-bottom:1px solid var(--line);
+             background:var(--bg-raised); font:600 var(--fs-caption)/1.6 var(--sans);
+             letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); }
+  .ms-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; padding:var(--sp-2) var(--sp-3); }
+  .ms-foot { flex:0 0 auto; padding:var(--sp-2) var(--sp-3); border-top:1px solid var(--line);
+             font-size:var(--fs-caption); line-height:1.5; color:var(--ink-4); }
+  .ms-foot b { color:var(--ink-3); }
+  .ms-empty { color:var(--ink-4); font-size:var(--fs-small); line-height:1.55;
+              padding:var(--sp-4) var(--sp-2); text-align:center; }
+  .mb-lab { font:600 var(--fs-caption)/1.6 var(--sans); letter-spacing:.07em;
+            text-transform:uppercase; color:var(--ink-4); white-space:nowrap; }
+  .mb-sep { width:1px; height:18px; background:var(--line); flex:0 0 auto; }
+  /* Region cards — one card per color group, rows edit role/value per box. */
+  .regions-body .rg-group { margin:0 0 var(--sp-3); border:1px solid var(--line);
+                            border-radius:var(--r-md); background:var(--surface);
+                            overflow:hidden; }
   .regions-body .rg-head { display:flex; align-items:center; gap:var(--sp-2);
-                           font:600 var(--fs-caption)/1.8 var(--sans); color:var(--ink-2); }
-  .regions-body .rg-row { display:flex; align-items:center; gap:var(--sp-2);
-                          margin:2px 0 2px 26px; font-size:var(--fs-small); color:var(--ink-2); }
+                           padding:var(--sp-1) var(--sp-3);
+                           border-bottom:1px solid var(--line); background:var(--bg-raised);
+                           font:600 var(--fs-caption)/1.9 var(--sans); color:var(--ink-2); }
+  .regions-body .rg-row { display:grid; grid-template-columns:auto 1fr auto;
+                          gap:3px var(--sp-2); align-items:center;
+                          padding:var(--sp-2) var(--sp-3);
+                          border-bottom:1px solid var(--line);
+                          font-size:var(--fs-small); color:var(--ink-2); }
+  .regions-body .rg-row:last-child { border-bottom:none; }
   .regions-body .rg-row select, .regions-body .rg-row input {
     padding:2px 6px; font-size:11.5px; }
-  .regions-body .rg-row input.rg-val { width:170px; font-family:var(--mono); }
-  .regions-body .rg-coords { color:var(--ink-4); font:400 10.5px/1.4 var(--mono); }
+  .regions-body .rg-row input.rg-val { width:100%; min-width:0; font-family:var(--mono); }
+  .regions-body .rg-coords { grid-column:1 / -1; color:var(--ink-4);
+                             font:400 10.5px/1.4 var(--mono); }
   .regions-body .rg-del { cursor:pointer; color:var(--err-text); background:none;
                           border:1px solid var(--line); border-radius:var(--r-sm);
                           font-size:11px; padding:1px 6px; }
+  .regions-body .rg-del:hover { background:rgba(229,72,77,.12); }
   /* Read-only mirror of the groups inside the Overview Analysis panel. */
   .ovan-body .rg-mini { display:flex; align-items:flex-start; gap:var(--sp-2); margin:3px 0; }
   .ovan-body .rg-mini .mark-swatch { width:13px; height:13px; margin-top:2px; }
@@ -490,8 +518,12 @@
       <div class="mark-bar">
         <button class="btn secondary sm on" id="mark-toggle"
                 title="Draw mode: drag to draw a highlight box over a dimension callout, hole center, or offset dimension. Toggle OFF to pan the image instead.">✎ Draw</button>
+        <span class="mb-sep"></span>
+        <span class="mb-lab">Group color</span>
         <span class="mark-swatch" id="mark-swatch"></span>
         <select class="sel-input" id="mark-color" title="Active color — every box drawn with this color belongs to the same feature group"></select>
+        <span class="mb-sep"></span>
+        <span class="mb-lab">Role</span>
         <select class="sel-input" id="mark-role" title="Role tag for the NEXT box drawn">
           <option value="center">center</option>
           <option value="x-dimension">x-dimension</option>
@@ -499,18 +531,26 @@
           <option value="tolerance">tolerance</option>
           <option value="other">other</option>
         </select>
-        <span class="hint" id="mark-hint">drag to draw · corner handle resizes · × deletes · boxes sharing a color = one feature group</span>
+        <span class="mb-sep"></span>
+        <span class="hint" id="mark-hint">drag to draw · corner handle resizes · × deletes</span>
+        <span class="grow"></span>
+        <button class="btn danger sm" id="mark-clear" title="Delete every marked region for this part">✕ Clear regions</button>
       </div>
-      <div id="mk-box">
-        <img id="mk-img" alt="drawing for markup" style="display:none" />
-        <div id="ov-mark-layer"></div>
-        <div class="emptynote" id="mk-empty">No drawing loaded yet — open a drawing in ✂ Crop views (or upload/select a part on the Part Setup sheet), then mark regions here.</div>
+      <div class="mark-split">
+        <div id="mk-box">
+          <img id="mk-img" alt="drawing for markup" style="display:none" />
+          <div id="ov-mark-layer"></div>
+          <div class="emptynote" id="mk-empty">No drawing loaded yet — open a drawing in ✂ Crop views (or upload/select a part on the Part Setup sheet), then mark regions here.</div>
+        </div>
+        <aside class="mark-side">
+          <div class="ms-head">Marked reference regions
+            <span class="grow"></span><span class="hint" id="regions-count" style="text-transform:none;letter-spacing:0"></span></div>
+          <div class="ms-scroll regions-body" id="regions-body"></div>
+          <div class="ms-foot">Boxes sharing a <b>color</b> are one feature group — e.g. a hole's
+            center, its X-dimension, and its Y-dimension. Tag each box's role and transcribe its
+            value; everything saves automatically and appears in the Overview Analysis panel.</div>
+        </aside>
       </div>
-      <details class="ovan" id="regions-panel" style="display:none" open>
-        <summary><span class="twist"></span>Marked reference regions
-          <span class="grow"></span><span class="hint" id="regions-count" style="text-transform:none;letter-spacing:0"></span></summary>
-        <div class="ovan-body regions-body" id="regions-body"></div>
-      </details>
     </div>
   </section>
 
@@ -1289,30 +1329,45 @@ function patchRegion(id, patch) {
   renderRegions();
 }
 
-// Region list under the drawing: role tag + transcribed value per box.
+// Region sidebar (right of the drawing): role tag + transcribed value per box.
 function renderRegionsPanel() {
-  const panel = document.getElementById('regions-panel'), body = document.getElementById('regions-body');
+  const body = document.getElementById('regions-body');
   const regions = regionList();
   document.getElementById('regions-count').textContent =
     regions.length ? `${regions.length} region(s) · ${regionGroups(regions).length} group(s)` : '';
-  if (!regions.length) { panel.style.display = 'none'; body.innerHTML = ''; return; }
+  const clearBtn = document.getElementById('mark-clear');
+  if (clearBtn) clearBtn.style.display = regions.length ? '' : 'none';
+  if (!regions.length) {
+    body.innerHTML = '<div class="ms-empty">No regions marked yet.<br><br>' +
+      'Pick a <b>group color</b> and a <b>role</b> in the toolbar, then drag on the ' +
+      'drawing to highlight a dimension callout, a hole center, or an offset ' +
+      'dimension line. All boxes of one color form one feature group.</div>';
+    return;
+  }
   const fmt = n => n.toFixed(3).replace(/^0/, '');
   body.innerHTML = regionGroups(regions).map(g => `
     <div class="rg-group">
       <div class="rg-head"><span class="mark-swatch" style="background:${esc(g.color)}"></span>${esc(g.colorLabel)}
+        <span class="grow"></span>
         <span class="hint" style="text-transform:none;letter-spacing:0">${g.regions.length} region(s)</span></div>
       ${g.regions.map(r => `
         <div class="rg-row" data-id="${esc(r.id)}">
-          <select class="sel-input rg-role">${REGION_ROLES.map(ro =>
+          <select class="sel-input rg-role" title="Role of this box within its feature group">${REGION_ROLES.map(ro =>
             `<option value="${ro}"${ro === r.role ? ' selected' : ''}>${ro}</option>`).join('')}</select>
           <input class="input-c rg-val" placeholder="value, e.g. 2.500 ± .005" value="${esc(r.value)}">
-          <span class="rg-coords">x ${fmt(r.boundingBox.x)} · y ${fmt(r.boundingBox.y)} · w ${fmt(r.boundingBox.width)} · h ${fmt(r.boundingBox.height)}</span>
           <button class="rg-del" title="Delete this region">×</button>
+          <span class="rg-coords">x ${fmt(r.boundingBox.x)} · y ${fmt(r.boundingBox.y)} · w ${fmt(r.boundingBox.width)} · h ${fmt(r.boundingBox.height)}</span>
         </div>`).join('')}
     </div>`).join('');
-  panel.style.display = '';
-  if (!panel.open) panel.open = true;
 }
+// Clear every region for the CURRENT part context (confirmed, autosaves).
+document.getElementById('mark-clear').addEventListener('click', () => {
+  const n = regionList().length;
+  if (!n) return;
+  if (!confirm(`Delete all ${n} marked region(s) for this part?`)) return;
+  regionsByKey[regionCtxKey()] = [];
+  renderRegions();
+});
 document.getElementById('regions-body').addEventListener('change', e => {
   const row = e.target.closest('.rg-row'); if (!row) return;
   if (e.target.classList.contains('rg-role')) patchRegion(row.dataset.id, { role: e.target.value });
