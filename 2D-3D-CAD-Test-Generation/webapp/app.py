@@ -237,6 +237,13 @@ def _start_run(cmd: list[str], output_dir: Path, run_id: str | None = None,
                     state["lines"].append(f"[delivered outputs to] {paths['downloads']}")
             state["done"] = True
             state["finished"] = time.time()
+            # Persist the console transcript with the run so Sheet 4's Console
+            # sub-tab works for historical runs, not just the live one.
+            try:
+                (output_dir / "ui_console.log").write_text(
+                    "\n".join(state["lines"]) + "\n", encoding="utf-8")
+            except OSError:
+                pass
 
     threading.Thread(target=_worker, daemon=True).start()
     return run_id
@@ -767,6 +774,7 @@ def _categorize_output(out: Path) -> dict:
                     "source": stl_source},
             "must_meet": _mm_summary(out),
             "overview_analysis": _overview_analysis_summary(out),
+            "console": _cat(_first(out, ["ui_console.log"])),
             "files": {"present": out.exists(), "list": _file_listing(out)},
         },
     }
@@ -1354,6 +1362,85 @@ def part_stl(session: str, part: str):
     if p is None:
         raise HTTPException(404, "No STL for this part yet")
     return FileResponse(str(p), media_type="model/stl", filename=p.name)
+
+
+# ── Shared run history: ONE persistent inventory of completed runs ─────────────
+# Backs BOTH Sheet 2's "Select Model" dropdown and Sheet 4's "Select Run"
+# dropdown, so the two can never disagree. Sourced from disk (webapp/parts/
+# <session>/<part>/output), not in-memory state — runs survive server restarts
+# and browser sessions.
+
+def _run_presence(out: Path) -> dict:
+    """File-existence flags for each output category (drives the ✓ indicators
+    without reading file contents — cheap enough to scan every part)."""
+    stl, _src = _active_stl(out)
+    build_plan = _first(out, ["*build_plan*.json", "**/build_plan*.json"])
+    return {
+        "extraction": _first(out, ["*_extraction.json", "*extraction*.json"],
+                             exclude=["resolved"]) is not None,
+        "resolved": _first(out, ["*_resolved_extraction.json", "*resolved*.json"]) is not None,
+        "build_plan": build_plan is not None,
+        "verification": _first(out, ["*verification_report*.txt", "*verification*.txt"]) is not None,
+        "flags": build_plan is not None
+                 or _first(out, ["*_engineering_review.txt"]) is not None,
+        "model_check": _first(out, ["*model_check*.txt", "*model_validation*.txt",
+                                    "*validation_report*.txt"]) is not None,
+        "macros": next(out.rglob("*.vba"), None) is not None if out.exists() else False,
+        "cost": (out / "token_usage_log.jsonl").is_file() or (out / "token_usage_log.txt").is_file(),
+        "console": _first(out, ["ui_console.log"]) is not None,
+        "files": out.exists(),
+        "stl": stl is not None,
+        "overview_analysis": _first(out, ["overview_analysis.json"]) is not None,
+    }
+
+
+def _run_timestamp(out: Path) -> float:
+    """When the run completed: the newest mtime among its output files."""
+    newest = 0.0
+    try:
+        for p in out.rglob("*"):
+            if ".extraction_cache" in p.parts or not p.is_file():
+                continue
+            newest = max(newest, p.stat().st_mtime)
+    except OSError:
+        pass
+    return newest or (out.stat().st_mtime if out.exists() else 0.0)
+
+
+@app.get("/api/run-history")
+def run_history():
+    """Every completed run across every session/part, newest first."""
+    from datetime import datetime as _dt
+
+    runs = []
+    if PARTS_DIR.is_dir():
+        for sdir in sorted(PARTS_DIR.iterdir()):
+            if not sdir.is_dir() or sdir.name.startswith("."):
+                continue
+            for pdir in sorted(sdir.iterdir()):
+                if not pdir.is_dir() or pdir.name.startswith("."):
+                    continue
+                out = pdir / "output"
+                if not out.is_dir():
+                    continue
+                present = _run_presence(out)
+                # A "completed run" left at least one core artifact behind.
+                if not (present["extraction"] or present["build_plan"] or present["stl"]):
+                    continue
+                epoch = _run_timestamp(out)
+                stamp = _dt.fromtimestamp(epoch).strftime("%Y-%m-%d %H:%M") if epoch else "?"
+                runs.append({
+                    "session": sdir.name,
+                    "part": pdir.name,
+                    "key": f"{sdir.name}|{pdir.name}",
+                    "label": f"{pdir.name} — run @ {stamp}",
+                    "epoch": int(epoch),
+                    "timestamp": stamp,
+                    "output": str(out),
+                    "present": present,
+                })
+    runs.sort(key=lambda r: -r["epoch"])
+    return {"runs": runs}
 
 
 @app.post("/api/run-part")

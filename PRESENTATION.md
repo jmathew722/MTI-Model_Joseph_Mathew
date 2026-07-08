@@ -21,11 +21,11 @@ human with a specific recommendation.
 
 ---
 
-## 2. The web application — one screen, three sheets
+## 2. The web application — one screen, four sheets
 
 The UI (`FastAPI` + a single-page front end, styled as a drafting-room "blueprint" workspace)
-is organized as **three tabs, modeled on drawing sheets**. Work flows left to right:
-**crop → set up → run & inspect**.
+is organized as **four tabs, modeled on drawing sheets**. Work flows left to right:
+**crop → set up → run → inspect**.
 
 The header shows the extraction engine (Claude Sonnet 5), the deliverables
 (`.SLDPRT · .STL · VBA`), and a live **API-status pill** (key present → live extraction;
@@ -67,28 +67,41 @@ Organized as three input groups across the top, and a two-panel viewer below.
 
 - **Left — Full Overview View**: the complete original drawing (zoom/pan/reset), so the
   reviewer always sees the source of truth next to the result.
-  - **NEW — Overview Analysis panel** (collapsible, directly under the render): the model's
-    Stage 1.5 *holistic read of the whole sheet* — the overall 3D shape in one sentence, the
-    views it detected, **cross-view conflicts inline** (auto-expands with a red badge when any
-    exist), cross-view correspondences, global notes, and symmetry findings. A reviewer sees
-    the model's understanding of the part *before* drilling into per-view details.
-- **Right — 3D Model (STL)**: orbit/zoom/pan viewer. Shows the CadQuery **PRE-VALIDATED**
+- **Right — 3D Model (STL)**: orbit/zoom/pan viewer with a **"Select Model" dropdown** —
+  pick *any* part that has ever completed a run (this session or a prior one) and its model
+  loads instantly, **no pipeline re-run required**. Shows the CadQuery **PRE-VALIDATED**
   preview (badged) until the real SolidWorks build replaces it.
 - **Must-Meet checklist strip**: every MM-xxx constraint rendered ✓/✕ with
   *measured vs required* values — pre-validation results first, post-build verification once
   the SolidWorks model exists.
 
-### SHEET 3 · Pipeline & Results
+### SHEET 3 · Pipeline
 
-Where runs are launched and every output is inspected.
+The action surface — where runs are launched and watched live.
 
 **Controls:** saved-part cards (thumbnail, view count, "ran" badge) → **▶ Pull & Run
 Pipeline** for the selected part, **▶▶ Run All Parts** for the whole session, Cancel, and a
 **Run demo** that replays saved extractions with no API key. A stage strip + progress bar
-tracks the live run ([STAGE] markers streamed from the CLI), with a collapsible live console.
+tracks the live run ([STAGE] markers streamed from the CLI, starting with the Stage 1.5
+overview-analysis chip), with the full live console below.
 
-**Run-outputs dock** — every artifact of a run, one sub-tab each, filled live as files are
-written (each tab shows a ✓ once its file exists):
+**Overview Analysis panel** (collapsible): the model's Stage 1.5 *holistic read of the whole
+sheet*, shown **live during the run** next to the stage strip — it auto-expands and populates
+the moment `overview_analysis.json` is written. Overall 3D shape in one sentence, the views
+detected, **cross-view conflicts inline** (red badge with the conflict count), cross-view
+correspondences, global notes, and symmetry findings. The reviewer sees the model's
+understanding of the part *while it is being built*, before drilling into per-view details.
+
+### SHEET 4 · Run Outputs
+
+The inspection surface — every artifact of **any** completed run, past or present.
+
+A **"Select Run" dropdown** at the top lists every completed run across every part and every
+session (`PartName — run @ timestamp`); switching it reloads all ten sub-tabs in place. The
+run that just finished on Sheet 3 is **auto-selected** here the moment it completes.
+
+**Run-outputs dock** — one sub-tab per artifact, filled live as files are written (each tab
+shows a ✓ once its file exists for the selected run):
 
 | Sub-tab | What it shows |
 |---|---|
@@ -101,7 +114,11 @@ written (each tab shows a ✓ once its file exists):
 | **VBA Macros** | Every numbered macro, viewable in-browser (`00_setup` … `ZZZ_export_stl`, `RUN_ALL.vba`) |
 | **Token / Cost** | The API cost ledger — per-stage line items and running totals (see §5) |
 | **Files** | Every output file with sizes and download links, plus delivery paths |
-| **Console** | The full live pipeline log |
+| **Console** | The pipeline log — live-streamed during a run, and **persisted with each run** so historical consoles replay too |
+
+**Shared run history:** Sheet 2's model dropdown and Sheet 4's run dropdown read from **one
+persistent, disk-backed run inventory** (`/api/run-history`) — a run that appears in one
+always appears in the other, and both survive server restarts and new browser sessions.
 
 **Delivery:** successful runs are copied to `UI_Output/<Part>/` and
 `~/Downloads/SolidWorksModel_Parts/<Part>/` automatically — deliverables land in one
@@ -301,12 +318,14 @@ Per part, in the run folder (mirrored to `UI_Output/` and `~/Downloads/SolidWork
 
 1. **Sheet 1:** load a drawing PDF, crop the front and side views.
 2. **Sheet 2:** pull the crops, assign view types, type a must-meet spec
-   ("6 holes, circular pattern, all through"), save the part. Point at the
-   **Overview Analysis** panel once the run starts — the model's one-sentence read of the part
-   and any cross-view conflicts, right under the drawing.
-3. **Sheet 3:** ▶ Run. Narrate the stage strip; open the live console briefly.
-4. Watch the **pre-validated STL** appear, then the SolidWorks model replace it; show the
-   must-meet checklist flip to ✓ with measured values.
-5. Open **Engineering Flags** — show a CRITICAL item's What / Decision / Why / Affects, and the
-   tier that resolved it.
+   ("6 holes, circular pattern, all through"), save the part. Use the **Select Model**
+   dropdown to show a *previous* run's model loading instantly — no re-run.
+3. **Sheet 3:** ▶ Run. Narrate the stage strip; point at the **Overview Analysis** panel as
+   it auto-expands mid-run — the model's one-sentence read of the part and any cross-view
+   conflicts, live next to the console.
+4. **Sheet 2:** watch the **pre-validated STL** appear, then the SolidWorks model replace it;
+   show the must-meet checklist flip to ✓ with measured values.
+5. **Sheet 4:** the finished run is auto-selected. Open **Engineering Flags** — show a
+   CRITICAL item's What / Decision / Why / Affects and the tier that resolved it. Then switch
+   the **Select Run** dropdown to an older run to show all ten tabs reload for it.
 6. Finish on **Token / Cost** — the run's exact cost, per stage.

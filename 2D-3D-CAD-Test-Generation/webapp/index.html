@@ -252,10 +252,25 @@
   #ov-img:active { cursor:grabbing; }
   #stl-canvas-wrap { position:absolute; inset:0; }
 
-  /* Stage 1.5 — Holistic Overview Analysis: collapsible panel directly under
-     the Full Overview View render (the model's whole-sheet relational read). */
-  .ovan { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg-raised);
-          max-height:42%; overflow:auto; }
+  /* Sheet 4 sub-header: marks this sheet as a browsing/inspection surface
+     (mirrors the drafting-sheet cap treatment used elsewhere). */
+  .outputs-head { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-3);
+                  padding:var(--sp-2) var(--sp-4); border-bottom:1px solid var(--line);
+                  background:var(--bg-raised); }
+  .outputs-head .oh-title { font:700 var(--fs-caption)/1.6 var(--sans); letter-spacing:.14em;
+                            text-transform:uppercase; color:var(--ink-2);
+                            border:1px solid var(--line); border-radius:var(--r-sm);
+                            padding:1px var(--sp-2); }
+  .outputs-head .oh-sub { font:400 var(--fs-small)/1.4 var(--sans); color:var(--ink-3); }
+  .model-sel { max-width:340px; min-width:180px; padding:4px 8px; font-size:12px;
+               font-family:var(--mono); }
+
+  /* Stage 1.5 — Holistic Overview Analysis: collapsible panel on the Pipeline
+     sheet, next to the live stage strip/console (the model's whole-sheet
+     relational read, populated the moment overview_analysis.json is written). */
+  .ovan { flex:0 0 auto; border:1px solid var(--line); border-left:3px solid var(--blueprint);
+          border-radius:var(--r-md); background:var(--bg-raised);
+          margin:var(--sp-2) var(--sp-4); max-height:40vh; overflow:auto; }
   .ovan summary { cursor:pointer; padding:var(--sp-2) var(--sp-4); user-select:none;
                   font:600 var(--fs-caption)/1.6 var(--sans); letter-spacing:.08em;
                   text-transform:uppercase; color:var(--ink-3); list-style:none;
@@ -290,7 +305,9 @@
                max-width:360px; }
   .emptynote b { color:var(--ink-2); }
 
-  #inline-console { flex:0 0 auto; margin:0; max-height:132px; overflow:auto;
+  /* With the outputs dock moved to Sheet 4, the live console can use the
+     remaining height of the Pipeline sheet. */
+  #inline-console { flex:1 1 auto; min-height:0; margin:0; overflow:auto;
                     padding:var(--sp-3) var(--sp-4); border-top:1px solid var(--line);
                     font-size:11px; }
 
@@ -390,7 +407,8 @@
 <nav class="tabs" id="tabbar">
   <button class="tab tab-c active" data-tab="crop"><span class="sheet-no">SHEET 1</span>Drawing Crop</button>
   <button class="tab tab-c" data-tab="intake"><span class="sheet-no">SHEET 2</span>Part Setup &amp; 3D Model <span class="badge">·</span></button>
-  <button class="tab tab-c" data-tab="pipeline"><span class="sheet-no">SHEET 3</span>Pipeline &amp; Results</button>
+  <button class="tab tab-c" data-tab="pipeline"><span class="sheet-no">SHEET 3</span>Pipeline</button>
+  <button class="tab tab-c" data-tab="outputs"><span class="sheet-no">SHEET 4</span>Run Outputs</button>
 </nav>
 
 <main>
@@ -459,14 +477,15 @@
           <img id="ov-img" alt="full overview drawing" style="display:none" />
           <div class="emptynote" id="ov-empty">No overview image provided for this part.</div>
         </div>
-        <details class="ovan" id="ovan-panel" style="display:none">
-          <summary><span class="twist"></span>Overview Analysis — holistic cross-view read (Stage 1.5)
-            <span class="grow"></span><span id="ovan-badge"></span></summary>
-          <div class="ovan-body" id="ovan-body"></div>
-        </details>
       </div>
       <div class="side">
-        <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan<span class="stl-badge" id="stl-badge">PRE-VALIDATED (CadQuery)</span></div>
+        <div class="cap capflex">3D Model (STL) — drag rotate · scroll zoom · right-drag pan<span class="stl-badge" id="stl-badge">PRE-VALIDATED (CadQuery)</span>
+          <span class="grow"></span>
+          <label class="hint" for="model-select" style="text-transform:none;letter-spacing:0">Select Model</label>
+          <select class="sel-input model-sel" id="model-select" title="Load any completed run's 3D model — no re-run needed">
+            <option value="">no part loaded</option>
+          </select>
+        </div>
         <div class="body">
           <div id="stl-canvas-wrap"></div>
           <div class="emptynote" id="stl-empty">No STL yet — it appears after a SolidWorks build. On macOS (no SolidWorks) run the generated <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
@@ -510,7 +529,29 @@
       <span class="rb-sub" id="rb-sub"></span>
     </div>
 
+    <!-- Stage 1.5 holistic read — LIVE during the run, next to the stage strip
+         and console: auto-expands and populates the moment the running
+         pipeline writes overview_analysis.json. -->
+    <details class="ovan" id="ovan-panel" style="display:none">
+      <summary><span class="twist"></span>Overview Analysis — holistic cross-view read (Stage 1.5)
+        <span class="grow"></span><span id="ovan-badge"></span></summary>
+      <div class="ovan-body" id="ovan-body"></div>
+    </details>
+
     <pre id="inline-console" class="console-c" style="display:none"></pre>
+  </section>
+
+  <!-- ── Sheet 4 · Run Outputs (browse every artifact of any completed run) ── -->
+  <section class="panel" id="panel-outputs">
+    <div class="outputs-head">
+      <span class="oh-title">RUN OUTPUTS</span>
+      <span class="oh-sub">inspection surface — every artifact of any completed run, past or present</span>
+      <span class="grow"></span>
+      <label class="hint" for="run-select" style="text-transform:none;letter-spacing:0">Select Run</label>
+      <select class="sel-input model-sel" id="run-select" title="Pick any completed run — all ten tabs below reload to match">
+        <option value="">no completed runs yet</option>
+      </select>
+    </div>
 
     <div class="dock" id="dock">
       <div class="stabs" id="stabbar">
@@ -562,8 +603,8 @@
 <script src="/vendor/STLLoader.js"></script>
 <script src="/vendor/OrbitControls.js"></script>
 <script>
-// ── Tabs: 3 top-level tabs + a sub-tab dock for run outputs ─────────────────
-const TOP_TABS = ['crop', 'intake', 'pipeline'];
+// ── Tabs: 4 top-level sheets + a sub-tab dock for run outputs (Sheet 4) ─────
+const TOP_TABS = ['crop', 'intake', 'pipeline', 'outputs'];
 document.getElementById('tabbar').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab);
 });
@@ -571,7 +612,7 @@ document.getElementById('stabbar').addEventListener('click', e => {
   const b = e.target.closest('.stab'); if (b) showSub(b.dataset.tab);
 });
 function showTab(name) {
-  if (!TOP_TABS.includes(name)) { showTab('pipeline'); showSub(name); return; } // legacy names → dock sub-tab
+  if (!TOP_TABS.includes(name)) { showTab('outputs'); showSub(name); return; } // legacy names → Sheet 4 sub-tab
   document.querySelectorAll('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('main > .panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   if (name === 'intake') viewer.onShow(); // STL viewer lives on the Part Setup & 3D Model tab
@@ -603,6 +644,9 @@ fetch('/api/status').then(r => r.json()).then(s => {
   if (!(s.samples || []).length) { document.getElementById('demo-btn').disabled = true; sel.style.display = 'none'; }
 }).catch(() => {});
 fetch('/api/session', { method:'POST' }).then(r => r.json()).then(d => { sessionId = d.session; }).catch(() => {});
+// Load the persistent run history at startup: runs from PRIOR sessions appear
+// in both the Sheet-2 model dropdown and Sheet-4 run dropdown immediately.
+window.addEventListener('DOMContentLoaded', () => { refreshRunHistory(); });
 
 // ── Output tab plumbing ──────────────────────────────────────────────────────
 if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -695,7 +739,8 @@ function paintFiles(files, payload) {
   const panel = document.getElementById('panel-files');
   const scroll = panel.querySelector('.files-scroll'), empty = panel.querySelector('.empty');
   const tbody = document.getElementById('files-tbody'), paths = document.getElementById('files-paths');
-  const base = selectedPart ? `/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/file/` : null;
+  const fctx = outputsCtx || (selectedPart ? { session: sessionId, part: selectedPart } : null);
+  const base = fctx ? `/api/parts/${fctx.session}/${encodeURIComponent(fctx.part)}/file/` : null;
   const kb = s => s > 1048576 ? (s/1048576).toFixed(1) + ' MB' : (s/1024).toFixed(1) + ' KB';
   tbody.innerHTML = (files.list || []).map(f =>
     `<tr><td>${base ? `<a href="${base}${encodeURI(f.name)}" download>${esc(f.name)}</a>` : esc(f.name)}</td>` +
@@ -750,6 +795,7 @@ function paintOverviewAnalysis(ov) {
   if (!panel) return;
   const body = document.getElementById('ovan-body'), badge = document.getElementById('ovan-badge');
   if (!ov || !ov.present || !ov.data) { panel.style.display = 'none'; body.innerHTML = ''; badge.innerHTML = ''; return; }
+  const wasHidden = panel.style.display === 'none';
   const d = ov.data;
   const conflicts = d.cross_view_conflicts || [];
   const nCrit = conflicts.filter(c => String(c.severity).toUpperCase() === 'CRITICAL').length;
@@ -779,7 +825,9 @@ function paintOverviewAnalysis(ov) {
     html += `<div class="sec-t">Symmetry</div><div>${esc(d.symmetry.type)}${d.symmetry.notes ? ` — ${esc(d.symmetry.notes)}` : ''}</div>`;
   body.innerHTML = html;
   panel.style.display = '';
-  if (conflicts.length) panel.open = true; // conflicts must be seen, not hidden
+  // Conflicts must be seen, not hidden — and during a LIVE run the panel
+  // auto-expands the moment overview_analysis.json lands on disk.
+  if (conflicts.length || (wasHidden && isRunning)) panel.open = true;
 }
 
 function fillOutputs(payload) {
@@ -798,14 +846,84 @@ function fillOutputs(payload) {
   if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
   paintMustMeet(c.must_meet, payload.stl_source);
   paintOverviewAnalysis(c.overview_analysis);
-  if (c.stl && c.stl.present && selectedPart) {
+  // Historical runs replay their persisted console transcript; a LIVE run's
+  // console keeps streaming from the EventSource instead.
+  if (c.console && c.console.present && !isRunning && c.console.text != null) {
+    consolePre.textContent = c.console.text;
+    setTabFilled('console', true);
+  }
+  const ctx = outputsCtx || (selectedPart ? { session: sessionId, part: selectedPart } : null);
+  if (c.stl && c.stl.present && ctx) {
     setModelTabFilled(true);
-    viewer.load(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/model.stl?t=${payload.stl_mtime || ''}`);
+    viewer.load(`/api/parts/${ctx.session}/${encodeURIComponent(ctx.part)}/model.stl?t=${payload.stl_mtime || ''}`);
+    // Keep Sheet 2's model dropdown pointing at what the viewer now shows.
+    const ms = document.getElementById('model-select'), key = `${ctx.session}|${ctx.part}`;
+    if (ms && [...ms.options].some(o => o.value === key)) ms.value = key;
   }
 }
 
 // ── Parts model ──────────────────────────────────────────────────────────────
 let partsData = [], selectedPart = null, isRunning = false;
+
+// ── Shared run history: ONE store behind Sheet 2's "Select Model" dropdown
+// and Sheet 4's "Select Run" dropdown, fed by /api/run-history (persistent,
+// disk-backed, cross-session) so the two lists can never disagree. ──────────
+let runHistory = [];
+// Which run's outputs the Sheet-4 dock (and Files-tab links / STL loads)
+// currently refer to. Defaults to the actively selected part in this session.
+let outputsCtx = null; // {session, part}
+
+function historyKey(r) { return r.key || `${r.session}|${r.part}`; }
+function fillRunSelect(sel, emptyText, chooseText, current) {
+  if (!sel) return;
+  sel.innerHTML = '';
+  const p = document.createElement('option');
+  p.value = ''; p.textContent = runHistory.length ? chooseText : emptyText;
+  sel.appendChild(p);
+  sel.disabled = !runHistory.length;
+  runHistory.forEach(r => {
+    const o = document.createElement('option');
+    o.value = historyKey(r); o.textContent = r.label;
+    sel.appendChild(o);
+  });
+  if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
+}
+async function refreshRunHistory(selectKey) {
+  try { runHistory = (await (await fetch('/api/run-history')).json()).runs || []; }
+  catch { return; }
+  const modelSel = document.getElementById('model-select'), runSel = document.getElementById('run-select');
+  fillRunSelect(modelSel, 'no part loaded', '— select a model —',
+                selectKey || (modelSel ? modelSel.value : ''));
+  fillRunSelect(runSel, 'no completed runs yet', '— select a run —',
+                selectKey || (runSel ? runSel.value : ''));
+  if (selectKey && runSel && runSel.value === selectKey) syncOutputsToRun(selectKey, { repaint: false });
+}
+function runByKey(key) { return runHistory.find(r => historyKey(r) === key); }
+
+// Sheet 4: switching the run reloads all ten sub-tabs for that run.
+async function syncOutputsToRun(key, opts) {
+  const r = runByKey(key);
+  if (!r) return;
+  outputsCtx = { session: r.session, part: r.part };
+  if (!(opts && opts.repaint === false)) {
+    resetOutputs('Loading outputs for ' + r.label + '…');
+    let d;
+    try { d = await (await fetch(`/api/parts/${r.session}/${encodeURIComponent(r.part)}/outputs`)).json(); }
+    catch { return; }
+    if (!outputsCtx || outputsCtx.session !== r.session || outputsCtx.part !== r.part) return;
+    if (d.has_any) fillOutputs(d);
+  }
+}
+document.getElementById('run-select').addEventListener('change', e => {
+  if (e.target.value) syncOutputsToRun(e.target.value);
+});
+// Sheet 2: picking a model loads that run's STL immediately — no re-run.
+document.getElementById('model-select').addEventListener('change', e => {
+  const r = runByKey(e.target.value);
+  if (!r) return;
+  document.getElementById('stl-badge').style.display = 'none';
+  viewer.load(`/api/parts/${r.session}/${encodeURIComponent(r.part)}/model.stl?t=${r.epoch || ''}`);
+});
 
 function renderParts() {
   const list = document.getElementById('parts-list');
@@ -849,6 +967,10 @@ async function loadPartOutputs(name) {
   paintMustMeet(null, null);
   paintOverviewAnalysis(null);
   document.getElementById('stl-empty').style.display = '';
+  outputsCtx = { session: sessionId, part: name };
+  // Keep Sheet 4's run selector on the same run when it exists in history.
+  const rs = document.getElementById('run-select'), key = `${sessionId}|${name}`;
+  if (rs && [...rs.options].some(o => o.value === key)) rs.value = key;
   let d;
   try { d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(name)}/outputs`)).json(); } catch { return; }
   if (name !== selectedPart) return; // selection changed while fetching
@@ -1307,8 +1429,8 @@ function startElapsed() {
 function stopElapsed() { if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; } }
 
 // ── Per-stage progress strip (parses "[STAGE] ..." lines from the pipeline) ──
-const STAGE_LIST = ['Extracting', 'Spec reconciliation', 'Resolving', 'Verifying',
-                    'Building macros', 'Pre-validating', 'Building .sldprt',
+const STAGE_LIST = ['Overview analysis', 'Extracting', 'Spec reconciliation', 'Resolving',
+                    'Verifying', 'Building macros', 'Pre-validating', 'Building .sldprt',
                     'Verifying must-meet', 'Final checks', 'Exporting', 'Done'];
 const stageStrip = document.getElementById('stage-strip');
 let stageIdx = -1;
@@ -1372,7 +1494,7 @@ runBtn.addEventListener('click', async () => {
   if (res.error || !res.id) { setStatus(res.detail || res.error || 'Run failed to start', 'err'); setRunning(false); return; }
   currentRunId = res.id;
   monitorRun(res.id, selectedPart);
-  showTab('console');
+  showTab('pipeline'); // watch the stage strip + live overview analysis here
 });
 
 // ── Upload a folder of preprocessed parts (subfolder = part) ────────────────
@@ -1409,7 +1531,7 @@ document.getElementById('run-all-btn').addEventListener('click', async () => {
   const queue = partsData.filter(p => p.n_views >= 1).map(p => p.name);
   if (!queue.length) return;
   runAllActive = true;
-  showTab('console');
+  showTab('pipeline');
   for (let i = 0; i < queue.length; i++) {
     const name = queue[i];
     selectPart(name);
@@ -1456,6 +1578,9 @@ function monitorRun(id, partName) {
         currentRunId = null;
         // refresh the parts list so the "ran" badge appears
         try { const pl = await (await fetch(`/api/parts?session=${sessionId}`)).json(); partsData = pl.parts; renderParts(); } catch {}
+        // The finished run enters the shared history: auto-selected on Sheet 4's
+        // run dropdown and immediately selectable in Sheet 2's model dropdown.
+        try { await refreshRunHistory(`${sessionId}|${partName}`); } catch {}
         // refresh outputs once more so delivered paths land in the Files tab
         if (selectedPart === partName) { try { const d2 = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(partName)}/outputs`)).json(); if (d2.has_any) fillOutputs(d2); } catch {} }
         bannerFromRun(d, partName);
@@ -1523,7 +1648,7 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
     }
   };
   poll(); pollTimer = setInterval(poll, 1200);
-  showTab('console');
+  showTab('pipeline');
 });
 
 // ── Overview panel pan/zoom (independent of the STL viewer's orbit controls) ─

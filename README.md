@@ -85,7 +85,7 @@ The UI is **fixed and fully reproducible from a clone**: every frontend asset
 loads from a CDN — and all Python dependencies are pinned to the exact
 verified versions, so every machine gets the same appearance and run format.
 
-Three tabs, one flow, no folder editing:
+Four sheet-tabs, one flow, no folder editing:
 
 1. **Tab 1 · Drawing Crop — open the drawing.** The full-tab cropper opens
    PDF, JPG/PNG, **and DWG/DXF/eDrawings directly** (CAD formats convert
@@ -101,12 +101,17 @@ Three tabs, one flow, no folder editing:
    against the built part (an unmet line blocks READY). Below, two half-screen
    panels: the part's **Full Overview View** on the left (the image tagged in
    the dropdown, or a clear empty state), and the interactive **3D STL viewer**
-   on the right.
-3. **Tab 3 · Pipeline & Results — run.** Select the part, **▶ Pull & Run
-   Pipeline**. Progress shows per stage with a live console and Cancel;
-   results fill the sub-tabs live: extraction, build plan, verification,
-   **Engineering Flags** (severity-ranked), **Token / Cost**, and **Files**.
-   Outputs also land in `UI_Output/<Part>/` and
+   on the right — its **Select Model** dropdown loads any previously completed
+   run's model instantly, no re-run needed.
+3. **Tab 3 · Pipeline — run.** Select the part, **▶ Pull & Run Pipeline**.
+   Progress shows per stage with a live console and Cancel, and the
+   **Overview Analysis** panel (Stage 1.5's holistic cross-view read) expands
+   live the moment the running pipeline writes it.
+4. **Tab 4 · Run Outputs — inspect.** A **Select Run** dropdown lists every
+   completed run across sessions (auto-selects the run that just finished);
+   the sub-tabs fill for the chosen run: extraction, build plan, verification,
+   **Engineering Flags** (severity-ranked), **Token / Cost**, **Files**, and
+   the persisted **Console**. Outputs also land in `UI_Output/<Part>/` and
    `~/Downloads/SolidWorksModel_Parts/<Part>/` — same files everywhere.
 
 Full UI docs: [`2D-3D-CAD-Test-Generation/README.md`](2D-3D-CAD-Test-Generation/README.md).

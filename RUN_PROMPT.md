@@ -13,7 +13,7 @@ cd 2D-3D-CAD-Test-Generation/webapp
 ./run.sh                 # http://127.0.0.1:8092  (creates venv, installs deps)
 ```
 
-Then, in the browser (three tabs, in order):
+Then, in the browser (four sheet-tabs, in order):
 
 1. **Tab 1 — Drawing Crop:** open the drawing straight in the embedded
    DrawingCrop tool — **PDF, JPG/PNG, DWG/DXF, or eDrawings
@@ -34,14 +34,17 @@ Then, in the browser (three tabs, in order):
    the part's **overview drawing** for visual comparison; the right box is the
    interactive **3D STL viewer** — it loads the model automatically after a
    successful run.
-3. **Tab 3 — Pipeline & Results:** select the part card, then **▶ Pull & Run
+3. **Tab 3 — Pipeline:** select the part card, then **▶ Pull & Run
    Pipeline**. It runs scoped to that single part
    (`main.py --views-folder <part> --output <part>/output`) with a per-stage
-   progress strip, run timer, live console, and **✕ Cancel**.
-4. Read the outputs in the sub-tabs the moment they fill: **Extraction JSON /
-   Resolved Extraction / Build Plan / Verification / Engineering Flags
-   (severity-ranked — read this first) / Model Check / VBA Macros /
-   Token · Cost / Files / Console**, then inspect the model on Tab 2.
+   progress strip, run timer, live console, **✕ Cancel**, and the
+   **Overview Analysis** panel that expands live when Stage 1.5 writes it.
+4. **Tab 4 — Run Outputs:** the finished run is auto-selected in the
+   **Select Run** dropdown (any past run can be chosen too). Read the sub-tabs
+   the moment they fill: **Extraction JSON / Resolved Extraction / Build Plan /
+   Verification / Engineering Flags (severity-ranked — read this first) /
+   Model Check / VBA Macros / Token · Cost / Files / Console**, then inspect
+   the model on Tab 2 (its **Select Model** dropdown loads any run's STL).
 
 Notes:
 - Live extraction needs `ANTHROPIC_API_KEY` in `2D-3D-CAD-Test-Generation/.env`.
