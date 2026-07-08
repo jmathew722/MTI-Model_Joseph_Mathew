@@ -371,6 +371,8 @@
         <div class="grp-title">1 · Add images</div>
         <label class="filebtn" for="intake-file">Upload drawing <span class="hint">PDF · JPG · DWG · eDrawings</span></label>
         <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf,.edrw,.eprt,.easm" style="display:none">
+        <label class="filebtn" for="batch-folder">Upload parts folder <span class="hint">subfolders = parts (views + specs .txt)</span></label>
+        <input type="file" id="batch-folder" webkitdirectory multiple style="display:none">
         <button class="btn secondary" id="pull-crops-btn">Pull queued crops</button>
         <span class="badge-c teal fmt-badge" id="src-format" style="display:none"></span>
         <div class="grp-row" id="sheet-picker" style="display:none">
@@ -442,6 +444,7 @@
       </div>
       <div class="pt-actions">
         <button class="btn xl" id="run-btn" disabled>▶ Pull &amp; Run Pipeline</button>
+        <button class="btn xl" id="run-all-btn" disabled title="Runs every saved part through the full pipeline, one model at a time; all outputs are also delivered to ~/Downloads/SolidWorksModel_Parts/">▶▶ Run All Parts</button>
 
         <button class="btn danger" id="cancel-btn" style="display:none">✕ Cancel</button>
         <div class="demo-row">
@@ -742,6 +745,8 @@ function renderParts() {
 function updateRunEnabled() {
   const p = partsData.find(x => x.name === selectedPart);
   document.getElementById('run-btn').disabled = isRunning || !p || p.n_views < 1;
+  const ra = document.getElementById('run-all-btn');
+  if (ra) ra.disabled = isRunning || !partsData.some(x => x.n_views >= 1);
 }
 function selectPart(name) {
   selectedPart = name;
@@ -1288,6 +1293,61 @@ runBtn.addEventListener('click', async () => {
   showTab('console');
 });
 
+// ── Upload a folder of preprocessed parts (subfolder = part) ────────────────
+document.getElementById('batch-folder').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (!files.length) return;
+  const usable = files.filter(f => /\.(jpe?g|png|webp|bmp|tiff?|txt)$/i.test(f.name));
+  if (!usable.length) { setStatus('No view images or .txt spec files found in that folder.', 'err'); return; }
+  setStatus(`<span class="spinner"></span>Uploading ${usable.length} file(s) from the parts folder…`, 'run');
+  const fd = new FormData();
+  fd.append('session', sessionId);
+  for (const f of usable) {
+    fd.append('paths', f.webkitRelativePath || f.name);
+    fd.append('files', f, f.name);
+  }
+  let d;
+  try {
+    const r = await fetch('/api/parts/upload-batch', { method: 'POST', body: fd });
+    d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.statusText);
+  } catch (err) { setStatus('Parts folder upload failed: ' + err.message, 'err'); return; }
+  partsData = d.parts || partsData;
+  renderParts(); updateRunEnabled();
+  if (d.added && d.added.length && !selectedPart) selectPart(d.added[0]);
+  setStatus(`✓ Added ${d.added.length} part(s) from the folder (${d.n_files} files): ` +
+            `${d.added.join(', ')}. Select a part to view it, or use ▶▶ Run All Parts.`, 'ok');
+});
+
+// ── Run ALL saved parts through the full pipeline, one model at a time ──────
+let runAllActive = false;
+document.getElementById('run-all-btn').addEventListener('click', async () => {
+  if (isRunning || runAllActive) return;
+  const queue = partsData.filter(p => p.n_views >= 1).map(p => p.name);
+  if (!queue.length) return;
+  runAllActive = true;
+  showTab('console');
+  for (let i = 0; i < queue.length; i++) {
+    const name = queue[i];
+    selectPart(name);
+    setRunning(true);
+    setStatus(`<span class="spinner"></span>Running part ${i + 1} of ${queue.length}: "${name}"…`, 'run');
+    inlineConsole.style.display = ''; inlineConsole.textContent = ''; consolePre.textContent = '';
+    resetOutputs('Waiting for pipeline output…');
+    const fd = new FormData(); fd.append('session', sessionId); fd.append('part', name);
+    let res;
+    try { res = await (await fetch('/api/run-part', { method: 'POST', body: fd })).json(); }
+    catch (err) { setStatus(`Run failed to start for "${name}": ${err.message}`, 'err'); setRunning(false); break; }
+    if (res.error || !res.id) { setStatus(res.detail || res.error || `Run failed to start for "${name}"`, 'err'); setRunning(false); break; }
+    currentRunId = res.id;
+    const d = await monitorRun(res.id, name);   // one model FULLY at a time
+    if (d && d.cancelled) { runAllActive = false; break; }
+  }
+  runAllActive = false;
+  updateRunEnabled();
+});
+
 function monitorRun(id, partName) {
   if (es) es.close();
   es = new EventSource(`/api/runs/${id}/log`);
@@ -1300,38 +1360,43 @@ function monitorRun(id, partName) {
   es.addEventListener('done', ev => { const line = `\n— pipeline exited (code ${ev.data}) —\n`; consolePre.textContent += line; inlineConsole.textContent += line; es.close(); });
 
   if (pollTimer) clearInterval(pollTimer);
-  const poll = async () => {
-    let d; try { d = await (await fetch(`/api/runs/${id}/outputs`)).json(); } catch { return; }
-    if (selectedPart === partName) fillOutputs(d);
-    if (d.done) {
-      clearInterval(pollTimer); pollTimer = null;
-      setProgress(100);
-      finishStages(d.exit === 0 && !d.cancelled);
-      setRunning(false);
-      currentRunId = null;
-      // refresh the parts list so the "ran" badge appears
-      try { const pl = await (await fetch(`/api/parts?session=${sessionId}`)).json(); partsData = pl.parts; renderParts(); } catch {}
-      // refresh outputs once more so delivered paths land in the Files tab
-      if (selectedPart === partName) { try { const d2 = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(partName)}/outputs`)).json(); if (d2.has_any) fillOutputs(d2); } catch {} }
-      bannerFromRun(d, partName);
-      if (d.cancelled) setStatus(`Pipeline cancelled for "${partName}".`, 'err');
-      else if (d.exit === 0) {
-        let where = '';
-        if (d.delivered) where += ` Saved to <code>${d.delivered}</code>`;
-        if (d.delivered_downloads) where += ` and <code>${d.delivered_downloads}</code>`;
-        setStatus(`✓ Pipeline finished for "${partName}". Outputs are in the Run outputs panel below.${where}`, 'ok');
+  // Resolves when the run completes — Run All awaits it so each model is
+  // processed FULLY before the next one starts.
+  return new Promise(resolve => {
+    const poll = async () => {
+      let d; try { d = await (await fetch(`/api/runs/${id}/outputs`)).json(); } catch { return; }
+      if (selectedPart === partName) fillOutputs(d);
+      if (d.done) {
+        clearInterval(pollTimer); pollTimer = null;
+        setProgress(100);
+        finishStages(d.exit === 0 && !d.cancelled);
+        setRunning(false);
+        currentRunId = null;
+        // refresh the parts list so the "ran" badge appears
+        try { const pl = await (await fetch(`/api/parts?session=${sessionId}`)).json(); partsData = pl.parts; renderParts(); } catch {}
+        // refresh outputs once more so delivered paths land in the Files tab
+        if (selectedPart === partName) { try { const d2 = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(partName)}/outputs`)).json(); if (d2.has_any) fillOutputs(d2); } catch {} }
+        bannerFromRun(d, partName);
+        if (d.cancelled) setStatus(`Pipeline cancelled for "${partName}".`, 'err');
+        else if (d.exit === 0) {
+          let where = '';
+          if (d.delivered) where += ` Saved to <code>${d.delivered}</code>`;
+          if (d.delivered_downloads) where += ` and <code>${d.delivered_downloads}</code>`;
+          setStatus(`✓ Pipeline finished for "${partName}". Outputs are in the Run outputs panel below.${where}`, 'ok');
+        }
+        else if (d.exit === 8) {
+          // Exit 8 = the run COMPLETED and produced outputs, but a gate flagged
+          // something for human review (unmet spec / MM constraint / overview gap).
+          const mmFailed = window.__mmFailed || [];
+          const why = mmFailed.length ? mmFailed[0] : 'a final check flagged this part — see the Must-Meet checklist and Engineering Flags.';
+          setStatus(`⚠ Pipeline completed for "${partName}" with review flags: ${why}`, '');
+        }
+        else setStatus(`✕ Pipeline failed for "${partName}" (exit ${d.exit}). See Console. Partial outputs shown.`, 'err');
+        resolve(d);
       }
-      else if (d.exit === 8) {
-        // Exit 8 = the run COMPLETED and produced outputs, but a gate flagged
-        // something for human review (unmet spec / MM constraint / overview gap).
-        const mmFailed = window.__mmFailed || [];
-        const why = mmFailed.length ? mmFailed[0] : 'a final check flagged this part — see the Must-Meet checklist and Engineering Flags.';
-        setStatus(`⚠ Pipeline completed for "${partName}" with review flags: ${why}`, '');
-      }
-      else setStatus(`✕ Pipeline failed for "${partName}" (exit ${d.exit}). See Console. Partial outputs shown.`, 'err');
-    }
-  };
-  poll(); pollTimer = setInterval(poll, 1200);
+    };
+    poll(); pollTimer = setInterval(poll, 1200);
+  });
 }
 
 // ── Demo run (no API key): fills output tabs from a saved extraction ──────────

@@ -221,9 +221,12 @@ def _start_run(cmd: list[str], output_dir: Path, run_id: str | None = None,
                 pass
         finally:
             state["exit"] = proc.wait()
-            # Deliver clean, openable copies for a successful, non-cancelled run:
-            # one in the project (UI_Output/) and one in the user's Downloads folder.
-            if state["exit"] == 0 and not state["cancelled"] and deliver_name:
+            # Deliver clean, openable copies for a completed, non-cancelled run:
+            # one in the project (UI_Output/) and one in the user's Downloads
+            # folder. Exit 8 = completed with review flags — the outputs (model,
+            # reports, macros) exist and are delivered too; only a hard failure
+            # or a cancel skips delivery.
+            if state["exit"] in (0, 8) and not state["cancelled"] and deliver_name:
                 paths = _deliver_run(output_dir, deliver_name,
                                      extra_files=state.get("extra_files"))
                 state["delivered"] = paths.get("project")
@@ -1015,27 +1018,80 @@ def _session_dir(session: str) -> Path:
 # not one of the orthographic views, so it is excluded from the view count/list.
 OVERVIEW_FILENAME = "00_full.jpg"
 
+# Image types accepted in a part's views folder (crop flow writes .jpg; the
+# parts-folder upload keeps whatever the preprocessed folders contain).
+IMG_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
+# Filename stems view_ingest treats as the overview/full drawing.
+_OVERVIEW_STEMS = ("full", "overview", "isometric", "iso")
+
+
+def _part_images(pdir: Path) -> list[Path]:
+    return sorted(p for p in pdir.iterdir()
+                  if p.is_file() and p.suffix.lower() in IMG_EXTS)
+
+
+def _is_overview_image(p: Path, part_name: str) -> bool:
+    stem = p.stem.lower()
+    norm = "".join(c for c in stem if c.isalnum())
+    part_norm = "".join(c for c in part_name.lower() if c.isalnum())
+    return (p.name == OVERVIEW_FILENAME
+            or any(k in stem for k in _OVERVIEW_STEMS)
+            or (bool(part_norm) and norm == part_norm))
+
+
+def _find_overview_image(pdir: Path) -> Path | None:
+    """The part's overview drawing: 00_full.jpg from the crop flow, else the
+    file the pipeline itself would classify as the full/overview view."""
+    exact = pdir / OVERVIEW_FILENAME
+    if exact.is_file():
+        return exact
+    for p in _part_images(pdir):
+        if _is_overview_image(p, pdir.name):
+            return p
+    return None
+
 
 def _list_parts(sdir: Path) -> list[dict]:
     if not sdir.is_dir():
         return []
     parts = []
     for pdir in sorted(p for p in sdir.iterdir() if p.is_dir() and not p.name.startswith(".")):
-        views = sorted(v.name for v in pdir.glob("*.jpg") if v.name != OVERVIEW_FILENAME)
+        views = sorted(v.name for v in _part_images(pdir)
+                       if not _is_overview_image(v, pdir.name))
         out = pdir / "output"
         fmt_file = pdir / ".source_format"
-        notes_file = pdir / "notes.txt"
+        # The must-meet spec (authoritative) wins; legacy notes.txt still shows.
+        notes_text = ""
+        for nf in (pdir / "must_meet_spec.txt", pdir / "notes.txt"):
+            if nf.is_file():
+                notes_text = nf.read_text(encoding="utf-8", errors="replace")[:20000]
+                break
         parts.append({
             "name": pdir.name,
             "n_views": len(views),
             "views": views,
             "has_output": out.is_dir() and _categorize_output(out)["has_any"],
+            "has_overview": _find_overview_image(pdir) is not None,
             "source_format": fmt_file.read_text(encoding="utf-8").strip()
                              if fmt_file.is_file() else "",
-            "notes": notes_file.read_text(encoding="utf-8", errors="replace")[:20000]
-                     if notes_file.is_file() else "",
+            "notes": notes_text,
         })
     return parts
+
+
+def _write_thumbnail(sdir: Path, part_name: str, image_path: Path) -> None:
+    """Small JPEG thumbnail for the parts list (never fatal)."""
+    try:
+        from PIL import Image
+
+        thumbs = sdir / ".thumbs"
+        thumbs.mkdir(exist_ok=True)
+        with Image.open(image_path) as im:
+            im = im.convert("RGB")
+            im.thumbnail((360, 360))
+            im.save(thumbs / f"{part_name}.jpg", "JPEG", quality=85)
+    except Exception:
+        pass
 
 
 @app.post("/api/session")
@@ -1116,6 +1172,78 @@ def list_parts(session: str):
     return {"session": _safe_session(session), "parts": _list_parts(_session_dir(session))}
 
 
+@app.post("/api/parts/upload-batch")
+async def upload_parts_batch(
+    session: str = Form(...),
+    paths: list[str] = Form(...),
+    files: list[UploadFile] = File(...),
+):
+    """Upload a whole FOLDER OF PARTS (each subfolder = one preprocessed part:
+    view images named per the --views-folder conventions plus optional
+    notes/must_meet_spec txt files). Files are written VERBATIM into
+    ``parts/<session>/<part>/`` — the exact layout the CLI runs unchanged —
+    so Run Pipeline processes each part fully, one at a time.
+
+    ``paths`` carries each file's folder-relative path (webkitRelativePath),
+    parallel to ``files``: "<root>/<part>/<file>" (or "<part>/<file>" when a
+    single part folder was selected)."""
+    if len(paths) != len(files):
+        raise HTTPException(400, "paths and files must be parallel lists")
+    sdir = _session_dir(session)
+    sdir.mkdir(parents=True, exist_ok=True)
+
+    TXT_EXTS = {".txt"}
+    added: dict[str, int] = {}
+    skipped = 0
+    for rel, up in zip(paths, files):
+        comps = [c for c in rel.replace("\\", "/").split("/") if c and c not in (".", "..")]
+        if len(comps) < 2:
+            skipped += 1
+            continue
+        # "<root>/<part>/.../<file>" -> part = the folder directly containing
+        # the file when nested, else the first-level folder.
+        part_raw = comps[-2] if len(comps) >= 3 else comps[0]
+        fname = comps[-1]
+        if fname.startswith(".") or part_raw.startswith("."):
+            skipped += 1
+            continue
+        ext = Path(fname).suffix.lower()
+        if ext not in IMG_EXTS and ext not in TXT_EXTS:
+            skipped += 1
+            continue
+        part_name = _sanitize(part_raw)
+        pdir = sdir / part_name
+        pdir.mkdir(parents=True, exist_ok=True)
+        data = await up.read()
+        if not data:
+            skipped += 1
+            continue
+        (pdir / fname).write_bytes(data)
+        added[part_name] = added.get(part_name, 0) + 1
+
+    # notes.txt mirror (legacy grading) + thumbnails for every touched part.
+    for part_name in added:
+        pdir = sdir / part_name
+        spec = pdir / "must_meet_spec.txt"
+        legacy = pdir / "notes.txt"
+        if spec.is_file() and not legacy.is_file():
+            legacy.write_text(spec.read_text(encoding="utf-8", errors="replace"),
+                              encoding="utf-8")
+        thumb_src = _find_overview_image(pdir)
+        if thumb_src is None:
+            imgs = _part_images(pdir)
+            thumb_src = imgs[0] if imgs else None
+        if thumb_src is not None:
+            _write_thumbnail(sdir, part_name, thumb_src)
+
+    if not added:
+        raise HTTPException(400, "No part folders with images/txt files were found "
+                                 "in the selected folder.")
+    return {"session": _safe_session(session), "added": sorted(added),
+            "n_files": sum(added.values()), "n_skipped": skipped,
+            "parts": _list_parts(sdir)}
+
+
 @app.get("/api/parts/{session}/{part}/thumb.jpg")
 def part_thumb(session: str, part: str):
     p = _session_dir(session) / ".thumbs" / f"{_sanitize(part)}.jpg"
@@ -1148,14 +1276,25 @@ def update_part_notes(session: str, part: str, notes: str = Form("")):
     return {"part": _sanitize(part), "parts": _list_parts(_session_dir(session))}
 
 
+_IMG_MEDIA = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+              ".webp": "image/webp", ".bmp": "image/bmp",
+              ".tif": "image/tiff", ".tiff": "image/tiff"}
+
+
 @app.get("/api/parts/{session}/{part}/overview.jpg")
 def part_overview(session: str, part: str):
-    """The part's overview/full drawing (the '00_full.jpg' view) for Tab 2's
-    Overview panel. 404 when the part has no overview image."""
-    p = _session_dir(session) / _sanitize(part) / OVERVIEW_FILENAME
-    if not p.is_file():
+    """The part's overview/full drawing for Tab 2's Overview panel: the crop
+    flow's 00_full.jpg, or the file the pipeline classifies as the overview in
+    an uploaded parts folder. Falls back to the first view image so selecting
+    a part always shows its drawing. 404 only when the part has no images."""
+    pdir = _session_dir(session) / _sanitize(part)
+    p = _find_overview_image(pdir) if pdir.is_dir() else None
+    if p is None and pdir.is_dir():
+        imgs = _part_images(pdir)
+        p = imgs[0] if imgs else None
+    if p is None:
         raise HTTPException(404, "No overview image for this part")
-    return FileResponse(str(p), media_type="image/jpeg")
+    return FileResponse(str(p), media_type=_IMG_MEDIA.get(p.suffix.lower(), "image/jpeg"))
 
 
 @app.get("/api/parts/{session}/{part}/outputs")
@@ -1210,7 +1349,7 @@ def run_part(session: str = Form(...), part: str = Form(...)):
             "project .env and restart the UI.",
         )
     pdir = _session_dir(session) / _sanitize(part)
-    if not pdir.is_dir() or not any(pdir.glob("*.jpg")):
+    if not pdir.is_dir() or not _part_images(pdir):
         raise HTTPException(400, "Selected part has no saved views.")
     out_dir = pdir / "output"
     # Scope the run to EXACTLY this one part's subfolder (not the parent).
