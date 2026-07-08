@@ -1,0 +1,32 @@
+{
+  "results": [
+    {
+      "feature": "F001",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "feature": "F002",
+      "feature_id": "F002",
+      "type": "hole",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "feature": "F003",
+      "feature_id": "F003",
+      "type": "hole",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "feature": "F004",
+      "feature_id": "F004",
+      "type": "extrude_cut",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

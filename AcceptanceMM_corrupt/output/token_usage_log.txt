@@ -6,7 +6,8 @@ Only extraction runs hit the API; --from-json and cache hits cost $0.
 TIMESTAMP             PART              MODEL                      IN       OUT   CACHE_RD  CALLS   COST_USD
 --------------------------------------------------------------------------------------------------------------
 2026-07-07 21:29:43   A050211E_extract  claude-sonnet-5         1,315       426          0      1     0.0103
+2026-07-07 23:16:01   A050211E_extract  claude-sonnet-5         1,315       461          0      1     0.0109
 --------------------------------------------------------------------------------------------------------------
-TOTAL                 1 run(s)                                  1,315       426          0            0.0103
+TOTAL                 2 run(s)                                  2,630       887          0            0.0212
 
-TOTAL API COST TO DATE: $0.0103
+TOTAL API COST TO DATE: $0.0212

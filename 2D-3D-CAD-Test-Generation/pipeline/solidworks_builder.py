@@ -937,9 +937,30 @@ def build_hole(sw_doc, model, feature: Feature, dims: dict[str, float]):
     if route_to_circular_pattern(model, h) and _plane_for(feature) == "Front Plane":
         probe = _bore_axis_probe(model, h)
         if probe is not None:
-            return build_circular_pattern_holes(sw_doc, model, feature, h, probe)
-        log.info("hole %s: circular pattern requested but no concentric bore face "
-                 "to derive the axis — using baked-circle instances.", feature.id)
+            try:
+                return build_circular_pattern_holes(sw_doc, model, feature, h, probe)
+            except SolidWorksError as e:
+                # The model output must never be lost to a pattern-feature
+                # failure: fall back to cutting every instance as an exact
+                # circle (geometrically identical part), note it for the
+                # report, and continue. The note lands in model_check.txt and
+                # the engineering review via model.warnings.
+                log.warning("hole %s: circular-pattern route failed (%s) — "
+                            "falling back to exact baked-circle instances.",
+                            feature.id, e)
+                model.warnings.append(
+                    f"{feature.id}: FeatureCircularPattern route failed ({e}); "
+                    f"all {h.qty} instances were cut as exact circles instead — "
+                    "geometry is equivalent, but the tree has no pattern feature; "
+                    "verify if a pattern feature is required."
+                )
+                # Any partially created seed hole is left in place: the fallback
+                # cuts every instance position, and re-cutting the seed's circle
+                # through the existing hole is a geometric no-op.
+                sw_doc.ClearSelection2(True)
+        else:
+            log.info("hole %s: circular pattern requested but no concentric bore face "
+                     "to derive the axis — using baked-circle instances.", feature.id)
 
     positions_m = [(to_meters(x, unit), to_meters(y, unit)) for x, y in _hole_positions(model, h)]
     if not positions_m:

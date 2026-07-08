@@ -20,6 +20,20 @@ DRAWING COMPLETENESS SCORE (Phase 4):
 
 OVERALL STATUS: READY TO BUILD
 
+MUST-MEET CONSTRAINT VERIFICATION
+=================================
+Pre-validation (CadQuery, before the SolidWorks build): PASS
+  MM-001 [PASS] required 6, measured 6
+  MM-002 [PASS] required Ø3.88 in, measured Ø3.880 in
+  MM-003 [PASS] required Ø1.25 in at 2.94 in from MM-002 center, measured Ø1.250 in at 2.940 in
+  MM-004 [PASS] required every hole through-all, measured all 8 hole(s) through
+Post-build verification (measured from the built STL): ALL PASS
+  MM-001 [PASS] required 6, measured 6
+  MM-002 [PASS] required Ø3.88 in, measured Ø3.875 in
+  MM-003 [PASS] required Ø1.25 in at 2.94 in from MM-002 center, measured Ø1.247 in at 2.919 in
+  MM-004 [PASS] required every hole through-all, measured all 8 hole(s) through
+
+
 OVERVIEW VERIFICATION
 =====================
 (skipped: --skip-overview-check)

@@ -396,6 +396,7 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     # constraint id — never a generic pipeline error.
     preval_ok = True
     preval_detail = ""
+    preval: dict = {}
     try:
         from pipeline.cq_prevalidate import run_prevalidation, write_prevalidate_script
 
@@ -421,14 +422,17 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
 
     # Build the real .sldprt into the part folder whenever SolidWorks is available,
     # so the 3D model is a required output of every run alongside the text files.
+    # A failed pre-validation NEVER blocks the model output ("a complete
+    # approximate model is always the correct outcome") — it is noted in the
+    # verification report and gates the READY status instead.
     detail = ""
     build_skipped: list = []
     build_caveats: list = []
     if sw_app is not None and not preval_ok:
-        print("[PREVAL] Aborting the SolidWorks build — resolve the failed "
-              "constraint(s) above first (macros and the pre-validated STL were "
-              "still produced).", flush=True)
-    if sw_app is not None and preval_ok:
+        print("[PREVAL] Pre-validation flagged issue(s) — the model is still "
+              "built and the flags are recorded in the verification report / "
+              "Must-Meet checklist for human review.", flush=True)
+    if sw_app is not None:
         print("[STAGE] Building .sldprt", flush=True)
         try:
             sldprt = build_sldprt_for_part(sw_app, model, part_dir, part_dir.name, template_path,
@@ -504,11 +508,15 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
             req_items = _req_review_items(reqs)
     log.info("%s requirements check: %s", part, req_note)
 
-    # Fold the checks into the human-facing verification report.
+    # Fold the checks into the human-facing verification report — every skip,
+    # fallback, pre-validation flag, and MM PASS/FAIL is NOTED in the txt so
+    # nothing about the produced model is silent.
     try:
         _append_final_checks_report(
             part_dir / f"{safe}_verification_report.txt",
             overview_items, overview_note, reqs, req_note,
+            preval=preval, mm_verification=mm_verification,
+            build_skipped=build_skipped, build_caveats=build_caveats,
         )
     except Exception as e:
         log.warning("Could not append final checks to the verification report: %s", e)
@@ -558,10 +566,55 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
 
 
 def _append_final_checks_report(report_path: Path, overview_items: list,
-                                overview_note: str, reqs: list, req_note: str) -> None:
-    """Append the Overview Verification + Requirements sections to the part's
-    verification report so the READY/NOT READY story is in one place."""
-    lines = ["", "", "OVERVIEW VERIFICATION", "=" * 21, f"({overview_note})"]
+                                overview_note: str, reqs: list, req_note: str,
+                                preval: Optional[dict] = None,
+                                mm_verification: Optional[dict] = None,
+                                build_skipped: Optional[list] = None,
+                                build_caveats: Optional[list] = None) -> None:
+    """Append the Must-Meet, Overview Verification + Requirements sections to
+    the part's verification report so the READY/NOT READY story — including
+    every skipped feature and fallback — is in one place."""
+    lines: list[str] = []
+
+    # ── Must-meet constraint story (pre-validation + post-build) ──
+    if preval or mm_verification:
+        lines += ["", "", "MUST-MEET CONSTRAINT VERIFICATION", "=" * 33]
+    if preval:
+        if preval.get("skipped"):
+            lines.append(f"Pre-validation (CadQuery): {preval['skipped']}")
+        else:
+            lines.append("Pre-validation (CadQuery, before the SolidWorks build): "
+                         + ("PASS" if preval.get("ok") else "FLAGGED"))
+            for r in preval.get("constraints", []):
+                lines.append(f"  {r['id']} [{r['status']}] required {r['required']}, "
+                             f"measured {r['measured']}")
+                if r.get("status") == "FAIL":
+                    lines.append(f"      -> {r.get('detail', '')}")
+            if preval.get("error"):
+                lines.append(f"  (pre-validation error, noted and skipped: {preval['error']})")
+    if mm_verification:
+        lines.append("Post-build verification (measured from the built STL): "
+                     + ("ALL PASS" if mm_verification.get("ok") else "FAILURE(S)"))
+        for r in mm_verification.get("constraints", []):
+            lines.append(f"  {r['id']} [{r['status']}] required {r['required']}, "
+                         f"measured {r['measured']}")
+            if r.get("status") == "FAIL":
+                lines.append(f"      -> {r.get('detail', '')}")
+        if mm_verification.get("error"):
+            lines.append(f"  (verification error, noted and skipped: {mm_verification['error']})")
+
+    # ── Build skips / fallbacks: the model was still produced; each item here
+    # is a feature that needs a human eye (never a silent drop). ──
+    if build_skipped:
+        lines += ["", "FEATURES SKIPPED DURING THE BUILD (model still produced)", "-" * 56]
+        for fid, ftype, reason in build_skipped:
+            lines.append(f"  - {fid} ({ftype}): {reason}")
+    if build_caveats:
+        lines += ["", "BUILD CAVEATS / FALLBACKS (applied, verify against the drawing)", "-" * 63]
+        for w in build_caveats:
+            lines.append(f"  - {w}")
+
+    lines += ["", "", "OVERVIEW VERIFICATION", "=" * 21, f"({overview_note})"]
     if overview_items:
         for i, it in enumerate(overview_items, 1):
             lines.append(f"{i}. [{it['severity']}] {it['what']}")

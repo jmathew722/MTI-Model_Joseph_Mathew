@@ -95,8 +95,9 @@
   #panel-crop iframe { flex:1 1 auto; width:100%; border:0; background:var(--well); min-height:0; }
 
   /* ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────────── */
+  /* Kept compact so the Overview + 3D viewer panels below get the room. */
   .intake-strip { flex:0 0 auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto;
-                  background:var(--bg); border-bottom:1px solid var(--line); max-height:38vh; overflow:auto; }
+                  background:var(--bg); border-bottom:1px solid var(--line); max-height:30vh; overflow:auto; }
   .gcol { padding:var(--sp-3) var(--sp-4); border-right:1px solid var(--line-soft); min-width:0;
           display:flex; flex-direction:column; gap:var(--sp-2); align-items:flex-start; }
   .gcol:last-child { border-right:0; }
@@ -121,21 +122,23 @@
   .ocard.dup .dupbadge { display:inline-block; }
   .intake-foot { display:flex; flex-direction:column; gap:var(--sp-2); align-items:stretch; }
   .intake-foot .rowline { display:flex; gap:var(--sp-2); align-items:center; }
-  .notes-label { margin-top:var(--sp-2); }
-  #part-notes { width:100%; min-width:260px; resize:vertical; font-size:var(--fs-small);
-                border-color:var(--warn); }
-
   /* ── MUST-MEET SPECIFICATIONS — authoritative operator input (amber) ───── */
-  .mm-strip { flex:0 0 auto; display:flex; flex-direction:column; gap:var(--sp-2);
-              padding:var(--sp-3) var(--sp-4); background:var(--bg-raised);
-              border-top:2px solid var(--warn); }
-  .mm-strip .mm-title { font:700 var(--fs-caption)/1 var(--sans); letter-spacing:.12em;
+  .mm-panel { width:100%; min-width:300px; max-width:440px; margin-top:var(--sp-3);
+              display:flex; flex-direction:column; gap:var(--sp-2);
+              padding:var(--sp-3); background:var(--bg-raised);
+              border:1px solid var(--warn); border-left:3px solid var(--warn);
+              border-radius:var(--r-lg); }
+  .mm-panel .mm-head { display:flex; flex-direction:column; gap:2px; }
+  .mm-panel .mm-title { font:700 var(--fs-caption)/1.2 var(--sans); letter-spacing:.12em;
               text-transform:uppercase; color:var(--warn); }
-  .mm-strip .rowline { display:flex; gap:var(--sp-2); align-items:flex-start; }
-  #mm-spec { flex:1; min-height:48px; resize:vertical; font:400 var(--fs-small)/1.5 var(--sans);
-             border:1px solid var(--warn); background:var(--input-bg); color:var(--ink);
-             border-radius:var(--r-md); padding:6px var(--sp-2); }
-  #mm-spec:focus { outline:none; box-shadow:0 0 0 1px var(--warn); }
+  .mm-panel .mm-sub { font:400 var(--fs-caption)/1.2 var(--sans); color:var(--ink-3); }
+  .mm-panel .mm-foot { display:flex; flex-direction:column; gap:var(--sp-2);
+              align-items:flex-start; }
+  .mm-panel code { font-family:var(--mono); font-size:var(--fs-caption); color:var(--ink-2); }
+  #part-notes { width:100%; resize:vertical; font:400 var(--fs-small)/1.5 var(--sans);
+                border:1px solid var(--warn); background:var(--input-bg); color:var(--ink);
+                border-radius:var(--r-md); padding:6px var(--sp-2); min-height:64px; }
+  #part-notes:focus { outline:none; box-shadow:0 0 0 1px var(--warn); }
 
   /* ── Tab 2 · Must-meet checklist (between the intake strip and the viewers) */
   .mm-check { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); border-bottom:1px solid var(--line);
@@ -230,7 +233,7 @@
   #run-banner.err .rb-main { color:var(--err-text); border-color:var(--err); }
 
   /* Split view — exactly two half-screen panels: Full Overview View | STL */
-  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:120px; }
+  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:48vh; }
   .ovside { border-right:1px solid var(--line); }
   .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; }
   .side .cap { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); font:600 var(--fs-caption)/1.6 var(--sans);
@@ -359,13 +362,6 @@
   <!-- ── Tab 1 · Drawing Crop (cropper fills the whole tab) ────────────── -->
   <section class="panel active" id="panel-crop">
     <iframe id="photoapp" src="/photoapp/"></iframe>
-    <div class="mm-strip">
-      <span class="mm-title">Must-Meet Specifications — authoritative (overrides drawing extraction)</span>
-      <div class="rowline">
-        <textarea id="mm-spec" rows="2" placeholder="e.g. there must be 6 holes in this part that can be done using a circular pattern … All holes must be through all."></textarea>
-        <button class="btn secondary" id="mm-save-btn" title="Persisted with the run as must_meet_spec.txt; parsed into MM-xxx constraints that override vision extraction">Save specs</button>
-      </div>
-    </div>
   </section>
 
   <!-- ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────── -->
@@ -399,10 +395,17 @@
             <button class="btn" id="save-part-btn" disabled>Save part</button>
           </div>
         </div>
-        <label class="grp-title notes-label" for="part-notes">Must-meet specifications</label>
-        <span class="hint" style="max-width:280px">One requirement per line — each is graded against the built part; an unmet line blocks READY.</span>
-        <textarea id="part-notes" class="input-c" rows="3" placeholder="e.g.&#10;4x Ø6 mm mounting holes&#10;material 6061"></textarea>
-        <button class="btn secondary sm" id="save-notes-btn" style="display:none">Update notes for selected part</button>
+        <div class="mm-panel">
+          <div class="mm-head">
+            <span class="mm-title">Must-Meet Specifications</span>
+            <span class="mm-sub">authoritative — overrides drawing extraction</span>
+          </div>
+          <textarea id="part-notes" class="input-c" rows="4" placeholder="e.g. there must be 6 holes in this part that can be done using a circular pattern … All holes must be through all."></textarea>
+          <div class="mm-foot">
+            <span class="hint">Saved with the part as <code>must_meet_spec.txt</code> — parsed into MM-xxx constraints, enforced through build &amp; verification.</span>
+            <button class="btn secondary sm" id="save-notes-btn" style="display:none">Update specs for selected part</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="statusline"><span class="status" id="intake-status">Ready — crop views in Tab 1 or upload a drawing.</span></div>
@@ -748,11 +751,7 @@ function selectPart(name) {
   // when there is no unsaved intake work to clobber).
   const notesEl = document.getElementById('part-notes');
   const pd = partsData.find(x => x.name === name);
-  if (notesEl && pd && !intake.items.length) {
-    notesEl.value = pd.notes || '';
-    const mmEl = document.getElementById('mm-spec');
-    if (mmEl) mmEl.value = pd.notes || '';
-  }
+  if (notesEl && pd && !intake.items.length) notesEl.value = pd.notes || '';
   const snb = document.getElementById('save-notes-btn');
   if (snb) { snb.style.display = ''; snb.textContent = `Update notes for ${name}`; }
   document.getElementById('viewer-part').textContent = name;
@@ -939,35 +938,7 @@ function renderGallery() {
 }
 partNameEl.addEventListener('input', validateIntake);
 
-// ── MUST-MEET SPECIFICATIONS (Tab 1 amber box) ↔ Tab 2 notes: one text, two
-// views. The Tab 1 box is the authoritative entry point; both persist as
-// must_meet_spec.txt + notes.txt with the part.
-(() => {
-  const mm = document.getElementById('mm-spec');
-  const notes = document.getElementById('part-notes');
-  if (!mm || !notes) return;
-  mm.addEventListener('input', () => { if (notes.value !== mm.value) notes.value = mm.value; });
-  notes.addEventListener('input', () => { if (mm.value !== notes.value) mm.value = notes.value; });
-  document.getElementById('mm-save-btn').addEventListener('click', async () => {
-    notes.value = mm.value;
-    if (!selectedPart) {
-      setStatus('Must-meet specifications staged — they save with the part (Tab 2 · Save part).', '');
-      return;
-    }
-    const fd = new FormData();
-    fd.append('notes', mm.value || '');
-    try {
-      const r = await fetch(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/notes`,
-                            { method: 'POST', body: fd });
-      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
-      const d = await r.json();
-      partsData = d.parts || partsData;
-      setStatus(`Must-meet specifications saved for "${selectedPart}" (applied tier-0 on the next run).`, 'ok');
-    } catch (e) { setStatus('Saving specifications failed: ' + e.message, 'err'); }
-  });
-})();
-
-// Update a SAVED part's must-meet notes in place (no re-upload needed).
+// Update a SAVED part's must-meet specifications in place (no re-upload needed).
 document.getElementById('save-notes-btn').addEventListener('click', async () => {
   if (!selectedPart) return;
   const fd = new FormData();
@@ -1349,6 +1320,13 @@ function monitorRun(id, partName) {
         if (d.delivered) where += ` Saved to <code>${d.delivered}</code>`;
         if (d.delivered_downloads) where += ` and <code>${d.delivered_downloads}</code>`;
         setStatus(`✓ Pipeline finished for "${partName}". Outputs are in the Run outputs panel below.${where}`, 'ok');
+      }
+      else if (d.exit === 8) {
+        // Exit 8 = the run COMPLETED and produced outputs, but a gate flagged
+        // something for human review (unmet spec / MM constraint / overview gap).
+        const mmFailed = window.__mmFailed || [];
+        const why = mmFailed.length ? mmFailed[0] : 'a final check flagged this part — see the Must-Meet checklist and Engineering Flags.';
+        setStatus(`⚠ Pipeline completed for "${partName}" with review flags: ${why}`, '');
       }
       else setStatus(`✕ Pipeline failed for "${partName}" (exit ${d.exit}). See Console. Partial outputs shown.`, 'err');
     }
