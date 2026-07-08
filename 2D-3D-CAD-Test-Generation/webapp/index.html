@@ -551,6 +551,8 @@
       <select class="sel-input model-sel" id="run-select" title="Pick any completed run — all ten tabs below reload to match">
         <option value="">no completed runs yet</option>
       </select>
+      <button class="btn danger sm" id="clear-runs-btn"
+              title="Delete every stored run output — empties both run/model dropdowns. Saved part inputs and the delivered copies in UI_Output/ and Downloads are kept.">✕ Clear all models</button>
     </div>
 
     <div class="dock" id="dock">
@@ -917,12 +919,49 @@ async function syncOutputsToRun(key, opts) {
 document.getElementById('run-select').addEventListener('change', e => {
   if (e.target.value) syncOutputsToRun(e.target.value);
 });
-// Sheet 2: picking a model loads that run's STL immediately — no re-run.
+// Put a specific image into the Full Overview View panel (left side, Sheet 2).
+function paintOverviewImage(url) {
+  const img = document.getElementById('ov-img'), empty = document.getElementById('ov-empty');
+  if (!img) return;
+  img.onload = () => { img.style.display = ''; empty.style.display = 'none';
+                       if (window.__ovReset) window.__ovReset(); };
+  img.onerror = () => { img.style.display = 'none'; empty.style.display = ''; };
+  img.src = url;
+}
+// Sheet 2: picking a model loads that run's STL immediately — no re-run — AND
+// swaps the left panel to the SAME part's Full Overview View drawing, so the
+// source sheet and the model on screen always correspond.
 document.getElementById('model-select').addEventListener('change', e => {
   const r = runByKey(e.target.value);
   if (!r) return;
   document.getElementById('stl-badge').style.display = 'none';
   viewer.load(`/api/parts/${r.session}/${encodeURIComponent(r.part)}/model.stl?t=${r.epoch || ''}`);
+  previewOverride = false; // an explicit model pick reclaims the overview panel
+  document.getElementById('viewer-part').textContent = r.part;
+  paintOverviewImage(`/api/parts/${r.session}/${encodeURIComponent(r.part)}/overview.jpg?t=${r.epoch || ''}`);
+});
+// Sheet 4: clear EVERY stored run output (both dropdowns empty; parts + the
+// delivered copies in UI_Output/ and Downloads are kept). Irreversible.
+document.getElementById('clear-runs-btn').addEventListener('click', async () => {
+  if (!runHistory.length) return;
+  if (!confirm(`Clear ALL ${runHistory.length} stored run output(s)?\n\n` +
+               'This empties the model/run dropdowns and deletes each run\'s output folder. ' +
+               'Saved part inputs are kept (re-run any part to rebuild it), and the delivered ' +
+               'copies in UI_Output/ and ~/Downloads/SolidWorksModel_Parts/ are NOT touched.')) return;
+  let d;
+  try { d = await (await fetch('/api/run-history/clear', { method: 'POST' })).json(); }
+  catch (err) { setStatus('Clear failed: ' + err.message, 'err'); return; }
+  outputsCtx = null;
+  viewer.clear();
+  resetOutputs('No completed runs — outputs were cleared.');
+  paintMustMeet(null, null);
+  paintOverviewAnalysis(null);
+  hideRunBanner();
+  await refreshRunHistory();
+  try { const pl = await (await fetch(`/api/parts?session=${sessionId}`)).json(); partsData = pl.parts; renderParts(); } catch {}
+  const errNote = (d.errors || []).length ? ` (${d.errors.length} folder(s) could not be removed — see server log)` : '';
+  setStatus(`✓ Cleared ${d.removed} run output(s). Saved parts are intact — re-run any part to rebuild its model.${errNote}`,
+            (d.errors || []).length ? '' : 'ok');
 });
 
 function renderParts() {
@@ -1705,6 +1744,11 @@ const viewer = (() => {
   }
   return {
     onShow() { if (!inited) init(); else needResize = true; },
+    clear() {
+      if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); mesh = null; }
+      loadedURL = null;
+      document.getElementById('stl-empty').style.display = '';
+    },
     load(url) {
       if (!inited) init();
       if (url === loadedURL) return; loadedURL = url;

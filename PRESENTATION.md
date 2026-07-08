@@ -69,8 +69,10 @@ Organized as three input groups across the top, and a two-panel viewer below.
   reviewer always sees the source of truth next to the result.
 - **Right — 3D Model (STL)**: orbit/zoom/pan viewer with a **"Select Model" dropdown** —
   pick *any* part that has ever completed a run (this session or a prior one) and its model
-  loads instantly, **no pipeline re-run required**. Shows the CadQuery **PRE-VALIDATED**
-  preview (badged) until the real SolidWorks build replaces it.
+  loads instantly, **no pipeline re-run required**; the left panel simultaneously switches to
+  **that part's Full Overview View drawing**, so the source sheet and the model on screen
+  always correspond. Shows the CadQuery **PRE-VALIDATED** preview (badged) until the real
+  SolidWorks build replaces it.
 - **Must-Meet checklist strip**: every MM-xxx constraint rendered ✓/✕ with
   *measured vs required* values — pre-validation results first, post-build verification once
   the SolidWorks model exists.
@@ -98,7 +100,10 @@ The inspection surface — every artifact of **any** completed run, past or pres
 
 A **"Select Run" dropdown** at the top lists every completed run across every part and every
 session (`PartName — run @ timestamp`); switching it reloads all ten sub-tabs in place. The
-run that just finished on Sheet 3 is **auto-selected** here the moment it completes.
+run that just finished on Sheet 3 is **auto-selected** here the moment it completes. A
+**"✕ Clear all models"** button (with confirmation) wipes every stored run output in one
+action — both dropdowns empty, while saved part inputs and the delivered copies in
+`UI_Output/` and `~/Downloads` are kept.
 
 **Run-outputs dock** — one sub-tab per artifact, filled live as files are written (each tab
 shows a ✓ once its file exists for the selected run):

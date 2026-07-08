@@ -1443,6 +1443,36 @@ def run_history():
     return {"runs": runs}
 
 
+@app.post("/api/run-history/clear")
+def clear_run_history():
+    """Clear ALL stored run outputs (the source of the shared run history).
+
+    Deletes every ``webapp/parts/<session>/<part>/output`` folder, emptying
+    both Sheet 2's model dropdown and Sheet 4's run dropdown. The saved part
+    inputs (views, specs) are untouched — every part can simply be re-run —
+    and the delivered copies in ``UI_Output/`` and ``~/Downloads`` are NOT
+    touched (they are the user's deliverables, not the browsing store)."""
+    import shutil
+
+    removed = 0
+    errors: list[str] = []
+    if PARTS_DIR.is_dir():
+        for sdir in PARTS_DIR.iterdir():
+            if not sdir.is_dir() or sdir.name.startswith("."):
+                continue
+            for pdir in sdir.iterdir():
+                if not pdir.is_dir() or pdir.name.startswith("."):
+                    continue
+                out = pdir / "output"
+                if out.is_dir():
+                    try:
+                        shutil.rmtree(out)
+                        removed += 1
+                    except OSError as e:  # e.g. an STL locked by a viewer
+                        errors.append(f"{sdir.name}/{pdir.name}: {e}")
+    return {"removed": removed, "errors": errors}
+
+
 @app.post("/api/run-part")
 def run_part(session: str = Form(...), part: str = Form(...)):
     if not _has_api_key():
