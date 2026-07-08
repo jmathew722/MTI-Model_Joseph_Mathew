@@ -252,6 +252,51 @@
   #ov-img:active { cursor:grabbing; }
   #stl-canvas-wrap { position:absolute; inset:0; }
 
+  /* ── Reference-region markup (Sheet 2): colored highlight boxes drawn over
+     the drawing; color = feature group. Boxes use a semi-transparent fill +
+     solid border so the linework underneath stays legible. ─────────────── */
+  .mark-bar { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-2);
+              padding:var(--sp-1) var(--sp-4); border-bottom:1px solid var(--line);
+              background:var(--bg-raised); font-size:var(--fs-small); color:var(--ink-3); }
+  .mark-bar select { padding:3px 6px; font-size:12px; }
+  .mark-swatch { width:18px; height:18px; border-radius:var(--r-sm); flex:0 0 auto;
+                 border:1px solid rgba(255,255,255,.55); box-shadow:0 0 0 1px rgba(0,0,0,.35); }
+  #mark-toggle.on { color:var(--blueprint-text); border-color:var(--blueprint);
+                    background:var(--blueprint-dim); }
+  #ov-mark-layer { position:absolute; pointer-events:none; transform-origin:center center; }
+  #ov-mark-layer.marking { pointer-events:auto; cursor:crosshair; }
+  /* Boxes never hit-test (drawing/panning passes through them); only their
+     delete/resize controls are interactive, and only in markup mode. */
+  .mark-box { position:absolute; box-sizing:border-box; border:2px solid; border-radius:2px;
+              pointer-events:none; }
+  .mark-box .mb-del { position:absolute; top:-9px; right:-9px; width:16px; height:16px;
+                      line-height:14px; text-align:center; font:700 11px/14px var(--sans);
+                      color:#fff; background:rgba(15,20,28,.85); border:1px solid rgba(255,255,255,.5);
+                      border-radius:50%; cursor:pointer; pointer-events:auto; user-select:none; }
+  .mark-box .mb-resize { position:absolute; right:-6px; bottom:-6px; width:11px; height:11px;
+                         border:1px solid rgba(255,255,255,.7); background:inherit;
+                         border-radius:2px; cursor:nwse-resize; pointer-events:auto; }
+  .mark-box .mb-role { position:absolute; left:0; top:-15px; font:600 9px/12px var(--mono);
+                       letter-spacing:.04em; color:#fff; background:rgba(15,20,28,.75);
+                       padding:0 4px; border-radius:2px; white-space:nowrap; pointer-events:none; }
+  /* Region list (under the overview render) — role/value editing per box. */
+  .regions-body .rg-group { margin:var(--sp-2) 0; }
+  .regions-body .rg-head { display:flex; align-items:center; gap:var(--sp-2);
+                           font:600 var(--fs-caption)/1.8 var(--sans); color:var(--ink-2); }
+  .regions-body .rg-row { display:flex; align-items:center; gap:var(--sp-2);
+                          margin:2px 0 2px 26px; font-size:var(--fs-small); color:var(--ink-2); }
+  .regions-body .rg-row select, .regions-body .rg-row input {
+    padding:2px 6px; font-size:11.5px; }
+  .regions-body .rg-row input.rg-val { width:170px; font-family:var(--mono); }
+  .regions-body .rg-coords { color:var(--ink-4); font:400 10.5px/1.4 var(--mono); }
+  .regions-body .rg-del { cursor:pointer; color:var(--err-text); background:none;
+                          border:1px solid var(--line); border-radius:var(--r-sm);
+                          font-size:11px; padding:1px 6px; }
+  /* Read-only mirror of the groups inside the Overview Analysis panel. */
+  .ovan-body .rg-mini { display:flex; align-items:flex-start; gap:var(--sp-2); margin:3px 0; }
+  .ovan-body .rg-mini .mark-swatch { width:13px; height:13px; margin-top:2px; }
+  .ovan-body .rg-mini ul { margin:0; }
+
   /* Sheet 4 sub-header: marks this sheet as a browsing/inspection surface
      (mirrors the drafting-sheet cap treatment used elsewhere). */
   .outputs-head { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-3);
@@ -473,10 +518,30 @@
           <span class="grow"></span>
           <span class="hint">scroll zoom · drag pan · double-click reset</span>
         </div>
+        <div class="mark-bar">
+          <button class="btn secondary sm" id="mark-toggle"
+                  title="Mark reference regions: drag to draw a highlight box over a dimension callout, hole center, or offset dimension. Boxes sharing a color are ONE feature group (e.g. a hole + its X and Y dimensions).">✎ Mark regions</button>
+          <span class="mark-swatch" id="mark-swatch"></span>
+          <select class="sel-input" id="mark-color" title="Active color — every box drawn with this color belongs to the same feature group"></select>
+          <select class="sel-input" id="mark-role" title="Role tag for the NEXT box drawn">
+            <option value="center">center</option>
+            <option value="x-dimension">x-dimension</option>
+            <option value="y-dimension">y-dimension</option>
+            <option value="tolerance">tolerance</option>
+            <option value="other">other</option>
+          </select>
+          <span class="hint" id="mark-hint">drag to draw · corner handle resizes · × deletes</span>
+        </div>
         <div class="body" id="ov-box">
           <img id="ov-img" alt="full overview drawing" style="display:none" />
+          <div id="ov-mark-layer"></div>
           <div class="emptynote" id="ov-empty">No overview image provided for this part.</div>
         </div>
+        <details class="ovan" id="regions-panel" style="display:none">
+          <summary><span class="twist"></span>Marked reference regions
+            <span class="grow"></span><span class="hint" id="regions-count" style="text-transform:none;letter-spacing:0"></span></summary>
+          <div class="ovan-body regions-body" id="regions-body"></div>
+        </details>
       </div>
       <div class="side">
         <div class="cap capflex">3D Model (STL) — drag rotate · scroll zoom · right-drag pan<span class="stl-badge" id="stl-badge">PRE-VALIDATED (CadQuery)</span>
@@ -792,39 +857,67 @@ function paintMustMeet(mm, stlSource) {
 // ── Stage 1.5 overview analysis panel (Tab 2, under the Full Overview View) ──
 // The model's holistic read of the whole sheet — overall shape + cross-view
 // conflicts inline, so a reviewer sees it before drilling into per-view detail.
+let lastOvanData = null;
 function paintOverviewAnalysis(ov) {
+  lastOvanData = (ov && ov.present && ov.data) ? ov.data : null;
+  renderOvanPanel();
+}
+// The "Marked reference regions" subsection: the reviewer's color-grouped
+// markup, rendered as a native part of the Overview Analysis output and
+// updated LIVE whenever the markup changes on the Part Setup sheet.
+function regionsSubsectionHTML() {
+  const regions = regionList();
+  if (!regions.length) return '';
+  const fmt = n => n.toFixed(3).replace(/^0/, '');
+  return `<div class="sec-t">Marked reference regions — human ground truth (drawn on the Part Setup sheet)</div>` +
+    regionGroups(regions).map(g => `
+      <div class="rg-mini"><span class="mark-swatch" style="background:${esc(g.color)}"></span>
+        <div><b>${esc(g.colorLabel)}</b><ul>${g.regions.map(r =>
+          `<li>${esc(r.role)}${r.value ? ` — <b>${esc(r.value)}</b>` : ''} ` +
+          `<span class="rg-coords">(x ${fmt(r.boundingBox.x)}, y ${fmt(r.boundingBox.y)}, ` +
+          `w ${fmt(r.boundingBox.width)}, h ${fmt(r.boundingBox.height)})</span></li>`).join('')}</ul>
+      </div></div>`).join('');
+}
+function renderOvanPanel() {
   const panel = document.getElementById('ovan-panel');
   if (!panel) return;
   const body = document.getElementById('ovan-body'), badge = document.getElementById('ovan-badge');
-  if (!ov || !ov.present || !ov.data) { panel.style.display = 'none'; body.innerHTML = ''; badge.innerHTML = ''; return; }
+  const d = lastOvanData;
+  const regionsHTML = regionsSubsectionHTML();
+  if (!d && !regionsHTML) { panel.style.display = 'none'; body.innerHTML = ''; badge.innerHTML = ''; return; }
   const wasHidden = panel.style.display === 'none';
-  const d = ov.data;
-  const conflicts = d.cross_view_conflicts || [];
-  const nCrit = conflicts.filter(c => String(c.severity).toUpperCase() === 'CRITICAL').length;
-  badge.innerHTML = conflicts.length
-    ? `<span class="conf-badge">${conflicts.length} conflict${conflicts.length === 1 ? '' : 's'}${nCrit ? ` · ${nCrit} critical` : ''}</span>`
-    : `<span class="ok-badge">views agree</span>`;
   let html = '';
-  if (d.overall_shape_summary) html += `<p class="shape"><b>Overall shape:</b> ${esc(d.overall_shape_summary)}</p>`;
-  if ((d.views_detected || []).length)
-    html += `<div class="sec-t">Views detected</div>` + d.views_detected.map(v =>
-      `<span class="vchip" title="${esc(v.description || '')}">${esc(v.view_id)}</span>`).join('');
-  if (conflicts.length) {
-    html += `<div class="sec-t">Cross-view conflicts</div>` + conflicts.map(c => {
-      const sev = String(c.severity || 'MEDIUM').toUpperCase();
-      return `<div class="conf sev-${esc(sev)}"><span class="sv">${esc(sev)}</span> ${esc(c.description || '')}` +
-             (c.recommendation ? `<div class="rec">→ ${esc(c.recommendation)}</div>` : '') + `</div>`;
-    }).join('');
+  let conflicts = [];
+  if (d) {
+    conflicts = d.cross_view_conflicts || [];
+    const nCrit = conflicts.filter(c => String(c.severity).toUpperCase() === 'CRITICAL').length;
+    badge.innerHTML = conflicts.length
+      ? `<span class="conf-badge">${conflicts.length} conflict${conflicts.length === 1 ? '' : 's'}${nCrit ? ` · ${nCrit} critical` : ''}</span>`
+      : `<span class="ok-badge">views agree</span>`;
+    if (d.overall_shape_summary) html += `<p class="shape"><b>Overall shape:</b> ${esc(d.overall_shape_summary)}</p>`;
+    if ((d.views_detected || []).length)
+      html += `<div class="sec-t">Views detected</div>` + d.views_detected.map(v =>
+        `<span class="vchip" title="${esc(v.description || '')}">${esc(v.view_id)}</span>`).join('');
+    if (conflicts.length) {
+      html += `<div class="sec-t">Cross-view conflicts</div>` + conflicts.map(c => {
+        const sev = String(c.severity || 'MEDIUM').toUpperCase();
+        return `<div class="conf sev-${esc(sev)}"><span class="sv">${esc(sev)}</span> ${esc(c.description || '')}` +
+               (c.recommendation ? `<div class="rec">→ ${esc(c.recommendation)}</div>` : '') + `</div>`;
+      }).join('');
+    }
+    if ((d.cross_view_correspondences || []).length)
+      html += `<div class="sec-t">Cross-view correspondences</div><ul>` +
+        d.cross_view_correspondences.map(x =>
+          `<li><b>${esc(x.feature)}</b> (${esc((x.seen_in || []).join(' + '))}): ${esc(x.relation || '')}</li>`).join('') + `</ul>`;
+    if ((d.global_notes || []).length)
+      html += `<div class="sec-t">Global notes</div><ul>` + d.global_notes.map(n =>
+        `<li>“${esc(n.note)}” — ${esc(n.applies_to || 'whole part')}${n.resolved_count != null ? ` (count: ${esc(n.resolved_count)})` : ''}</li>`).join('') + `</ul>`;
+    if (d.symmetry && d.symmetry.type)
+      html += `<div class="sec-t">Symmetry</div><div>${esc(d.symmetry.type)}${d.symmetry.notes ? ` — ${esc(d.symmetry.notes)}` : ''}</div>`;
+  } else {
+    badge.innerHTML = '';
   }
-  if ((d.cross_view_correspondences || []).length)
-    html += `<div class="sec-t">Cross-view correspondences</div><ul>` +
-      d.cross_view_correspondences.map(x =>
-        `<li><b>${esc(x.feature)}</b> (${esc((x.seen_in || []).join(' + '))}): ${esc(x.relation || '')}</li>`).join('') + `</ul>`;
-  if ((d.global_notes || []).length)
-    html += `<div class="sec-t">Global notes</div><ul>` + d.global_notes.map(n =>
-      `<li>“${esc(n.note)}” — ${esc(n.applies_to || 'whole part')}${n.resolved_count != null ? ` (count: ${esc(n.resolved_count)})` : ''}</li>`).join('') + `</ul>`;
-  if (d.symmetry && d.symmetry.type)
-    html += `<div class="sec-t">Symmetry</div><div>${esc(d.symmetry.type)}${d.symmetry.notes ? ` — ${esc(d.symmetry.notes)}` : ''}</div>`;
+  html += regionsHTML;
   body.innerHTML = html;
   panel.style.display = '';
   // Conflicts must be seen, not hidden — and during a LIVE run the panel
@@ -964,6 +1057,244 @@ document.getElementById('clear-runs-btn').addEventListener('click', async () => 
             (d.errors || []).length ? '' : 'ok');
 });
 
+// ── Human-marked reference regions ("Mark regions" on the drawing panel) ─────
+// The reviewer drags colored highlight boxes over the drawing BEFORE extraction
+// runs: color = feature group (a hole's center + X-dimension + Y-dimension all
+// share one color). Coordinates are stored NORMALIZED (0-1 of image size), the
+// groups surface live inside the Overview Analysis panel, and everything is
+// persisted per part as reference_regions.json for downstream OCR cross-checks.
+// The 15-color palette lives HERE, in one place — saturated hues chosen to stay
+// legible over white/light drawing backgrounds.
+const REGION_PALETTE = [
+  { hex: '#E5484D', label: 'red' },     { hex: '#F76B15', label: 'orange' },
+  { hex: '#D9A514', label: 'amber' },   { hex: '#7CB342', label: 'lime' },
+  { hex: '#1B7F3B', label: 'green' },   { hex: '#12A594', label: 'teal' },
+  { hex: '#00A2C7', label: 'cyan' },    { hex: '#0090FF', label: 'azure' },
+  { hex: '#3E63DD', label: 'indigo' },  { hex: '#6E56CF', label: 'violet' },
+  { hex: '#AB4ABA', label: 'purple' },  { hex: '#E93D82', label: 'pink' },
+  { hex: '#8E5B3C', label: 'brown' },   { hex: '#64748B', label: 'slate' },
+  { hex: '#1F2937', label: 'charcoal' },
+];
+const REGION_ROLES = ['center', 'x-dimension', 'y-dimension', 'tolerance', 'other'];
+const INTAKE_REGION_KEY = '__intake__';
+let regionsByKey = {};              // context key (part name or intake) -> region[]
+let regionsDirty = new Set();       // keys with local edits not yet on the server
+let markOn = false;
+window.__markOn = false;
+
+function regionCtxKey() { return selectedPart || INTAKE_REGION_KEY; }
+function regionList() {
+  const k = regionCtxKey();
+  return regionsByKey[k] || (regionsByKey[k] = []);
+}
+function groupLabel(hex) {
+  const i = REGION_PALETTE.findIndex(p => p.hex.toLowerCase() === String(hex).toLowerCase());
+  return i >= 0 ? `Group ${i + 1} · ${REGION_PALETTE[i].label}` : String(hex);
+}
+function regionGroups(regions) {
+  const order = [], byColor = {};
+  for (const r of regions) {
+    if (!byColor[r.color]) { byColor[r.color] = []; order.push(r.color); }
+    byColor[r.color].push(r);
+  }
+  return order.map(c => ({ color: c, colorLabel: groupLabel(c), regions: byColor[c] }));
+}
+
+// Toolbar: active color + role for the NEXT box drawn.
+const markColorSel = document.getElementById('mark-color');
+REGION_PALETTE.forEach((p, i) => {
+  const o = document.createElement('option');
+  o.value = p.hex; o.textContent = `Group ${i + 1} · ${p.label}`;
+  markColorSel.appendChild(o);
+});
+function activeColor() { return markColorSel.value || REGION_PALETTE[0].hex; }
+function updateSwatch() { document.getElementById('mark-swatch').style.background = activeColor(); }
+markColorSel.addEventListener('change', updateSwatch); updateSwatch();
+
+const markLayer = document.getElementById('ov-mark-layer');
+document.getElementById('mark-toggle').addEventListener('click', e => {
+  markOn = !markOn; window.__markOn = markOn;
+  e.currentTarget.classList.toggle('on', markOn);
+  markLayer.classList.toggle('marking', markOn);
+  document.getElementById('mark-hint').textContent = markOn
+    ? 'drawing ON — drag on the image to add a box (pan is paused; scroll still zooms)'
+    : 'drag to draw · corner handle resizes · × deletes';
+  renderRegions(false); // re-render so handles/delete controls reflect the mode
+});
+
+// Boxes are rendered in % of the mark layer, which exactly tracks the image
+// (same geometry + same pan/zoom transform) — so normalized coords are the
+// single source of truth at any zoom or window size.
+function renderMarkBoxes() {
+  markLayer.querySelectorAll('.mark-box').forEach(el => el.remove());
+  for (const r of regionList()) {
+    const bb = r.boundingBox;
+    const el = document.createElement('div');
+    el.className = 'mark-box'; el.dataset.id = r.id;
+    el.style.left = (bb.x * 100) + '%'; el.style.top = (bb.y * 100) + '%';
+    el.style.width = (bb.width * 100) + '%'; el.style.height = (bb.height * 100) + '%';
+    el.style.borderColor = r.color;
+    el.style.background = r.color + '2E'; // ~18% alpha fill keeps linework legible
+    if (r.role && r.role !== 'other') {
+      const tag = document.createElement('span');
+      tag.className = 'mb-role'; tag.textContent = r.role; el.appendChild(tag);
+    }
+    if (markOn) {
+      const del = document.createElement('span');
+      del.className = 'mb-del'; del.textContent = '×'; del.title = 'Delete this region';
+      del.addEventListener('pointerdown', ev => ev.stopPropagation());
+      del.addEventListener('click', ev => { ev.stopPropagation(); deleteRegion(r.id); });
+      el.appendChild(del);
+      const rs = document.createElement('span');
+      rs.className = 'mb-resize'; rs.style.background = r.color; rs.title = 'Drag to resize';
+      rs.addEventListener('pointerdown', ev => beginResize(ev, r.id));
+      el.appendChild(rs);
+    }
+    markLayer.appendChild(el);
+  }
+}
+
+function layerPoint(ev) {
+  const rect = markLayer.getBoundingClientRect(); // post-transform: zoom-proof
+  if (!rect.width || !rect.height) return null;
+  return {
+    x: Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width)),
+    y: Math.min(1, Math.max(0, (ev.clientY - rect.top) / rect.height)),
+  };
+}
+
+// Click-and-drag to draw a new box (markup mode only).
+let drawState = null;
+markLayer.addEventListener('pointerdown', ev => {
+  if (!markOn || ev.button !== 0 || ev.target !== markLayer) return;
+  const p = layerPoint(ev); if (!p) return;
+  const region = {
+    id: 'rg' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    color: activeColor(),
+    colorLabel: groupLabel(activeColor()),
+    role: document.getElementById('mark-role').value || 'other',
+    boundingBox: { x: p.x, y: p.y, width: 0, height: 0 },
+    value: '',
+    createdAt: new Date().toISOString(),
+  };
+  drawState = { region, ax: p.x, ay: p.y };
+  regionList().push(region);
+  markLayer.setPointerCapture(ev.pointerId);
+  renderMarkBoxes();
+  ev.preventDefault();
+});
+markLayer.addEventListener('pointermove', ev => {
+  const st = drawState || resizeState; if (!st) return;
+  const p = layerPoint(ev); if (!p) return;
+  const bb = st.region.boundingBox;
+  if (drawState) {
+    bb.x = Math.min(st.ax, p.x); bb.y = Math.min(st.ay, p.y);
+    bb.width = Math.abs(p.x - st.ax); bb.height = Math.abs(p.y - st.ay);
+  } else {
+    bb.width = Math.max(0.004, p.x - bb.x); bb.height = Math.max(0.004, p.y - bb.y);
+  }
+  renderMarkBoxes();
+});
+markLayer.addEventListener('pointerup', () => {
+  if (drawState) {
+    const bb = drawState.region.boundingBox;
+    if (bb.width < 0.003 || bb.height < 0.003) {           // stray click: discard
+      regionsByKey[regionCtxKey()] = regionList().filter(r => r.id !== drawState.region.id);
+    }
+    drawState = null;
+    renderRegions();
+  } else if (resizeState) { resizeState = null; renderRegions(); }
+});
+
+let resizeState = null;
+function beginResize(ev, id) {
+  ev.stopPropagation(); ev.preventDefault();
+  const region = regionList().find(r => r.id === id); if (!region) return;
+  resizeState = { region };
+  markLayer.setPointerCapture(ev.pointerId);
+}
+function deleteRegion(id) {
+  regionsByKey[regionCtxKey()] = regionList().filter(r => r.id !== id);
+  renderRegions();
+}
+function patchRegion(id, patch) {
+  const r = regionList().find(x => x.id === id); if (!r) return;
+  Object.assign(r, patch);
+  renderRegions();
+}
+
+// Region list under the drawing: role tag + transcribed value per box.
+function renderRegionsPanel() {
+  const panel = document.getElementById('regions-panel'), body = document.getElementById('regions-body');
+  const regions = regionList();
+  document.getElementById('regions-count').textContent =
+    regions.length ? `${regions.length} region(s) · ${regionGroups(regions).length} group(s)` : '';
+  if (!regions.length) { panel.style.display = 'none'; body.innerHTML = ''; return; }
+  const fmt = n => n.toFixed(3).replace(/^0/, '');
+  body.innerHTML = regionGroups(regions).map(g => `
+    <div class="rg-group">
+      <div class="rg-head"><span class="mark-swatch" style="background:${esc(g.color)}"></span>${esc(g.colorLabel)}
+        <span class="hint" style="text-transform:none;letter-spacing:0">${g.regions.length} region(s)</span></div>
+      ${g.regions.map(r => `
+        <div class="rg-row" data-id="${esc(r.id)}">
+          <select class="sel-input rg-role">${REGION_ROLES.map(ro =>
+            `<option value="${ro}"${ro === r.role ? ' selected' : ''}>${ro}</option>`).join('')}</select>
+          <input class="input-c rg-val" placeholder="value, e.g. 2.500 ± .005" value="${esc(r.value)}">
+          <span class="rg-coords">x ${fmt(r.boundingBox.x)} · y ${fmt(r.boundingBox.y)} · w ${fmt(r.boundingBox.width)} · h ${fmt(r.boundingBox.height)}</span>
+          <button class="rg-del" title="Delete this region">×</button>
+        </div>`).join('')}
+    </div>`).join('');
+  panel.style.display = '';
+  if (!panel.open) panel.open = true;
+}
+document.getElementById('regions-body').addEventListener('change', e => {
+  const row = e.target.closest('.rg-row'); if (!row) return;
+  if (e.target.classList.contains('rg-role')) patchRegion(row.dataset.id, { role: e.target.value });
+  if (e.target.classList.contains('rg-val')) patchRegion(row.dataset.id, { value: e.target.value });
+});
+document.getElementById('regions-body').addEventListener('click', e => {
+  if (!e.target.classList.contains('rg-del')) return;
+  const row = e.target.closest('.rg-row'); if (row) deleteRegion(row.dataset.id);
+});
+
+// One render entry point: boxes + list + the Overview Analysis subsection stay
+// in lockstep, and every change autosaves (no manual sync step anywhere).
+function renderRegions(save = true) {
+  renderMarkBoxes();
+  renderRegionsPanel();
+  renderOvanPanel();     // live "Marked reference regions" subsection (Sheet 3)
+  if (save) { regionsDirty.add(regionCtxKey()); scheduleRegionSave(); }
+}
+
+// Persistence: reference_regions.json saved with the part INPUTS (survives
+// clear-all-models; readable by the pipeline for future OCR cross-checks).
+let regionSaveTimer = null;
+function scheduleRegionSave() {
+  if (regionSaveTimer) clearTimeout(regionSaveTimer);
+  regionSaveTimer = setTimeout(saveRegionsNow, 600);
+}
+async function saveRegionsNow() {
+  regionSaveTimer = null;
+  const key = regionCtxKey();
+  if (key === INTAKE_REGION_KEY || !sessionId) return;   // flushed on Save part
+  if (!regionsDirty.has(key)) return;
+  try {
+    await fetch(`/api/parts/${sessionId}/${encodeURIComponent(key)}/regions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ regions: regionsByKey[key] || [] }),
+    });
+    regionsDirty.delete(key);
+  } catch { /* retried on the next change */ }
+}
+async function loadRegionsFor(name) {
+  if (regionsDirty.has(name)) { renderRegions(false); return; } // local edits win
+  try {
+    const d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(name)}/regions`)).json();
+    regionsByKey[name] = d.regions || [];
+  } catch { regionsByKey[name] = regionsByKey[name] || []; }
+  if (regionCtxKey() === name) renderRegions(false);
+}
+
 function renderParts() {
   const list = document.getElementById('parts-list');
   if (!partsData.length) { list.innerHTML = '<div class="empty">No parts yet — create one in the Part Setup &amp; 3D Model tab.</div>'; return; }
@@ -1000,6 +1331,7 @@ function selectPart(name) {
   document.getElementById('viewer-part').textContent = name;
   updateSourceBadges();
   loadPartOutputs(name);
+  loadRegionsFor(name); // the part's saved reference-region markup
 }
 async function loadPartOutputs(name) {
   resetOutputs('Waiting for pipeline output…');
@@ -1391,7 +1723,17 @@ saveBtn.addEventListener('click', async () => {
   partNameEl.value = '';
   document.getElementById('part-notes').value = '';
   renderGallery();
+  // Reference regions drawn BEFORE the part was saved belong to it: transfer
+  // the intake markup onto the new part and persist it.
+  const pendingRegions = regionsByKey[INTAKE_REGION_KEY] || [];
+  if (pendingRegions.length) {
+    regionsByKey[res.part] = pendingRegions;
+    delete regionsByKey[INTAKE_REGION_KEY];
+    regionsDirty.delete(INTAKE_REGION_KEY);
+    regionsDirty.add(res.part);
+  }
   selectPart(res.part);
+  if (pendingRegions.length) scheduleRegionSave();
   setStatus(`Saved part "${res.part}". Open the Pipeline &amp; Results tab and press ▶ Pull &amp; Run Pipeline.`, 'ok');
 });
 
@@ -1691,11 +2033,33 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
 });
 
 // ── Overview panel pan/zoom (independent of the STL viewer's orbit controls) ─
+// The reference-region mark layer mirrors the image's exact geometry AND the
+// same pan/zoom transform, so boxes stored in normalized 0-1 coordinates stay
+// pinned to the drawing at every zoom level and window size.
 (() => {
   const img = document.getElementById('ov-img'), box = document.getElementById('ov-box');
+  const layer = document.getElementById('ov-mark-layer');
   let s = 1, tx = 0, ty = 0, panning = false, px = 0, py = 0;
-  const apply = () => { img.style.transform = `translate(${tx}px,${ty}px) scale(${s})`; };
-  window.__ovReset = () => { s = 1; tx = 0; ty = 0; apply(); };
+  const apply = () => {
+    const t = `translate(${tx}px,${ty}px) scale(${s})`;
+    img.style.transform = t;
+    layer.style.transform = t;
+  };
+  const sync = () => {
+    const on = img.style.display !== 'none' && img.offsetWidth > 0;
+    layer.style.display = on ? '' : 'none';
+    if (on) {
+      layer.style.left = img.offsetLeft + 'px';
+      layer.style.top = img.offsetTop + 'px';
+      layer.style.width = img.offsetWidth + 'px';
+      layer.style.height = img.offsetHeight + 'px';
+    }
+    apply();
+  };
+  window.__ovSyncLayer = sync;
+  window.__ovReset = () => { s = 1; tx = 0; ty = 0; sync(); };
+  new ResizeObserver(sync).observe(img);
+  new ResizeObserver(sync).observe(box);
   box.addEventListener('wheel', e => {
     if (img.style.display === 'none') return;
     e.preventDefault();
@@ -1703,7 +2067,7 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
     apply();
   }, { passive: false });
   box.addEventListener('mousedown', e => {
-    if (img.style.display === 'none') return;
+    if (img.style.display === 'none' || window.__markOn) return; // marking pauses panning
     panning = true; px = e.clientX - tx; py = e.clientY - ty; e.preventDefault();
   });
   window.addEventListener('mousemove', e => {

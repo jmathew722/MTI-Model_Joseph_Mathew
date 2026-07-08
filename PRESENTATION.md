@@ -67,6 +67,14 @@ Organized as three input groups across the top, and a two-panel viewer below.
 
 - **Left — Full Overview View**: the complete original drawing (zoom/pan/reset), so the
   reviewer always sees the source of truth next to the result.
+  - **✎ Mark regions** — a human-markup layer over the drawing: drag colored highlight
+    boxes over ambiguous regions (a hole's dimension callout, its X- and Y-offset dimension
+    lines, its center) *before* extraction runs. **Color = feature group** (15-color palette);
+    each box can carry a role tag (center / x-dimension / y-dimension / tolerance / other) and
+    a transcribed value ("2.500 ± .005"). Boxes are resizable/deletable, stored in normalized
+    0–1 coordinates, persisted per part as `reference_regions.json`, and the color groups
+    surface **live** as a "Marked reference regions" subsection inside the Overview Analysis
+    panel — ground truth for future OCR cross-checking and low-confidence fallback.
 - **Right — 3D Model (STL)**: orbit/zoom/pan viewer with a **"Select Model" dropdown** —
   pick *any* part that has ever completed a run (this session or a prior one) and its model
   loads instantly, **no pipeline re-run required**; the left panel simultaneously switches to

@@ -23,7 +23,7 @@ import subprocess
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, Request, UploadFile, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -1303,6 +1303,83 @@ def update_part_notes(session: str, part: str, notes: str = Form("")):
 _IMG_MEDIA = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
               ".webp": "image/webp", ".bmp": "image/bmp",
               ".tif": "image/tiff", ".tiff": "image/tiff"}
+
+
+# ── Human-marked reference regions (dimension-region markup) ───────────────────
+# The reviewer draws colored highlight boxes over the part's drawing BEFORE
+# extraction runs: boxes sharing a color are one feature group (e.g. a hole's
+# center + its X-dimension + its Y-dimension). Stored with the part INPUTS
+# (reference_regions.json, normalized 0-1 coordinates) so it survives
+# clear-all-models and is available to the pipeline for future OCR
+# cross-checking / low-confidence fallback.
+REGIONS_FILENAME = "reference_regions.json"
+_REGION_ROLES = {"center", "x-dimension", "y-dimension", "tolerance", "other"}
+
+
+def _sanitize_region(r: dict) -> dict | None:
+    """Validate + normalize one region object; None if unusable."""
+    try:
+        bb = r.get("boundingBox") or {}
+        x, y = float(bb["x"]), float(bb["y"])
+        w, h = float(bb["width"]), float(bb["height"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0 and 0.0 < w <= 1.0 and 0.0 < h <= 1.0):
+        return None
+    role = str(r.get("role") or "other")
+    return {
+        "id": str(r.get("id") or uuid.uuid4().hex[:10])[:40],
+        "color": str(r.get("color") or "#888888")[:16],
+        "colorLabel": str(r.get("colorLabel") or "")[:64],
+        "role": role if role in _REGION_ROLES else "other",
+        "boundingBox": {"x": round(x, 6), "y": round(y, 6),
+                        "width": round(w, 6), "height": round(h, 6)},
+        "value": str(r.get("value") or "")[:200],
+        "createdAt": str(r.get("createdAt") or "")[:40],
+    }
+
+
+def _group_regions(regions: list[dict]) -> list[dict]:
+    """Group regions by color into the featureGroups structure (stable order)."""
+    groups: dict[str, dict] = {}
+    for r in regions:
+        g = groups.setdefault(r["color"], {"color": r["color"],
+                                           "colorLabel": r.get("colorLabel", ""),
+                                           "regions": []})
+        g["regions"].append(r)
+    return list(groups.values())
+
+
+@app.get("/api/parts/{session}/{part}/regions")
+def get_regions(session: str, part: str):
+    pdir = _session_dir(session) / _sanitize(part)
+    if not pdir.is_dir():
+        raise HTTPException(404, "Unknown part")
+    f = pdir / REGIONS_FILENAME
+    if not f.is_file():
+        return {"regions": [], "featureGroups": []}
+    try:
+        data = json.loads(f.read_text(encoding="utf-8", errors="replace"))
+    except json.JSONDecodeError:
+        return {"regions": [], "featureGroups": []}
+    regions = [s for s in (_sanitize_region(r) for r in data.get("regions", [])) if s]
+    return {"regions": regions, "featureGroups": _group_regions(regions)}
+
+
+@app.post("/api/parts/{session}/{part}/regions")
+async def save_regions(session: str, part: str, request: Request):
+    pdir = _session_dir(session) / _sanitize(part)
+    if not pdir.is_dir():
+        raise HTTPException(404, "Unknown part")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Body must be JSON: {\"regions\": [...]}")
+    raw = body.get("regions", []) if isinstance(body, dict) else []
+    regions = [s for s in (_sanitize_region(r) for r in raw) if s]
+    payload = {"regions": regions, "featureGroups": _group_regions(regions)}
+    (pdir / REGIONS_FILENAME).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return {"saved": len(regions), "featureGroups": payload["featureGroups"]}
 
 
 @app.get("/api/parts/{session}/{part}/overview.jpg")
