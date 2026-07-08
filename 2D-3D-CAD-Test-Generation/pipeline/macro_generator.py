@@ -137,6 +137,8 @@ class BuildStep:
     # Additive (vector hole extraction): where hole positions came from.
     position_source: str = ""          # dxf_entity | pdf_vector | hough | vision | ""
     position_confidence: float = 0.0   # 0..1; 0.0 when not applicable
+    # Additive: canonical circular-pattern schema (only on circular_pattern steps).
+    circular_pattern: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -533,6 +535,22 @@ def _enrich_feature_step(step: BuildStep, model: DrawingData, feature: Feature,
             # Additive provenance from the vector hole-extraction stage.
             step.position_source = h.position_source or ("vision" if h.position_known else "")
             step.position_confidence = h.position_confidence
+    elif feature.type in (FeatureType.EXTRUDE_BOSS, FeatureType.EXTRUDE_CUT):
+        # Self-contained sketch anchor (same rules as _macro_extrude): circle =
+        # center, rectangle = lower-left corner. Consumers (e.g. the CadQuery
+        # pre-validation) must never re-derive placement from the extraction.
+        if step.dimensions.get("diameter") or step.dimensions.get("hole_diameter"):
+            if feature.position_known:
+                cx, cy = feature.offset_x, feature.offset_y
+            else:
+                length, width = _envelope(model)
+                cx, cy = (length or 0.0) / 2.0, (width or 0.0) / 2.0
+        else:
+            cx, cy = ((feature.offset_x, feature.offset_y)
+                      if feature.position_known else (0.0, 0.0))
+        step.positions_xy = [[round(cx, 6), round(cy, 6)]]
+        step.positions_xy_meters = [[_to_meters(cx, model.units),
+                                     _to_meters(cy, model.units)]]
 
     step.assumption_made, step.assumption_confidence, step.flag_tier = \
         _worst_resolution(model, feature, resolution)
@@ -573,6 +591,8 @@ def _step_to_dict(s: BuildStep) -> dict[str, Any]:
         # --- additive: vector hole-extraction provenance ---
         "position_source": s.position_source,
         "position_confidence": round(s.position_confidence, 3),
+        # --- additive: canonical circular-pattern schema (Part 2a) ---
+        **({"circular_pattern": s.circular_pattern} if s.circular_pattern else {}),
     }
 
 
@@ -662,6 +682,75 @@ Function VerifySolidBody(step As String) As Boolean
     End If
 End Function
 
+' --- Append a machine-readable result line to ..\\logs\\macro_result.json (JSON Lines) ---
+' Every feature-creation outcome is recorded here (feature name -> success/fail)
+' so the web UI / FastAPI side can surface the EXACT failing feature instead of a
+' generic pipeline exit code.
+Sub WriteMacroResult(featureName As String, status As String, detail As String)
+    On Error Resume Next
+    Dim macroPath As String, p As String, f As Integer, q As String
+    q = Chr$(34)
+    macroPath = swApp.GetCurrentMacroPathName
+    p = Left$(macroPath, InStrRev(macroPath, "\\")) & "..\\logs\\macro_result.json"
+    f = FreeFile
+    Open p For Append As #f
+    Print #f, "{" & q & "feature" & q & ": " & q & featureName & q & ", " & _
+        q & "status" & q & ": " & q & status & q & ", " & _
+        q & "detail" & q & ": " & q & Replace(Replace(detail, "\\", "/"), q, "'") & q & "}"
+    Close #f
+    On Error GoTo 0
+End Sub
+
+' --- Create a circular pattern with the exact selection contract the API requires ---
+' Signature pulled from the INSTALLED SolidWorks type library (sldworks.tlb,
+' IFeatureManager::FeatureCircularPattern5, dispid 261; see the local API help
+' topic "FeatureCircularPattern5 Method (IFeatureManager)"):
+'   FeatureCircularPattern5(Number As Long, Spacing As Double, FlipDirection As Boolean,
+'     DName As String, GeometryPattern As Boolean, EqualSpacing As Boolean,
+'     VaryInstance As Boolean, SyncSubAssemblies As Boolean, BDir2 As Boolean,
+'     BSymmetric As Boolean, Number2 As Long, Spacing2 As Double, DName2 As String,
+'     EqualSpacing2 As Boolean)
+' Conventions asserted ONCE here, never re-interpreted downstream:
+'   * Number (totalInstances) INCLUDES the seed: 6 = seed + 5 copies.
+'   * Spacing is the TOTAL angle in RADIANS when EqualSpacing=True.
+' Selection contract (a wrong/missing mark = silent Nothing return):
+'   pattern axis  -> SelectByID2 ... Mark:=1
+'   seed feature  -> SelectByID2 ... Mark:=4 (type "BODYFEATURE", exact tree name)
+Function CreateCircularPatternSafe(axisName As String, seedName As String, _
+        totalInstances As Integer, totalAngleDeg As Double, reverseDir As Boolean, _
+        geometryPattern As Boolean, varySketch As Boolean, newName As String, _
+        stepName As String) As Boolean
+    Dim swFeat As SldWorks.Feature
+    Dim spacingRad As Double
+    spacingRad = totalAngleDeg * 4# * Atn(1#) / 180#
+    swModel.ClearSelection2 True
+    If Not swModel.Extension.SelectByID2(axisName, "AXIS", 0, 0, 0, False, 1, Nothing, 0) Then
+        LogResult "FAIL", stepName, "Could not select pattern axis '" & axisName & "' (Mark=1)"
+        Exit Function
+    End If
+    If Not swModel.Extension.SelectByID2(seedName, "BODYFEATURE", 0, 0, 0, True, 4, Nothing, 0) Then
+        LogResult "FAIL", stepName, "Could not select seed feature '" & seedName & "' (Mark=4)"
+        Exit Function
+    End If
+    On Error Resume Next
+    Set swFeat = swModel.FeatureManager.FeatureCircularPattern5( _
+        totalInstances, spacingRad, reverseDir, "NULL", geometryPattern, True, varySketch, _
+        False, False, False, 1, spacingRad, "NULL", False)
+    On Error GoTo 0
+    If swFeat Is Nothing Then
+        ' Older-release fallback: FeatureCircularPattern4 (same leading 7 arguments).
+        On Error Resume Next
+        Set swFeat = swModel.FeatureManager.FeatureCircularPattern4( _
+            totalInstances, spacingRad, reverseDir, "NULL", geometryPattern, True, varySketch)
+        On Error GoTo 0
+    End If
+    If swFeat Is Nothing Then Exit Function
+    ' Name the pattern feature immediately so downstream selections never depend
+    ' on SolidWorks' auto-numbering (CirPattern1 vs CirPattern2 drift).
+    swFeat.Name = newName
+    CreateCircularPatternSafe = True
+End Function
+
 ' --- Select a reference plane robustly (plane names vary by template / language) ---
 Function SelectRefPlane(planeName As String, planeIndex As Integer) As Boolean
     Dim tries As Variant, i As Integer
@@ -738,6 +827,7 @@ def _fail_block(step: str, message: str, indent: str = "    ") -> str:
     return (
         f'{indent}MsgBox "{message}", vbCritical\n'
         f'{indent}LogResult "FAIL", "{step}", "{message}"\n'
+        f'{indent}WriteMacroResult "{step}", "FAIL", "{message}"\n'
         f"{indent}End\n"
     )
 
@@ -870,6 +960,7 @@ def _feature_check_and_name(feature_name: str, step: str) -> str:
     If Not VerifySolidBody("{step}") Then
 {_fail_block(step, "No solid body after this feature.", "        ")}    End If
     LogResult "PASS", "{step}", "Created feature {feature_name}"
+    WriteMacroResult "{feature_name}", "PASS", ""
 """
 
 
@@ -1237,6 +1328,355 @@ def _macro_pattern_skeleton(model: DrawingData, feature: Feature, step: str) -> 
     MsgBox "Feature {feature.id} (pattern): apply manually if not already covered - see comments.", vbInformation
     LogResult "WARN", "{step}", "{feature.id} pattern left for manual application"
 """
+
+
+# --------------------------------------------------------------------------- #
+# Circular-pattern reliability layer (must-meet Part 2)
+# --------------------------------------------------------------------------- #
+# Canonical circular-pattern schema: every field below must be non-null in
+# build_plan.json or generation REFUSES (MacroGenerationError). The convention
+# "total_instances INCLUDES the seed" is asserted here once and never
+# re-interpreted downstream (VBA helper + COM builder + CadQuery prevalidation
+# all consume this dict verbatim).
+CIRCULAR_PATTERN_REQUIRED = (
+    "feature_type", "seed_feature_name", "pattern_axis", "total_instances",
+    "equal_spacing", "total_angle_deg", "reverse_direction", "instances_to_skip",
+    "geometry_pattern", "vary_sketch", "bolt_circle_radius_in", "seed_angle_deg",
+)
+
+
+def route_to_circular_pattern(model: DrawingData, h: Optional[HoleCallout]) -> bool:
+    """Part 2c routing rule: a hole group builds as a real FeatureCircularPattern
+    ONLY when the callout is marked circular (set by the must-meet spec in Stage
+    2.6, or by polar-style drawing dimensioning at extraction) AND the bolt
+    circle is grounded. Anything else keeps the baked-circles path."""
+    return (
+        h is not None
+        and h.pattern == PatternKind.CIRCULAR
+        and h.qty >= 2
+        and h.bolt_circle_diameter > 0
+    )
+
+
+def _model_thickness(model: DrawingData) -> float:
+    """Base-solid thickness in drawing units (0.0 when unknown)."""
+    for f in model.features:
+        if f.type == FeatureType.EXTRUDE_BOSS:
+            d = _depth_of(_dims_map(model, f))
+            if d:
+                return d
+    for d in model.dimensions:
+        if d.canonical_applies_to in ("depth", "thickness") and d.value > 0:
+            return d.value
+    return 0.0
+
+
+def _pattern_center(model: DrawingData, h: HoleCallout) -> tuple[float, float]:
+    """Bolt-circle center in the drawing (corner) frame."""
+    if len(h.bolt_circle_center) == 2:
+        return float(h.bolt_circle_center[0]), float(h.bolt_circle_center[1])
+    length, width = _envelope(model)
+    r = h.bolt_circle_diameter / 2.0
+    return ((length / 2.0) if length else r, (width / 2.0) if width else r)
+
+
+def _bore_axis_probe(model: DrawingData, h: HoleCallout) -> Optional[dict]:
+    """Find the center bore whose cylindrical face derives the pattern axis.
+
+    Deterministic: the pipeline itself generates the bore geometry, so a point
+    on its wall is exactly (cx + r_bore, cy) at mid-thickness. Returns
+    ``{cx, cy, bore_radius, thickness}`` in drawing units, or None when no
+    concentric bore exists (the caller then falls back to baked circles)."""
+    cx, cy = _pattern_center(model, h)
+    length, width = _envelope(model)
+    length, width = length or 0.0, width or 0.0
+    tol = max(0.05, 0.02 * max(length, width, 1.0))
+    best: Optional[tuple[float, float, float]] = None  # (radius, bx, by)
+    for other in model.hole_callouts:
+        if other.id == h.id or other.diameter <= h.diameter * 1.05:
+            continue
+        if other.instance_positions and len(other.instance_positions[0]) == 2:
+            bx, by = float(other.instance_positions[0][0]), float(other.instance_positions[0][1])
+        elif other.position_known:
+            bx, by = other.x_position, other.y_position
+        else:
+            bx, by = (length / 2.0) if length else cx, (width / 2.0) if width else cy
+        if abs(bx - cx) <= tol and abs(by - cy) <= tol:
+            r = other.diameter / 2.0
+            if best is None or r > best[0]:
+                best = (r, bx, by)
+    if best is None:
+        return None
+    thickness = _model_thickness(model)
+    return {"cx": best[1], "cy": best[2], "bore_radius": best[0],
+            "thickness": thickness if thickness > 0 else 0.25}
+
+
+def canonical_circular_pattern(model: DrawingData, feature: Feature,
+                               h: HoleCallout, axis_name: str,
+                               derivation: str) -> dict:
+    """The Part-2a canonical dict for build_plan.json. Raises
+    :class:`MacroGenerationError` if ANY required field would be null —
+    the generator must refuse to emit VBA from an incomplete pattern spec."""
+    spec = {
+        "feature_type": "circular_pattern",
+        "seed_feature_name": f"{feature.id}_SeedHoleCut",
+        "pattern_axis": {
+            "strategy": "reference_axis",
+            "axis_name": axis_name,
+            "derivation": derivation,
+        },
+        # INCLUDES the seed: qty 6 = seed + 5 patterned copies.
+        "total_instances": int(h.qty),
+        "equal_spacing": True,
+        "total_angle_deg": 360.0,
+        "reverse_direction": False,
+        "instances_to_skip": [],
+        "geometry_pattern": False,
+        "vary_sketch": False,
+        # Required because the pipeline creates the seed itself (they position
+        # the seed sketch; the pattern generates the rest).
+        "bolt_circle_radius_in": (h.bolt_circle_diameter / 2.0
+                                  if h.bolt_circle_diameter > 0 else None),
+        "seed_angle_deg": float(h.start_angle),
+    }
+    missing = [k for k in CIRCULAR_PATTERN_REQUIRED if spec.get(k) is None]
+    if missing:
+        raise MacroGenerationError(
+            f"{feature.id}: circular_pattern spec is incomplete — null field(s) "
+            f"{', '.join(missing)}; refusing to emit VBA."
+        )
+    return spec
+
+
+def _seed_position(model: DrawingData, h: HoleCallout) -> tuple[float, float]:
+    """Seed-hole center (drawing units): bolt center + radius at seed_angle."""
+    cx, cy = _pattern_center(model, h)
+    r = h.bolt_circle_diameter / 2.0
+    a = math.radians(h.start_angle)
+    return cx + r * math.cos(a), cy + r * math.sin(a)
+
+
+def _m(value: float, unit_factor: float) -> float:
+    """Drawing units -> meters, for auditability comments."""
+    return round(value * unit_factor, 6)
+
+
+def _macro_seed_hole(model: DrawingData, feature: Feature, h: HoleCallout,
+                     step: str, unit_factor: float) -> tuple[str, dict[str, float]]:
+    """Seed hole: ONE circle at the seed position + cut, deterministically named
+    ``{fid}_SeedHoleCut`` so the pattern macro can select it by exact name."""
+    plane = _plane_for(feature)
+    sx, sy = _seed_position(model, h)
+    thru = h.thru or h.type == HoleType.THRU
+    depth_expr = "0#"
+    used: dict[str, float] = {"diameter": h.diameter, "qty": float(h.qty)}
+    if not thru:
+        if h.depth <= 0:
+            raise MacroGenerationError(f"{step}: blind seed hole {h.id} has no depth.")
+        used["depth"] = h.depth
+        depth_expr = f"{_v(h.depth)} * UNIT_FACTOR"
+    seed_name = f"{feature.id}_SeedHoleCut"
+    body = _sketch_open(plane, step)
+    body += (
+        f"    ' ---- SKETCH: SEED hole dia {_v(h.diameter)} at ({_v(sx)}, {_v(sy)}) drawing units ----\n"
+        f"    ' {_v(h.diameter)} in dia -> radius {_m(h.diameter / 2.0, unit_factor)} m ; "
+        f"seed center -> ({_m(sx, unit_factor)}, {_m(sy, unit_factor)}) m\n"
+        f"    swModel.SketchManager.CreateCircleByRadius {_v(sx)} * UNIT_FACTOR, "
+        f"{_v(sy)} * UNIT_FACTOR, 0#, ({_v(h.diameter)} / 2#) * UNIT_FACTOR\n"
+    )
+    body += _sketch_close_fully_define(step)
+    body += "\n    ' ---- SEED CUT ----\n"
+    body += _cut4(depth_expr, thru)
+    body += _feature_check_and_name(seed_name, step)
+    return body, used
+
+
+def _macro_reference_axis(probe: dict, axis_name: str, step: str,
+                          unit_factor: float) -> str:
+    """Named reference axis through the center bore's cylindrical face.
+
+    Face selection uses EXACT generated coordinates (the pipeline created the
+    bore, so the wall point is known); z is tried on both sides of the sketch
+    plane because the base extrude direction is template-dependent. The new
+    axis is renamed immediately — downstream SelectByID2 is name-deterministic."""
+    px = probe["cx"] + probe["bore_radius"]
+    py = probe["cy"]
+    bore_r_m = _m(probe["bore_radius"], unit_factor)
+    cx_m = _m(probe["cx"], unit_factor)
+    cy_m = _m(probe["cy"], unit_factor)
+    t_m = _m(probe["thickness"], unit_factor)
+    z1, z2 = -t_m / 2.0, t_m / 2.0
+    fail_sel = _fail_block(step, f"Could not create reference axis {axis_name} from the bore face.", "        ")
+    fail_find = _fail_block(step, "InsertAxis2 succeeded but no RefAxis feature found.", "        ")
+    return f"""    ' ---- REFERENCE AXIS "{axis_name}" through the center bore's cylindrical face ----
+    ' Bore: radius {_v(probe['bore_radius'])} in -> {bore_r_m} m, center ({_v(probe['cx'])}, {_v(probe['cy'])}) in -> ({cx_m}, {cy_m}) m
+    ' Named references are deterministic; the axis is created ONCE here and
+    ' selected by name ("{axis_name}") from then on. The bore face is found
+    ' GEOMETRICALLY (cylinder radius + axis location), with an exact-coordinate
+    ' probe as fallback — never a blind coordinate pick.
+    Dim axOk As Boolean
+    Dim swPartAx As SldWorks.PartDoc, vBodiesAx As Variant, swBodyAx As SldWorks.Body2
+    Dim vFacesAx As Variant, iF As Integer
+    Dim swFaceAx As SldWorks.Face2, swSurfAx As SldWorks.Surface, vParamsAx As Variant
+    Set swPartAx = swModel
+    vBodiesAx = swPartAx.GetBodies2(swBodyType_e.swSolidBody, True)
+    If Not IsEmpty(vBodiesAx) Then
+        Set swBodyAx = vBodiesAx(0)
+        vFacesAx = swBodyAx.GetFaces
+        For iF = LBound(vFacesAx) To UBound(vFacesAx)
+            Set swFaceAx = vFacesAx(iF)
+            Set swSurfAx = swFaceAx.GetSurface
+            If swSurfAx.IsCylinder Then
+                ' CylinderParams: (origin x,y,z, axis x,y,z, radius) in meters.
+                vParamsAx = swSurfAx.CylinderParams
+                If Abs(vParamsAx(6) - {bore_r_m}) < 0.00002 And _
+                   Sqr((vParamsAx(0) - {cx_m}) ^ 2 + (vParamsAx(1) - {cy_m}) ^ 2) < 0.0005 Then
+                    swModel.ClearSelection2 True
+                    If swFaceAx.Select4(False, Nothing) Then
+                        If swModel.InsertAxis2(True) Then
+                            axOk = True
+                            Exit For
+                        End If
+                    End If
+                End If
+            End If
+        Next iF
+    End If
+    If Not axOk Then
+        ' Fallback: exact generated wall point ({_v(px)}, {_v(py)}) drawing units.
+        Dim zTry As Variant, iAx As Integer
+        zTry = Array({z1}, {z2}, 0#)
+        For iAx = LBound(zTry) To UBound(zTry)
+            swModel.ClearSelection2 True
+            If swModel.Extension.SelectByID2("", "FACE", {_v(px)} * UNIT_FACTOR, {_v(py)} * UNIT_FACTOR, CDbl(zTry(iAx)), False, 0, Nothing, 0) Then
+                If swModel.InsertAxis2(True) Then
+                    axOk = True
+                    Exit For
+                End If
+            End If
+        Next iAx
+    End If
+    If Not axOk Then
+{fail_sel}    End If
+    ' Rename the newest RefAxis feature to the deterministic name.
+    Dim featAx As SldWorks.Feature, lastAx As SldWorks.Feature
+    Set featAx = swModel.FirstFeature
+    Do While Not featAx Is Nothing
+        If featAx.GetTypeName2 = "RefAxis" Then Set lastAx = featAx
+        Set featAx = featAx.GetNextFeature
+    Loop
+    If lastAx Is Nothing Then
+{fail_find}    End If
+    lastAx.Name = "{axis_name}"
+    swModel.ClearSelection2 True
+    LogResult "PASS", "{step}", "Reference axis {axis_name} created from the bore cylindrical face"
+    WriteMacroResult "{axis_name}", "PASS", ""
+"""
+
+
+def _macro_circular_pattern(spec: dict, feature: Feature, step: str,
+                            constraint_id: str = "") -> str:
+    """The pattern feature itself, via the shared CreateCircularPatternSafe
+    helper (single place holding the version-pinned API call)."""
+    pat_name = f"{feature.id}_CircularPattern"
+    axis = spec["pattern_axis"]["axis_name"]
+    seed = spec["seed_feature_name"]
+    n = spec["total_instances"]
+    label = constraint_id or feature.id
+    return f"""    ' ---- CIRCULAR PATTERN {feature.id}: {n} instances (n INCLUDES the seed = seed + {n - 1} copies) ----
+    ' Bolt circle radius {_v(spec['bolt_circle_radius_in'])} drawing units, seed at {_v(spec['seed_angle_deg'])} deg,
+    ' equal spacing over {_v(spec['total_angle_deg'])} deg about axis "{axis}".
+    If Not CreateCircularPatternSafe("{axis}", "{seed}", {n}, {_v(spec['total_angle_deg'])}, {'True' if spec['reverse_direction'] else 'False'}, {'True' if spec['geometry_pattern'] else 'False'}, {'True' if spec['vary_sketch'] else 'False'}, "{pat_name}", "{step}") Then
+        WriteMacroResult "{pat_name}", "FAIL", "FeatureCircularPattern returned Nothing - check marks/axis"
+        LogResult "FAIL", "{step}", "FeatureCircularPattern returned Nothing - check marks/axis"
+        swApp.SendMsgToUser2 "PATTERN FAILED at {label} ({feature.id})", swMessageBoxIcon_e.swMbStop, swMessageBoxBtn_e.swMbOk
+        End
+    End If
+    If Not VerifySolidBody("{step}") Then
+{_fail_block(step, "No solid body after the circular pattern.", "        ")}    End If
+    LogResult "PASS", "{step}", "Circular pattern {pat_name} created ({n} instances)"
+    WriteMacroResult "{pat_name}", "PASS", "{n} instances about {axis}"
+"""
+
+
+def _emit_circular_pattern_trio(model: DrawingData, feature: Feature,
+                                h: HoleCallout, seq: int, macros_dir: Path,
+                                unit_factor: float, run_all_subs: list,
+                                pkg: "MacroPackage", resolution) -> Optional[int]:
+    """Emit seed hole -> reference axis -> circular pattern as three numbered
+    macros (the Part-2b build-order contract). Returns the new seq, or None when
+    the axis cannot be derived (caller falls back to baked circles)."""
+    probe = _bore_axis_probe(model, h)
+    plane = _plane_for(feature)
+    if probe is None or plane != "Front Plane":
+        return None  # no concentric bore / non-front plane: baked circles are safer
+
+    axis_no = 1 + sum(1 for s in pkg.steps if s.feature_type == "circular_pattern")
+    axis_name = f"PatternAxis{axis_no}"
+    derivation = "explicit reference axis from the center bore cylindrical face (InsertAxis2)"
+    spec = canonical_circular_pattern(model, feature, h, axis_name, derivation)
+    step_flags = _collect_step_flags(model, feature, resolution)
+    positions = _hole_positions(model, h)
+
+    # 1) Seed hole cut.
+    seq += 1
+    step_name = f"{seq:02d}_{feature.id}"
+    fname = f"{seq:02d}_{feature.id}_SeedHoleCut.vba"
+    body, used = _macro_seed_hole(model, feature, h, step_name, unit_factor)
+    body = _flag_vba_block(step_name, step_flags) + body
+    header = _vba_header(f"{step_name} - seed hole for circular pattern: {feature.description}",
+                         model.display_name, unit_factor)
+    (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
+    run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}_Seed", body))
+    step = BuildStep(seq, fname, feature.id, "hole",
+                     f"Seed hole for circular pattern ({feature.description})",
+                     "generated", dimensions=used,
+                     notes=f"Seed of {spec['total_instances']}-instance circular pattern "
+                           f"(feature name {spec['seed_feature_name']}).")
+    _enrich_feature_step(step, model, feature, resolution, step_flags)
+    step.positions_xy = [[round(_seed_position(model, h)[0], 6),
+                          round(_seed_position(model, h)[1], 6)]]
+    step.positions_xy_meters = [[_to_meters(step.positions_xy[0][0], model.units),
+                                 _to_meters(step.positions_xy[0][1], model.units)]]
+    pkg.steps.append(step)
+
+    # 2) Reference axis.
+    seq += 1
+    step_name = f"{seq:02d}_{feature.id}_axis"
+    fname = f"{seq:02d}_{feature.id}_reference_axis.vba"
+    body = _macro_reference_axis(probe, axis_name, step_name, unit_factor)
+    header = _vba_header(f"{step_name} - reference axis {axis_name} for the circular pattern",
+                         model.display_name, unit_factor)
+    (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
+    run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}_Axis", body))
+    step = BuildStep(seq, fname, feature.id, "reference_axis",
+                     f"Named reference axis {axis_name} through the bore centerline",
+                     "generated",
+                     notes=f"Derivation: {derivation}.")
+    step.sketch_plane = "front"
+    pkg.steps.append(step)
+
+    # 3) Circular pattern.
+    seq += 1
+    step_name = f"{seq:02d}_{feature.id}_pattern"
+    fname = f"{seq:02d}_{feature.id}_circular_pattern.vba"
+    body = _macro_circular_pattern(spec, feature, step_name)
+    header = _vba_header(f"{step_name} - circular pattern ({spec['total_instances']} instances)",
+                         model.display_name, unit_factor)
+    (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
+    run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}_Pattern", body))
+    step = BuildStep(seq, fname, feature.id, "circular_pattern",
+                     f"Circular pattern: {spec['total_instances']} instances, equal spacing",
+                     "generated", dimensions={"qty": float(spec["total_instances"])},
+                     notes="total_instances INCLUDES the seed.")
+    _enrich_feature_step(step, model, feature, resolution, step_flags)
+    step.positions_xy = [[round(x, 6), round(y, 6)] for x, y in positions]
+    step.positions_xy_meters = [[_to_meters(x, model.units), _to_meters(y, model.units)]
+                                for x, y in positions]
+    step.circular_pattern = spec
+    pkg.steps.append(step)
+    return seq
 
 
 # --------------------------------------------------------------------------- #
@@ -1653,6 +2093,23 @@ def generate_macro_package(
         if feature.type in (FeatureType.FILLET, FeatureType.CHAMFER):
             deferred.append(feature)
             continue
+
+        # Must-meet circular-pattern route: seed hole -> named reference axis ->
+        # FeatureCircularPattern (three numbered macros). Falls through to the
+        # baked-circles path when the axis cannot be derived deterministically.
+        if feature.type == FeatureType.HOLE:
+            h_route = model.hole_callout_for_feature(feature.id)
+            if route_to_circular_pattern(model, h_route):
+                new_seq = _emit_circular_pattern_trio(
+                    model, feature, h_route, seq, macros_dir, unit_factor,
+                    run_all_subs, pkg, resolution,
+                )
+                if new_seq is not None:
+                    seq = new_seq
+                    continue
+                log.info("%s: circular pattern requested but no concentric bore "
+                         "face to derive the axis — using baked-circle instances.",
+                         feature.id)
 
         seq += 1
         step_name = f"{seq:02d}_{feature.id}"

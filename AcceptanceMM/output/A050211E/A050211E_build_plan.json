@@ -1,0 +1,450 @@
+{
+  "part": "A050211E",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.9,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 5,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 0,
+    "medium_flags": 0,
+    "high_flags": 9,
+    "rebuild_confidence": 0.92,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_round_plate.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base round plate",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 7.5,
+        "depth": 0.5
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.1905,
+        "depth": 0.0127
+      },
+      "positions_xy": [
+        [
+          3.75,
+          3.75
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.09525,
+          0.09525
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_Center_bore.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "Center bore",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 3.88,
+        "qty": 1.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.098552,
+        "qty": 1.0
+      },
+      "positions_xy": [
+        [
+          3.75,
+          3.75
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.09525,
+          0.09525
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F003_SeedHoleCut.vba",
+      "feature_id": "F003",
+      "type": "hole",
+      "description": "Seed hole for circular pattern (Bolt holes)",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.406,
+        "qty": 6.0
+      },
+      "notes": "Seed of 6-instance circular pattern (feature name F003_SeedHoleCut).",
+      "dimensions_meters": {
+        "diameter": 0.0103124,
+        "qty": 6.0
+      },
+      "positions_xy": [
+        [
+          2.310044,
+          1.255923
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.058675118,
+          0.031900444
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.95,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 4,
+      "macro_file": "04_F003_reference_axis.vba",
+      "feature_id": "F003",
+      "type": "reference_axis",
+      "description": "Named reference axis PatternAxis1 through the bore centerline",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Derivation: explicit reference axis from the center bore cylindrical face (InsertAxis2).",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 5,
+      "macro_file": "05_F003_circular_pattern.vba",
+      "feature_id": "F003",
+      "type": "circular_pattern",
+      "description": "Circular pattern: 6 instances, equal spacing",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "qty": 6.0
+      },
+      "notes": "total_instances INCLUDES the seed.",
+      "dimensions_meters": {
+        "qty": 6.0
+      },
+      "positions_xy": [
+        [
+          6.63,
+          3.75
+        ],
+        [
+          5.19,
+          6.244
+        ],
+        [
+          2.31,
+          6.244
+        ],
+        [
+          0.87,
+          3.75
+        ],
+        [
+          2.31,
+          1.256
+        ],
+        [
+          5.19,
+          1.256
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.168402,
+          0.09525
+        ],
+        [
+          0.131826,
+          0.1585976
+        ],
+        [
+          0.058674,
+          0.1585976
+        ],
+        [
+          0.022098,
+          0.09525
+        ],
+        [
+          0.058674,
+          0.0319024
+        ],
+        [
+          0.131826,
+          0.0319024
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.95,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "circular_pattern": {
+        "feature_type": "circular_pattern",
+        "seed_feature_name": "F003_SeedHoleCut",
+        "pattern_axis": {
+          "strategy": "reference_axis",
+          "axis_name": "PatternAxis1",
+          "derivation": "explicit reference axis from the center bore cylindrical face (InsertAxis2)"
+        },
+        "total_instances": 6,
+        "equal_spacing": true,
+        "total_angle_deg": 360.0,
+        "reverse_direction": false,
+        "instances_to_skip": [],
+        "geometry_pattern": false,
+        "vary_sketch": false,
+        "bolt_circle_radius_in": 2.879912,
+        "seed_angle_deg": -120.0
+      }
+    },
+    {
+      "seq": 6,
+      "macro_file": "06_F004_Offset_circular_cut.vba",
+      "feature_id": "F004",
+      "type": "extrude_cut",
+      "description": "Offset circular cut",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 1.25
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.03175
+      },
+      "positions_xy": [
+        [
+          3.75,
+          0.81
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.09525,
+          0.020574
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1001,
+      "macro_file": "ZZZ_export_stl.vba",
+      "feature_id": "-",
+      "type": "export",
+      "description": "Export the part as an STL beside the .sldprt (same base name)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": [],
+  "engineering_review": [
+    {
+      "severity": "LOW",
+      "source": "requirement",
+      "id": "R001",
+      "status": "met",
+      "what": "Operator requirement: \"there must be 6 holes in this part that can be done using a circular pattern, there must be an extrude cut from the center that is 3.880 diameter, there must be a 1.25 diameter extrude cut feature that is in the bottom and is in the front view that is 2.94 from the center of the other circular extrude cut. All holes must be through all.\"",
+      "decision": "status: MET",
+      "why": "hole/pattern/boss present in the build; numeric value(s) match extracted dimensions",
+      "affects": "human-specified must-meet requirement (applied during extraction & Stage 2.5 resolution, verified against the build)"
+    }
+  ],
+  "overview_verification": {
+    "note": "skipped: --skip-overview-check",
+    "n_findings": 0
+  },
+  "requirements_compliance": {
+    "note": "1 requirement(s) from must_meet_spec.txt: 0 unmet",
+    "requirements": [
+      {
+        "id": "R001",
+        "text": "there must be 6 holes in this part that can be done using a circular pattern, there must be an extrude cut from the center that is 3.880 diameter, there must be a 1.25 diameter extrude cut feature that is in the bottom and is in the front view that is 2.94 from the center of the other circular extrude cut. All holes must be through all.",
+        "status": "met",
+        "note": "hole/pattern/boss present in the build; numeric value(s) match extracted dimensions"
+      }
+    ]
+  }
+}

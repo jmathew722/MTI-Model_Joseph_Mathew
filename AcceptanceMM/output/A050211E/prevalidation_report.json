@@ -1,0 +1,110 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "check": "watertight_valid_solid",
+      "ok": true
+    },
+    {
+      "check": "volume_positive",
+      "ok": true,
+      "measured_mm3": 248681.829
+    },
+    {
+      "check": "face_count_sane",
+      "ok": true,
+      "measured": 12
+    }
+  ],
+  "constraints": [
+    {
+      "id": "MM-001",
+      "status": "PASS",
+      "required": 6,
+      "measured": 6,
+      "detail": "6 equal-diameter through-hole(s) found in the pattern group; required 6; bolt circle R 2.880 in, worst equal-spacing deviation 0.0000 in"
+    },
+    {
+      "id": "MM-002",
+      "status": "PASS",
+      "required": "\u00d83.88 in",
+      "measured": "\u00d83.880 in",
+      "detail": "\u00d8 measured 3.880 in (required 3.880)"
+    },
+    {
+      "id": "MM-003",
+      "status": "PASS",
+      "required": "\u00d81.25 in at 2.94 in from MM-002 center",
+      "measured": "\u00d81.250 in at 2.940 in",
+      "detail": "\u00d8 measured 1.250 in (required 1.250); offset from MM-002 center measured 2.940 in (required 2.94 \u00b1 0.03)"
+    },
+    {
+      "id": "MM-004",
+      "status": "PASS",
+      "required": "every hole through-all",
+      "measured": "all 8 hole(s) through",
+      "detail": "8 hole(s) checked, 0 not through-all"
+    }
+  ],
+  "solid": {
+    "valid_watertight": true,
+    "volume_mm3": 248681.829,
+    "face_count": 12,
+    "bbox_mm": [
+      190.5,
+      190.5,
+      12.7
+    ]
+  },
+  "stl": "prevalidation.stl",
+  "measured_holes_in": [
+    {
+      "x": 5.19,
+      "y": 6.2441,
+      "diameter": 0.406,
+      "through": true
+    },
+    {
+      "x": 6.6299,
+      "y": 3.75,
+      "diameter": 0.406,
+      "through": true
+    },
+    {
+      "x": 2.31,
+      "y": 6.2441,
+      "diameter": 0.406,
+      "through": true
+    },
+    {
+      "x": 3.75,
+      "y": 3.75,
+      "diameter": 3.88,
+      "through": true
+    },
+    {
+      "x": 0.8701,
+      "y": 3.75,
+      "diameter": 0.406,
+      "through": true
+    },
+    {
+      "x": 5.19,
+      "y": 1.2559,
+      "diameter": 0.406,
+      "through": true
+    },
+    {
+      "x": 2.31,
+      "y": 1.2559,
+      "diameter": 0.406,
+      "through": true
+    },
+    {
+      "x": 3.75,
+      "y": 0.81,
+      "diameter": 1.25,
+      "through": true
+    }
+  ]
+}

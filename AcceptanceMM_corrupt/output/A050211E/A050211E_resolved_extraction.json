@@ -1,0 +1,347 @@
+{
+  "part_number": "A050211E",
+  "part_name": "FLANGE PLATE",
+  "revision": "",
+  "material": "6061-T6 ALUMINUM",
+  "units": "inch",
+  "confidence": 0.9,
+  "views": [
+    {
+      "view_type": "front",
+      "description": "Round plate, bolt holes, center bore"
+    },
+    {
+      "view_type": "side",
+      "description": "Thickness view"
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "diameter",
+      "value": 7.5,
+      "unit": "inch",
+      "applies_to": "outside_diameter",
+      "feature_ref": "F001",
+      "view": "front",
+      "resolved_value": 7.5,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D001 (7.5) read directly from the drawing callout \u2014 no action needed.",
+      "resolution_required": false
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 0.5,
+      "unit": "inch",
+      "applies_to": "thickness",
+      "feature_ref": "F001",
+      "view": "side",
+      "resolved_value": 0.5,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D002 (0.5) read directly from the drawing callout \u2014 no action needed.",
+      "resolution_required": false
+    },
+    {
+      "id": "D003",
+      "type": "diameter",
+      "value": 3.88,
+      "unit": "inch",
+      "applies_to": "diameter",
+      "feature_ref": "F002",
+      "view": "front",
+      "resolved_value": 3.88,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D003 (3.88) read directly from the drawing callout \u2014 no action needed.",
+      "resolution_required": false
+    },
+    {
+      "id": "D004",
+      "type": "diameter",
+      "value": 1.25,
+      "unit": "inch",
+      "applies_to": "diameter",
+      "feature_ref": "F004",
+      "view": "front",
+      "resolved_value": 1.25,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D004 (1.25) read directly from the drawing callout \u2014 no action needed.",
+      "resolution_required": false
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 2.94,
+      "unit": "inch",
+      "applies_to": "offset_from_center",
+      "feature_ref": "F004",
+      "view": "front",
+      "resolved_value": 2.94,
+      "assumption_made": false,
+      "assumption_basis": "explicit_callout",
+      "chain_ids_used": [],
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "human_note": "D005 (2.94) read directly from the drawing callout \u2014 no action needed.",
+      "resolution_required": false
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H002",
+      "type": "thru",
+      "diameter": 3.88,
+      "thru": true,
+      "qty": 1,
+      "x_position": 3.75,
+      "y_position": 3.75,
+      "position_known": true,
+      "instance_positions": [
+        [
+          3.75,
+          3.75
+        ]
+      ],
+      "feature_ref": "F002"
+    },
+    {
+      "id": "H003",
+      "type": "thru",
+      "diameter": 0.406,
+      "thru": true,
+      "qty": 6,
+      "position_known": true,
+      "instance_positions": [
+        [
+          6.63,
+          3.75
+        ],
+        [
+          5.19,
+          6.244
+        ],
+        [
+          2.31,
+          6.244
+        ],
+        [
+          0.87,
+          3.75
+        ],
+        [
+          2.31,
+          1.256
+        ],
+        [
+          5.19,
+          1.256
+        ]
+      ],
+      "feature_ref": "F003",
+      "pattern": "circular",
+      "bolt_circle_diameter": 5.759824,
+      "bolt_circle_center": [
+        3.75,
+        3.75
+      ],
+      "start_angle": -120.0
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base round plate",
+      "related_dimensions": [
+        "D001",
+        "D002"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D002",
+      "position_known": true,
+      "offset_x": 3.75,
+      "offset_y": 3.75,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F001 position read from the drawing \u2014 no action needed."
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": "Center bore",
+      "related_dimensions": [
+        "D003"
+      ],
+      "sketch_plane": "front",
+      "position_known": true,
+      "offset_x": 3.75,
+      "offset_y": 3.75,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F002 position read from the drawing \u2014 no action needed."
+    },
+    {
+      "id": "F003",
+      "type": "hole",
+      "description": "Bolt holes",
+      "related_dimensions": [],
+      "sketch_plane": "front",
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F003 position read from the drawing \u2014 no action needed."
+    },
+    {
+      "id": "F004",
+      "type": "extrude_cut",
+      "description": "Offset circular cut",
+      "related_dimensions": [
+        "D004"
+      ],
+      "sketch_plane": "front",
+      "position_known": true,
+      "offset_x": 3.75,
+      "offset_y": 0.81,
+      "build_status": "build",
+      "position_resolved": true,
+      "position_assumption": "",
+      "flag_tier": "HIGH",
+      "human_note": "F004 position read from the drawing \u2014 no action needed."
+    }
+  ],
+  "build_order": [
+    "F001",
+    "F002",
+    "F003",
+    "F004"
+  ],
+  "resolution": {
+    "total_dimensions": 5,
+    "assumptions_made": 0,
+    "critical_flags": 0,
+    "low_flags": 0,
+    "medium_flags": 0,
+    "high_flags": 9,
+    "rebuild_confidence": 0.92,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  },
+  "must_meet": {
+    "constraints": [
+      {
+        "id": "MM-001",
+        "source_text": "there must be 5 holes in this part that can be done using a circular pattern",
+        "type": "circular_pattern",
+        "hole_count_total": 5,
+        "notes": "count includes seed",
+        "matched_hole_callout": "H003",
+        "equal_spacing_check": {
+          "worst_angle_deg": 0.0015,
+          "worst_arc_deviation": 7.7e-05,
+          "seed_angle_deg": -120.0,
+          "tolerance_in": 0.01
+        }
+      },
+      {
+        "id": "MM-002",
+        "source_text": "there must be an extrude cut from the center that is 3.880 diameter",
+        "type": "cut_extrude",
+        "shape": "circle",
+        "diameter_in": 3.88,
+        "position": "center",
+        "matched_hole_callout": "H002"
+      },
+      {
+        "id": "MM-003",
+        "source_text": "there must be a 1.25 diameter extrude cut feature that is in the bottom and is in the front view that is 2.94 from the center of the other circular extrude cut",
+        "type": "cut_extrude",
+        "shape": "circle",
+        "diameter_in": 1.25,
+        "position": {
+          "reference": "center_of_MM-002",
+          "offset_in": 2.94,
+          "direction": "down",
+          "view": "front"
+        }
+      },
+      {
+        "id": "MM-004",
+        "source_text": "All holes must be through all.",
+        "type": "global_modifier",
+        "applies_to": [
+          "all_holes"
+        ],
+        "end_condition": "through_all"
+      }
+    ],
+    "conflicts": [
+      {
+        "part": "A050211E",
+        "constraint_id": "MM-001",
+        "field": "qty",
+        "where": "hole_callout H003",
+        "vision_value": 6,
+        "spec_value": 5,
+        "resolution": "spec_vs_drawing_disagreement"
+      },
+      {
+        "part": "A050211E",
+        "constraint_id": "MM-001",
+        "field": "pattern",
+        "where": "hole_callout H003",
+        "vision_value": "none",
+        "spec_value": "circular",
+        "resolution": "spec_override"
+      }
+    ],
+    "derived_values": [
+      {
+        "constraint_id": "MM-001",
+        "value_name": "bolt_circle_radius_in",
+        "value": 2.879912,
+        "derivation": "fitted from extracted hole coordinates: radius = mean of sqrt(x\u00b2+y\u00b2) about the hole centroid",
+        "fitted_radii": [
+          2.88,
+          2.879867,
+          2.879867,
+          2.88,
+          2.879867,
+          2.879867
+        ],
+        "max_radius_disagreement_in": 8.8e-05
+      }
+    ],
+    "flags": [
+      {
+        "severity": "CRITICAL",
+        "constraint_id": "MM-001",
+        "what": "MM-001: spec requires 5 holes but the drawing explicitly dimensions 6 \u2014 a human must confirm; the build keeps the drawing's 6 positions and the constraint will grade against 5."
+      }
+    ],
+    "notes": [
+      "MM-002: matched extracted callout H002 (\u00d83.88)",
+      "MM-003: \u00d81.25 matched an extracted dimension",
+      "MM-004: through-all enforced on every hole callout"
+    ]
+  }
+}

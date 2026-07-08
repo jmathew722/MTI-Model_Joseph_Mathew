@@ -432,7 +432,8 @@ def _run_views_folder(args) -> int:
         # so the specifications shape the extraction prompt and Stage 2.5
         # resolution from the start (they are re-verified against the build in
         # the final gate). Also the input to the final requirements check.
-        from pipeline.requirements_check import find_notes_file, parse_requirements
+        from pipeline.must_meet import find_spec_file
+        from pipeline.requirements_check import parse_requirements
 
         notes_file = None
         if getattr(args, "requirements", None):
@@ -440,7 +441,8 @@ def _run_views_folder(args) -> int:
         else:
             try:
                 part_folder = Path(next(iter(part.views.values()))).parent
-                notes_file = find_notes_file(part_folder, part.name)
+                # must_meet_spec.txt wins; legacy notes.txt still works.
+                notes_file = find_spec_file(part_folder, part.name)
             except StopIteration:
                 pass
         spec_lines: list[str] = []

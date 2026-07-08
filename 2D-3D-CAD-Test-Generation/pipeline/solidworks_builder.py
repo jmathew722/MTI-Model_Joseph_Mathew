@@ -719,6 +719,187 @@ def build_mirror(sw_doc, model, feature: Feature, dims: dict[str, float], featur
     return feat
 
 
+def _last_feature_of_type(sw_doc, type_name: str):
+    """Newest feature of the given GetTypeName2 type in the tree (or None)."""
+    feat = sw_doc.FirstFeature
+    last = None
+    while feat is not None:
+        try:
+            if feat.GetTypeName2 == type_name:
+                last = feat
+        except Exception:
+            pass
+        feat = feat.GetNextFeature
+    return last
+
+
+def _rename_feature(feat, name: str) -> None:
+    """Name a feature immediately after creation (deterministic tree names —
+    downstream SelectByID2 never depends on SolidWorks auto-numbering)."""
+    try:
+        feat.Name = name
+    except Exception as e:
+        log.warning("Could not rename feature to %s: %s", name, e)
+
+
+def build_circular_pattern_holes(sw_doc, model, feature: Feature, h, probe: dict):
+    """Seed hole -> named reference axis -> FeatureCircularPattern5 (the
+    must-meet Part 2 reliability contract), at parity with the VBA macros.
+
+    Every step checks its return value: SolidWorks returns None/Nothing on bad
+    parameters with NO error, so a silent miss here is converted into a precise
+    SolidWorksError naming the failing step."""
+    import math as _math
+
+    from pipeline.macro_generator import (
+        canonical_circular_pattern,
+        _seed_position,
+    )
+
+    unit = model.units.value
+
+    # 1) Seed hole cut, deterministically named.
+    sx, sy = _seed_position(model, h)
+    thru = bool(h.thru) or h.type == HoleType.THRU
+    depth_m = None
+    if not thru:
+        if h.depth <= 0:
+            raise SolidWorksError(f"blind seed hole {h.id} has no depth.")
+        depth_m = to_meters(h.depth, unit)
+    seed = _circular_cut_at(
+        sw_doc, feature, [(to_meters(sx, unit), to_meters(sy, unit))],
+        to_meters(h.diameter, unit) / 2.0, thru, depth_m,
+    )
+    seed_name = f"{feature.id}_SeedHoleCut"
+    _rename_feature(seed, seed_name)
+
+    # 2) Named reference axis from the center bore's cylindrical face.
+    n_axes = 0
+    feat = sw_doc.FirstFeature
+    while feat is not None:
+        try:
+            if feat.GetTypeName2 == "RefAxis":
+                n_axes += 1
+        except Exception:
+            pass
+        feat = feat.GetNextFeature
+    axis_name = f"PatternAxis{n_axes + 1}"
+    spec = canonical_circular_pattern(
+        model, feature, h, axis_name,
+        "explicit reference axis from the center bore cylindrical face (InsertAxis2)",
+    )
+    # Primary: find the bore's cylindrical face GEOMETRICALLY (radius + axis
+    # location match) and select the face object itself — no coordinate ray.
+    # Late-bound quirks (verified against SW 2024): IFace2::GetSurface only
+    # resolves via a raw dispid Invoke with METHOD|PROPERTYGET, and
+    # ISurface::IsCylinder / CylinderParams come back as properties.
+    import pythoncom  # type: ignore
+    import win32com.client  # type: ignore
+
+    def _surface_of(face):
+        flags = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
+        ole = face._oleobj_
+        return win32com.client.Dispatch(
+            ole.Invoke(ole.GetIDsOfNames("GetSurface"), 0, flags, True))
+
+    def _prop(obj, name):
+        v = getattr(obj, name)
+        return v() if callable(v) else v
+
+    bore_r_m = to_meters(probe["bore_radius"], unit)
+    cx_m = to_meters(probe["cx"], unit)
+    cy_m = to_meters(probe["cy"], unit)
+    created = False
+    try:
+        import math as _m2
+
+        bodies = sw_doc.GetBodies2(0, False)
+        body = bodies[0] if isinstance(bodies, (list, tuple)) else bodies
+        for face in body.GetFaces() or []:
+            try:
+                surf = _surface_of(face)
+                if not _prop(surf, "IsCylinder"):
+                    continue
+                p = _prop(surf, "CylinderParams")  # (x, y, z, ax, ay, az, radius)
+                if abs(float(p[6]) - bore_r_m) > 2e-5:
+                    continue
+                if _m2.hypot(float(p[0]) - cx_m, float(p[1]) - cy_m) > 5e-4:
+                    continue
+                sw_doc.ClearSelection2(True)
+                if face.Select4(False, _null_dispatch()) and sw_doc.InsertAxis2(True):
+                    created = True
+                    break
+            except Exception:
+                continue
+    except Exception as e:
+        log.warning("%s: geometric bore-face search failed (%s) — falling back to "
+                    "coordinate selection.", feature.id, e)
+
+    # Fallback: exact generated coordinates on the bore wall, z tried on both
+    # sides of the sketch plane (extrude direction is template-dependent).
+    px = to_meters(probe["cx"] + probe["bore_radius"], unit)
+    py = to_meters(probe["cy"], unit)
+    t_m = to_meters(probe["thickness"], unit)
+    if not created:
+        for z in (-t_m / 2.0, t_m / 2.0, 0.0):
+            sw_doc.ClearSelection2(True)
+            if sw_doc.Extension.SelectByID2("", "FACE", px, py, z, False, 0, _null_dispatch(), 0):
+                if sw_doc.InsertAxis2(True):
+                    created = True
+                    break
+    if not created:
+        raise SolidWorksError(
+            f"{feature.id}: could not create reference axis {axis_name} from the "
+            f"bore cylindrical face (R {bore_r_m:.6f} m at {cx_m:.6f}, {cy_m:.6f} m)."
+        )
+    ax = _last_feature_of_type(sw_doc, "RefAxis")
+    if ax is None:
+        raise SolidWorksError(f"{feature.id}: InsertAxis2 succeeded but no RefAxis feature found.")
+    _rename_feature(ax, axis_name)
+
+    # 3) The pattern feature. Selection contract: axis Mark=1, seed Mark=4 —
+    # a wrong/missing mark makes FeatureCircularPattern return None silently.
+    sw_doc.ClearSelection2(True)
+    if not sw_doc.Extension.SelectByID2(axis_name, "AXIS", 0, 0, 0, False, 1, _null_dispatch(), 0):
+        raise SolidWorksError(f"{feature.id}: could not select pattern axis '{axis_name}' (Mark=1).")
+    if not sw_doc.Extension.SelectByID2(seed_name, "BODYFEATURE", 0, 0, 0, True, 4, _null_dispatch(), 0):
+        raise SolidWorksError(f"{feature.id}: could not select seed feature '{seed_name}' (Mark=4).")
+
+    n = int(spec["total_instances"])  # INCLUDES the seed (6 = seed + 5 copies)
+    ang = _math.radians(float(spec["total_angle_deg"]))  # TOTAL angle, radians
+    pat = None
+    try:
+        # Signature from the installed sldworks.tlb (IFeatureManager::
+        # FeatureCircularPattern5, dispid 261): Number, Spacing, FlipDirection,
+        # DName, GeometryPattern, EqualSpacing, VaryInstance, SyncSubAssemblies,
+        # BDir2, BSymmetric, Number2, Spacing2, DName2, EqualSpacing2.
+        pat = sw_doc.FeatureManager.FeatureCircularPattern5(
+            n, ang, bool(spec["reverse_direction"]), "NULL",
+            bool(spec["geometry_pattern"]), bool(spec["equal_spacing"]),
+            bool(spec["vary_sketch"]), False, False, False, 1, ang, "NULL", False,
+        )
+    except Exception as e:
+        log.warning("%s: FeatureCircularPattern5 raised (%s) — trying FeatureCircularPattern4.",
+                    feature.id, e)
+    if pat is None:
+        try:
+            pat = sw_doc.FeatureManager.FeatureCircularPattern4(
+                n, ang, bool(spec["reverse_direction"]), "NULL",
+                bool(spec["geometry_pattern"]), bool(spec["equal_spacing"]),
+                bool(spec["vary_sketch"]),
+            )
+        except Exception:
+            pat = None
+    if pat is None:
+        raise SolidWorksError(
+            f"{feature.id}: FeatureCircularPattern returned Nothing — check marks/axis "
+            f"('{axis_name}' Mark=1, '{seed_name}' Mark=4, total_instances={n})."
+        )
+    _rename_feature(pat, f"{feature.id}_CircularPattern")
+    sw_doc.ClearSelection2(True)
+    return pat
+
+
 def build_hole(sw_doc, model, feature: Feature, dims: dict[str, float]):
     """Create holes as exact circle cuts, at parity with the VBA macro generator.
 
@@ -727,11 +908,20 @@ def build_hole(sw_doc, model, feature: Feature, dims: dict[str, float]):
     related dimensions, which carry bolt-circle / spacing values. Every instance
     is cut (a full bolt pattern, not a single centred hole), through or blind, and
     a counterbore gets a second concentric blind cut. Falls back to a single
-    centred circular cut from the feature dims only when no callout exists."""
+    centred circular cut from the feature dims only when no callout exists.
+
+    A callout routed to a circular pattern (must-meet spec or polar drawing
+    dimensioning, with a concentric bore to derive the axis) builds as a REAL
+    FeatureCircularPattern via :func:`build_circular_pattern_holes`."""
     if not _solid_body_exists(sw_doc):
         raise SolidWorksError(f"hole {feature.id} requires an existing solid body.")
 
-    from pipeline.macro_generator import _hole_positions
+    from pipeline.macro_generator import (
+        _bore_axis_probe,
+        _hole_positions,
+        _plane_for,
+        route_to_circular_pattern,
+    )
 
     unit = model.units.value
     h = model.hole_callout_for_feature(feature.id)
@@ -743,6 +933,13 @@ def build_hole(sw_doc, model, feature: Feature, dims: dict[str, float]):
         depth = dims.get("depth")
         return _circular_cut_at(sw_doc, feature, [(cx, cy)], diameter / 2.0,
                                 through_all=depth is None, depth_m=depth)
+
+    if route_to_circular_pattern(model, h) and _plane_for(feature) == "Front Plane":
+        probe = _bore_axis_probe(model, h)
+        if probe is not None:
+            return build_circular_pattern_holes(sw_doc, model, feature, h, probe)
+        log.info("hole %s: circular pattern requested but no concentric bore face "
+                 "to derive the axis — using baked-circle instances.", feature.id)
 
     positions_m = [(to_meters(x, unit), to_meters(y, unit)) for x, y in _hole_positions(model, h)]
     if not positions_m:
@@ -1118,6 +1315,7 @@ def build_model(
     template_path: Optional[str] = None,
     strict: bool = True,
     skipped_out: Optional[list[tuple[str, str, str]]] = None,
+    feature_results: Optional[list[dict]] = None,
 ):
     """Build the complete 3D model from validated drawing data.
 
@@ -1129,6 +1327,10 @@ def build_model(
             skipped feature for human review.
         skipped_out: if provided, every skipped feature is appended as
             ``(feature_id, feature_type, reason)`` for the caller's report.
+        feature_results: if provided, every feature outcome is appended as
+            ``{"feature", "feature_id", "type", "status", "detail"}`` — the
+            caller writes this as ``macro_result.json`` so a failure surfaces as
+            the EXACT failing feature, never a generic exit code.
 
     Returns:
         (output_path, sw_doc): path to the saved .sldprt and the live document
@@ -1148,6 +1350,14 @@ def build_model(
 
     feature_map: dict[str, Any] = {}
     built_count = 0
+
+    def _record(feature_id: str, ftype: str, status: str, detail: str = "",
+                name: str = "") -> None:
+        if feature_results is not None:
+            feature_results.append({
+                "feature": name or feature_id, "feature_id": feature_id,
+                "type": ftype, "status": status, "detail": detail,
+            })
 
     for feature_id in model.build_order:
         feature = get_feature_by_id(model, feature_id)
@@ -1170,14 +1380,26 @@ def build_model(
                 # Intentional no-op (redundant pattern / cosmetic thread): success,
                 # but no feature object to record or count.
                 log.info("  ✓ %s (no geometry to add)", feature_id)
+                _record(feature_id, feature.type.value, "PASS", "no geometry to add (no-op)")
                 continue
             feature_map[feature_id] = result
+
+            # Name the feature immediately after creation (deterministic tree
+            # names; the circular-pattern builder already named its own trio).
+            fname_det = f"{feature_id}_{feature.type.value}"
+            try:
+                cur = result.Name
+                if isinstance(cur, str) and not cur.startswith(feature_id):
+                    result.Name = fname_det
+            except Exception:
+                pass
 
             if not check_rebuild_errors(sw_doc):
                 raise SolidWorksError(f"Rebuild errors after feature {feature_id}.")
 
             built_count += 1
             log.info("  ✓ %s complete", feature_id)
+            _record(feature_id, feature.type.value, "PASS")
 
             # Periodic auto-save so a later crash doesn't lose everything.
             if built_count % AUTOSAVE_EVERY == 0:
@@ -1187,6 +1409,7 @@ def build_model(
                     log.warning("Auto-save failed (continuing): %s", e)
 
         except SolidWorksError as e:
+            _record(feature_id, feature.type.value, "FAIL", str(e))
             if _is_fragile(feature):
                 # Fillets/chamfers are demoted to warnings — do not abort the build.
                 log.warning("  ! %s (%s) failed and was SKIPPED: %s", feature_id, feature.type.value, e)

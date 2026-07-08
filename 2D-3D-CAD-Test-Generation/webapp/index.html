@@ -122,7 +122,34 @@
   .intake-foot { display:flex; flex-direction:column; gap:var(--sp-2); align-items:stretch; }
   .intake-foot .rowline { display:flex; gap:var(--sp-2); align-items:center; }
   .notes-label { margin-top:var(--sp-2); }
-  #part-notes { width:100%; min-width:260px; resize:vertical; font-size:var(--fs-small); }
+  #part-notes { width:100%; min-width:260px; resize:vertical; font-size:var(--fs-small);
+                border-color:var(--warn); }
+
+  /* ── MUST-MEET SPECIFICATIONS — authoritative operator input (amber) ───── */
+  .mm-strip { flex:0 0 auto; display:flex; flex-direction:column; gap:var(--sp-2);
+              padding:var(--sp-3) var(--sp-4); background:var(--bg-raised);
+              border-top:2px solid var(--warn); }
+  .mm-strip .mm-title { font:700 var(--fs-caption)/1 var(--sans); letter-spacing:.12em;
+              text-transform:uppercase; color:var(--warn); }
+  .mm-strip .rowline { display:flex; gap:var(--sp-2); align-items:flex-start; }
+  #mm-spec { flex:1; min-height:48px; resize:vertical; font:400 var(--fs-small)/1.5 var(--sans);
+             border:1px solid var(--warn); background:var(--input-bg); color:var(--ink);
+             border-radius:var(--r-md); padding:6px var(--sp-2); }
+  #mm-spec:focus { outline:none; box-shadow:0 0 0 1px var(--warn); }
+
+  /* ── Tab 2 · Must-meet checklist (between the intake strip and the viewers) */
+  .mm-check { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); border-bottom:1px solid var(--line);
+              background:var(--bg-raised); display:none; }
+  .mm-check .mmc-title { font:700 var(--fs-caption)/1.8 var(--sans); letter-spacing:.12em;
+              text-transform:uppercase; color:var(--warn); margin-right:var(--sp-3); }
+  .mm-check .mm-item { display:inline-flex; gap:6px; align-items:baseline; margin-right:var(--sp-4);
+              font:400 var(--fs-small)/1.6 var(--sans); color:var(--ink-2); }
+  .mm-check .mm-item .tick { font-weight:700; }
+  .mm-check .mm-item.pass .tick { color:var(--ok-text); }
+  .mm-check .mm-item.fail, .mm-check .mm-item.fail .tick { color:var(--err-text); }
+  .stl-badge { display:none; margin-left:var(--sp-2); padding:1px 8px; border-radius:var(--r-sm);
+               font:700 9px/16px var(--sans); letter-spacing:.08em; text-transform:uppercase;
+               background:var(--warn); color:var(--on-sev-high); vertical-align:1px; }
   .flags-group { margin:var(--sp-4) var(--sp-4) var(--sp-2); padding:var(--sp-2) var(--sp-3);
                  font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.08em; text-transform:uppercase;
                  color:var(--blueprint-text); border-left:3px solid var(--blueprint); background:var(--blueprint-dim);
@@ -332,6 +359,13 @@
   <!-- ── Tab 1 · Drawing Crop (cropper fills the whole tab) ────────────── -->
   <section class="panel active" id="panel-crop">
     <iframe id="photoapp" src="/photoapp/"></iframe>
+    <div class="mm-strip">
+      <span class="mm-title">Must-Meet Specifications — authoritative (overrides drawing extraction)</span>
+      <div class="rowline">
+        <textarea id="mm-spec" rows="2" placeholder="e.g. there must be 6 holes in this part that can be done using a circular pattern … All holes must be through all."></textarea>
+        <button class="btn secondary" id="mm-save-btn" title="Persisted with the run as must_meet_spec.txt; parsed into MM-xxx constraints that override vision extraction">Save specs</button>
+      </div>
+    </div>
   </section>
 
   <!-- ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────── -->
@@ -373,6 +407,8 @@
     </div>
     <div class="statusline"><span class="status" id="intake-status">Ready — crop views in Tab 1 or upload a drawing.</span></div>
 
+    <div class="mm-check" id="mm-checklist"></div>
+
     <div class="split" id="split-grid">
       <div class="side ovside">
         <div class="cap capflex">Full Overview View — <span id="viewer-part">no part loaded</span>
@@ -385,7 +421,7 @@
         </div>
       </div>
       <div class="side">
-        <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan</div>
+        <div class="cap">3D Model (STL) — drag rotate · scroll zoom · right-drag pan<span class="stl-badge" id="stl-badge">PRE-VALIDATED (CadQuery)</span></div>
         <div class="body">
           <div id="stl-canvas-wrap"></div>
           <div class="emptynote" id="stl-empty">No STL yet — it appears after a SolidWorks build. On macOS (no SolidWorks) run the generated <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
@@ -638,6 +674,28 @@ function paintMacros(macros) {
   });
   pre.textContent = macros[0].text; pre.style.display = ''; if (empty) empty.style.display = 'none';
 }
+// ── Must-meet checklist (Tab 2) + PRE-VALIDATED badge + precise-failure feed ─
+function paintMustMeet(mm, stlSource) {
+  const box = document.getElementById('mm-checklist');
+  const badge = document.getElementById('stl-badge');
+  if (badge) badge.style.display = (stlSource === 'prevalidation') ? '' : 'none';
+  window.__mmFailed = (mm && mm.failed) || [];
+  if (!box) return;
+  if (!mm || !mm.present || !(mm.results || []).length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const stageLbl = mm.stage === 'post_build'
+    ? 'verified against the SolidWorks build'
+    : 'pre-validated (CadQuery) — SolidWorks build pending';
+  box.innerHTML = `<span class="mmc-title">Must-Meet Check · ${stageLbl}</span>` +
+    mm.results.map(r => {
+      const cls = r.status === 'PASS' ? 'pass' : (r.status === 'FAIL' ? 'fail' : '');
+      const tick = r.status === 'PASS' ? '✓' : (r.status === 'FAIL' ? '✕' : '—');
+      const extra = r.status === 'FAIL' ? ` — required ${r.required}, measured ${r.measured}` : '';
+      return `<span class="mm-item ${cls}" title="${esc(String(r.detail || ''))}">` +
+             `<span class="tick">${tick}</span>${esc(String(r.id))}${esc(extra)}</span>`;
+    }).join('');
+  box.style.display = '';
+}
+
 function fillOutputs(payload) {
   const c = payload.categories || {};
   for (const tab of ['extraction','resolved','buildplan','verification','modelcheck']) {
@@ -652,6 +710,7 @@ function fillOutputs(payload) {
   if (c.usage && c.usage.present) { paintUsage(c.usage); setTabFilled('cost', true); }
   if (c.files && c.files.present && (c.files.list || []).length) { paintFiles(c.files, payload); setTabFilled('files', true); }
   if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
+  paintMustMeet(c.must_meet, payload.stl_source);
   if (c.stl && c.stl.present && selectedPart) {
     setModelTabFilled(true);
     viewer.load(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/model.stl?t=${payload.stl_mtime || ''}`);
@@ -689,7 +748,11 @@ function selectPart(name) {
   // when there is no unsaved intake work to clobber).
   const notesEl = document.getElementById('part-notes');
   const pd = partsData.find(x => x.name === name);
-  if (notesEl && pd && !intake.items.length) notesEl.value = pd.notes || '';
+  if (notesEl && pd && !intake.items.length) {
+    notesEl.value = pd.notes || '';
+    const mmEl = document.getElementById('mm-spec');
+    if (mmEl) mmEl.value = pd.notes || '';
+  }
   const snb = document.getElementById('save-notes-btn');
   if (snb) { snb.style.display = ''; snb.textContent = `Update notes for ${name}`; }
   document.getElementById('viewer-part').textContent = name;
@@ -698,6 +761,7 @@ function selectPart(name) {
 }
 async function loadPartOutputs(name) {
   resetOutputs('Waiting for pipeline output…');
+  paintMustMeet(null, null);
   document.getElementById('stl-empty').style.display = '';
   let d;
   try { d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(name)}/outputs`)).json(); } catch { return; }
@@ -874,6 +938,34 @@ function renderGallery() {
   updateOverviewBox(); // a (re)tagged Full Overview View shows in the panel live
 }
 partNameEl.addEventListener('input', validateIntake);
+
+// ── MUST-MEET SPECIFICATIONS (Tab 1 amber box) ↔ Tab 2 notes: one text, two
+// views. The Tab 1 box is the authoritative entry point; both persist as
+// must_meet_spec.txt + notes.txt with the part.
+(() => {
+  const mm = document.getElementById('mm-spec');
+  const notes = document.getElementById('part-notes');
+  if (!mm || !notes) return;
+  mm.addEventListener('input', () => { if (notes.value !== mm.value) notes.value = mm.value; });
+  notes.addEventListener('input', () => { if (mm.value !== notes.value) mm.value = notes.value; });
+  document.getElementById('mm-save-btn').addEventListener('click', async () => {
+    notes.value = mm.value;
+    if (!selectedPart) {
+      setStatus('Must-meet specifications staged — they save with the part (Tab 2 · Save part).', '');
+      return;
+    }
+    const fd = new FormData();
+    fd.append('notes', mm.value || '');
+    try {
+      const r = await fetch(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/notes`,
+                            { method: 'POST', body: fd });
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      const d = await r.json();
+      partsData = d.parts || partsData;
+      setStatus(`Must-meet specifications saved for "${selectedPart}" (applied tier-0 on the next run).`, 'ok');
+    } catch (e) { setStatus('Saving specifications failed: ' + e.message, 'err'); }
+  });
+})();
 
 // Update a SAVED part's must-meet notes in place (no re-upload needed).
 document.getElementById('save-notes-btn').addEventListener('click', async () => {
@@ -1117,9 +1209,17 @@ function bannerFromRun(d, partName) {
   const frac = [...text.matchAll(/(\d+)\s*\/\s*(\d+)\s+READY/g)].pop();
   const notReady = /\bNOT READY\b/.test(text);
   const label = partName ? `— ${partName}` : '';
-  if (d.exit === 0 && frac) showRunBanner(`✓ ${frac[1]}/${frac[2]} READY`, `all parts passed final checks ${label}`);
-  else if (d.exit === 0 && !notReady) showRunBanner('✓ READY', `run complete ${label}`);
-  else if (frac || notReady) showRunBanner(frac ? `${frac[1]}/${frac[2]} READY` : 'NOT READY',
+  if (d.exit === 0 && frac) { showRunBanner(`✓ ${frac[1]}/${frac[2]} READY`, `all parts passed final checks ${label}`); return; }
+  if (d.exit === 0 && !notReady) { showRunBanner('✓ READY', `run complete ${label}`); return; }
+  // Precise must-meet failure wins over a generic exit code: the banner names
+  // the exact failed constraint (e.g. "MM-001 FAILED") with measured vs required.
+  const mmFailed = window.__mmFailed || [];
+  if (mmFailed.length) {
+    const head = (mmFailed[0].match(/^[^:]{0,40}FAILED/) || [mmFailed[0].slice(0, 40)])[0];
+    showRunBanner(`✕ ${head}`, mmFailed.join('  ·  ').slice(0, 260) + ` ${label}`, 'err');
+    return;
+  }
+  if (frac || notReady) showRunBanner(frac ? `${frac[1]}/${frac[2]} READY` : 'NOT READY',
     `completed with gating flags — read the Engineering Flags tab ${label}`, 'warn');
   else showRunBanner(`✕ FAILED (exit ${d.exit})`, `see the Console tab ${label}`, 'err');
 }
@@ -1149,8 +1249,9 @@ function startElapsed() {
 function stopElapsed() { if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; } }
 
 // ── Per-stage progress strip (parses "[STAGE] ..." lines from the pipeline) ──
-const STAGE_LIST = ['Extracting', 'Resolving', 'Verifying', 'Building macros',
-                    'Building .sldprt', 'Final checks', 'Exporting', 'Done'];
+const STAGE_LIST = ['Extracting', 'Spec reconciliation', 'Resolving', 'Verifying',
+                    'Building macros', 'Pre-validating', 'Building .sldprt',
+                    'Verifying must-meet', 'Final checks', 'Exporting', 'Done'];
 const stageStrip = document.getElementById('stage-strip');
 let stageIdx = -1;
 function resetStages() {
@@ -1165,7 +1266,9 @@ function paintStages() {
 function stageFromLine(line) {
   if (!line.startsWith('[STAGE]')) return;
   const rest = line.slice(7).trim();
-  const i = STAGE_LIST.findIndex(s => rest.startsWith(s));
+  // Longest-prefix match ("Verifying must-meet …" must not hit "Verifying").
+  let i = -1, len = 0;
+  STAGE_LIST.forEach((s, j) => { if (rest.startsWith(s) && s.length > len) { i = j; len = s.length; } });
   if (i >= 0 && i > stageIdx) { stageIdx = i; paintStages(); }
 }
 function finishStages(ok) {

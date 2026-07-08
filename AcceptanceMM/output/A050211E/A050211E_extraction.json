@@ -1,0 +1,172 @@
+{
+  "part_number": "A050211E",
+  "part_name": "FLANGE PLATE",
+  "revision": "",
+  "material": "6061-T6 ALUMINUM",
+  "units": "inch",
+  "confidence": 0.9,
+  "views": [
+    {
+      "view_type": "front",
+      "description": "Round plate, bolt holes, center bore"
+    },
+    {
+      "view_type": "side",
+      "description": "Thickness view"
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "D001",
+      "type": "diameter",
+      "value": 7.5,
+      "unit": "inch",
+      "applies_to": "outside_diameter",
+      "feature_ref": "F001",
+      "view": "front"
+    },
+    {
+      "id": "D002",
+      "type": "linear",
+      "value": 0.5,
+      "unit": "inch",
+      "applies_to": "thickness",
+      "feature_ref": "F001",
+      "view": "side"
+    },
+    {
+      "id": "D003",
+      "type": "diameter",
+      "value": 3.88,
+      "unit": "inch",
+      "applies_to": "diameter",
+      "feature_ref": "F002",
+      "view": "front"
+    },
+    {
+      "id": "D004",
+      "type": "diameter",
+      "value": 1.25,
+      "unit": "inch",
+      "applies_to": "diameter",
+      "feature_ref": "F004",
+      "view": "front"
+    },
+    {
+      "id": "D005",
+      "type": "linear",
+      "value": 2.94,
+      "unit": "inch",
+      "applies_to": "offset_from_center",
+      "feature_ref": "F004",
+      "view": "front"
+    }
+  ],
+  "hole_callouts": [
+    {
+      "id": "H002",
+      "type": "thru",
+      "diameter": 3.88,
+      "thru": true,
+      "qty": 1,
+      "x_position": 3.75,
+      "y_position": 3.75,
+      "position_known": true,
+      "instance_positions": [
+        [
+          3.75,
+          3.75
+        ]
+      ],
+      "feature_ref": "F002"
+    },
+    {
+      "id": "H003",
+      "type": "thru",
+      "diameter": 0.406,
+      "thru": true,
+      "qty": 6,
+      "position_known": true,
+      "instance_positions": [
+        [
+          6.63,
+          3.75
+        ],
+        [
+          5.19,
+          6.244
+        ],
+        [
+          2.31,
+          6.244
+        ],
+        [
+          0.87,
+          3.75
+        ],
+        [
+          2.31,
+          1.256
+        ],
+        [
+          5.19,
+          1.256
+        ]
+      ],
+      "feature_ref": "F003"
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "type": "extrude_boss",
+      "description": "Base round plate",
+      "related_dimensions": [
+        "D001",
+        "D002"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "D002",
+      "position_known": true,
+      "offset_x": 3.75,
+      "offset_y": 3.75
+    },
+    {
+      "id": "F002",
+      "type": "hole",
+      "description": "Center bore",
+      "related_dimensions": [
+        "D003"
+      ],
+      "sketch_plane": "front",
+      "position_known": true,
+      "offset_x": 3.75,
+      "offset_y": 3.75
+    },
+    {
+      "id": "F003",
+      "type": "hole",
+      "description": "Bolt holes",
+      "related_dimensions": [],
+      "sketch_plane": "front"
+    },
+    {
+      "id": "F004",
+      "type": "extrude_cut",
+      "description": "Offset circular cut",
+      "related_dimensions": [
+        "D004"
+      ],
+      "sketch_plane": "front",
+      "position_known": true,
+      "offset_x": 3.75,
+      "offset_y": 0.81
+    }
+  ],
+  "build_order": [
+    "F001",
+    "F002",
+    "F003",
+    "F004"
+  ]
+}

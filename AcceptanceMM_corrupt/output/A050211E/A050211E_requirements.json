@@ -1,0 +1,13 @@
+{
+  "requirements": [
+    {
+      "id": "R001",
+      "text": "there must be 5 holes in this part that can be done using a circular pattern, there must be an extrude cut from the center that is 3.880 diameter, there must be a 1.25 diameter extrude cut feature that is in the bottom and is in the front view that is 2.94 from the center of the other circular extrude cut. All holes must be through all.",
+      "status": "met",
+      "note": "hole/pattern/boss present in the build; numeric value(s) match extracted dimensions"
+    }
+  ],
+  "summary": {
+    "met": 1
+  }
+}

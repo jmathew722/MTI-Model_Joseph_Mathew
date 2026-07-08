@@ -1,0 +1,7 @@
+MODEL CHECK — A050211E
+========================================
+Saved: C:\Users\joeka\MTI-Model_New\AcceptanceMM\output\A050211E\A050211E.SLDPRT
+
+[PASS] Solid body exists (volume > 0).
+
+Overall model validation: PASSED.

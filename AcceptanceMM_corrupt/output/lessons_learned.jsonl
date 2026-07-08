@@ -1,0 +1,2 @@
+{"kind": "spec_vs_drawing_count", "part": "A050211E", "constraint_id": "MM-001", "field": "qty", "where": "hole_callout H003", "vision_value": 6, "spec_value": 5, "resolution": "spec_vs_drawing_disagreement", "timestamp": "2026-07-08T01:29:43.184489+00:00"}
+{"kind": "spec_override_conflict", "part": "A050211E", "constraint_id": "MM-001", "field": "pattern", "where": "hole_callout H003", "vision_value": "none", "spec_value": "circular", "resolution": "spec_override", "timestamp": "2026-07-08T01:29:43.185490+00:00"}

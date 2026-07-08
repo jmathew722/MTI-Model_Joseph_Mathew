@@ -72,13 +72,23 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
     template = resolve_part_template(template_path)
 
     skipped: list[tuple[str, str, str]] = []
+    # Per-feature outcomes -> macro_result.json (feature name -> success/fail),
+    # so a failed feature surfaces as ITS name + reason, never a generic exit code.
+    feature_results: list[dict] = []
     # Snapshot warnings so we can report only the caveats the BUILD added (e.g. a
     # fillet auto-applied to all edges), separate from extraction/resolver notes.
     pre_warnings = list(getattr(model, "warnings", []) or [])
-    interim_path, sw_doc = build_model(
-        sw_app, model, output_dir=part_dir, template_path=template,
-        strict=False, skipped_out=skipped,
-    )
+    try:
+        interim_path, sw_doc = build_model(
+            sw_app, model, output_dir=part_dir, template_path=template,
+            strict=False, skipped_out=skipped, feature_results=feature_results,
+        )
+    finally:
+        try:
+            (Path(part_dir) / "macro_result.json").write_text(
+                json.dumps({"results": feature_results}, indent=2), encoding="utf-8")
+        except OSError as e:
+            log.warning("Could not write macro_result.json: %s", e)
     build_caveats = [w for w in (getattr(model, "warnings", []) or []) if w not in pre_warnings]
     sldprt = save_model(sw_doc, name, part_dir)
     # Export an STL with the SAME base name as the .sldprt so the web UI's 3D
@@ -234,31 +244,75 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     # START of processing so Stage 2.5 resolution treats them as a first-class
     # input (they are still verified against the final build afterwards).
     spec_lines: list[str] = []
+    spec_text = ""
     if not skip_requirements_check and requirements_file is not None:
         try:
             from pipeline.requirements_check import parse_requirements
 
-            notes_text = Path(requirements_file).read_text(encoding="utf-8",
-                                                           errors="replace")
-            spec_lines = [r["text"] for r in parse_requirements(notes_text)]
+            spec_text = Path(requirements_file).read_text(encoding="utf-8",
+                                                          errors="replace").strip()
+            spec_lines = [r["text"] for r in parse_requirements(spec_text)]
             if spec_lines:
                 print(f"[SPEC] Enforcing {len(spec_lines)} must-meet specification(s) "
                       "from the start (extraction + resolution + final gate).", flush=True)
         except OSError as e:
             log.warning("Could not read requirements file %s: %s", requirements_file, e)
 
+    # ── Stage 2.6: Spec Reconciliation — the operator's raw must-meet text is
+    # parsed into structured MM constraints (priority tier 0: a spec value
+    # overrides a vision-extracted value on any conflict; both sides go to the
+    # lessons-learned JSONL, never silently discarded).
+    mm_app = None
+    mm_constraints: list = []
+    mm_note = ""
+    work_extraction = raw_extraction
+    if spec_text:
+        from pipeline.must_meet import run_spec_reconciliation
+
+        print("[STAGE] Spec reconciliation", flush=True)
+        mm_usage: dict = {}
+        mm_app, mm_note = run_spec_reconciliation(
+            spec_text, raw_extraction,
+            part=(raw_extraction.get("part_number")
+                  or raw_extraction.get("part_name") or source),
+            lessons_path=output_dir / "lessons_learned.jsonl",
+            usage_out=mm_usage,
+        )
+        mm_constraints = mm_app.constraints
+        print(f"[SPEC] Stage 2.6: {mm_note}", flush=True)
+        for fl in mm_app.flags:
+            print(f"[SPEC] {fl['severity']}: {fl['what']}", flush=True)
+        work_extraction = mm_app.extraction
+        if mm_usage.get("calls"):
+            try:  # the dedicated spec-parse call is paid — put it in the ledger
+                import os as _os
+
+                from pipeline.extractor import DEFAULT_MODEL
+                from pipeline.usage_log import record_run
+
+                record_run(output_dir, f"{source} (spec reconciliation)",
+                           _os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL, mm_usage)
+            except Exception:
+                pass
+
     resolution = None
     if resolve:
         from pipeline.resolver import resolve_extraction
 
         print("[STAGE] Resolving", flush=True)
-        resolution = resolve_extraction(raw_extraction, requirements=spec_lines)
+        resolution = resolve_extraction(work_extraction, requirements=spec_lines)
         drawing_data = resolution.clean_extraction
         n_spec = sum(1 for r in resolution.dim_resolutions.values()
                      if r.assumption_basis == "spec_driven")
         if n_spec:
             print(f"[SPEC] {n_spec} ambiguous dimension(s) resolved spec-driven "
                   "(operator specification took precedence).", flush=True)
+        if mm_app is not None:
+            # Every derived value + spec-override conflict lands in
+            # resolved_extraction.json with its derivation method.
+            resolution.resolved_extraction["must_meet"] = mm_app.as_record()
+    elif mm_app is not None:
+        drawing_data = work_extraction
 
     print("[STAGE] Verifying", flush=True)
     model, report = run_verification(drawing_data)
@@ -288,6 +342,18 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     (part_dir / f"{safe}_verification_report.txt").write_text(
         verification_text, encoding="utf-8"
     )
+
+    # Persist the operator's authoritative inputs with the run: the raw spec
+    # text (must_meet_spec.txt) and the parsed constraints (MM-001..).
+    if spec_text:
+        try:
+            from pipeline.must_meet import MUST_MEET_FILENAME, write_constraints_json
+
+            (part_dir / MUST_MEET_FILENAME).write_text(spec_text + "\n", encoding="utf-8")
+            if mm_constraints:
+                write_constraints_json(part_dir, mm_constraints, mm_note)
+        except OSError as e:
+            log.warning("Could not persist must-meet spec files: %s", e)
 
     # Early compliance pre-check (specs-first): grade the must-meet specs against
     # the resolved extraction IMMEDIATELY after resolution, so an unmet spec
@@ -324,12 +390,45 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
                         n_skipped=0, detail=str(e)[:300])
     n_macros = sum(1 for s in pkg.steps if s.macro_file.endswith(".vba"))
 
+    # ── CadQuery pre-validation: build the SAME geometry headlessly from
+    # build_plan.json and check it against the MM constraints BEFORE SolidWorks
+    # is touched. A failure aborts the SolidWorks build and surfaces the exact
+    # constraint id — never a generic pipeline error.
+    preval_ok = True
+    preval_detail = ""
+    try:
+        from pipeline.cq_prevalidate import run_prevalidation, write_prevalidate_script
+
+        print("[STAGE] Pre-validating (CadQuery)", flush=True)
+        write_prevalidate_script(part_dir, pkg.build_plan_json.name)
+        preval = run_prevalidation(pkg.build_plan_json, mm_constraints, part_dir)
+        if preval.get("skipped"):
+            print(f"[PREVAL] {preval['skipped']}", flush=True)
+        elif preval.get("ok"):
+            print("[PREVAL] PASS — watertight pre-validated solid"
+                  + (", all must-meet constraints hold" if mm_constraints else "")
+                  + " (prevalidation.stl written).", flush=True)
+        else:
+            preval_ok = False
+            fails = (preval.get("failed_constraints")
+                     or ([f"pre-validation error: {preval['error']}"]
+                         if preval.get("error") else ["pre-validation failed"]))
+            for f in fails:
+                print(f"[PREVAL] {f}", flush=True)
+            preval_detail = "; ".join(fails)[:300]
+    except Exception as e:  # the optional pre-check must never sink a run
+        log.warning("Pre-validation crashed (non-fatal): %s", e)
+
     # Build the real .sldprt into the part folder whenever SolidWorks is available,
     # so the 3D model is a required output of every run alongside the text files.
     detail = ""
     build_skipped: list = []
     build_caveats: list = []
-    if sw_app is not None:
+    if sw_app is not None and not preval_ok:
+        print("[PREVAL] Aborting the SolidWorks build — resolve the failed "
+              "constraint(s) above first (macros and the pre-validated STL were "
+              "still produced).", flush=True)
+    if sw_app is not None and preval_ok:
         print("[STAGE] Building .sldprt", flush=True)
         try:
             sldprt = build_sldprt_for_part(sw_app, model, part_dir, part_dir.name, template_path,
@@ -338,6 +437,28 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
         except Exception as e:  # a build failure must not lose the macros/text output
             detail = f"sldprt build failed: {type(e).__name__}: {e}"[:300]
             log.warning("%s: %s", part, detail)
+
+    # ── Post-build must-meet verification: measure the REAL SolidWorks STL
+    # (trimesh) and grade every MM constraint PASS/FAIL with measured values.
+    mm_verification = None
+    if mm_constraints:
+        built_stl = part_dir / f"{part_dir.name}.stl"
+        if built_stl.is_file():
+            from pipeline.constraint_verify import verify_constraints_stl
+            from pipeline.macro_generator import _model_thickness
+
+            print("[STAGE] Verifying must-meet constraints", flush=True)
+            mm_verification = verify_constraints_stl(
+                built_stl, mm_constraints, part_dir, part=part,
+                expected_thickness_in=_model_thickness(model) or None,
+                build_plan_path=pkg.build_plan_json,
+                lessons_path=output_dir / "lessons_learned.jsonl",
+            )
+            for r in mm_verification.get("constraints", []):
+                print(f"[MM] {r['id']} {r['status']}: required {r['required']}, "
+                      f"measured {r['measured']}", flush=True)
+            if mm_verification.get("error"):
+                print(f"[MM] verification error: {mm_verification['error']}", flush=True)
 
     # ── Final checks: overview cross-check + human-requirements compliance ──
     # Both are graceful no-ops (with an explanatory note) when their input is
@@ -412,14 +533,22 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     except Exception as e:  # the review must never sink an otherwise good run
         log.warning("Could not write engineering review for %s: %s", part, e)
 
-    # Gate: CRITICAL overview gap or unmet human requirement -> NOT READY
+    # Gate: CRITICAL overview gap, unmet human requirement, a failed
+    # pre-validation, or a failed post-build MM constraint -> NOT READY
     # (macros + model were still produced; the status is what changes).
+    # A run with MM constraints is only SUCCESS when EVERY constraint passes.
     gate_reasons = []
     if any(i.get("severity") == "CRITICAL" for i in overview_items):
         gate_reasons.append("overview verification found CRITICAL gap(s)")
     n_unmet = sum(1 for r in reqs if r.get("status") == "unmet")
     if n_unmet:
         gate_reasons.append(f"{n_unmet} unmet human requirement(s)")
+    if not preval_ok:
+        gate_reasons.append(preval_detail or "CadQuery pre-validation failed")
+    if mm_verification is not None and not mm_verification.get("ok"):
+        gate_reasons.append("; ".join(
+            mm_verification.get("failed_constraints",
+                                ["must-meet constraint verification failed"]))[:250])
     status = "READY" if not gate_reasons else "NOT READY"
     if gate_reasons:
         detail = ("; ".join(gate_reasons) + (f"; {detail}" if detail else ""))[:300]

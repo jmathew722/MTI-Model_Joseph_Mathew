@@ -14,3 +14,9 @@ pydantic==2.13.4
 python-dotenv==1.2.2
 rich==15.0.0
 pytest==9.1.1
+# Must-meet verification layer: CadQuery pre-validation (headless geometry
+# check before SolidWorks) + trimesh post-build STL verification.
+cadquery==2.8.0
+trimesh==4.12.2
+networkx==3.6.1
+shapely==2.1.2

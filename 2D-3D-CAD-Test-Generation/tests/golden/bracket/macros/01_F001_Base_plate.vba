@@ -53,6 +53,75 @@ Function VerifySolidBody(step As String) As Boolean
     End If
 End Function
 
+' --- Append a machine-readable result line to ..\logs\macro_result.json (JSON Lines) ---
+' Every feature-creation outcome is recorded here (feature name -> success/fail)
+' so the web UI / FastAPI side can surface the EXACT failing feature instead of a
+' generic pipeline exit code.
+Sub WriteMacroResult(featureName As String, status As String, detail As String)
+    On Error Resume Next
+    Dim macroPath As String, p As String, f As Integer, q As String
+    q = Chr$(34)
+    macroPath = swApp.GetCurrentMacroPathName
+    p = Left$(macroPath, InStrRev(macroPath, "\")) & "..\logs\macro_result.json"
+    f = FreeFile
+    Open p For Append As #f
+    Print #f, "{" & q & "feature" & q & ": " & q & featureName & q & ", " & _
+        q & "status" & q & ": " & q & status & q & ", " & _
+        q & "detail" & q & ": " & q & Replace(Replace(detail, "\", "/"), q, "'") & q & "}"
+    Close #f
+    On Error GoTo 0
+End Sub
+
+' --- Create a circular pattern with the exact selection contract the API requires ---
+' Signature pulled from the INSTALLED SolidWorks type library (sldworks.tlb,
+' IFeatureManager::FeatureCircularPattern5, dispid 261; see the local API help
+' topic "FeatureCircularPattern5 Method (IFeatureManager)"):
+'   FeatureCircularPattern5(Number As Long, Spacing As Double, FlipDirection As Boolean,
+'     DName As String, GeometryPattern As Boolean, EqualSpacing As Boolean,
+'     VaryInstance As Boolean, SyncSubAssemblies As Boolean, BDir2 As Boolean,
+'     BSymmetric As Boolean, Number2 As Long, Spacing2 As Double, DName2 As String,
+'     EqualSpacing2 As Boolean)
+' Conventions asserted ONCE here, never re-interpreted downstream:
+'   * Number (totalInstances) INCLUDES the seed: 6 = seed + 5 copies.
+'   * Spacing is the TOTAL angle in RADIANS when EqualSpacing=True.
+' Selection contract (a wrong/missing mark = silent Nothing return):
+'   pattern axis  -> SelectByID2 ... Mark:=1
+'   seed feature  -> SelectByID2 ... Mark:=4 (type "BODYFEATURE", exact tree name)
+Function CreateCircularPatternSafe(axisName As String, seedName As String, _
+        totalInstances As Integer, totalAngleDeg As Double, reverseDir As Boolean, _
+        geometryPattern As Boolean, varySketch As Boolean, newName As String, _
+        stepName As String) As Boolean
+    Dim swFeat As SldWorks.Feature
+    Dim spacingRad As Double
+    spacingRad = totalAngleDeg * 4# * Atn(1#) / 180#
+    swModel.ClearSelection2 True
+    If Not swModel.Extension.SelectByID2(axisName, "AXIS", 0, 0, 0, False, 1, Nothing, 0) Then
+        LogResult "FAIL", stepName, "Could not select pattern axis '" & axisName & "' (Mark=1)"
+        Exit Function
+    End If
+    If Not swModel.Extension.SelectByID2(seedName, "BODYFEATURE", 0, 0, 0, True, 4, Nothing, 0) Then
+        LogResult "FAIL", stepName, "Could not select seed feature '" & seedName & "' (Mark=4)"
+        Exit Function
+    End If
+    On Error Resume Next
+    Set swFeat = swModel.FeatureManager.FeatureCircularPattern5( _
+        totalInstances, spacingRad, reverseDir, "NULL", geometryPattern, True, varySketch, _
+        False, False, False, 1, spacingRad, "NULL", False)
+    On Error GoTo 0
+    If swFeat Is Nothing Then
+        ' Older-release fallback: FeatureCircularPattern4 (same leading 7 arguments).
+        On Error Resume Next
+        Set swFeat = swModel.FeatureManager.FeatureCircularPattern4( _
+            totalInstances, spacingRad, reverseDir, "NULL", geometryPattern, True, varySketch)
+        On Error GoTo 0
+    End If
+    If swFeat Is Nothing Then Exit Function
+    ' Name the pattern feature immediately so downstream selections never depend
+    ' on SolidWorks' auto-numbering (CirPattern1 vs CirPattern2 drift).
+    swFeat.Name = newName
+    CreateCircularPatternSafe = True
+End Function
+
 ' --- Select a reference plane robustly (plane names vary by template / language) ---
 Function SelectRefPlane(planeName As String, planeIndex As Integer) As Boolean
     Dim tries As Variant, i As Integer
@@ -93,6 +162,7 @@ Sub main()
     If Not SelectRefPlane("Top Plane", 2) Then
         MsgBox "Could not select Top Plane (no reference plane found).", vbCritical
         LogResult "FAIL", "01_F001", "Could not select Top Plane (no reference plane found)."
+        WriteMacroResult "01_F001", "FAIL", "Could not select Top Plane (no reference plane found)."
         End
     End If
 
@@ -116,6 +186,7 @@ Sub main()
     If swModel.SketchManager.ActiveSketch Is Nothing Then
         MsgBox "No active sketch to build the feature from.", vbCritical
         LogResult "FAIL", "01_F001", "No active sketch to build the feature from."
+        WriteMacroResult "01_F001", "FAIL", "No active sketch to build the feature from."
         End
     End If
 
@@ -133,13 +204,16 @@ Sub main()
     If swFeat Is Nothing Then
         MsgBox "Feature creation returned Nothing - check the sketch.", vbCritical
         LogResult "FAIL", "01_F001", "Feature creation returned Nothing - check the sketch."
+        WriteMacroResult "01_F001", "FAIL", "Feature creation returned Nothing - check the sketch."
         End
     End If
     swFeat.Name = "F001_Base_plate"
     If Not VerifySolidBody("01_F001") Then
         MsgBox "No solid body after this feature.", vbCritical
         LogResult "FAIL", "01_F001", "No solid body after this feature."
+        WriteMacroResult "01_F001", "FAIL", "No solid body after this feature."
         End
     End If
     LogResult "PASS", "01_F001", "Created feature F001_Base_plate"
+    WriteMacroResult "F001_Base_plate", "PASS", ""
 End Sub

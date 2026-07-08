@@ -531,15 +531,34 @@ def run_source(run_id: str):
 
 
 def _find_stl(out: Path) -> Path | None:
-    stls = sorted(out.rglob("*.stl")) if out.exists() else []
+    """The REAL (SolidWorks) STL — the CadQuery prevalidation STL is excluded."""
+    stls = [p for p in sorted(out.rglob("*.stl")) if p.name != "prevalidation.stl"] \
+        if out.exists() else []
     return stls[0] if stls else None
+
+
+def _find_preval_stl(out: Path) -> Path | None:
+    hits = sorted(out.rglob("prevalidation.stl")) if out.exists() else []
+    return hits[0] if hits else None
+
+
+def _active_stl(out: Path) -> tuple[Path | None, str | None]:
+    """(path, source): the SolidWorks STL when built, else the pre-validated
+    CadQuery STL (shown with a badge until the real one replaces it)."""
+    p = _find_stl(out)
+    if p is not None:
+        return p, "solidworks"
+    p = _find_preval_stl(out)
+    if p is not None:
+        return p, "prevalidation"
+    return None, None
 
 
 @app.get("/api/runs/{run_id}/model.stl")
 def run_stl(run_id: str):
     if run_id not in RUNS:
         raise HTTPException(404, "Unknown run id")
-    p = _find_stl(RUNS[run_id]["output"])
+    p, _src = _active_stl(RUNS[run_id]["output"])
     if p is None:
         raise HTTPException(404, "No STL for this run yet")
     return FileResponse(str(p), media_type="model/stl", filename=p.name)
@@ -633,6 +652,63 @@ def _file_listing(out: Path) -> list[dict]:
     return files
 
 
+def _mm_summary(out: Path) -> dict:
+    """Must-meet checklist payload for Tab 2: the post-build
+    constraint_verification.json wins; prevalidation_report.json is shown until
+    the real SolidWorks build replaces it. macro_result.json failures (exact
+    failing feature) are folded into ``failed`` so the banner is precise —
+    never a generic exit code."""
+    import json as _json
+
+    def _load(p: Path | None):
+        if p is None:
+            return None
+        try:
+            return _json.loads(p.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            return None
+
+    cv = _load(_first(out, ["constraint_verification.json"]))
+    pv = _load(_first(out, ["prevalidation_report.json"]))
+    mc = _load(_first(out, ["must_meet_constraints.json"])) or {}
+    data, stage = (cv, "post_build") if cv else (pv, "prevalidation" if pv else None)
+
+    results = (data or {}).get("constraints", []) or []
+    failed = list((data or {}).get("failed_constraints", []) or [])
+    if not failed and (data or {}).get("error"):
+        failed = [f"verification error: {data['error']}"]
+
+    # macro_result.json: the COM builder writes {"results": [...]}; the VBA
+    # macros append JSON Lines. Read both shapes.
+    macro_results: list = []
+    mr_path = _first(out, ["macro_result.json"])
+    if mr_path is not None:
+        raw = _load(mr_path)
+        if isinstance(raw, dict):
+            macro_results = raw.get("results", []) or []
+        else:
+            try:
+                for line in mr_path.read_text(encoding="utf-8", errors="replace").splitlines():
+                    line = line.strip()
+                    if line:
+                        macro_results.append(_json.loads(line))
+            except Exception:
+                macro_results = []
+    for r in macro_results:
+        if str(r.get("status", "")).upper() == "FAIL":
+            failed.append(f"feature {r.get('feature', '?')} FAILED: {r.get('detail', '')}")
+
+    return {
+        "present": bool(results or mc.get("constraints")),
+        "stage": stage,
+        "ok": (data or {}).get("ok"),
+        "results": results,
+        "constraints": mc.get("constraints", []),
+        "failed": failed,
+        "macro_results": macro_results,
+    }
+
+
 def _categorize_output(out: Path) -> dict:
     """Categorise a pipeline output dir into the shape the output tabs consume.
     Shared by run-id-scoped and per-part outputs so both render identically —
@@ -653,11 +729,12 @@ def _categorize_output(out: Path) -> dict:
                 txt = "(unreadable)"
             macros_files.append({"name": m.relative_to(out).as_posix(), "text": txt})
 
-    stl = _find_stl(out)
+    stl, stl_source = _active_stl(out)
     has_any = any(x is not None for x in (extraction, resolved, build_plan, verification, model_check)) or bool(macros_files)
     return {
         "has_any": has_any,
         "stl_mtime": int(stl.stat().st_mtime) if stl else 0,
+        "stl_source": stl_source,
         "categories": {
             "extraction": _cat(extraction),
             "resolved": _cat(resolved),
@@ -668,7 +745,9 @@ def _categorize_output(out: Path) -> dict:
             "usage": _usage_summary(out),
             "macros": {"present": bool(macros_files), "files": macros_files},
             "sldprt": {"present": bool(_first(out, ["*.sldprt"]))},
-            "stl": {"present": stl is not None, "name": stl.name if stl else None},
+            "stl": {"present": stl is not None, "name": stl.name if stl else None,
+                    "source": stl_source},
+            "must_meet": _mm_summary(out),
             "files": {"present": out.exists(), "list": _file_listing(out)},
         },
     }
@@ -992,14 +1071,11 @@ async def add_part(
     if source_format.strip():
         (pdir / ".source_format").write_text(source_format.strip()[:64], encoding="utf-8")
 
-    # Human-authored must-meet notes (one requirement per line). Saved into the
-    # views folder as notes.txt — the pipeline discovers it there, grades every
-    # line against the build, and gates READY on unmet requirements.
-    notes_path = pdir / "notes.txt"
-    if notes.strip():
-        notes_path.write_text(notes.strip()[:20000] + "\n", encoding="utf-8")
-    elif notes_path.is_file():
-        notes_path.unlink()  # notes were cleared on re-save
+    # Human-authored MUST-MEET SPECIFICATIONS (authoritative, tier 0). Saved as
+    # must_meet_spec.txt (Stage 2.6 parses it into MM constraints that override
+    # vision extraction) AND as notes.txt (legacy per-line grading) — same text,
+    # discovered by the pipeline in the views folder.
+    _write_spec_files(pdir, notes)
 
     used: set[str] = set()
     for i, up in enumerate(crops, start=1):
@@ -1048,17 +1124,27 @@ def part_thumb(session: str, part: str):
     return FileResponse(str(p), media_type="image/jpeg")
 
 
+def _write_spec_files(pdir: Path, notes: str) -> None:
+    """Persist the operator's must-meet text as BOTH must_meet_spec.txt (the
+    Stage 2.6 authoritative input, kept with the run) and notes.txt (legacy
+    per-line grading). Clearing the text removes both."""
+    text = (notes or "").strip()[:20000]
+    for fname in ("must_meet_spec.txt", "notes.txt"):
+        p = pdir / fname
+        if text:
+            p.write_text(text + "\n", encoding="utf-8")
+        elif p.is_file():
+            p.unlink()
+
+
 @app.post("/api/parts/{session}/{part}/notes")
 def update_part_notes(session: str, part: str, notes: str = Form("")):
-    """Update a saved part's must-meet notes in place (graded on the next run)."""
+    """Update a saved part's must-meet specifications in place (applied tier-0
+    on the next run)."""
     pdir = _session_dir(session) / _sanitize(part)
     if not pdir.is_dir():
         raise HTTPException(404, "Unknown part")
-    notes_path = pdir / "notes.txt"
-    if notes.strip():
-        notes_path.write_text(notes.strip()[:20000] + "\n", encoding="utf-8")
-    elif notes_path.is_file():
-        notes_path.unlink()
+    _write_spec_files(pdir, notes)
     return {"part": _sanitize(part), "parts": _list_parts(_session_dir(session))}
 
 
@@ -1109,7 +1195,7 @@ def part_file(session: str, part: str, name: str):
 
 @app.get("/api/parts/{session}/{part}/model.stl")
 def part_stl(session: str, part: str):
-    p = _find_stl(_session_dir(session) / _sanitize(part) / "output")
+    p, _src = _active_stl(_session_dir(session) / _sanitize(part) / "output")
     if p is None:
         raise HTTPException(404, "No STL for this part yet")
     return FileResponse(str(p), media_type="model/stl", filename=p.name)

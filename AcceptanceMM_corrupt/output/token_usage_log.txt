@@ -1,0 +1,12 @@
+CLAUDE API TOKEN & COST LEDGER
+==============================
+Prices USD per 1M tokens (sonnet-5 $3/$15, sonnet-4-6 $3/$15, opus-4-8 $5/$25; cache write 1.25x input, cache read 0.10x input).
+Only extraction runs hit the API; --from-json and cache hits cost $0.
+
+TIMESTAMP             PART              MODEL                      IN       OUT   CACHE_RD  CALLS   COST_USD
+--------------------------------------------------------------------------------------------------------------
+2026-07-07 21:29:43   A050211E_extract  claude-sonnet-5         1,315       426          0      1     0.0103
+--------------------------------------------------------------------------------------------------------------
+TOTAL                 1 run(s)                                  1,315       426          0            0.0103
+
+TOTAL API COST TO DATE: $0.0103

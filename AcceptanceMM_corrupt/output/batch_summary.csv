@@ -1,0 +1,2 @@
+source,part,status,macro_readiness,geometry_completeness,dimension_completeness,consistency,feature_confidence,n_macros,n_needs_review,n_skipped,detail
+A050211E_extraction.json,A050211E,NOT READY,0.975,1.0,1.0,1.0,0.9,10,0,0,"MM-001 FAILED: 6 equal-diameter through-hole(s) found in the pattern group; required 5; bolt circle R 2.880 in, worst equal-spacing deviation 0.0000 in (required 5, measured 6)"

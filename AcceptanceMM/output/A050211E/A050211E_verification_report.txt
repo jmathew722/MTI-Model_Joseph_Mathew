@@ -1,0 +1,35 @@
+VERIFICATION REPORT
+===================
+Part: A050211E    Units: inch    Standard: unknown    Confidence: 0.90
+Total dimensions extracted: 5
+Hole callouts extracted: 2
+Features identified: 4  (build order: 4)
+Dimensions flagged ambiguous: 0
+Dimensional closure: PASS  (0 chain(s) checked)
+Unit consistency: PASS
+View consistency: PASS
+Feature feasibility: PASS
+Derived dimensions computed: 0
+
+DRAWING COMPLETENESS SCORE (Phase 4):
+  Geometry completeness:  100%
+  Dimension completeness: 100%
+  Cross-view consistency: 100%
+  Feature confidence:     90%
+  Macro readiness:        98%
+
+OVERALL STATUS: READY TO BUILD
+
+OVERVIEW VERIFICATION
+=====================
+(skipped: --skip-overview-check)
+
+HUMAN-SPECIFIED REQUIREMENTS COMPLIANCE
+=======================================
+(1 requirement(s) from must_meet_spec.txt: 0 unmet)
+Specs-first: these specifications were applied DURING extraction and
+Stage 2.5 resolution (injected into the extraction prompt; spec values
+took precedence over ambiguous readings), then verified here against
+the final build — not just checked post-hoc.
+R001 [MET] there must be 6 holes in this part that can be done using a circular pattern, there must be an extrude cut from the center that is 3.880 diameter, there must be a 1.25 diameter extrude cut feature that is in the bottom and is in the front view that is 2.94 from the center of the other circular extrude cut. All holes must be through all.
+      -> hole/pattern/boss present in the build; numeric value(s) match extracted dimensions
