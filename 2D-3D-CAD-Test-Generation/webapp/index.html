@@ -92,7 +92,23 @@
   @keyframes spin { to { transform:rotate(360deg); } }
 
   /* ── Tab 1 · Drawing Crop (the cropper owns the whole tab) ─────────────── */
-  #panel-crop iframe { flex:1 1 auto; width:100%; border:0; background:var(--well); min-height:0; }
+  #panel-crop iframe { flex:1 1 auto; width:100%; height:100%; border:0; background:var(--well); min-height:0; }
+  /* Sheet 1 mode bar: cropper ↔ reference-region markup (preprocessing). */
+  .crop-modebar { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-2);
+                  padding:var(--sp-1) var(--sp-4); border-bottom:1px solid var(--line);
+                  background:var(--bg-raised); }
+  .crop-modebar .cmode { font:600 var(--fs-caption)/1.6 var(--sans); letter-spacing:.06em;
+                         text-transform:uppercase; padding:4px var(--sp-3); cursor:pointer;
+                         background:var(--surface); color:var(--ink-3);
+                         border:1px solid var(--line); border-radius:var(--r-sm); }
+  .crop-modebar .cmode.active { color:var(--blueprint-text); border-color:var(--blueprint);
+                                background:var(--blueprint-dim); }
+  #crop-view { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+  #mark-view { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+  #mk-box { flex:1 1 auto; min-height:0; position:relative; display:grid;
+            place-items:center; background:var(--well); overflow:hidden; }
+  #mk-img { max-width:100%; max-height:100%; object-fit:contain;
+            transform-origin:center center; }
 
   /* ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────────── */
   /* Kept compact so the Overview + 3D viewer panels below get the room. */
@@ -457,9 +473,45 @@
 </nav>
 
 <main>
-  <!-- ── Tab 1 · Drawing Crop (cropper fills the whole tab) ────────────── -->
+  <!-- ── Sheet 1 · Drawing Crop + preprocessing markup ─────────────────────
+       Two modes: the vendored DrawingCrop cropper (untouched, in its iframe)
+       and the reference-region markup surface (colored boxes = feature
+       groups, drawn over the drawing BEFORE extraction). ────────────────── -->
   <section class="panel active" id="panel-crop">
-    <iframe id="photoapp" src="/photoapp/"></iframe>
+    <div class="crop-modebar">
+      <button class="tab-c sm cmode active" id="crop-mode-crop">✂ Crop views</button>
+      <button class="tab-c sm cmode" id="crop-mode-mark">✎ Mark regions</button>
+      <span class="hint" id="crop-mode-hint">crop each orthographic view, or switch to markup to highlight dimension regions before extraction</span>
+    </div>
+    <div id="crop-view">
+      <iframe id="photoapp" src="/photoapp/"></iframe>
+    </div>
+    <div id="mark-view" style="display:none">
+      <div class="mark-bar">
+        <button class="btn secondary sm on" id="mark-toggle"
+                title="Draw mode: drag to draw a highlight box over a dimension callout, hole center, or offset dimension. Toggle OFF to pan the image instead.">✎ Draw</button>
+        <span class="mark-swatch" id="mark-swatch"></span>
+        <select class="sel-input" id="mark-color" title="Active color — every box drawn with this color belongs to the same feature group"></select>
+        <select class="sel-input" id="mark-role" title="Role tag for the NEXT box drawn">
+          <option value="center">center</option>
+          <option value="x-dimension">x-dimension</option>
+          <option value="y-dimension">y-dimension</option>
+          <option value="tolerance">tolerance</option>
+          <option value="other">other</option>
+        </select>
+        <span class="hint" id="mark-hint">drag to draw · corner handle resizes · × deletes · boxes sharing a color = one feature group</span>
+      </div>
+      <div id="mk-box">
+        <img id="mk-img" alt="drawing for markup" style="display:none" />
+        <div id="ov-mark-layer"></div>
+        <div class="emptynote" id="mk-empty">No drawing loaded yet — open a drawing in ✂ Crop views (or upload/select a part on the Part Setup sheet), then mark regions here.</div>
+      </div>
+      <details class="ovan" id="regions-panel" style="display:none" open>
+        <summary><span class="twist"></span>Marked reference regions
+          <span class="grow"></span><span class="hint" id="regions-count" style="text-transform:none;letter-spacing:0"></span></summary>
+        <div class="ovan-body regions-body" id="regions-body"></div>
+      </details>
+    </div>
   </section>
 
   <!-- ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────── -->
@@ -518,30 +570,10 @@
           <span class="grow"></span>
           <span class="hint">scroll zoom · drag pan · double-click reset</span>
         </div>
-        <div class="mark-bar">
-          <button class="btn secondary sm" id="mark-toggle"
-                  title="Mark reference regions: drag to draw a highlight box over a dimension callout, hole center, or offset dimension. Boxes sharing a color are ONE feature group (e.g. a hole + its X and Y dimensions).">✎ Mark regions</button>
-          <span class="mark-swatch" id="mark-swatch"></span>
-          <select class="sel-input" id="mark-color" title="Active color — every box drawn with this color belongs to the same feature group"></select>
-          <select class="sel-input" id="mark-role" title="Role tag for the NEXT box drawn">
-            <option value="center">center</option>
-            <option value="x-dimension">x-dimension</option>
-            <option value="y-dimension">y-dimension</option>
-            <option value="tolerance">tolerance</option>
-            <option value="other">other</option>
-          </select>
-          <span class="hint" id="mark-hint">drag to draw · corner handle resizes · × deletes</span>
-        </div>
         <div class="body" id="ov-box">
           <img id="ov-img" alt="full overview drawing" style="display:none" />
-          <div id="ov-mark-layer"></div>
           <div class="emptynote" id="ov-empty">No overview image provided for this part.</div>
         </div>
-        <details class="ovan" id="regions-panel" style="display:none">
-          <summary><span class="twist"></span>Marked reference regions
-            <span class="grow"></span><span class="hint" id="regions-count" style="text-transform:none;letter-spacing:0"></span></summary>
-          <div class="ovan-body regions-body" id="regions-body"></div>
-        </details>
       </div>
       <div class="side">
         <div class="cap capflex">3D Model (STL) — drag rotate · scroll zoom · right-drag pan<span class="stl-badge" id="stl-badge">PRE-VALIDATED (CadQuery)</span>
@@ -869,7 +901,7 @@ function regionsSubsectionHTML() {
   const regions = regionList();
   if (!regions.length) return '';
   const fmt = n => n.toFixed(3).replace(/^0/, '');
-  return `<div class="sec-t">Marked reference regions — human ground truth (drawn on the Part Setup sheet)</div>` +
+  return `<div class="sec-t">Marked reference regions — human ground truth (drawn on the Drawing Crop sheet)</div>` +
     regionGroups(regions).map(g => `
       <div class="rg-mini"><span class="mark-swatch" style="background:${esc(g.color)}"></span>
         <div><b>${esc(g.colorLabel)}</b><ul>${g.regions.map(r =>
@@ -1079,8 +1111,8 @@ const REGION_ROLES = ['center', 'x-dimension', 'y-dimension', 'tolerance', 'othe
 const INTAKE_REGION_KEY = '__intake__';
 let regionsByKey = {};              // context key (part name or intake) -> region[]
 let regionsDirty = new Set();       // keys with local edits not yet on the server
-let markOn = false;
-window.__markOn = false;
+let markOn = true;           // Sheet 1's markup view opens in draw mode
+window.__markOn = true;
 
 function regionCtxKey() { return selectedPart || INTAKE_REGION_KEY; }
 function regionList() {
@@ -1112,15 +1144,49 @@ function updateSwatch() { document.getElementById('mark-swatch').style.backgroun
 markColorSel.addEventListener('change', updateSwatch); updateSwatch();
 
 const markLayer = document.getElementById('ov-mark-layer');
+markLayer.classList.add('marking'); // draw mode starts ON in the markup view
 document.getElementById('mark-toggle').addEventListener('click', e => {
   markOn = !markOn; window.__markOn = markOn;
   e.currentTarget.classList.toggle('on', markOn);
   markLayer.classList.toggle('marking', markOn);
   document.getElementById('mark-hint').textContent = markOn
-    ? 'drawing ON — drag on the image to add a box (pan is paused; scroll still zooms)'
-    : 'drag to draw · corner handle resizes · × deletes';
+    ? 'drag to draw · corner handle resizes · × deletes · boxes sharing a color = one feature group'
+    : 'draw OFF — drag pans the image · scroll zooms · toggle ✎ Draw to add boxes';
   renderRegions(false); // re-render so handles/delete controls reflect the mode
 });
+
+// ── Sheet 1 mode bar: cropper ↔ markup surface ──────────────────────────────
+// The markup image mirrors the current preprocessing context: the drawing
+// loaded/cropped in this session (its overview crop wins over the raw source),
+// else the selected saved part's overview drawing.
+function updateMarkImage() {
+  const img = document.getElementById('mk-img'), empty = document.getElementById('mk-empty');
+  const ovItem = intake.items.find(i => i.orientation === 'overview');
+  const url = (ovItem && ovItem.dataURL) || intake.source ||
+    (selectedPart ? `/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/overview.jpg?t=${Date.now()}` : null);
+  if (!url) {
+    img.style.display = 'none'; empty.style.display = '';
+    if (window.__mkSyncLayer) window.__mkSyncLayer();
+    return;
+  }
+  img.onload = () => { img.style.display = ''; empty.style.display = 'none';
+                       if (window.__mkReset) window.__mkReset(); };
+  img.onerror = () => { img.style.display = 'none'; empty.style.display = '';
+                        if (window.__mkSyncLayer) window.__mkSyncLayer(); };
+  img.src = url;
+}
+function setCropMode(mode) { // 'crop' | 'mark'
+  document.getElementById('crop-mode-crop').classList.toggle('active', mode === 'crop');
+  document.getElementById('crop-mode-mark').classList.toggle('active', mode === 'mark');
+  document.getElementById('crop-view').style.display = mode === 'crop' ? '' : 'none';
+  document.getElementById('mark-view').style.display = mode === 'mark' ? '' : 'none';
+  document.getElementById('crop-mode-hint').textContent = mode === 'mark'
+    ? 'highlight dimension regions before extraction — color = feature group (a hole + its X and Y dimensions share one color)'
+    : 'crop each orthographic view, or switch to markup to highlight dimension regions before extraction';
+  if (mode === 'mark') { updateMarkImage(); renderRegions(false); }
+}
+document.getElementById('crop-mode-crop').addEventListener('click', () => setCropMode('crop'));
+document.getElementById('crop-mode-mark').addEventListener('click', () => setCropMode('mark'));
 
 // Boxes are rendered in % of the mark layer, which exactly tracks the image
 // (same geometry + same pan/zoom transform) — so normalized coords are the
@@ -1391,6 +1457,9 @@ function updateOverviewBox() {
   else if (selectedPart) show(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/overview.jpg?t=${Date.now()}`);
   else if (intakeOverview) show(intakeOverview);
   else { img.style.display = 'none'; empty.style.display = ''; }
+  // Keep Sheet 1's markup surface on the same preprocessing context (only
+  // refresh while it is visible — no hidden reloads).
+  if (document.getElementById('mark-view').style.display !== 'none') updateMarkImage();
 }
 
 // ── Intake: upload / pull crops → view-type dropdown → name → save ──────────
@@ -2033,11 +2102,35 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
 });
 
 // ── Overview panel pan/zoom (independent of the STL viewer's orbit controls) ─
-// The reference-region mark layer mirrors the image's exact geometry AND the
-// same pan/zoom transform, so boxes stored in normalized 0-1 coordinates stay
-// pinned to the drawing at every zoom level and window size.
 (() => {
   const img = document.getElementById('ov-img'), box = document.getElementById('ov-box');
+  let s = 1, tx = 0, ty = 0, panning = false, px = 0, py = 0;
+  const apply = () => { img.style.transform = `translate(${tx}px,${ty}px) scale(${s})`; };
+  window.__ovReset = () => { s = 1; tx = 0; ty = 0; apply(); };
+  box.addEventListener('wheel', e => {
+    if (img.style.display === 'none') return;
+    e.preventDefault();
+    s = Math.min(12, Math.max(0.2, s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+    apply();
+  }, { passive: false });
+  box.addEventListener('mousedown', e => {
+    if (img.style.display === 'none') return;
+    panning = true; px = e.clientX - tx; py = e.clientY - ty; e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (panning) { tx = e.clientX - px; ty = e.clientY - py; apply(); }
+  });
+  window.addEventListener('mouseup', () => { panning = false; });
+  box.addEventListener('dblclick', () => window.__ovReset());
+})();
+
+// ── Sheet 1 markup surface: pan/zoom for the markup image + mark layer ──────
+// The mark layer mirrors the markup image's exact geometry AND the same
+// pan/zoom transform, so boxes stored in normalized 0-1 coordinates stay
+// pinned to the drawing at every zoom level and window size. Draw mode is ON
+// by default here; toggling ✎ Draw off re-enables drag-panning.
+(() => {
+  const img = document.getElementById('mk-img'), box = document.getElementById('mk-box');
   const layer = document.getElementById('ov-mark-layer');
   let s = 1, tx = 0, ty = 0, panning = false, px = 0, py = 0;
   const apply = () => {
@@ -2056,8 +2149,8 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
     }
     apply();
   };
-  window.__ovSyncLayer = sync;
-  window.__ovReset = () => { s = 1; tx = 0; ty = 0; sync(); };
+  window.__mkSyncLayer = sync;
+  window.__mkReset = () => { s = 1; tx = 0; ty = 0; sync(); };
   new ResizeObserver(sync).observe(img);
   new ResizeObserver(sync).observe(box);
   box.addEventListener('wheel', e => {
@@ -2067,14 +2160,14 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
     apply();
   }, { passive: false });
   box.addEventListener('mousedown', e => {
-    if (img.style.display === 'none' || window.__markOn) return; // marking pauses panning
+    if (img.style.display === 'none' || window.__markOn) return; // draw mode pauses panning
     panning = true; px = e.clientX - tx; py = e.clientY - ty; e.preventDefault();
   });
   window.addEventListener('mousemove', e => {
     if (panning) { tx = e.clientX - px; ty = e.clientY - py; apply(); }
   });
   window.addEventListener('mouseup', () => { panning = false; });
-  box.addEventListener('dblclick', () => window.__ovReset());
+  box.addEventListener('dblclick', () => window.__mkReset());
 })();
 
 // ── Three.js STL viewer ──────────────────────────────────────────────────────

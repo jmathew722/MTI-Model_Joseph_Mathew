@@ -31,16 +31,23 @@ The header shows the extraction engine (Claude Sonnet 5), the deliverables
 (`.SLDPRT · .STL · VBA`), and a live **API-status pill** (key present → live extraction;
 no key → demo mode from saved extractions, zero cost).
 
-### SHEET 1 · Drawing Crop
+### SHEET 1 · Drawing Crop & Preprocessing Markup
 
-The full drawing intake surface.
+The full drawing intake surface, with two modes on a top mode bar:
 
-- Load a multi-view drawing sheet and **crop each orthographic view** (front, side, top, …)
-  into its own image.
-- Crops are queued and pulled into Sheet 2 with one click — no file juggling.
-- The uncropped sheet itself is preserved as the **Full Overview View**: it powers the
-  Sheet-2 drawing viewer, the new Stage 1.5 holistic analysis, and the post-build overview
-  cross-verification.
+- **✂ Crop views** — load a multi-view drawing sheet and **crop each orthographic view**
+  (front, side, top, …) into its own image. Crops are queued and pulled into Sheet 2 with
+  one click — no file juggling. The uncropped sheet itself is preserved as the
+  **Full Overview View**: it powers the Sheet-2 drawing viewer, the Stage 1.5 holistic
+  analysis, and the post-build overview cross-verification.
+- **✎ Mark regions** — the human preprocessing markup layer: drag colored highlight boxes
+  over ambiguous regions (a hole's dimension callout, its X- and Y-offset dimension lines,
+  its center) *before* extraction runs. **Color = feature group** (15-color palette); each
+  box can carry a role tag (center / x-dimension / y-dimension / tolerance / other) and a
+  transcribed value ("2.500 ± .005"). Boxes are resizable/deletable, stored in normalized
+  0–1 coordinates, persisted per part as `reference_regions.json`, and the color groups
+  surface **live** as a "Marked reference regions" subsection inside the Overview Analysis
+  panel — ground truth for future OCR cross-checking and low-confidence fallback.
 
 ### SHEET 2 · Part Setup & 3D Model
 
@@ -66,15 +73,8 @@ Organized as three input groups across the top, and a two-panel viewer below.
 **Viewer (bottom split):**
 
 - **Left — Full Overview View**: the complete original drawing (zoom/pan/reset), so the
-  reviewer always sees the source of truth next to the result.
-  - **✎ Mark regions** — a human-markup layer over the drawing: drag colored highlight
-    boxes over ambiguous regions (a hole's dimension callout, its X- and Y-offset dimension
-    lines, its center) *before* extraction runs. **Color = feature group** (15-color palette);
-    each box can carry a role tag (center / x-dimension / y-dimension / tolerance / other) and
-    a transcribed value ("2.500 ± .005"). Boxes are resizable/deletable, stored in normalized
-    0–1 coordinates, persisted per part as `reference_regions.json`, and the color groups
-    surface **live** as a "Marked reference regions" subsection inside the Overview Analysis
-    panel — ground truth for future OCR cross-checking and low-confidence fallback.
+  reviewer always sees the source of truth next to the result. (Reference-region markup is
+  drawn on Sheet 1's ✎ Mark regions mode — see Sheet 1 above.)
 - **Right — 3D Model (STL)**: orbit/zoom/pan viewer with a **"Select Model" dropdown** —
   pick *any* part that has ever completed a run (this session or a prior one) and its model
   loads instantly, **no pipeline re-run required**; the left panel simultaneously switches to
