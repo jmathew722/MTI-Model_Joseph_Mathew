@@ -53,7 +53,9 @@ TOOL_NAME = "report_drawing_data"
 #     its hole placement and read the locked origin for model orientation.
 # v7: marked view also carries GD&T datum reference points (origin + lettered
 #     datums + datum holes) that anchor position/orientation.
-PROMPT_VERSION = "7"
+# v8: explicit witness/extension-line tracing to associate location dimensions
+#     to features (bottom-left origin), so holes/cuts are positioned not guessed.
+PROMPT_VERSION = "8"
 
 # Token usage fields summed across the (possibly several) calls of one extraction.
 _USAGE_FIELDS = (
@@ -457,6 +459,14 @@ MULTIVIEW_USER_TEXT = (
     "bolt_circle_diameter, optional bolt_circle_center/start_angle, and qty.\n"
     "- build_order: base extrude/revolve first, then cuts/holes in view order, "
     "fillets and chamfers last, patterns after their seed.\n"
+    "- LOCATION DIMENSIONS (critical — do NOT leave a hole/cut unpositioned): a "
+    "feature's X/Y location dimensions usually sit AWAY from the feature in a "
+    "chain/baseline stack, joined to it only by thin extension/witness lines. "
+    "TRACE those witness lines from each dimension to the feature center/edge it "
+    "terminates on, and set instance_positions ([x,y] per instance) from the "
+    "part's BOTTOM-LEFT corner (0,0), +X right / +Y up. Associate by the line the "
+    "dimension points to, NOT by which text is nearest. Only omit a position when "
+    "the drawing truly gives none — never guess a centered location.\n"
     "Extract everything; be honest about uncertainty (confidence, value_unclear, warnings)."
 )
 

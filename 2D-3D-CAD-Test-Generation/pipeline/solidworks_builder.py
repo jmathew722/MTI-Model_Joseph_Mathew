@@ -505,6 +505,45 @@ def _draw_circles(sw_doc, centers_m: list[tuple[float, float]], radius_m: float)
             raise SolidWorksError("CreateCircleByRadius returned None.")
 
 
+def _bboxes_overlap_xy(a: tuple[float, float, float, float],
+                       b: tuple[float, float, float, float], tol: float = 1e-6) -> bool:
+    """True if two axis-aligned XY boxes (x1,y1,x2,y2) overlap within ``tol``.
+    Pure/testable — the basis of the cut/body intersection sanity check."""
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    return (min(ax2, bx2) - max(ax1, bx1) >= -tol) and (min(ay2, by2) - max(ay1, by1) >= -tol)
+
+
+def _body_bbox_xy_m(sw_doc) -> Optional[tuple[float, float, float, float]]:
+    """Current solid body's XY bounding box (x1,y1,x2,y2) in METERS, or None."""
+    try:
+        bodies = sw_doc.GetBodies2(0, False)
+        body = bodies[0] if isinstance(bodies, (list, tuple)) else bodies
+        box = body.GetBodyBox()  # (x1,y1,z1,x2,y2,z2) meters
+        return (box[0], box[1], box[3], box[4])
+    except Exception as e:
+        log.warning("Could not read body bounding box for intersection sanity: %s", e)
+        return None
+
+
+def _assert_cut_intersects_body(sw_doc, feature, profile_xy: tuple[float, float, float, float]) -> None:
+    """Fix 1.2c (learning-loop 2026-07-09: every FeatureCut4 None co-occurred with
+    a POSITION ASSUMED flag). Before cutting, verify the cut profile's XY box
+    overlaps the solid's; if it doesn't, the cut removes no material and
+    FeatureCut4 would return a confusing None — raise the REAL root cause instead
+    (an upstream position assumption placed the feature off the solid)."""
+    body = _body_bbox_xy_m(sw_doc)
+    if body is None:
+        return  # can't read the body box — don't block; let the cut proceed
+    if not _bboxes_overlap_xy(profile_xy, body):
+        raise SolidWorksError(
+            f"cut {feature.id} positioned OUTSIDE the solid — its profile "
+            f"{tuple(round(v, 4) for v in profile_xy)} m does not overlap the body "
+            f"{tuple(round(v, 4) for v in body)} m. Root cause: the feature's location was "
+            f"assumed (POSITION ASSUMED) and lands off the part — fix the position upstream "
+            f"(markup review), not the build.")
+
+
 def _do_cut(sw_doc, feature, through_all: bool, depth_m: Optional[float]):
     """FeatureCut4 with a direction-flip retry (mirrors the macro generator).
 
@@ -541,6 +580,13 @@ def _circular_cut_at(sw_doc, feature, centers_m: list[tuple[float, float]],
     sw_doc.SketchManager.InsertSketch(True)  # close the sketch
     if depth_m:
         assert_meters(depth_m, f"{feature.id}.cut_depth")
+    # Intersection sanity: the circles' XY extent must overlap the solid, else the
+    # cut removes nothing and FeatureCut4 returns a confusing None (Fix 1.2c).
+    xs = [c[0] for c in centers_m]
+    ys = [c[1] for c in centers_m]
+    profile_xy = (min(xs) - radius_m, min(ys) - radius_m,
+                  max(xs) + radius_m, max(ys) + radius_m)
+    _assert_cut_intersects_body(sw_doc, feature, profile_xy)
     return _do_cut(sw_doc, feature, through_all, depth_m)
 
 

@@ -283,6 +283,22 @@ class TestOverviewNonFeatureTaxonomy:
         assert items and items[0]["severity"] == "LOW" and "finish" in items[0]["affects"].lower()
 
 
+class TestCutIntersectionSanity:
+    """Fix 1.2c — the pure XY-overlap helper behind the off-solid cut reclassify
+    (verified live against SolidWorks: an off-solid hole raises 'positioned
+    OUTSIDE the solid' instead of a bare FeatureCut4 None)."""
+    def test_bbox_overlap(self):
+        from pipeline.solidworks_builder import _bboxes_overlap_xy
+
+        body = (0.0, 0.0, 0.1016, 0.0762)      # 4x3 in, meters
+        inside = (0.049, 0.036, 0.055, 0.042)  # a hole near center
+        outside = (0.25, 0.25, 0.26, 0.26)     # hole at (10,10) in
+        assert _bboxes_overlap_xy(inside, body)
+        assert not _bboxes_overlap_xy(outside, body)
+        # touching edges count as overlap (tol)
+        assert _bboxes_overlap_xy((0.1016, 0.0, 0.11, 0.01), body)
+
+
 class TestLearningLoopFingerprint:
     def test_fingerprint_stable_and_number_invariant(self):
         from pipeline.learning_loop import _failure_fingerprint

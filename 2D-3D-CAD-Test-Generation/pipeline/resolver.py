@@ -607,6 +607,17 @@ def _resolve_feature(feat: dict, model: DrawingData) -> FeatureResolution:
             "HIGH",
             f"{fid} position read from the drawing — no action needed.",
         )
+    # Only features with an independent in-plane LOCATION need a position. Fillets,
+    # chamfers, threads, patterns, mirrors, shells, revolves, and the base boss
+    # apply to edges/faces/the whole body — they have no X/Y to resolve, so they
+    # never route to position review (Fix 3.1 must not false-flag them).
+    if ftype not in ("hole", "extrude_cut", "slot", "cutout", "pocket",
+                     "counterbore", "countersink"):
+        return FeatureResolution(
+            fid, "build", True, "", "HIGH",
+            f"{fid} has no independent location (applies to edges/faces/whole body) — "
+            f"no position to resolve.",
+        )
     # Fix 3.1 (learning-loop 2026-07-09: 33 POSITION ASSUMED flags, the top issue,
     # causally linked to cuts that miss the solid). An undimensioned location is
     # NOT silently centered any more. Centering is defensible ONLY when the
