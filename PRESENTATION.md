@@ -50,7 +50,11 @@ The full drawing intake surface, with two modes on a top mode bar:
   panel. **The markup feeds extraction:** the drawing + boxes are composited into
   `full_marked_view.jpg` and passed to Claude alongside a text legend of every feature group,
   so the model places holes per the operator's boxes — ground truth for correct hole
-  placement, and a base for future OCR cross-checking / low-confidence fallback.
+  placement, and a base for future OCR cross-checking / low-confidence fallback. A
+  **⊕ Set origin** tool locks a **(0,0) datum at the bottom-left of the top view** (a cyan
+  crosshair, drawn into the composite and stated in the extraction legend) so every model
+  shares one consistent orientation relative to the drawing, and **＋ Add to Part Setup**
+  pushes the composited marked drawing into Sheet 2 as a view you can assign and save.
 
 ### SHEET 2 · Part Setup & 3D Model
 

@@ -1344,6 +1344,23 @@ def _sanitize_region(r: dict) -> dict | None:
     }
 
 
+def _sanitize_origin(o: object) -> dict | None:
+    """Validate the locked (0,0) datum: normalized bottom-left corner of the
+    top view, the fixed reference so every model shares the drawing's
+    orientation. None if unusable."""
+    if not isinstance(o, dict):
+        return None
+    try:
+        x, y = float(o["x"]), float(o["y"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
+        return None
+    return {"x": round(x, 6), "y": round(y, 6),
+            "locked": bool(o.get("locked", True)),
+            "view": str(o.get("view") or "top")[:16]}
+
+
 def _group_regions(regions: list[dict]) -> list[dict]:
     """Group regions by color into the featureGroups structure (stable order)."""
     groups: dict[str, dict] = {}
@@ -1368,7 +1385,8 @@ def get_regions(session: str, part: str):
     except json.JSONDecodeError:
         return {"regions": [], "featureGroups": []}
     regions = [s for s in (_sanitize_region(r) for r in data.get("regions", [])) if s]
-    return {"regions": regions, "featureGroups": _group_regions(regions)}
+    return {"regions": regions, "featureGroups": _group_regions(regions),
+            "origin": _sanitize_origin(data.get("origin"))}
 
 
 @app.post("/api/parts/{session}/{part}/regions")
@@ -1382,16 +1400,18 @@ async def save_regions(session: str, part: str, request: Request):
         raise HTTPException(400, "Body must be JSON: {\"regions\": [...]}")
     raw = body.get("regions", []) if isinstance(body, dict) else []
     regions = [s for s in (_sanitize_region(r) for r in raw) if s]
-    payload = {"regions": regions, "featureGroups": _group_regions(regions)}
+    origin = _sanitize_origin(body.get("origin")) if isinstance(body, dict) else None
+    payload = {"regions": regions, "featureGroups": _group_regions(regions), "origin": origin}
     (pdir / REGIONS_FILENAME).write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    # No regions -> drop the stale composited marked view so extraction never
+    # Nothing marked -> drop the stale composited marked view so extraction never
     # feeds an out-of-date annotation.
-    if not regions:
+    if not regions and not origin:
         try:
             (pdir / MARKED_VIEW_FILENAME).unlink()
         except OSError:
             pass
-    return {"saved": len(regions), "featureGroups": payload["featureGroups"]}
+    return {"saved": len(regions), "origin": origin,
+            "featureGroups": payload["featureGroups"]}
 
 
 @app.post("/api/parts/{session}/{part}/marked-view")

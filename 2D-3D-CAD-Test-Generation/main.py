@@ -421,25 +421,37 @@ def _region_legend_text(folder: Path) -> str | None:
     except (OSError, ValueError):
         return None
     groups = data.get("featureGroups") or []
-    if not groups:
+    origin = data.get("origin") or None
+    if not groups and not origin:
         return None
-    lines = [
-        "MARKED REGION LEGEND (matches the boxes in the human-marked reference "
-        "view; positions are fractions of the image, x right / y down from the "
-        "top-left corner):"
-    ]
-    for i, g in enumerate(groups, 1):
-        segs = []
-        for r in g.get("regions", []):
-            bb = r.get("boundingBox", {}) or {}
-            seg = f"{r.get('role', 'other')} @ ({bb.get('x', 0):.3f},{bb.get('y', 0):.3f})"
-            if r.get("value"):
-                seg += f" = \"{r['value']}\""
-            segs.append(seg)
-        label = g.get("colorLabel") or g.get("color") or f"group {i}"
-        lines.append(f"- Feature {i} [{label}]: " + "; ".join(segs))
-    lines.append("Each feature is one physical hole/feature — place it and its "
-                 "spacing from these boxed positions and transcribed values.")
+    lines = []
+    if origin:
+        lines.append(
+            "ORIGIN DATUM: (0,0) is locked at the BOTTOM-LEFT corner of the top "
+            f"view, marked at normalized image position ({origin.get('x', 0):.3f},"
+            f"{origin.get('y', 0):.3f}). Treat this as the fixed coordinate origin "
+            "for the whole part — measure every X/Y position from it with +X to the "
+            "right and +Y upward — so all models share one consistent orientation "
+            "relative to the drawing."
+        )
+    if groups:
+        lines.append(
+            "MARKED REGION LEGEND (matches the boxes in the human-marked reference "
+            "view; positions are fractions of the image, x right / y down from the "
+            "top-left corner):"
+        )
+        for i, g in enumerate(groups, 1):
+            segs = []
+            for r in g.get("regions", []):
+                bb = r.get("boundingBox", {}) or {}
+                seg = f"{r.get('role', 'other')} @ ({bb.get('x', 0):.3f},{bb.get('y', 0):.3f})"
+                if r.get("value"):
+                    seg += f" = \"{r['value']}\""
+                segs.append(seg)
+            label = g.get("colorLabel") or g.get("color") or f"group {i}"
+            lines.append(f"- Feature {i} [{label}]: " + "; ".join(segs))
+        lines.append("Each feature is one physical hole/feature — place it and its "
+                     "spacing from these boxed positions and transcribed values.")
     return "\n".join(lines)
 
 

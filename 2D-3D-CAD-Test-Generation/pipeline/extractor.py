@@ -492,7 +492,9 @@ MARKED_VIEW_INTRO = (
     "identifying every hole/feature and placing it and its spacing correctly, "
     "especially where the raw linework or overlapping leaders are ambiguous. Do "
     "not miss a hole the operator boxed, and prefer the boxed count over an "
-    "uncertain visual count."
+    "uncertain visual count. If a cyan crosshair labeled (0,0) is present, it is "
+    "the operator-locked ORIGIN at the bottom-left of the top view — use it as the "
+    "datum for hole positions so the model's orientation matches the drawing."
 )
 
 

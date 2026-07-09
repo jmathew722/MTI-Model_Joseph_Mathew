@@ -295,6 +295,26 @@
   .mark-box .mb-role { position:absolute; left:0; top:-15px; font:600 9px/12px var(--mono);
                        letter-spacing:.04em; color:#fff; background:rgba(15,20,28,.75);
                        padding:0 4px; border-radius:2px; white-space:nowrap; pointer-events:none; }
+  /* Locked origin datum: a distinct cyan crosshair marking (0,0) at the
+     bottom-left of the top view — the fixed reference for model orientation. */
+  #origin-lock.on { color:#00C2FF; border-color:rgba(0,194,255,.6); background:rgba(0,194,255,.10); }
+  .origin-mark { position:absolute; width:0; height:0; z-index:5; pointer-events:none; }
+  .origin-mark .oh { position:absolute; left:-15px; top:-1.5px; width:30px; height:3px; background:#00C2FF; }
+  .origin-mark .ov { position:absolute; left:-1.5px; top:-15px; width:3px; height:30px; background:#00C2FF; }
+  .origin-mark .odot { position:absolute; left:-4px; top:-4px; width:8px; height:8px;
+                       border-radius:50%; background:#00C2FF; box-shadow:0 0 0 1.5px rgba(15,20,28,.7); }
+  .origin-mark .olabel { position:absolute; left:9px; top:-22px; font:700 10px/15px var(--mono);
+                         color:#00C2FF; background:rgba(15,20,28,.82); padding:0 5px;
+                         border-radius:2px; white-space:nowrap; }
+  .origin-mark .odel { position:absolute; left:9px; top:5px; width:16px; height:16px;
+                       line-height:14px; text-align:center; color:#fff; background:rgba(15,20,28,.85);
+                       border:1px solid rgba(255,255,255,.5); border-radius:50%; cursor:pointer;
+                       pointer-events:auto; font:700 11px/14px var(--sans); }
+  .regions-body .rg-origin { font-size:var(--fs-small); line-height:1.5; color:var(--ink-3);
+                             padding:var(--sp-2); margin-bottom:var(--sp-2);
+                             border:1px dashed var(--line); border-radius:var(--r-sm); }
+  .regions-body .rg-origin.set { color:#00C2FF; border-color:rgba(0,194,255,.5);
+                                 background:rgba(0,194,255,.06); }
   /* Markup workspace: drawing LEFT, region sidebar RIGHT. */
   .mark-split { flex:1 1 auto; min-height:0; display:flex; }
   .mark-split #mk-box { flex:1 1 auto; }
@@ -517,7 +537,11 @@
     <div id="mark-view" style="display:none">
       <div class="mark-bar">
         <button class="btn secondary sm on" id="mark-toggle"
-                title="Draw mode: drag to draw a highlight box over a dimension callout, hole center, or offset dimension. Toggle OFF to pan the image instead.">✎ Draw</button>
+                title="Draw mode: drag to draw a highlight box over a dimension callout, hole center, or offset dimension.">✎ Draw</button>
+        <button class="btn secondary sm" id="origin-toggle"
+                title="Set the ORIGIN datum: click the BOTTOM-LEFT corner of the top view. Locking it gives every model a consistent (0,0) orientation relative to the drawing.">⊕ Set origin</button>
+        <button class="btn secondary sm" id="origin-lock" style="display:none"
+                title="Lock/unlock the origin so it can't be moved by accident">🔓 Unlocked</button>
         <span class="mb-sep"></span>
         <span class="mb-lab">Group color</span>
         <span class="mark-swatch" id="mark-swatch"></span>
@@ -534,6 +558,8 @@
         <span class="mb-sep"></span>
         <span class="hint" id="mark-hint">drag to draw · corner handle resizes · × deletes</span>
         <span class="grow"></span>
+        <button class="btn secondary sm" id="mark-addview"
+                title="Add this marked drawing to the Part Setup sheet as a view (it joins the part's image list and can be assigned a view type and saved)">＋ Add to Part Setup</button>
         <button class="btn danger sm" id="mark-clear" title="Delete every marked region for this part">✕ Clear regions</button>
       </div>
       <div class="mark-split">
@@ -1150,11 +1176,14 @@ const REGION_PALETTE = [
 const REGION_ROLES = ['center', 'x-dimension', 'y-dimension', 'tolerance', 'other'];
 const INTAKE_REGION_KEY = '__intake__';
 let regionsByKey = {};              // context key (part name or intake) -> region[]
+let originByKey = {};               // context key -> { x, y, locked, view } | undefined
 let regionsDirty = new Set();       // keys with local edits not yet on the server
-let markOn = true;           // Sheet 1's markup view opens in draw mode
-window.__markOn = true;
+let markOn = true;           // draw-boxes tool (Sheet 1 markup opens in draw mode)
+let originOn = false;        // set-origin tool
+window.__markOn = true;      // any active tool pauses image panning
 
 function regionCtxKey() { return selectedPart || INTAKE_REGION_KEY; }
+function currentOrigin() { return originByKey[regionCtxKey()] || null; }
 function regionList() {
   const k = regionCtxKey();
   return regionsByKey[k] || (regionsByKey[k] = []);
@@ -1185,15 +1214,35 @@ markColorSel.addEventListener('change', updateSwatch); updateSwatch();
 
 const markLayer = document.getElementById('ov-mark-layer');
 markLayer.classList.add('marking'); // draw mode starts ON in the markup view
-document.getElementById('mark-toggle').addEventListener('click', e => {
-  markOn = !markOn; window.__markOn = markOn;
-  e.currentTarget.classList.toggle('on', markOn);
-  markLayer.classList.toggle('marking', markOn);
-  document.getElementById('mark-hint').textContent = markOn
-    ? 'drag to draw · corner handle resizes · × deletes · boxes sharing a color = one feature group'
-    : 'draw OFF — drag pans the image · scroll zooms · toggle ✎ Draw to add boxes';
-  renderRegions(false); // re-render so handles/delete controls reflect the mode
+// The markup surface has two tools (draw boxes / set origin) plus a pan state;
+// selecting one deselects the other. Any active tool pauses image panning.
+function syncMarkTool() {
+  window.__markOn = markOn || originOn;
+  markLayer.classList.toggle('marking', markOn || originOn);
+  document.getElementById('mark-toggle').classList.toggle('on', markOn);
+  document.getElementById('origin-toggle').classList.toggle('on', originOn);
+  document.getElementById('mark-hint').textContent =
+    originOn ? 'origin mode — click the BOTTOM-LEFT corner of the top view to set the (0,0) datum, then 🔒 lock it'
+    : markOn ? 'drag to draw · corner handle resizes · × deletes · boxes sharing a color = one feature group'
+    : 'tools off — drag pans the image · scroll zooms · toggle ✎ Draw or ⊕ Set origin';
+  renderRegions(false);
+}
+document.getElementById('mark-toggle').addEventListener('click', () => {
+  markOn = !markOn; if (markOn) originOn = false; syncMarkTool();
 });
+document.getElementById('origin-toggle').addEventListener('click', () => {
+  originOn = !originOn; if (originOn) markOn = false; syncMarkTool();
+});
+document.getElementById('origin-lock').addEventListener('click', () => {
+  const o = originByKey[regionCtxKey()]; if (!o) return;
+  o.locked = !o.locked; renderRegions();
+});
+function updateOriginControls() {
+  const o = currentOrigin(), lockBtn = document.getElementById('origin-lock');
+  lockBtn.style.display = o ? '' : 'none';
+  lockBtn.textContent = o && o.locked ? '🔒 Locked' : '🔓 Unlocked';
+  lockBtn.classList.toggle('on', !!(o && o.locked));
+}
 
 // ── Sheet 1 mode bar: cropper ↔ markup surface ──────────────────────────────
 // The markup image mirrors the current preprocessing context: the drawing
@@ -1223,7 +1272,7 @@ function setCropMode(mode) { // 'crop' | 'mark'
   document.getElementById('crop-mode-hint').textContent = mode === 'mark'
     ? 'highlight dimension regions before extraction — color = feature group (a hole + its X and Y dimensions share one color)'
     : 'crop each orthographic view, or switch to markup to highlight dimension regions before extraction';
-  if (mode === 'mark') { updateMarkImage(); renderRegions(false); }
+  if (mode === 'mark') { updateMarkImage(); syncMarkTool(); }
 }
 document.getElementById('crop-mode-crop').addEventListener('click', () => setCropMode('crop'));
 document.getElementById('crop-mode-mark').addEventListener('click', () => setCropMode('mark'));
@@ -1256,6 +1305,25 @@ function renderMarkBoxes() {
     }
     markLayer.appendChild(el);
   }
+  // Locked origin datum (single cyan crosshair marking 0,0).
+  markLayer.querySelectorAll('.origin-mark').forEach(el => el.remove());
+  const o = currentOrigin();
+  if (o) {
+    const om = document.createElement('div');
+    om.className = 'origin-mark';
+    om.style.left = (o.x * 100) + '%'; om.style.top = (o.y * 100) + '%';
+    om.innerHTML = '<span class="oh"></span><span class="ov"></span><span class="odot"></span>' +
+      `<span class="olabel">0,0 ${o.locked ? '🔒' : ''}</span>`;
+    if (originOn && !o.locked) {
+      const del = document.createElement('span');
+      del.className = 'odel'; del.textContent = '×'; del.title = 'Remove origin';
+      del.addEventListener('pointerdown', ev => ev.stopPropagation());
+      del.addEventListener('click', ev => { ev.stopPropagation(); delete originByKey[regionCtxKey()]; renderRegions(); });
+      om.appendChild(del);
+    }
+    markLayer.appendChild(om);
+  }
+  updateOriginControls();
 }
 
 function layerPoint(ev) {
@@ -1270,7 +1338,17 @@ function layerPoint(ev) {
 // Click-and-drag to draw a new box (markup mode only).
 let drawState = null;
 markLayer.addEventListener('pointerdown', ev => {
-  if (!markOn || ev.button !== 0 || ev.target !== markLayer) return;
+  if (ev.button !== 0 || ev.target !== markLayer) return;
+  // Origin tool: a single click sets/moves the locked (0,0) datum.
+  if (originOn) {
+    const cur = currentOrigin();
+    if (cur && cur.locked) return;         // locked — must unlock to move
+    const p = layerPoint(ev); if (!p) return;
+    originByKey[regionCtxKey()] = { x: p.x, y: p.y, locked: false, view: 'top' };
+    renderRegions();
+    return;
+  }
+  if (!markOn) return;
   const p = layerPoint(ev); if (!p) return;
   const region = {
     id: 'rg' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -1331,19 +1409,26 @@ function patchRegion(id, patch) {
 function renderRegionsPanel() {
   const body = document.getElementById('regions-body');
   const regions = regionList();
+  const o = currentOrigin();
+  const fmt3 = n => n.toFixed(3);
   document.getElementById('regions-count').textContent =
     regions.length ? `${regions.length} region(s) · ${regionGroups(regions).length} group(s)` : '';
   const clearBtn = document.getElementById('mark-clear');
   if (clearBtn) clearBtn.style.display = regions.length ? '' : 'none';
+  const originHTML = o
+    ? `<div class="rg-origin set">◎ Origin datum ${o.locked ? '🔒 locked' : '🔓 unlocked'} ` +
+      `at (${fmt3(o.x)}, ${fmt3(o.y)}) — bottom-left of the top view; the fixed (0,0) for model orientation.</div>`
+    : `<div class="rg-origin">◎ Origin not set — click <b>⊕ Set origin</b>, then the bottom-left corner ` +
+      `of the top view, so every model shares the drawing's orientation.</div>`;
   if (!regions.length) {
-    body.innerHTML = '<div class="ms-empty">No regions marked yet.<br><br>' +
+    body.innerHTML = originHTML + '<div class="ms-empty">No regions marked yet.<br><br>' +
       'Pick a <b>group color</b> and a <b>role</b> in the toolbar, then drag on the ' +
       'drawing to highlight a dimension callout, a hole center, or an offset ' +
       'dimension line. All boxes of one color form one feature group.</div>';
     return;
   }
   const fmt = n => n.toFixed(3).replace(/^0/, '');
-  body.innerHTML = regionGroups(regions).map(g => `
+  body.innerHTML = originHTML + regionGroups(regions).map(g => `
     <div class="rg-group">
       <div class="rg-head"><span class="mark-swatch" style="background:${esc(g.color)}"></span>${esc(g.colorLabel)}
         <span class="grow"></span>
@@ -1400,10 +1485,10 @@ async function saveRegionsNow() {
   try {
     await fetch(`/api/parts/${sessionId}/${encodeURIComponent(key)}/regions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ regions: regionsByKey[key] || [] }),
+      body: JSON.stringify({ regions: regionsByKey[key] || [], origin: originByKey[key] || null }),
     });
     regionsDirty.delete(key);
-    saveMarkedViewNow(key);     // keep full_marked_view.jpg in sync with the boxes
+    saveMarkedViewNow(key);     // keep full_marked_view.jpg in sync with boxes + origin
   } catch { /* retried on the next change */ }
 }
 
@@ -1417,25 +1502,45 @@ function hexToRgba(hex, a) {
   const n = parseInt(m[1], 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
-function composeMarkedBlob(regions, cb) {
+function buildMarkedCanvas(regions, origin) {
   const img = document.getElementById('mk-img');
-  if (!img || img.style.display === 'none' || !img.naturalWidth) { cb(null); return; }
+  if (!img || img.style.display === 'none' || !img.naturalWidth) return null;
   const W = img.naturalWidth, H = img.naturalHeight;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const ctx = c.getContext('2d');
-  try { ctx.drawImage(img, 0, 0, W, H); } catch { cb(null); return; }
+  try { ctx.drawImage(img, 0, 0, W, H); } catch { return null; }
   const lw = Math.max(2, Math.round(Math.max(W, H) / 700));
   for (const r of regions) {
     const bb = r.boundingBox, x = bb.x * W, y = bb.y * H, w = bb.width * W, h = bb.height * H;
     ctx.fillStyle = hexToRgba(r.color, 0.18); ctx.fillRect(x, y, w, h);
     ctx.lineWidth = lw; ctx.strokeStyle = r.color; ctx.strokeRect(x, y, w, h);
   }
+  if (origin) {                              // cyan crosshair datum + label
+    const ox = origin.x * W, oy = origin.y * H, L = Math.max(16, Math.round(Math.max(W, H) / 38));
+    ctx.strokeStyle = '#00C2FF'; ctx.lineWidth = Math.max(2, lw);
+    ctx.beginPath();
+    ctx.moveTo(ox - L, oy); ctx.lineTo(ox + L, oy);
+    ctx.moveTo(ox, oy - L); ctx.lineTo(ox, oy + L); ctx.stroke();
+    ctx.fillStyle = '#00C2FF';
+    ctx.beginPath(); ctx.arc(ox, oy, Math.max(3, lw * 1.6), 0, 6.29); ctx.fill();
+    ctx.font = `700 ${Math.max(12, Math.round(W / 85))}px sans-serif`;
+    ctx.fillText('(0,0)', ox + L + 3, oy - 5);
+  }
+  return c;
+}
+function composeMarkedBlob(regions, origin, cb) {
+  const c = buildMarkedCanvas(regions, origin);
+  if (!c) { cb(null); return; }
   try { c.toBlob(b => cb(b), 'image/jpeg', 0.92); } catch { cb(null); }
 }
+function composeMarkedDataURL() {
+  const c = buildMarkedCanvas(regionList(), currentOrigin());
+  try { return c ? c.toDataURL('image/jpeg', 0.92) : null; } catch { return null; }
+}
 function saveMarkedViewNow(key, _retried) {
-  const regions = regionsByKey[key] || [];
-  if (!regions.length) return; // server drops the stale marked view on empty regions
-  composeMarkedBlob(regions, blob => {
+  const regions = regionsByKey[key] || [], origin = originByKey[key] || null;
+  if (!regions.length && !origin) return; // server drops the stale marked view otherwise
+  composeMarkedBlob(regions, origin, blob => {
     if (!blob) {                 // image not ready yet — retry once shortly
       if (!_retried) setTimeout(() => saveMarkedViewNow(key, true), 500);
       return;
@@ -1446,11 +1551,21 @@ function saveMarkedViewNow(key, _retried) {
           { method: 'POST', body: fd }).catch(() => {});
   });
 }
+// "Add to Part Setup": push the composited marked drawing into the intake
+// gallery on Sheet 2 so it can be assigned a view type and saved with the part.
+document.getElementById('mark-addview').addEventListener('click', () => {
+  const dataURL = composeMarkedDataURL();
+  if (!dataURL) { setStatus('No drawing loaded to add — open a drawing first.', 'err'); return; }
+  addIntakeItems([{ dataURL, orientation: '', label: 'Marked drawing' }]);
+  showTab('intake');
+  setStatus('Added the marked drawing to Part Setup — assign it a view type, name the part, and save.', 'ok');
+});
 async function loadRegionsFor(name) {
   if (regionsDirty.has(name)) { renderRegions(false); return; } // local edits win
   try {
     const d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(name)}/regions`)).json();
     regionsByKey[name] = d.regions || [];
+    originByKey[name] = d.origin || undefined;
   } catch { regionsByKey[name] = regionsByKey[name] || []; }
   if (regionCtxKey() === name) renderRegions(false);
 }
@@ -1889,14 +2004,17 @@ saveBtn.addEventListener('click', async () => {
   // Reference regions drawn BEFORE the part was saved belong to it: transfer
   // the intake markup onto the new part and persist it.
   const pendingRegions = regionsByKey[INTAKE_REGION_KEY] || [];
-  if (pendingRegions.length) {
-    regionsByKey[res.part] = pendingRegions;
+  const pendingOrigin = originByKey[INTAKE_REGION_KEY];
+  if (pendingRegions.length || pendingOrigin) {
+    if (pendingRegions.length) regionsByKey[res.part] = pendingRegions;
+    if (pendingOrigin) originByKey[res.part] = pendingOrigin;
     delete regionsByKey[INTAKE_REGION_KEY];
+    delete originByKey[INTAKE_REGION_KEY];
     regionsDirty.delete(INTAKE_REGION_KEY);
     regionsDirty.add(res.part);
   }
   selectPart(res.part);
-  if (pendingRegions.length) scheduleRegionSave();
+  if (pendingRegions.length || pendingOrigin) scheduleRegionSave();
   setStatus(`Saved part "${res.part}". Open the Pipeline &amp; Results tab and press ▶ Pull &amp; Run Pipeline.`, 'ok');
 });
 
