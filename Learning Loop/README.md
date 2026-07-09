@@ -13,8 +13,9 @@ Each report captures **every failure and flag from that run**, grouped:
 1. **Gate / status** — READY vs NOT READY and the exact gate reasons.
 2. **Must-meet constraint failures** — each `MM-xxx` with *measured vs required*.
 3. **Cross-view conflicts** — the Stage 1.5 holistic overview analysis findings.
-4. **Engineering review — CRITICAL & HIGH** — assumptions, skipped features,
-   overview gaps, unmet requirements (with the decision + why).
+4. **Engineering flags — ALL severities** (CRITICAL → HIGH → MEDIUM → LOW) —
+   every assumption, skipped feature, overview gap, and unmet requirement, each
+   with its decision, why, and what it affects.
 5. **Build / macro feature failures** — the exact feature that failed and why.
 6. **FIXES FOR FABLE** — a paste-ready brief, including the *suspected code
    areas* per failure, to hand to Claude (Fable) to plan and apply code fixes.

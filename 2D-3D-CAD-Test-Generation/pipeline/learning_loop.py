@@ -3,9 +3,9 @@
 Every time a part is run through the pipeline, this writes a human-readable
 ``.txt`` into the repo's top-level ``Learning Loop/`` folder capturing EVERY
 failure and flag from that run: the READY/NOT-READY gate reasons, must-meet
-constraint failures (measured vs required), Stage-1.5 cross-view conflicts, the
-CRITICAL/HIGH engineering-review items, build/macro feature failures, and the
-lessons-learned deltas. The report ends with a "FIXES FOR FABLE" section — a
+constraint failures (measured vs required), Stage-1.5 cross-view conflicts,
+EVERY engineering-review flag at ALL severities (CRITICAL/HIGH/MEDIUM/LOW),
+build/macro feature failures, and the lessons-learned deltas. The report ends with a "FIXES FOR FABLE" section — a
 concise, paste-ready brief (with suspected code areas per failure) that a human
 hands to Claude to plan and apply code fixes, so the pipeline improves run over
 run.
@@ -96,6 +96,12 @@ def write_learning_log(part_dir: Path, part: str, status: str,
                        model: str = "") -> Optional[Path]:
     """Write one ``Learning Loop/<part>__<timestamp>.txt`` failure report for a
     completed run. Returns the path, or ``None`` on any failure (never raises)."""
+    import os
+    # Never write learning logs during the test suite (pytest sets this), so a
+    # test run — even one whose output dir sits inside the repo — can't pollute
+    # the real Learning Loop/ folder.
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return None
     try:
         part_dir = Path(part_dir)
         ts = datetime.now()
@@ -149,13 +155,19 @@ def write_learning_log(part_dir: Path, part: str, status: str,
             ov_lines.append("   - none")
         sections.append("\n".join(ov_lines))
 
-        # 4. Engineering review — CRITICAL & HIGH (from build_plan.json) -----
+        # 4. Engineering flags — EVERY severity (from build_plan.json) -------
         plan = _load_json(next(iter(part_dir.glob("*_build_plan.json")), Path("/nonexistent")))
         review = (plan or {}).get("engineering_review", []) if isinstance(plan, dict) else []
-        er_lines = ["4. ENGINEERING REVIEW — CRITICAL & HIGH"]
-        urgent = [i for i in review if i.get("severity") in ("CRITICAL", "HIGH")]
-        if urgent:
-            for i in urgent:
+        _rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+        review = sorted(review, key=lambda i: _rank.get(i.get("severity"), 9))
+        er_lines = ["4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)"]
+        if review:
+            counts: dict[str, int] = {}
+            for i in review:
+                counts[i.get("severity", "?")] = counts.get(i.get("severity", "?"), 0) + 1
+            er_lines.append("   Totals: " + ", ".join(
+                f"{k} {counts[k]}" for k in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if counts.get(k)))
+            for i in review:
                 src = i.get("source", "")
                 if src == "overview_analysis":
                     categories.add("overview")
@@ -163,20 +175,17 @@ def write_learning_log(part_dir: Path, part: str, status: str,
                     categories.add("skipped" if "skipp" in (i.get("what", "").lower()) else "macro")
                 elif src == "requirement":
                     categories.add("requirement")
+                else:
+                    categories.add("constraint")  # dimension/feature assumptions → resolver/build
                 er_lines.append(f"   - [{i.get('severity')}] {i.get('id', '')} ({src}): {i.get('what', '')}")
                 if i.get("decision"):
                     er_lines.append(f"       decision: {i['decision']}")
                 if i.get("why"):
                     er_lines.append(f"       why: {i['why']}")
+                if i.get("affects"):
+                    er_lines.append(f"       affects: {i['affects']}")
         else:
-            er_lines.append("   - none above HIGH")
-        # Counts of everything for context
-        counts: dict[str, int] = {}
-        for i in review:
-            counts[i.get("severity", "?")] = counts.get(i.get("severity", "?"), 0) + 1
-        if counts:
-            er_lines.append("   (all severities: " +
-                            ", ".join(f"{k} {v}" for k, v in counts.items()) + ")")
+            er_lines.append("   - none")
         sections.append("\n".join(er_lines))
 
         # 5. Build / macro feature failures ----------------------------------
@@ -193,8 +202,8 @@ def write_learning_log(part_dir: Path, part: str, status: str,
 
         # 6. FIXES FOR FABLE (paste-ready) -----------------------------------
         fix_lines = ["FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)"]
-        if not (gate_reasons or n_mm_fail or conflicts or urgent or fails):
-            fix_lines.append("   - Clean run: no failures to address this time. Keep as a "
+        if not (gate_reasons or n_mm_fail or conflicts or review or fails):
+            fix_lines.append("   - Clean run: no flags to address this time. Keep as a "
                              "positive baseline for regression comparison.")
         else:
             fix_lines.append(f"   - Part '{part}' finished {status}. Address the items above so the "
@@ -229,16 +238,19 @@ def write_learning_log(part_dir: Path, part: str, status: str,
         # Chronological index (one line per run).
         try:
             idx = ldir / "INDEX.md"
-            n_fail = len(gate_reasons) + n_mm_fail + len(conflicts) + len(fails)
+            # Total items to address: gate reasons + MM fails + build/macro fails
+            # + every engineering flag (all severities; overview conflicts are
+            # already counted inside the engineering review).
+            n_flag = len(gate_reasons) + n_mm_fail + len(fails) + len(review)
             first = "index" if not idx.exists() else ""
             if first:
                 idx.write_text("# Learning Loop index\n\nOne line per pipeline run, newest at the "
                                "bottom. Hand any run's `.txt` to Claude to plan code fixes.\n\n"
-                               "| Time | Part | Status | Failures | File |\n"
-                               "|------|------|--------|---------:|------|\n", encoding="utf-8")
+                               "| Time | Part | Status | Flags | File |\n"
+                               "|------|------|--------|------:|------|\n", encoding="utf-8")
             with idx.open("a", encoding="utf-8") as f:
                 f.write(f"| {ts.strftime('%Y-%m-%d %H:%M')} | {part} | {status} | "
-                        f"{n_fail} | {path.name} |\n")
+                        f"{n_flag} | {path.name} |\n")
         except OSError:
             pass
 
