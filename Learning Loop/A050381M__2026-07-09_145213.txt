@@ -1,0 +1,85 @@
+LEARNING LOOP — A050381M
+============================================================
+Run:     2026-07-09 14:52:13
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\2d942b5fa4a9\A050381M\output\A050381M
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The callout states 7 holes for the M-6x1 threaded pattern, but visually only 6 small circles are clearly rendered in the two middle rows (3 in upper-middle row near notch, 3 in lower-middle row) plus possibly one more partially obscured by the notch cutout region - the exact 7th hole location is ambiguous and could be hidden/overlapping the stepped notch boundary.
+       -> Re-examine the original full-resolution front view near the notch step (around the 1.465/2.930 dimension lines) to locate a 7th small circle that may be obscured by the notch outline or dimension text; verify hole count by tracing each centerline mark individually.
+   - [MEDIUM] The side view is very thin (.312 thick) and shows no hidden lines or breaks indicating hole depth for either the 7 M6x1 threaded holes or the 6 .422 clearance holes; it's unclear whether the threaded holes are through-holes or blind, since a .312 thick plate with M6x1 threads is plausible for a through-thread but this is not explicitly confirmed by hidden lines in the side view.
+       -> Check for hidden line dashes in the side view profile at hole locations, or consult a section view if one exists elsewhere on the original sheet; if no section view exists, assume through-holes as standard practice for thin plates unless noted otherwise.
+   - [MEDIUM] The notch/step cutout in the front view (2.125 x roughly 1.6 region) is not explained or dimensioned in relation to the side view profile; the side view shows a uniform thin rectangle with no corresponding step, suggesting the side view may be taken from a different section location (away from the notch) or the notch is a through-cut not depicted in the profile view.
+       -> Confirm whether the side view is a full-length profile or a partial/local view avoiding the notch; add a note or additional section view showing the notch profile if it is a through-cut feature affecting the plate's silhouette.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 5, MEDIUM 5, LOW 1
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (extrude_cut): extrude_cut F002 needs diameter or two in-plane sides; got {'notch_depth': 0.053974999999999995, 'depth': 0.053974999999999995}.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: extrude_cut F002 needs diameter or two in-plane sides; got {'notch_depth': 0.053974999999999995, 'depth': 0.053974999999999995}.
+       affects: feature F002
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F002 (feature): POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [HIGH] F005 (feature): POSITION ASSUMED for F005: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [HIGH] F002 (macro): Macro for F002 (extrude_cut) needs manual review: 02_F002: profile needs a diameter or length+width; got ['depth']
+       decision: macro 02_F002_Rectangular_notch_cut_from_left_middle_p.vba generated with manual instructions
+       why: 02_F002: profile needs a diameter or length+width; got ['depth']
+       affects: feature F002
+   - [HIGH] OV002 (overview): Count mismatch for hole: the overview shows 6, the build contains 13 (.422 diameter through holes, 6 places, arranged in pattern across middle and bottom rows of plate, middle and bottom rows of plate).
+       decision: build kept its extracted count of 13
+       why: overview count disagrees with the consolidated extraction
+       affects: hole count
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): The callout states 7 holes for the M-6x1 threaded pattern, but visually only 6 small circles are clearly rendered in the two middle rows (3 in upper-middle row near notch, 3 in lower-middle row) plus possibly one more partially obscured by the notch cutout region - the exact 7th hole location is ambiguous and could be hidden/overlapping the stepped notch boundary. Recommendation: Re-examine the original full-resolution front view near the notch step (around the 1.465/2.930 dimension lines) to locate a 7th small circle that may be obscured by the notch outline or dimension text; verify hole count by tracing each centerline mark individually.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view is very thin (.312 thick) and shows no hidden lines or breaks indicating hole depth for either the 7 M6x1 threaded holes or the 6 .422 clearance holes; it's unclear whether the threaded holes are through-holes or blind, since a .312 thick plate with M6x1 threads is plausible for a through-thread but this is not explicitly confirmed by hidden lines in the side view. Recommendation: Check for hidden line dashes in the side view profile at hole locations, or consult a section view if one exists elsewhere on the original sheet; if no section view exists, assume through-holes as standard practice for thin plates unless noted otherwise.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The notch/step cutout in the front view (2.125 x roughly 1.6 region) is not explained or dimensioned in relation to the side view profile; the side view shows a uniform thin rectangle with no corresponding step, suggesting the side view may be taken from a different section location (away from the notch) or the notch is a through-cut not depicted in the profile view. Recommendation: Confirm whether the side view is a full-length profile or a partial/local view avoiding the notch; add a note or additional section view showing the notch profile if it is a through-cut feature affecting the plate's silhouette.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F002 (extrude_cut) skipped: extrude_cut F002 needs diameter or two in-plane sides; got {'notch_depth': 0.053974999999999995, 'depth': 0.053974999999999995}.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV004 (overview): The overview POSSIBLY shows 1x chamfer (Corner finish symbol 'CFS' noted on side view, likely indicating a chamfer or corner finish spec along the edge, side view, top edge) with no matching feature in the build.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: chamfer feature(s) — verify against the drawing
+   - [LOW] OV005 (overview): The overview shows a feature the checker cannot auto-match: Side (profile) view showing plate thickness of .312 with hatching/texture marks along edge, possibly indicating a machined or textured surface finish (right side profile view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F002 FAILED: extrude_cut F002 needs diameter or two in-plane sides; got {'notch_depth': 0.053974999999999995, 'depth': 0.053974999999999995}.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A050381M' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\2d942b5fa4a9\A050381M\output\A050381M

@@ -22,6 +22,21 @@ Each report captures **every failure and flag from that run**, grouped:
 
 `INDEX.md` (created on the first run) keeps one chronological line per run.
 
+## Saving to GitHub
+
+Reports are written here **automatically at the end of every run** (no button
+needed; the ⤓ *Save all flags to Learning Loop* button on the Pipeline sheet is
+just an on-demand re-export). When you're done for the session and have closed
+the UI, back them up to GitHub with one command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "C:\Users\joeka\MTI-Model_Joseph_Mathew\push-learning-loop.ps1"
+```
+
+That commits every new/changed report in this folder and pushes to your current
+branch — and only this folder, so it never commits the model binaries in
+`UI_Output/`.
+
 ## How to use the loop
 
 1. Run parts through the pipeline as normal — reports accumulate here.

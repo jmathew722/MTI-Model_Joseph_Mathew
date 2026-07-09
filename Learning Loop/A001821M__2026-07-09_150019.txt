@@ -1,0 +1,70 @@
+LEARNING LOOP — A001821M
+============================================================
+Run:     2026-07-09 15:00:19
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\cc3a42d8fd47\A001821M\output\A001821M
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - feature F005 FAILED: chamfer F005 has no distance dimension.
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The callout '7-HOLES' for M6x1 threaded holes only clearly shows 6 visible hole circles in the upper/mid pattern of the front view (3 top row + 2 mid row + 1 offset at 1.465/2.930 region) — a 7th hole is not unambiguously located, possibly the one near 1.465 offset or an overlapping/occluded position near the notch.
+       -> Recount holes in the enlarged front view: verify if one M6 hole is hidden behind or adjacent to the notch cutout, or if the leader line for M6x1 pattern points to a hole not part of the main 3x2 grid, and confirm total equals 7.
+   - [MEDIUM] The '.422 DIA 6-HOLES' callout appears to match 6 visible circles in the lower pattern (3 bottom row + 2 mid row + 1 at bottom-right), but the mid-row hole near 1.465/2.930 dimension lines could be ambiguously shared between the M6 pattern and the .422 pattern, risking double-count or miscount.
+       -> Verify each hole's diameter/type individually (thread vs plain) in a magnified crop to ensure no hole is assigned to both counts or omitted from either count.
+   - [HIGH] The side view shows only a single CFS (countersink/chamfer face) leader pointing to the top edge, but the front view gives no indication of which of the 13 total holes (7+6) receive countersinking — it's unclear if CFS applies to all holes, only the .422 through-holes, or only one specific hole.
+       -> Check for additional CFS leader lines or a general note stating which hole group is countersunk; if absent, treat as ambiguous and flag for clarification with design authority.
+   - [MEDIUM] No title block is visible in the provided sheet crop, so part number, material, and general tolerance/finish notes cannot be confirmed.
+       -> Obtain full sheet including title block region to extract part number, revision, and general notes.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: HIGH 4, MEDIUM 4
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F004 (feature): POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [HIGH] F005 (feature): POSITION ASSUMED for F005: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [HIGH] F004 (macro): Macro for F004 (extrude_cut) needs manual review: 02_F004: profile needs a diameter or length+width; got ['height']
+       decision: macro 02_F004_Left_side_rectangular_notch_cut_step_wid.vba generated with manual instructions
+       why: 02_F004: profile needs a diameter or length+width; got ['height']
+       affects: feature F004
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): The callout '7-HOLES' for M6x1 threaded holes only clearly shows 6 visible hole circles in the upper/mid pattern of the front view (3 top row + 2 mid row + 1 offset at 1.465/2.930 region) — a 7th hole is not unambiguously located, possibly the one near 1.465 offset or an overlapping/occluded position near the notch. Recommendation: Recount holes in the enlarged front view: verify if one M6 hole is hidden behind or adjacent to the notch cutout, or if the leader line for M6x1 pattern points to a hole not part of the main 3x2 grid, and confirm total equals 7.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front): The '.422 DIA 6-HOLES' callout appears to match 6 visible circles in the lower pattern (3 bottom row + 2 mid row + 1 at bottom-right), but the mid-row hole near 1.465/2.930 dimension lines could be ambiguously shared between the M6 pattern and the .422 pattern, risking double-count or miscount. Recommendation: Verify each hole's diameter/type individually (thread vs plain) in a magnified crop to ensure no hole is assigned to both counts or omitted from either count.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view shows only a single CFS (countersink/chamfer face) leader pointing to the top edge, but the front view gives no indication of which of the 13 total holes (7+6) receive countersinking — it's unclear if CFS applies to all holes, only the .422 through-holes, or only one specific hole. Recommendation: Check for additional CFS leader lines or a general note stating which hole group is countersunk; if absent, treat as ambiguous and flag for clarification with design authority.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-004 (overview_analysis): CROSS-VIEW CONFLICT (title_block): No title block is visible in the provided sheet crop, so part number, material, and general tolerance/finish notes cannot be confirmed. Recommendation: Obtain full sheet including title block region to extract part number, revision, and general notes.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F005 FAILED: chamfer F005 has no distance dimension.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001821M' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\cc3a42d8fd47\A001821M\output\A001821M
