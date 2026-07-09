@@ -1241,10 +1241,8 @@ function renderMarkBoxes() {
     el.style.width = (bb.width * 100) + '%'; el.style.height = (bb.height * 100) + '%';
     el.style.borderColor = r.color;
     el.style.background = r.color + '2E'; // ~18% alpha fill keeps linework legible
-    if (r.role && r.role !== 'other') {
-      const tag = document.createElement('span');
-      tag.className = 'mb-role'; tag.textContent = r.role; el.appendChild(tag);
-    }
+    // No in-drawing text label (it would cover the dimensions underneath) — the
+    // role/value live in the sidebar; the box itself stays a clean highlight.
     if (markOn) {
       const del = document.createElement('span');
       del.className = 'mb-del'; del.textContent = '×'; del.title = 'Delete this region';
@@ -1405,7 +1403,48 @@ async function saveRegionsNow() {
       body: JSON.stringify({ regions: regionsByKey[key] || [] }),
     });
     regionsDirty.delete(key);
+    saveMarkedViewNow(key);     // keep full_marked_view.jpg in sync with the boxes
   } catch { /* retried on the next change */ }
+}
+
+// Composite the drawing + colored boxes and upload it as full_marked_view.jpg —
+// the human-annotated image the pipeline feeds into Claude extraction for
+// correct hole placement. Rendered at the drawing's native resolution; the
+// server removes it automatically when all regions are cleared.
+function hexToRgba(hex, a) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return `rgba(136,136,136,${a})`;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+function composeMarkedBlob(regions, cb) {
+  const img = document.getElementById('mk-img');
+  if (!img || img.style.display === 'none' || !img.naturalWidth) { cb(null); return; }
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  try { ctx.drawImage(img, 0, 0, W, H); } catch { cb(null); return; }
+  const lw = Math.max(2, Math.round(Math.max(W, H) / 700));
+  for (const r of regions) {
+    const bb = r.boundingBox, x = bb.x * W, y = bb.y * H, w = bb.width * W, h = bb.height * H;
+    ctx.fillStyle = hexToRgba(r.color, 0.18); ctx.fillRect(x, y, w, h);
+    ctx.lineWidth = lw; ctx.strokeStyle = r.color; ctx.strokeRect(x, y, w, h);
+  }
+  try { c.toBlob(b => cb(b), 'image/jpeg', 0.92); } catch { cb(null); }
+}
+function saveMarkedViewNow(key, _retried) {
+  const regions = regionsByKey[key] || [];
+  if (!regions.length) return; // server drops the stale marked view on empty regions
+  composeMarkedBlob(regions, blob => {
+    if (!blob) {                 // image not ready yet — retry once shortly
+      if (!_retried) setTimeout(() => saveMarkedViewNow(key, true), 500);
+      return;
+    }
+    const fd = new FormData();
+    fd.append('file', blob, 'full_marked_view.jpg');
+    fetch(`/api/parts/${sessionId}/${encodeURIComponent(key)}/marked-view`,
+          { method: 'POST', body: fd }).catch(() => {});
+  });
 }
 async function loadRegionsFor(name) {
   if (regionsDirty.has(name)) { renderRegions(false); return; } // local edits win

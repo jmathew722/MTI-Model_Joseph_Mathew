@@ -56,6 +56,12 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".pdf"}
 # recognizes this exact view type). It is never built as a plane.
 OVERVIEW_VIEW = "full"
 
+# The human-annotated composite (drawing + colored reference-region boxes),
+# written by the web UI. It is NOT an orthographic view and never a sketch
+# plane — it rides alongside the part as ``PartViews.marked_view`` and is fed
+# into extraction as ground truth for hole placement.
+MARKED_VIEW_FILENAME = "full_marked_view.jpg"
+
 # Keyword rules (most specific first) mapping a filename to a canonical view.
 _VIEW_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (OVERVIEW_VIEW, ("full", "overview", "isometric", "pictorial", "wholedrawing", "fulldrawing")),
@@ -74,6 +80,7 @@ class PartViews:
     name: str
     views: dict[str, Path] = field(default_factory=dict)  # view_type -> image path
     warnings: list[str] = field(default_factory=list)
+    marked_view: Path | None = None  # full_marked_view.jpg (human region markup)
 
     @property
     def ordered_views(self) -> list[tuple[str, Path]]:
@@ -97,6 +104,10 @@ def classify_view(filename: str) -> str:
 def _collect_part(name: str, image_paths: list[Path]) -> PartViews:
     part = PartViews(name=name)
     for path in sorted(image_paths):
+        # The annotated composite is not a view — remember it and move on.
+        if path.name == MARKED_VIEW_FILENAME:
+            part.marked_view = path
+            continue
         view = classify_view(path.name)
         # A file named after the part folder itself (e.g. A001271E.png alongside
         # A001271E_front_view.png) is the full drawing — use it as overview context.

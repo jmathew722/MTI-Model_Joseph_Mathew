@@ -47,7 +47,10 @@ The full drawing intake surface, with two modes on a top mode bar:
   transcribed value ("2.500 ± .005"). Boxes are resizable/deletable, stored in normalized
   0–1 coordinates, persisted per part as `reference_regions.json`, and the color groups
   surface **live** as a "Marked reference regions" subsection inside the Overview Analysis
-  panel — ground truth for future OCR cross-checking and low-confidence fallback.
+  panel. **The markup feeds extraction:** the drawing + boxes are composited into
+  `full_marked_view.jpg` and passed to Claude alongside a text legend of every feature group,
+  so the model places holes per the operator's boxes — ground truth for correct hole
+  placement, and a base for future OCR cross-checking / low-confidence fallback.
 
 ### SHEET 2 · Part Setup & 3D Model
 

@@ -409,13 +409,51 @@ def _views_for_extraction(part):
     return ordered
 
 
+def _region_legend_text(folder: Path) -> str | None:
+    """Text legend of the human-marked reference regions (from
+    reference_regions.json) that accompanies the marked view in extraction.
+    Coordinates are normalized 0-1 fractions of the image, origin top-left."""
+    f = Path(folder) / "reference_regions.json"
+    if not f.is_file():
+        return None
+    try:
+        data = json.loads(f.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError):
+        return None
+    groups = data.get("featureGroups") or []
+    if not groups:
+        return None
+    lines = [
+        "MARKED REGION LEGEND (matches the boxes in the human-marked reference "
+        "view; positions are fractions of the image, x right / y down from the "
+        "top-left corner):"
+    ]
+    for i, g in enumerate(groups, 1):
+        segs = []
+        for r in g.get("regions", []):
+            bb = r.get("boundingBox", {}) or {}
+            seg = f"{r.get('role', 'other')} @ ({bb.get('x', 0):.3f},{bb.get('y', 0):.3f})"
+            if r.get("value"):
+                seg += f" = \"{r['value']}\""
+            segs.append(seg)
+        label = g.get("colorLabel") or g.get("color") or f"group {i}"
+        lines.append(f"- Feature {i} [{label}]: " + "; ".join(segs))
+    lines.append("Each feature is one physical hole/feature — place it and its "
+                 "spacing from these boxed positions and transcribed values.")
+    return "\n".join(lines)
+
+
 def _extract_part_views(part, page: int, cache_dir, usage: dict,
                         requirements: list | None = None) -> dict:
     """Prepare each view image and run one combined multi-view extraction.
 
     ``requirements`` (operator must-meet spec lines) are injected into the
     extraction prompt — specs-first: the model actively looks for those
-    features from the start rather than being checked only after the fact."""
+    features from the start rather than being checked only after the fact.
+
+    A ``full_marked_view.jpg`` in the part folder (the reviewer's composited
+    drawing + colored region boxes) is included as human ground truth for hole
+    placement, alongside a text legend from ``reference_regions.json``."""
     from utils.image_prep import prepare_image
     from pipeline.extractor import extract_drawing_data_multiview
 
@@ -423,9 +461,23 @@ def _extract_part_views(part, page: int, cache_dir, usage: dict,
     for view_type, path in _views_for_extraction(part):
         prepared = prepare_image(str(path), page=page, return_details=True)
         views.append((view_type, prepared.base64, prepared.media_type))
+
+    marked = None
+    region_legend = None
+    mv = getattr(part, "marked_view", None)
+    if mv is not None and Path(mv).is_file():
+        try:
+            mp = prepare_image(str(mv), page=page, return_details=True)
+            marked = (mp.base64, mp.media_type)
+            region_legend = _region_legend_text(Path(mv).parent)
+            console.print("  [cyan]Marked view:[/cyan] human-marked reference "
+                          "regions included in extraction for hole placement.")
+        except Exception as e:
+            console.print(f"  [yellow]Marked view skipped:[/yellow] {type(e).__name__}: {e}")
+
     data = extract_drawing_data_multiview(
         views, cache_dir=cache_dir, usage_out=usage, prep_warnings=part.warnings,
-        requirements=requirements,
+        requirements=requirements, marked_view=marked, region_legend=region_legend,
     )
     # Stamp the part number from the folder name when the model didn't read one.
     # An illegible title block can come back as quote/placeholder junk (e.g. '""')

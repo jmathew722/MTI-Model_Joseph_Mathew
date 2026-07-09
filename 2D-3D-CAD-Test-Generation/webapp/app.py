@@ -1070,6 +1070,8 @@ def _find_overview_image(pdir: Path) -> Path | None:
     if exact.is_file():
         return exact
     for p in _part_images(pdir):
+        if p.name == MARKED_VIEW_FILENAME:
+            continue  # the annotated composite is not the source overview
         if _is_overview_image(p, pdir.name):
             return p
     return None
@@ -1313,6 +1315,9 @@ _IMG_MEDIA = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
 # clear-all-models and is available to the pipeline for future OCR
 # cross-checking / low-confidence fallback.
 REGIONS_FILENAME = "reference_regions.json"
+# The composited drawing (linework + the colored region boxes) the pipeline
+# feeds into Claude extraction as human ground truth for hole placement.
+MARKED_VIEW_FILENAME = "full_marked_view.jpg"
 _REGION_ROLES = {"center", "x-dimension", "y-dimension", "tolerance", "other"}
 
 
@@ -1379,7 +1384,35 @@ async def save_regions(session: str, part: str, request: Request):
     regions = [s for s in (_sanitize_region(r) for r in raw) if s]
     payload = {"regions": regions, "featureGroups": _group_regions(regions)}
     (pdir / REGIONS_FILENAME).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    # No regions -> drop the stale composited marked view so extraction never
+    # feeds an out-of-date annotation.
+    if not regions:
+        try:
+            (pdir / MARKED_VIEW_FILENAME).unlink()
+        except OSError:
+            pass
     return {"saved": len(regions), "featureGroups": payload["featureGroups"]}
+
+
+@app.post("/api/parts/{session}/{part}/marked-view")
+async def save_marked_view(session: str, part: str, file: UploadFile = File(...)):
+    """Store the composited drawing (linework + region boxes) as
+    full_marked_view.jpg in the part INPUT folder — the pipeline includes it in
+    Claude extraction for correct hole placement."""
+    pdir = _session_dir(session) / _sanitize(part)
+    if not pdir.is_dir():
+        raise HTTPException(404, "Unknown part")
+    data = await file.read()
+    (pdir / MARKED_VIEW_FILENAME).write_bytes(data)
+    return {"saved": True, "bytes": len(data)}
+
+
+@app.get("/api/parts/{session}/{part}/marked-view.jpg")
+def get_marked_view(session: str, part: str):
+    p = _session_dir(session) / _sanitize(part) / MARKED_VIEW_FILENAME
+    if not p.is_file():
+        raise HTTPException(404, "No marked view for this part")
+    return FileResponse(str(p), media_type="image/jpeg")
 
 
 @app.get("/api/parts/{session}/{part}/overview.jpg")
