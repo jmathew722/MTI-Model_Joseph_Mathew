@@ -2,7 +2,7 @@
 
 Runs BETWEEN rasterization and the per-view cropped extraction: the FULL,
 uncropped drawing sheet (the same image Tab 1 renders as "FULL OVERVIEW VIEW")
-is sent to Claude Opus 4.8 with a prompt whose job is explicitly RELATIONAL,
+is sent to Claude Sonnet 5 with a prompt whose job is explicitly RELATIONAL,
 not per-feature extraction:
 
   * how many distinct views are on the sheet and what each one is;

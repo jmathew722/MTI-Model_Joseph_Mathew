@@ -1,6 +1,6 @@
 """Dimension extraction via the Claude Vision API.
 
-Uses ``claude-opus-4-8`` (override with ``EXTRACTION_MODEL``) with a **forced
+Uses ``claude-sonnet-5`` (override with ``EXTRACTION_MODEL``) with a **forced
 tool call** — Claude must respond by calling the ``report_drawing_data`` tool,
 whose ``input_schema`` is generated from :class:`pipeline.schema.DrawingData`.
 The tool's JSON input is then validated against the same Pydantic model.
@@ -31,7 +31,7 @@ from utils.logger import get_logger
 log = get_logger()
 load_dotenv()
 
-DEFAULT_MODEL = "claude-opus-4-8"
+DEFAULT_MODEL = "claude-sonnet-5"
 MAX_TOKENS = 16000
 CONFIDENCE_THRESHOLD = 0.7  # below this, re-query once for a closer look
 SDK_MAX_RETRIES = 3  # SDK-level retries for transient API errors
@@ -678,7 +678,7 @@ def extract_drawing_data(
     Args:
         image_b64: Base64-encoded image (from :func:`utils.image_prep.prepare_image`).
         media_type: MIME type of the image (default ``image/png``).
-        model: Model override; defaults to ``$EXTRACTION_MODEL`` or ``claude-opus-4-8``.
+        model: Model override; defaults to ``$EXTRACTION_MODEL`` or ``claude-sonnet-5``.
         prep_warnings: Warnings from image preparation, merged into the result so the
             operator sees them alongside the model's own warnings.
         cache_dir: If given, an on-disk extraction cache keyed by image+model hash;

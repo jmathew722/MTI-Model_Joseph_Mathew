@@ -27,7 +27,7 @@ The UI (`FastAPI` + a single-page front end, styled as a drafting-room "blueprin
 is organized as **four tabs, modeled on drawing sheets**. Work flows left to right:
 **crop → set up → run → inspect**.
 
-The header shows the extraction engine (Claude Opus 4.8), the deliverables
+The header shows the extraction engine (Claude Sonnet 5), the deliverables
 (`.SLDPRT · .STL · VBA`), and a live **API-status pill** (key present → live extraction;
 no key → demo mode from saved extractions, zero cost).
 
@@ -165,7 +165,7 @@ drawing/views ─► image prep
       ★ Stage 1.5 · Holistic Overview Analysis (full sheet, relational)
                     │
                     ▼
-      Stage 2 · Per-view extraction (Claude Opus 4.8, specs-first)
+      Stage 2 · Per-view extraction (Claude Sonnet 5, specs-first)
                     │
       Stage 2.2 · Vector hole extraction (exact positions from PDF/DXF/DWG)
                     │
@@ -193,7 +193,7 @@ drawing/views ─► image prep
 **1 · Image prep** — normalize, orient, and downscale every input image.
 
 **★ 1.5 · Holistic Overview Analysis** *(new)* — before any cropped view is extracted, the
-**full uncropped sheet** goes to Claude Opus 4.8 with a dedicated *relational* prompt. It does
+**full uncropped sheet** goes to Claude Sonnet 5 with a dedicated *relational* prompt. It does
 NOT re-extract dimensions; it answers what a single crop never can:
 
 - How many views are on the sheet, and what is each one?
