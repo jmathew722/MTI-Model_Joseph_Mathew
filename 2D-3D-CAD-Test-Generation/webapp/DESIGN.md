@@ -56,6 +56,10 @@ components.
   Never for primary actions.
 - **Status (inspection: accept / reject / hold):** `--ok #3EAF7C` /
   `--err #E5484D` / `--warn #E3A93C`, each with a `-text` variant.
+- **Datum (functional):** `--datum #00C2FF` / `--datum-dim` — the locked (0,0)
+  origin crosshair drawn on the drawing and its UI chips. A vivid azure that
+  reads over white linework; functional like the severity ladder, NOT a second
+  interactive accent (the one accent stays blueprint cyan).
 - **Legacy aliases:** `--copper*`/`--teal*` map to blueprint/steel so the
   photoapp document needs no edits when the direction evolves.
 
@@ -101,7 +105,7 @@ step, nothing else.
 
 | Class | Recipe |
 |---|---|
-| `.btn` | 36px h · 0 16px pad · r-md · 14px/600 · cyan fill; `.secondary` (surface + strong border), `.ghost`, `.danger` (outline red), `.running`, sizes `.sm` 28px / `.xl` 46px; `:active` scale(.97) |
+| `.btn` | 36px h · 0 16px pad · r-md · 14px/600 · cyan fill; `.secondary` (surface + strong border), `.ghost`, `.danger` (outline red), `.running`, `.on` (blueprint-tinted active state for tool toggles), sizes `.sm` 28px / `.xl` 46px; `:active` scale(.97) |
 | `.ibtn` | 26px square quiet icon button |
 | `.badge-c` | bordered chip, 11px/600, r-sm; tints: `.blueprint .steel .ok .err .warn` (aliases `.copper .teal`), `.mono` |
 | `.badge-sev` | OUTLINED severity stamp, 10px/700 uppercase tracked: `.critical .high .medium .low` |

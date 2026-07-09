@@ -54,6 +54,12 @@
   --err-text:  #F3797E;
   --warn:      #E3A93C;
 
+  /* ── Datum — the locked (0,0) origin marker. A FUNCTIONAL color (like the
+     severity ladder), not a second interactive accent: a vivid azure that
+     stays legible drawn over white drawing linework. ──────────────────── */
+  --datum:     #00C2FF;
+  --datum-dim: rgba(0,194,255,0.12);
+
   /* ── Severity ladder (functional — flags, never decoration) ──────────── */
   --sev-critical: #F0545C;  --on-sev-critical: #2A0507;
   --sev-high:     #E3A13C;  --on-sev-high:     #2A1703;
@@ -147,6 +153,10 @@ html { -webkit-font-smoothing: antialiased; }
 .btn.danger { background: transparent; color: var(--err-text); border-color: rgba(229,72,77,0.4); }
 .btn.danger:hover:not(:disabled) { background: rgba(229,72,77,0.12); }
 .btn.running { background: var(--surface); color: var(--blueprint-text); border-color: var(--line-strong); }
+/* Active state for a secondary/ghost button used as a tool toggle (draw,
+   set-origin, mode switches) — reads clearly "pressed" without a new pattern. */
+.btn.secondary.on, .btn.ghost.on { background: var(--blueprint-dim);
+    color: var(--blueprint-text); border-color: var(--blueprint); }
 .btn.sm { height: 28px; padding: 0 var(--sp-3); font-size: var(--fs-small); }
 .btn.xl { height: 46px; padding: 0 var(--sp-5); font-size: 15px; font-weight: 700; letter-spacing: .02em; }
 

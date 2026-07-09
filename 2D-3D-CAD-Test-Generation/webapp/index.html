@@ -101,6 +101,8 @@
                          text-transform:uppercase; padding:4px var(--sp-3); cursor:pointer;
                          background:var(--surface); color:var(--ink-3);
                          border:1px solid var(--line); border-radius:var(--r-sm); }
+  .crop-modebar .cmode { transition:color .12s, border-color .12s, background .12s; }
+  .crop-modebar .cmode:hover { color:var(--ink-2); border-color:var(--line-strong); }
   .crop-modebar .cmode.active { color:var(--blueprint-text); border-color:var(--blueprint);
                                 background:var(--blueprint-dim); }
   #crop-view { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
@@ -268,53 +270,54 @@
   #ov-img:active { cursor:grabbing; }
   #stl-canvas-wrap { position:absolute; inset:0; }
 
-  /* ── Reference-region markup (Sheet 2): colored highlight boxes drawn over
+  /* ── Reference-region markup (Sheet 1): colored highlight boxes drawn over
      the drawing; color = feature group. Boxes use a semi-transparent fill +
      solid border so the linework underneath stays legible. ─────────────── */
-  .mark-bar { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-2);
-              padding:var(--sp-1) var(--sp-4); border-bottom:1px solid var(--line);
-              background:var(--bg-raised); font-size:var(--fs-small); color:var(--ink-3); }
+  .mark-bar { flex:0 0 auto; display:flex; align-items:center; flex-wrap:wrap;
+              gap:var(--sp-1) var(--sp-2); padding:var(--sp-2) var(--sp-4);
+              border-bottom:1px solid var(--line); background:var(--bg-raised);
+              font-size:var(--fs-small); color:var(--ink-3); }
   .mark-bar select { padding:3px 6px; font-size:12px; }
   .mark-swatch { width:18px; height:18px; border-radius:var(--r-sm); flex:0 0 auto;
-                 border:1px solid rgba(255,255,255,.55); box-shadow:0 0 0 1px rgba(0,0,0,.35); }
-  #mark-toggle.on { color:var(--blueprint-text); border-color:var(--blueprint);
-                    background:var(--blueprint-dim); }
+                 border:1px solid rgba(255,255,255,.55); box-shadow:inset 0 0 0 1px rgba(0,0,0,.35); }
   #ov-mark-layer { position:absolute; pointer-events:none; transform-origin:center center; }
   #ov-mark-layer.marking { pointer-events:auto; cursor:crosshair; }
   /* Boxes never hit-test (drawing/panning passes through them); only their
      delete/resize controls are interactive, and only in markup mode. */
-  .mark-box { position:absolute; box-sizing:border-box; border:2px solid; border-radius:2px;
+  .mark-box { position:absolute; box-sizing:border-box; border:2px solid; border-radius:var(--r-sm);
               pointer-events:none; }
   .mark-box .mb-del { position:absolute; top:-9px; right:-9px; width:16px; height:16px;
                       line-height:14px; text-align:center; font:700 11px/14px var(--sans);
-                      color:#fff; background:rgba(15,20,28,.85); border:1px solid rgba(255,255,255,.5);
-                      border-radius:50%; cursor:pointer; pointer-events:auto; user-select:none; }
+                      color:var(--ink); background:rgba(10,15,22,.88); border:1px solid var(--line-strong);
+                      border-radius:50%; cursor:pointer; pointer-events:auto; user-select:none;
+                      transition:background .12s, border-color .12s; }
+  .mark-box .mb-del:hover { background:rgba(229,72,77,.9); border-color:var(--err); }
   .mark-box .mb-resize { position:absolute; right:-6px; bottom:-6px; width:11px; height:11px;
                          border:1px solid rgba(255,255,255,.7); background:inherit;
-                         border-radius:2px; cursor:nwse-resize; pointer-events:auto; }
+                         border-radius:var(--r-sm); cursor:nwse-resize; pointer-events:auto; }
   .mark-box .mb-role { position:absolute; left:0; top:-15px; font:600 9px/12px var(--mono);
                        letter-spacing:.04em; color:#fff; background:rgba(15,20,28,.75);
                        padding:0 4px; border-radius:2px; white-space:nowrap; pointer-events:none; }
   /* Locked origin datum: a distinct cyan crosshair marking (0,0) at the
      bottom-left of the top view — the fixed reference for model orientation. */
-  #origin-lock.on { color:#00C2FF; border-color:rgba(0,194,255,.6); background:rgba(0,194,255,.10); }
+  #origin-lock.on { color:var(--datum); border-color:var(--datum); background:var(--datum-dim); }
   .origin-mark { position:absolute; width:0; height:0; z-index:5; pointer-events:none; }
-  .origin-mark .oh { position:absolute; left:-15px; top:-1.5px; width:30px; height:3px; background:#00C2FF; }
-  .origin-mark .ov { position:absolute; left:-1.5px; top:-15px; width:3px; height:30px; background:#00C2FF; }
+  .origin-mark .oh { position:absolute; left:-15px; top:-1.5px; width:30px; height:3px; background:var(--datum); }
+  .origin-mark .ov { position:absolute; left:-1.5px; top:-15px; width:3px; height:30px; background:var(--datum); }
   .origin-mark .odot { position:absolute; left:-4px; top:-4px; width:8px; height:8px;
-                       border-radius:50%; background:#00C2FF; box-shadow:0 0 0 1.5px rgba(15,20,28,.7); }
+                       border-radius:50%; background:var(--datum); box-shadow:0 0 0 1.5px rgba(10,15,22,.7); }
   .origin-mark .olabel { position:absolute; left:9px; top:-22px; font:700 10px/15px var(--mono);
-                         color:#00C2FF; background:rgba(15,20,28,.82); padding:0 5px;
-                         border-radius:2px; white-space:nowrap; }
+                         color:var(--datum); background:rgba(10,15,22,.82); padding:0 5px;
+                         border-radius:var(--r-sm); white-space:nowrap; }
   .origin-mark .odel { position:absolute; left:9px; top:5px; width:16px; height:16px;
-                       line-height:14px; text-align:center; color:#fff; background:rgba(15,20,28,.85);
-                       border:1px solid rgba(255,255,255,.5); border-radius:50%; cursor:pointer;
+                       line-height:14px; text-align:center; color:var(--ink); background:rgba(10,15,22,.85);
+                       border:1px solid var(--line-strong); border-radius:50%; cursor:pointer;
                        pointer-events:auto; font:700 11px/14px var(--sans); }
   .regions-body .rg-origin { font-size:var(--fs-small); line-height:1.5; color:var(--ink-3);
-                             padding:var(--sp-2); margin-bottom:var(--sp-2);
-                             border:1px dashed var(--line); border-radius:var(--r-sm); }
-  .regions-body .rg-origin.set { color:#00C2FF; border-color:rgba(0,194,255,.5);
-                                 background:rgba(0,194,255,.06); }
+                             padding:var(--sp-2) var(--sp-3); margin-bottom:var(--sp-2);
+                             border:1px dashed var(--line-strong); border-radius:var(--r-md); }
+  .regions-body .rg-origin.set { color:var(--datum); border-style:solid;
+                                 border-color:var(--datum); background:var(--datum-dim); }
   /* Markup workspace: drawing LEFT, region sidebar RIGHT. */
   .mark-split { flex:1 1 auto; min-height:0; display:flex; }
   .mark-split #mk-box { flex:1 1 auto; }
@@ -1515,13 +1518,14 @@ function buildMarkedCanvas(regions, origin) {
     ctx.fillStyle = hexToRgba(r.color, 0.18); ctx.fillRect(x, y, w, h);
     ctx.lineWidth = lw; ctx.strokeStyle = r.color; ctx.strokeRect(x, y, w, h);
   }
-  if (origin) {                              // cyan crosshair datum + label
+  if (origin) {                              // datum crosshair + label (token color)
+    const datum = getComputedStyle(document.documentElement).getPropertyValue('--datum').trim() || '#00C2FF';
     const ox = origin.x * W, oy = origin.y * H, L = Math.max(16, Math.round(Math.max(W, H) / 38));
-    ctx.strokeStyle = '#00C2FF'; ctx.lineWidth = Math.max(2, lw);
+    ctx.strokeStyle = datum; ctx.lineWidth = Math.max(2, lw);
     ctx.beginPath();
     ctx.moveTo(ox - L, oy); ctx.lineTo(ox + L, oy);
     ctx.moveTo(ox, oy - L); ctx.lineTo(ox, oy + L); ctx.stroke();
-    ctx.fillStyle = '#00C2FF';
+    ctx.fillStyle = datum;
     ctx.beginPath(); ctx.arc(ox, oy, Math.max(3, lw * 1.6), 0, 6.29); ctx.fill();
     ctx.font = `700 ${Math.max(12, Math.round(W / 85))}px sans-serif`;
     ctx.fillText('(0,0)', ox + L + 3, oy - 5);
