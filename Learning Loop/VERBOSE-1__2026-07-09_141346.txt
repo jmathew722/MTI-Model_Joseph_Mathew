@@ -1,0 +1,34 @@
+LEARNING LOOP — VERBOSE-1
+============================================================
+Run:     2026-07-09 14:13:46
+Status:  READY
+Model:   claude-opus-4-8
+Outputs: C:\Users\joeka\AppData\Local\Temp\pytest-of-joeka\pytest-49\test_resolver_default_builds_a0\out\VERBOSE-1
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - none
+
+4. ENGINEERING REVIEW — CRITICAL & HIGH
+   - [CRITICAL] D099 (dimension): D099 reading (1) is illegible/ambiguous with no alternative or chain to confirm it; kept as a best guess for length — MUST verify before rebuild.
+       decision: resolved value 1
+       why: unverifiable reading
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+   (all severities: CRITICAL 1, HIGH 1)
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'VERBOSE-1' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\AppData\Local\Temp\pytest-of-joeka\pytest-49\test_resolver_default_builds_a0\out\VERBOSE-1

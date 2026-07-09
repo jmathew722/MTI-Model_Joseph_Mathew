@@ -585,6 +585,22 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     if gate_reasons:
         detail = ("; ".join(gate_reasons) + (f"; {detail}" if detail else ""))[:300]
 
+    # Iterative learning loop: capture every failure/flag from this run into the
+    # repo's Learning Loop/ folder as a paste-ready brief for a later code-fix
+    # pass. Never breaks the run.
+    try:
+        import os as _os
+
+        from pipeline.extractor import DEFAULT_MODEL
+        from pipeline.learning_loop import write_learning_log
+
+        lp = write_learning_log(part_dir, part, status, gate_reasons, output_dir,
+                                model=_os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL)
+        if lp is not None:
+            print(f"[LEARNING] Failure report written to {lp}", flush=True)
+    except Exception as e:
+        log.warning("Learning loop hook failed (non-fatal): %s", e)
+
     return BatchRow(source, part, status, **scores, n_macros=n_macros,
                     n_needs_review=len(pkg.needs_review), n_skipped=len(pkg.skipped), detail=detail)
 
