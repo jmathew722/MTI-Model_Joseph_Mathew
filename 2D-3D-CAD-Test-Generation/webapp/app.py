@@ -31,6 +31,12 @@ from pydantic import BaseModel
 # webapp/ lives inside the project dir; the CLI + samples live one level up.
 WEBAPP_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = WEBAPP_DIR.parent
+# The webapp normally reaches the pipeline only by launching main.py as a
+# subprocess (which runs from PROJECT_DIR). A few endpoints import pipeline
+# modules directly (e.g. the Learning Loop export), so put PROJECT_DIR on the
+# import path here too.
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
 RUNS_DIR = WEBAPP_DIR / "runs"
 RUNS_DIR.mkdir(exist_ok=True)
 # Multi-part working area: parts/<session>/<part>/ holds one part's crop JPEGs
@@ -1446,6 +1452,54 @@ async def save_regions(session: str, part: str, request: Request):
             pass
     return {"saved": len(regions), "origin": origin, "datums": datums,
             "featureGroups": payload["featureGroups"]}
+
+
+@app.post("/api/parts/{session}/{part}/learning-log")
+def part_learning_log(session: str, part: str):
+    """Push every flag & failure from this part's latest run into the repo's
+    Learning Loop/ folder as one organized report (the "Save all flags"
+    button). Reads the run artifacts, reconstructs the gate reasons, and reuses
+    the same generator the pipeline runs automatically."""
+    import json as _json
+
+    out = _session_dir(session) / _sanitize(part) / "output"
+    if not out.is_dir():
+        raise HTTPException(400, "This part has no run output yet — run it first.")
+
+    # Locate the folder that actually holds the artifacts (the built part number
+    # subfolder), and read the structured engineering review from the build plan.
+    anchor = _first(out, ["*_build_plan.json", "*_engineering_review.txt", "*_extraction.json"])
+    part_dir = anchor.parent if anchor is not None else out
+    review: list = []
+    bp = _first(out, ["*_build_plan.json"])
+    if bp is not None:
+        try:
+            review = _json.loads(bp.read_text(encoding="utf-8")).get("engineering_review", []) or []
+        except Exception:
+            review = []
+
+    # Reconstruct the gate reasons from the artifacts (mirrors the pipeline).
+    mm = _mm_summary(out)
+    gate: list[str] = list(mm.get("failed") or [])
+    if any(i.get("severity") == "CRITICAL" and i.get("source") == "overview_analysis" for i in review):
+        gate.append("overview verification found CRITICAL gap(s)")
+    for i in review:
+        if i.get("source") == "requirement" and str(i.get("status", "")).lower() == "unmet":
+            gate.append(f"unmet requirement {i.get('id', '')}: {i.get('what', '')}"[:200])
+    status = "NOT READY" if gate else "READY"
+
+    import os as _os
+
+    from pipeline.extractor import DEFAULT_MODEL
+    from pipeline.learning_loop import write_learning_log
+
+    path = write_learning_log(part_dir, part_dir.name, status, gate, out,
+                              model=_os.getenv("EXTRACTION_MODEL") or DEFAULT_MODEL)
+    if path is None:
+        raise HTTPException(500, "Could not write the Learning Loop report.")
+    n_flags = len(review) + len(gate) + len(mm.get("failed") or [])
+    return {"saved": True, "file": Path(path).name, "path": str(path),
+            "flags": len(review), "gate_reasons": len(gate), "status": status}
 
 
 @app.post("/api/parts/{session}/{part}/marked-view")

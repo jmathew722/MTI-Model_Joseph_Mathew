@@ -756,7 +756,10 @@
          the pipeline re-extracts + rebuilds the part. -->
     <div class="feedback-bar" id="feedback-bar">
       <div class="fb-head">↻ Correction &amp; re-run
-        <span class="hint" id="fb-hint">select a part, describe what's wrong with its model, then re-run — your note is applied as a must-meet correction and the model is rebuilt</span></div>
+        <span class="hint" id="fb-hint">select a part, describe what's wrong with its model, then re-run — your note is applied as a must-meet correction and the model is rebuilt</span>
+        <span class="grow"></span>
+        <button class="btn secondary sm" id="learning-log-btn" disabled
+                title="Write every flag & failure (all severities) from this part's latest run into the repo's Learning Loop/ folder as one organized report you can hand to Fable">⤓ Save all flags to Learning Loop</button></div>
       <div class="fb-row">
         <textarea id="feedback-text" class="input-c" rows="2"
                   placeholder="e.g. the center bore should be 3.880 DIA not 3.5; the 6th bolt hole is missing on the bottom tab; datum A should be the left hole not the corner"></textarea>
@@ -1735,10 +1738,12 @@ function updateRunEnabled() {
   document.getElementById('run-btn').disabled = isRunning || !p || p.n_views < 1;
   const ra = document.getElementById('run-all-btn');
   if (ra) ra.disabled = isRunning || !partsData.some(x => x.n_views >= 1);
-  // Correction re-run needs a selected, already-run part (nothing to correct yet
-  // if it has never produced a model).
+  // Correction re-run + "save flags to Learning Loop" need a selected part that
+  // has already produced output (nothing to correct/capture otherwise).
   const rf = document.getElementById('rerun-feedback-btn');
   if (rf) rf.disabled = isRunning || !p || !p.has_output;
+  const ll = document.getElementById('learning-log-btn');
+  if (ll) ll.disabled = isRunning || !p || !p.has_output;
 }
 function selectPart(name) {
   selectedPart = name;
@@ -2338,6 +2343,22 @@ document.getElementById('rerun-feedback-btn').addEventListener('click', async ()
   currentRunId = res.id;
   monitorRun(res.id, selectedPart);
   showTab('pipeline');
+});
+
+// ── Save all flags & failures to the repo's Learning Loop/ folder ───────────
+document.getElementById('learning-log-btn').addEventListener('click', async () => {
+  if (!selectedPart) return;
+  const btn = document.getElementById('learning-log-btn');
+  btn.disabled = true;
+  setStatus('<span class="spinner"></span>Writing all flags to Learning Loop…', 'run');
+  try {
+    const d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/learning-log`,
+                                 { method: 'POST' })).json();
+    if (d.error || !d.saved) { setStatus(d.detail || d.error || 'Save to Learning Loop failed.', 'err'); }
+    else setStatus(`✓ Saved ${d.flags} flag(s) + ${d.gate_reasons} gate reason(s) to ` +
+                   `Learning Loop/${d.file} (${d.status}).`, 'ok');
+  } catch (e) { setStatus('Save to Learning Loop failed: ' + e.message, 'err'); }
+  updateRunEnabled();
 });
 
 // ── Upload a folder of preprocessed parts (subfolder = part) ────────────────
