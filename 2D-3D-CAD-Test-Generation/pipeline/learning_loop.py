@@ -49,17 +49,16 @@ _SUSPECTED_AREA = {
 
 
 def _repo_root(output_dir: Path) -> Path:
-    """The git repo root (the folder holding ``Learning Loop/``). Walk up from
-    this module to the first ``.git``; fall back to two levels above the
-    package, then to the output dir's parent."""
-    here = Path(__file__).resolve()
-    for parent in here.parents:
+    """The repo root that CONTAINS this run's output (the folder holding
+    ``Learning Loop/``). Walk up from the OUTPUT dir to the first ``.git`` — so
+    real runs (output inside the repo) land in the repo-root ``Learning Loop/``,
+    while a run whose output lives outside any repo (e.g. a pytest tmp dir)
+    falls back to its own tree and never pollutes the real repo."""
+    out = Path(output_dir).resolve()
+    for parent in [out, *out.parents]:
         if (parent / ".git").exists():
             return parent
-    try:
-        return here.parents[2]
-    except IndexError:
-        return Path(output_dir).resolve().parent
+    return out.parent
 
 
 def _load_json(path: Path) -> Optional[Any]:
