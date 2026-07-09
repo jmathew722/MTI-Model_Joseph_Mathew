@@ -91,6 +91,33 @@ def _safe(name: str) -> str:
     return "".join(c if (c.isalnum() or c in "-_") else "_" for c in str(name)) or "part"
 
 
+import hashlib
+import re
+
+_NUM_RE = re.compile(r"\d+(?:\.\d+)?")
+RAPID_RERUN_SECONDS = 180  # re-runs of the same part within this window are "rapid"
+
+
+def _failure_fingerprint(gate_reasons: list[str], review: list[dict], fails: list[dict]) -> str:
+    """A stable signature of WHAT failed this run (feature ids + error classes),
+    with volatile numbers stripped so measured-value jitter doesn't change it.
+    Two runs of a part with the same fingerprint are the same failure — the basis
+    for regression detection (Fix 1.3) and rapid-rerun dedupe (Fix 4.2)."""
+    def _norm(s: str) -> str:
+        return _NUM_RE.sub("#", str(s or "")).strip().lower()[:80]
+
+    sigs: list[str] = []
+    for g in gate_reasons or []:
+        sigs.append("gate|" + _norm(g))
+    for i in review or []:
+        sigs.append(f"rev|{i.get('source', '')}|{i.get('id', '')}|{i.get('severity', '')}|{_norm(i.get('what', ''))}")
+    for r in fails or []:
+        sigs.append(f"mac|{r.get('feature', '')}|{_norm(r.get('detail', ''))}")
+    if not sigs:
+        return ""  # clean run — no fingerprint
+    return hashlib.sha256("\n".join(sorted(sigs)).encode("utf-8")).hexdigest()[:16]
+
+
 def write_learning_log(part_dir: Path, part: str, status: str,
                        gate_reasons: list[str], output_dir: Path,
                        model: str = "") -> Optional[Path]:
@@ -215,6 +242,40 @@ def write_learning_log(part_dir: Path, part: str, status: str,
             fix_lines.append("   - Cross-check against the artifacts in: " + str(part_dir))
         sections.append("\n".join(fix_lines))
 
+        root = _repo_root(output_dir)
+        ldir = root / LEARNING_DIR_NAME
+        ldir.mkdir(parents=True, exist_ok=True)
+
+        # Regression detection (Fix 1.3) + rapid-rerun dedupe (Fix 4.2): compare
+        # this run's failure fingerprint against the last recorded run of the
+        # SAME part, kept in a small state file.
+        fp = _failure_fingerprint(gate_reasons, review, fails)
+        state_path = ldir / ".fingerprints.json"
+        state: dict = {}
+        try:
+            if state_path.is_file():
+                state = json.loads(state_path.read_text(encoding="utf-8")) or {}
+        except (OSError, ValueError):
+            state = {}
+        prev = state.get(part) or {}
+        regression_line = ""
+        is_rapid = False
+        if fp and prev.get("fp") == fp:
+            delta = None
+            try:
+                delta = ts.timestamp() - float(prev.get("epoch", 0))
+            except (TypeError, ValueError):
+                delta = None
+            within = delta is not None and 0 <= delta <= RAPID_RERUN_SECONDS
+            is_rapid = within
+            pf = prev.get("file", "?")
+            if within:
+                regression_line = (f"RERUN — identical failure fingerprint to {pf} "
+                                   f"~{int(delta)}s earlier; no code change took effect between runs.")
+            else:
+                regression_line = (f"REGRESSION — same failure fingerprint as a previous run ({pf}); "
+                                   "this failure class has recurred and is NOT a first-time bug.")
+
         header = [
             f"LEARNING LOOP — {part}",
             "=" * 60,
@@ -222,6 +283,11 @@ def write_learning_log(part_dir: Path, part: str, status: str,
             f"Status:  {status}",
             f"Model:   {model or '(default)'}",
             f"Outputs: {part_dir}",
+            f"Fingerprint: {fp or '(clean run)'}",
+        ]
+        if regression_line:
+            header.append("⚠ " + regression_line)
+        header += [
             "",
             "Every failure/flag from this run, followed by a paste-ready brief for Claude.",
             "=" * 60,
@@ -229,11 +295,21 @@ def write_learning_log(part_dir: Path, part: str, status: str,
         ]
         body = "\n".join(header) + "\n\n".join(sections) + "\n"
 
-        root = _repo_root(output_dir)
-        ldir = root / LEARNING_DIR_NAME
-        ldir.mkdir(parents=True, exist_ok=True)
-        path = ldir / f"{_safe(part)}__{ts.strftime('%Y-%m-%d_%H%M%S')}.txt"
+        stamp_s = ts.strftime('%Y-%m-%d_%H%M%S')
+        path = ldir / f"{_safe(part)}__{stamp_s}.txt"
+        i = 2  # never overwrite a same-second report (rapid re-runs)
+        while path.exists():
+            path = ldir / f"{_safe(part)}__{stamp_s}-{i}.txt"
+            i += 1
         path.write_text(body, encoding="utf-8")
+
+        # Record this run as the part's latest fingerprint for the next compare.
+        try:
+            state[part] = {"fp": fp, "epoch": ts.timestamp(), "file": path.name,
+                           "status": status}
+            state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+        except OSError:
+            pass
 
         # Chronological index (one line per run).
         try:
@@ -246,11 +322,12 @@ def write_learning_log(part_dir: Path, part: str, status: str,
             if first:
                 idx.write_text("# Learning Loop index\n\nOne line per pipeline run, newest at the "
                                "bottom. Hand any run's `.txt` to Claude to plan code fixes.\n\n"
-                               "| Time | Part | Status | Flags | File |\n"
-                               "|------|------|--------|------:|------|\n", encoding="utf-8")
+                               "| Time | Part | Status | Flags | Note | File |\n"
+                               "|------|------|--------|------:|------|------|\n", encoding="utf-8")
+            note = "RERUN" if is_rapid else ("REGRESSION" if regression_line else "")
             with idx.open("a", encoding="utf-8") as f:
                 f.write(f"| {ts.strftime('%Y-%m-%d %H:%M')} | {part} | {status} | "
-                        f"{n_flag} | {path.name} |\n")
+                        f"{n_flag} | {note} | {path.name} |\n")
         except OSError:
             pass
 

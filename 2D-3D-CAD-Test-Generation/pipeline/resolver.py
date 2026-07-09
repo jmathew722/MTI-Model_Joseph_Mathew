@@ -395,12 +395,23 @@ def _overview_flags(overview: dict, raw: dict) -> list[dict[str, Any]]:
         })
 
     # Deterministic count cross-check: overview note count vs extracted callouts.
+    # The count comes from the note's resolved_count, else is parsed from the note
+    # text with the SHARED quantity-language parser (so the overview and
+    # extraction read "(6) HL'S" / "6-HOLES" / "4 PLACES" identically).
+    from pipeline.callout_qty import parse_quantity
+
     holes = raw.get("hole_callouts", []) or []
     qtys = [int(h.get("qty") or 0) for h in holes]
     for note_obj in overview.get("global_notes", []) or []:
         count = note_obj.get("resolved_count")
+        if not isinstance(count, int) or count <= 0:
+            parsed = parse_quantity(note_obj.get("note") or "", default=0)
+            count = parsed if parsed > 0 else None
         if not isinstance(count, int) or count <= 0 or not holes:
             continue
+        # Group-aware: consistent if the note count matches ANY per-group count OR
+        # the total across groups (per-group counts summing to the total are NOT a
+        # mismatch — the false positive fixed in overview_check).
         if count in qtys or count == sum(qtys):
             continue
         note_text = (note_obj.get("note") or "").strip()
@@ -670,6 +681,129 @@ def _ensure_buildable_extrudes(resolved: dict, model: DrawingData, result: "Reso
             rel.append(new_id)
 
 
+import re as _re
+
+_TYP_RE = _re.compile(r"\btyp(ical)?\b", _re.IGNORECASE)
+
+
+def _dim_is_typ(dim: dict) -> bool:
+    """True if a dimension is marked TYP/TYPICAL (the value repeats on sibling
+    features). Extraction may put the qualifier in notes, ambiguity_reason, or
+    the applies_to/label text — scan them all."""
+    blob = " ".join(str(dim.get(k, "")) for k in
+                    ("notes", "ambiguity_reason", "applies_to", "label", "raw_text"))
+    return bool(_TYP_RE.search(blob))
+
+
+def _propagate_typ(resolved: dict, result: "ResolutionResult") -> None:
+    """Fix 2.2 (learning-loop 2026-07-09, e.g. 16247 '.531 R. TYP' on one of two
+    notches): a radius/chamfer callout marked TYP applies to EVERY geometrically
+    similar sibling. When a fillet/chamfer feature has no driving dimension but a
+    TYP value of its kind exists on the sheet, attach that value as an INFERRED
+    dimension so the sibling is no longer dimensionless. Never overrides a real
+    reading; the inferred value is flagged so a human can confirm."""
+    dims = resolved.get("dimensions", []) or []
+    feats = resolved.get("features", []) or []
+    by_id = {d.get("id"): d for d in dims}
+
+    def _typ_source(tokens: tuple[str, ...]) -> Optional[dict]:
+        for d in dims:
+            if (_dim_is_typ(d)
+                    and canonicalize_applies_to(d.get("applies_to", "")) in tokens
+                    and isinstance(d.get("value"), (int, float)) and d.get("value", 0) > 0):
+                return d
+        return None
+
+    typ_radius = _typ_source(("fillet_radius", "radius"))
+    typ_chamfer = _typ_source(("chamfer",))
+    if typ_radius is None and typ_chamfer is None:
+        return
+
+    def _feature_has_role(feat: dict, tokens: tuple[str, ...]) -> bool:
+        rel = list(feat.get("related_dimensions", []) or [])
+        did = feat.get("depth_dimension_id")
+        if did:
+            rel.append(did)
+        for rid in rel:
+            d = by_id.get(rid)
+            if d and canonicalize_applies_to(d.get("applies_to", "")) in tokens:
+                return True
+        return False
+
+    plan = (("fillet", typ_radius, ("fillet_radius", "radius"), "fillet_radius"),
+            ("chamfer", typ_chamfer, ("chamfer",), "chamfer"))
+    for ftype, src, tokens, applies in plan:
+        if src is None:
+            continue
+        for feat in feats:
+            if (feat.get("type") or "").lower() != ftype:
+                continue
+            if _feature_has_role(feat, tokens):
+                continue  # already has its own reading — never overridden
+            fid = feat.get("id", "?")
+            new_id = _next_dim_id(resolved)
+            val = round(float(src["value"]), 6)
+            note = (f"{new_id}={_fmt(val)} inferred for {ftype} {fid} from the TYP "
+                    f"callout {src.get('id', '?')} ({_fmt(val)} {src.get('unit', '')}) — "
+                    f"same value repeats on geometrically similar features; verify.")
+            new_dim = {
+                "id": new_id, "type": "radius" if ftype == "fillet" else "linear",
+                "value": val, "unit": src.get("unit", "inch"), "applies_to": applies,
+                "feature_ref": fid,
+                "notes": f"Inferred by Stage 2.5 TYP propagation from {src.get('id', '?')}.",
+            }
+            dres = DimResolution(new_id, val, True, "typ_propagation", [src.get("id", "?")],
+                                 0.7, "MEDIUM", note)
+            new_dim.update(dres.as_fields())
+            resolved.setdefault("dimensions", []).append(new_dim)
+            by_id[new_id] = new_dim
+            result.dim_resolutions[new_id] = dres
+            rel = feat.setdefault("related_dimensions", [])
+            if new_id not in rel:
+                rel.append(new_id)
+
+
+def _dimensionless_feature_flags(resolved: dict) -> list[dict[str, Any]]:
+    """Fix 2.1 (regression: A001821M chamfer F005 'no distance dimension' ×3;
+    A001211E fillet F006). A fillet with no radius, or a chamfer with no distance
+    (even after TYP propagation), must NOT be built blindly — surface it as a
+    CRITICAL review item routed to the Tab-1 markup queue so a human transcribes
+    the radius/distance, rather than the build silently skipping it every run."""
+    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+    need = {"fillet": ("fillet_radius", "radius"), "chamfer": ("chamfer",)}
+    flags: list[dict[str, Any]] = []
+    for feat in resolved.get("features", []) or []:
+        ftype = (feat.get("type") or "").lower()
+        tokens = need.get(ftype)
+        if not tokens:
+            continue
+        rel = list(feat.get("related_dimensions", []) or [])
+        if feat.get("depth_dimension_id"):
+            rel.append(feat["depth_dimension_id"])
+        has_driving = any(
+            canonicalize_applies_to((dims_by_id.get(rid) or {}).get("applies_to", "")) in tokens
+            and (dims_by_id.get(rid) or {}).get("value", 0) > 0
+            for rid in rel)
+        if has_driving:
+            continue
+        fid = feat.get("id", "?")
+        what = "radius" if ftype == "fillet" else "distance"
+        flags.append({
+            "dimension_id": fid,
+            "flag_tier": "CRITICAL",
+            "human_note": (
+                f"MISSING DIMENSION: {ftype} {fid} has no {what} value (none read, and no "
+                f"TYP value of its kind to inherit). Do not build it blindly — highlight the "
+                f"{what} callout on the drawing in the Tab-1 markup tool and transcribe the "
+                f"value, then re-run. Routed to markup review."),
+            "macro_behavior": behavior_for_tier("CRITICAL"),
+            "resolved_by_tier": TIER_PER_VIEW,
+            "source": "missing_dimension",
+            "route_to_markup": True,
+        })
+    return flags
+
+
 def _resolve_hole_position_flag(hole: dict, fid_note: str) -> Optional[dict]:
     """A hole callout with unknown positions contributes a build-plan flag."""
     if hole.get("instance_positions") or hole.get("position_known"):
@@ -797,6 +931,11 @@ def resolve_extraction(raw: dict,
         result.feature_resolutions[fres.feature_id] = fres
         feat.update(fres.as_fields())
 
+    # TYP propagation: a radius/chamfer callout marked TYP fills in dimensionless
+    # sibling fillets/chamfers (before the buildable-base pass so any synthesized
+    # dims are consistent).
+    _propagate_typ(resolved, result)
+
     # Guarantee a buildable base: synthesize a thickness for any extrude_boss the
     # drawing never dimensioned, so the part can never produce an empty solid.
     _ensure_buildable_extrudes(resolved, model, result)
@@ -827,6 +966,11 @@ def resolve_extraction(raw: dict,
         if flag:
             flag["resolved_by_tier"] = TIER_PER_VIEW
             result.flags.append(flag)
+
+    # Fix 2.1: dimensionless fillet/chamfer features → CRITICAL review routed to
+    # markup (so the emphasized A001821M chamfer regression surfaces as a review
+    # task, not a silent per-run build skip).
+    result.flags.extend(_dimensionless_feature_flags(resolved))
 
     # --- Tier 2: Stage 1.5 holistic overview analysis (cross-view conflicts
     # + callout-count cross-check). Only adds flags — never changes a tier-1

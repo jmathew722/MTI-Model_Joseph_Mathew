@@ -285,6 +285,15 @@ def cross_check(overview: dict, extraction: dict) -> list[dict[str, Any]]:
     Only overview->build gaps are flagged; extra build features are fine."""
     items: list[dict[str, Any]] = []
     inv = _build_inventory(extraction)
+    # Count checking is AGGREGATE, not per-callout: the overview lists holes per
+    # callout GROUP (e.g. ".406 DIA (2) HL'S" -> 2, ".422 6-HOLES" -> 6) while the
+    # build inventory is the TOTAL of every group. Comparing one group's count to
+    # the grand total is apples-to-oranges and fired false "2 vs 5" HIGH flags
+    # (learning-loop 2026-07-09: A001211E, A001271E, A001621E, A001821M). Instead,
+    # sum the overview's per-group counts for a kind and compare that TOTAL to the
+    # build total — flag only a genuine shortfall (overview total > build total),
+    # which is the only direction that means a feature is missing.
+    ov_counts: dict[str, int] = {}
     n = 0
     for f in overview.get("features") or []:
         kind = str(f.get("kind") or "other").lower()
@@ -297,6 +306,8 @@ def cross_check(overview: dict, extraction: dict) -> list[dict[str, Any]]:
         n += 1
         fid = f"OV{n:03d}"
         have = inv.get(kind, 0)
+        if kind in _COUNT_CHECKED:
+            ov_counts[kind] = ov_counts.get(kind, 0) + count
 
         if kind == "other":
             items.append(_item(
@@ -320,17 +331,27 @@ def cross_check(overview: dict, extraction: dict) -> list[dict[str, Any]]:
                 why="present in the overview drawing, missing from the extraction/build",
                 affects=f"{kind} feature(s) — verify against the drawing",
             ))
-        elif kind in _COUNT_CHECKED and have != count:
+        # have>0: per-group count is NOT compared to the total here (see the
+        # aggregate check below), so a valid multi-group callout raises no flag.
+
+    # Aggregate shortfall check: only when the overview's TOTAL for a kind exceeds
+    # the build's total (build is genuinely missing some), and only for kinds that
+    # still have at least one built feature (a total absence was already flagged
+    # CRITICAL per-callout above).
+    for kind, ov_total in sorted(ov_counts.items()):
+        have = inv.get(kind, 0)
+        if have > 0 and ov_total > have:
+            n += 1
             items.append(_item(
-                "HIGH", fid,
-                what=f"Count mismatch for {kind}: the overview shows {count}, the "
-                     f"build contains {have} ({desc}"
-                     + (f", {where}" if where else "") + ").",
-                decision=f"build kept its extracted count of {have}",
-                why="overview count disagrees with the consolidated extraction",
-                affects=f"{kind} count",
+                "HIGH", f"OV{n:03d}",
+                what=f"Count shortfall for {kind}: the overview's callouts total "
+                     f"{ov_total}, but the build contains {have}.",
+                decision=f"build kept its extracted total of {have}",
+                why="the summed overview callout counts exceed the built total — a "
+                    "group of this feature may be missing (per-group counts that sum "
+                    "to the build total are treated as consistent and NOT flagged)",
+                affects=f"{kind} total count",
             ))
-        # matched (have>0, count agrees or kind not count-checked) -> no item
     items.extend(_envelope_items(overview.get("envelope") or {}, extraction))
     order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
     items.sort(key=lambda it: order.get(it["severity"], 4))
