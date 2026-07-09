@@ -49,7 +49,9 @@ TOOL_NAME = "report_drawing_data"
 # v4: revolve half-profiles, bolt-circle patterns, and mirror features.
 # v5: operator must-meet specifications injected into the extraction prompt
 #     (specs-first enforcement; the spec text is also mixed into the cache key).
-PROMPT_VERSION = "5"
+# v6: marked-view instructions batch each color group's X/Y coordinates with
+#     its hole placement and read the locked origin for model orientation.
+PROMPT_VERSION = "6"
 
 # Token usage fields summed across the (possibly several) calls of one extraction.
 _USAGE_FIELDS = (
@@ -488,13 +490,20 @@ MARKED_VIEW_INTRO = (
     "HUMAN-MARKED REFERENCE VIEW (operator ground truth): the next image is the "
     "SAME drawing with reviewer-drawn reference regions overlaid as colored boxes. "
     "Boxes sharing a color are ONE feature — typically a hole together with its "
-    "X-dimension, Y-dimension, and center. Treat these as authoritative for "
-    "identifying every hole/feature and placing it and its spacing correctly, "
-    "especially where the raw linework or overlapping leaders are ambiguous. Do "
-    "not miss a hole the operator boxed, and prefer the boxed count over an "
-    "uncertain visual count. If a cyan crosshair labeled (0,0) is present, it is "
-    "the operator-locked ORIGIN at the bottom-left of the top view — use it as the "
-    "datum for hole positions so the model's orientation matches the drawing."
+    "X-dimension, Y-dimension, and center.\n"
+    "BATCH BY COLOR: for EACH color group, read the boxed X-dimension and boxed "
+    "Y-dimension callouts and BIND those two values to THAT hole's position — the "
+    "color is the association between the coordinates and the hole they place. Use "
+    "the batched (x, y) pair for the hole callout's x_position/y_position and "
+    "instance_positions; never attach a boxed dimension to a different feature.\n"
+    "ORIGIN: if a cyan crosshair labeled (0,0) is present, it is the operator-"
+    "locked ORIGIN at the BOTTOM-LEFT corner of the top view. Extract it as the "
+    "coordinate datum: measure every batched X/Y position from that corner with "
+    "+X to the right and +Y upward, so the built model's orientation matches the "
+    "drawing exactly.\n"
+    "Treat all of this as authoritative where raw linework or overlapping leaders "
+    "are ambiguous: do not miss a hole the operator boxed, and prefer the boxed "
+    "count over an uncertain visual count."
 )
 
 

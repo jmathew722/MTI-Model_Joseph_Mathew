@@ -608,7 +608,7 @@
       </div>
       <div class="gcol">
         <div class="grp-title">3 · Name &amp; save</div>
-        <div class="hint" id="save-placeholder" style="max-width:250px">Appears once images are added — Front + one more orthographic view are required.</div>
+        <div class="hint" id="save-placeholder" style="max-width:250px">Appears once images are added — Top + one more orthographic view are required (the top view anchors the (0,0) origin).</div>
         <div class="intake-foot" id="intake-foot" style="display:none">
           <span class="req-warn" id="req-warn"></span>
           <div class="rowline">
@@ -1560,9 +1560,11 @@ function saveMarkedViewNow(key, _retried) {
 document.getElementById('mark-addview').addEventListener('click', () => {
   const dataURL = composeMarkedDataURL();
   if (!dataURL) { setStatus('No drawing loaded to add — open a drawing first.', 'err'); return; }
-  addIntakeItems([{ dataURL, orientation: '', label: 'Marked drawing' }]);
+  // Pre-assigned as the "Marked View" type: on save it becomes
+  // full_marked_view.jpg, the annotated image extraction consumes.
+  addIntakeItems([{ dataURL, orientation: 'marked', label: 'Marked drawing' }]);
   showTab('intake');
-  setStatus('Added the marked drawing to Part Setup — assign it a view type, name the part, and save.', 'ok');
+  setStatus('Added the marked drawing to Part Setup as a Marked View — name the part and save.', 'ok');
 });
 async function loadRegionsFor(name) {
   if (regionsDirty.has(name)) { renderRegions(false); return; } // local edits win
@@ -1683,13 +1685,19 @@ function updateOverviewBox() {
 const ORIENTATIONS = [
   ['front', 'Front View'], ['back', 'Back View'], ['left', 'Left Side View'],
   ['right', 'Right Side View'], ['top', 'Top View'], ['bottom', 'Bottom View'],
-  ['overview', 'Full Overview View'],
+  ['overview', 'Full Overview View'], ['marked', 'Marked View'],
 ];
 // Orientation → the crop filename the server's VIEW_MAP / view_ingest classify.
-// 'overview' becomes the canonical 00_full.jpg overview image on the server.
+// 'overview' becomes the canonical 00_full.jpg overview image; 'marked' becomes
+// full_marked_view.jpg — the annotated drawing Claude extraction consumes to
+// batch each color group's X/Y coordinates with its hole placement and to read
+// the locked origin for consistent model orientation.
 const ORIENT_TO_NAME = { front:'front', back:'back', top:'top', bottom:'bottom',
-                         left:'left', right:'right', overview:'overview' };
-const ORTHO_SET = new Set(['top','bottom','left','right','back']);
+                         left:'left', right:'right', overview:'overview', marked:'marked' };
+// Views that satisfy "one more orthographic view" ALONGSIDE the required TOP
+// view (the top view anchors the bottom-left origin convention, so it is the
+// mandatory one; overview/marked are context, never orthographic).
+const ORTHO_SET = new Set(['front','bottom','left','right','back']);
 let intake = { items: [], source: null, originalFile: null, stem: 'drawing', format: '' };
 let intakeSeq = 0;
 
@@ -1701,6 +1709,7 @@ const saveBtn = document.getElementById('save-part-btn');
 
 function guessOrientation(name) {
   const n = (name || '').toLowerCase();
+  if (n.includes('marked')) return 'marked';
   if (n.includes('front')) return 'front';
   if (n.includes('back') || n.includes('rear')) return 'back';
   if (n.includes('bottom')) return 'bottom';
@@ -1746,14 +1755,14 @@ function dupOrientations() {
 
 function validateIntake() {
   const assigned = intake.items.map(i => i.orientation).filter(Boolean);
-  const hasFront = assigned.includes('front');
+  const hasTop = assigned.includes('top');
   const hasOther = assigned.some(o => ORTHO_SET.has(o));
   const named = !!partNameEl.value.trim();
   const dups = dupOrientations();
   let msg = '', ok = false;
   if (!intake.items.length) msg = '';
-  else if (!hasFront) msg = '⚠ Assign a FRONT view — the base profile cannot be built without it.';
-  else if (!hasOther) msg = '⚠ Assign at least one more orthographic view (Top / Bottom / Left / Right / Back) so depth can be read.';
+  else if (!hasTop) msg = '⚠ Assign a TOP view — it anchors the bottom-left (0,0) origin, so every model orients consistently to the drawing.';
+  else if (!hasOther) msg = '⚠ Assign at least one more orthographic view (Front / Bottom / Left / Right / Back) so depth can be read.';
   else if (!named) msg = 'Name the part to save it.';
   else { ok = true; msg = dups.size ? `⚠ Duplicate orientation(s): ${[...dups].join(', ')} — you can save, but confirm the override.` : '✓ Ready to save.'; }
   reqWarn.textContent = msg;

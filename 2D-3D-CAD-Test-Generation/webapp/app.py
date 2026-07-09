@@ -470,9 +470,14 @@ def _crop_filename(crop_name: str, seq: int) -> str:
     """Map a photo-app crop name to a pipeline-classifiable filename.
 
     Known views get an ordered ``NN_<view>.jpg`` name so view_ingest classifies
-    and orders them; anything else keeps its own (sanitized) name and is left for
-    the pipeline to warn about / skip (only the front view is required)."""
+    and orders them; the "Marked View" (annotated drawing) saves as the
+    canonical full_marked_view.jpg that view_ingest exposes as
+    ``PartViews.marked_view`` and extraction consumes as ground truth; anything
+    else keeps its own (sanitized) name and is left for the pipeline to warn
+    about / skip."""
     key = crop_name.strip().lower().replace(" ", "_")
+    if key in ("marked", "marked_view", "markedview"):
+        return MARKED_VIEW_FILENAME
     if key in VIEW_MAP:
         order, view = VIEW_MAP[key]
         return f"{order:02d}_{view}.jpg"

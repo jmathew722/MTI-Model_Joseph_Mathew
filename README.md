@@ -93,9 +93,12 @@ Four sheet-tabs, one flow, no folder editing:
    each view and **Queue View**. (Uploading on Tab 2 works too.)
 2. **Tab 2 · Part Setup & 3D Model — tag view types, name, save.** Pull the
    queued crops (or upload), then give each image a **view type** from the
-   dropdown — exactly seven options: **Front View, Back View, Left Side View,
-   Right Side View, Top View, Bottom View, Full Overview View** (⟳ rotates
-   sideways scans). Front + one more orthographic view are required to save.
+   dropdown — exactly eight options: **Front View, Back View, Left Side View,
+   Right Side View, Top View, Bottom View, Full Overview View, Marked View**
+   (⟳ rotates sideways scans; a Marked View is the annotated drawing whose
+   color groups + locked origin feed extraction). **Top + one more orthographic
+   view are required to save** — the top view anchors the bottom-left (0,0)
+   origin so every model orients consistently to the drawing.
    Optionally type **must-meet specifications** (one requirement per line) —
    these are applied from the start of extraction and resolution, then graded
    against the built part (an unmet line blocks READY). Below, two half-screen

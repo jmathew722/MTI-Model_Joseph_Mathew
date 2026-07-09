@@ -246,15 +246,19 @@ extraction (no API call).
    A format badge shows what was actually loaded (PDF / DWG / eDrawings / image),
    and every conversion is cached (`webapp/.convert_cache/`) and logged
    (`webapp/conversion_log.jsonl`: source format, tool, output).
-2. **Assign view types.** Each image gets one of the seven canonical view types
+2. **Assign view types.** Each image gets one of the eight canonical view types
    from a dropdown — **Front View / Back View / Left Side View / Right Side View
-   / Top View / Bottom View / Full Overview View**. Rotate 90° (⟳) for scanned
-   drawings. Duplicate view types show a warning badge and need a confirm on
-   save. The inline banner requires **Front + one more orthographic view** before
-   saving is enabled — that is what extraction needs to resolve depth. An image
-   tagged **Full Overview View** becomes the canonical `00_full.jpg` overview
-   (whole-part extraction context and the post-build overview cross-check), and
-   appears live in the left panel below.
+   / Top View / Bottom View / Full Overview View / Marked View**. Rotate 90° (⟳)
+   for scanned drawings. Duplicate view types show a warning badge and need a
+   confirm on save. The inline banner requires **Top + one more orthographic
+   view** before saving is enabled — the top view anchors the bottom-left (0,0)
+   origin convention, and the second view resolves depth. An image tagged
+   **Full Overview View** becomes the canonical `00_full.jpg` overview
+   (whole-part extraction context and the post-build overview cross-check) and
+   appears live in the left panel below; an image tagged **Marked View** becomes
+   `full_marked_view.jpg` — the annotated drawing Claude extraction consumes to
+   batch each color group's X/Y coordinates with its hole placement and to read
+   the locked origin for consistent model orientation.
 3. **Name the part** (becomes the folder name), optionally type **must-meet
    specifications** (one requirement per line — applied from the start of
    extraction and Stage 2.5 resolution, then graded against the built part; an
