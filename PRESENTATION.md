@@ -51,10 +51,17 @@ The full drawing intake surface, with two modes on a top mode bar:
   `full_marked_view.jpg` and passed to Claude alongside a text legend of every feature group,
   so the model places holes per the operator's boxes — ground truth for correct hole
   placement, and a base for future OCR cross-checking / low-confidence fallback. A
-  **⊕ Set origin** tool locks a **(0,0) datum at the bottom-left of the top view** (a cyan
-  crosshair, drawn into the composite and stated in the extraction legend) so every model
-  shares one consistent orientation relative to the drawing, and **＋ Add to Part Setup**
-  pushes the composited marked drawing into Sheet 2 as a view you can assign and save.
+  **⊕ Place datum** tool (with a kind dropdown) locks a **(0,0) origin at the bottom-left of
+  the top view** and adds **GD&T datum reference points** — Datum A/B/C and datum holes — all
+  drawn into the composite and listed in the extraction legend so the model anchors positions
+  and orientation to them (a datum hole is also extracted as a real hole). **＋ Add to Part
+  Setup** pushes the composited marked drawing into Sheet 2 as a view you can assign and save.
+
+- **Correction & re-run** — the foot of the Pipeline sheet has a feedback box: describe what's
+  wrong with the produced model ("the 6th bolt hole is missing"; "datum A should be the left
+  hole") and **↻ Re-run with correction** applies the note as an authoritative must-meet
+  correction and rebuilds the part with a fresh extraction — a tight human-in-the-loop fix
+  cycle without leaving the app.
 
 ### SHEET 2 · Part Setup & 3D Model
 

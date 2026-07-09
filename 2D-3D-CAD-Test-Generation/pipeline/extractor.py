@@ -51,7 +51,9 @@ TOOL_NAME = "report_drawing_data"
 #     (specs-first enforcement; the spec text is also mixed into the cache key).
 # v6: marked-view instructions batch each color group's X/Y coordinates with
 #     its hole placement and read the locked origin for model orientation.
-PROMPT_VERSION = "6"
+# v7: marked view also carries GD&T datum reference points (origin + lettered
+#     datums + datum holes) that anchor position/orientation.
+PROMPT_VERSION = "7"
 
 # Token usage fields summed across the (possibly several) calls of one extraction.
 _USAGE_FIELDS = (
@@ -501,6 +503,9 @@ MARKED_VIEW_INTRO = (
     "coordinate datum: measure every batched X/Y position from that corner with "
     "+X to the right and +Y upward, so the built model's orientation matches the "
     "drawing exactly.\n"
+    "DATUMS: small labeled markers (A/B/C, or ⌀ for a datum hole) are GD&T datum "
+    "reference points — anchor feature positions and orientation to them, and "
+    "extract a datum hole as a real hole as well as a reference.\n"
     "Treat all of this as authoritative where raw linework or overlapping leaders "
     "are ambiguous: do not miss a hole the operator boxed, and prefer the boxed "
     "count over an uncertain visual count."

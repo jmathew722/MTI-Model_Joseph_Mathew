@@ -422,7 +422,8 @@ def _region_legend_text(folder: Path) -> str | None:
         return None
     groups = data.get("featureGroups") or []
     origin = data.get("origin") or None
-    if not groups and not origin:
+    datums = data.get("datums") or []
+    if not groups and not origin and not datums:
         return None
     lines = []
     if origin:
@@ -434,6 +435,20 @@ def _region_legend_text(folder: Path) -> str | None:
             "right and +Y upward — so all models share one consistent orientation "
             "relative to the drawing."
         )
+    if datums:
+        _kind = {"origin": "primary origin", "datum_a": "Datum A", "datum_b": "Datum B",
+                 "datum_c": "Datum C", "datum_hole": "datum hole"}
+        lines.append(
+            "DATUM REFERENCE POINTS (GD&T datums the operator marked; positions "
+            "are image fractions, x right / y down from the top-left corner). "
+            "Anchor feature positions and orientation to these; a datum hole is a "
+            "real hole that also serves as a reference — extract it as a hole:")
+        for d in datums:
+            seg = (f"- {_kind.get(d.get('kind'), d.get('kind'))} @ "
+                   f"({float(d.get('x', 0)):.3f},{float(d.get('y', 0)):.3f})")
+            if d.get("value"):
+                seg += f" = \"{d['value']}\""
+            lines.append(seg)
     if groups:
         lines.append(
             "MARKED REGION LEGEND (matches the boxes in the human-marked reference "

@@ -323,6 +323,28 @@
                              border:1px dashed var(--line-strong); border-radius:var(--r-md); }
   .regions-body .rg-origin.set { color:var(--datum); border-style:solid;
                                  border-color:var(--datum); background:var(--datum-dim); }
+  /* Datum reference-point markers (A/B/C/⌀) — smaller than the origin crosshair. */
+  .datum-mark { position:absolute; width:0; height:0; z-index:5; pointer-events:none; }
+  .datum-mark .dm-dot { position:absolute; left:-7px; top:-7px; width:14px; height:14px;
+                        border-radius:50%; background:var(--datum);
+                        box-shadow:0 0 0 1.5px rgba(10,15,22,.75); }
+  .datum-mark .dm-lab { position:absolute; left:-7px; top:-7px; width:14px; height:14px;
+                        display:grid; place-items:center; font:700 9px/1 var(--sans);
+                        color:#0A0F16; }
+  .datum-mark .dm-del { position:absolute; left:10px; top:-8px; width:15px; height:15px;
+                        line-height:13px; text-align:center; color:var(--ink);
+                        background:rgba(10,15,22,.85); border:1px solid var(--line-strong);
+                        border-radius:50%; cursor:pointer; pointer-events:auto; font:700 10px/13px var(--sans); }
+  .regions-body .rg-datums { margin-bottom:var(--sp-2); }
+  .regions-body .rg-datums-t { font:600 var(--fs-caption)/1.8 var(--sans); letter-spacing:.06em;
+                               text-transform:uppercase; color:var(--datum); margin-bottom:2px; }
+  .regions-body .rg-drow { display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
+                           padding:3px 0; font-size:var(--fs-small); color:var(--ink-2); }
+  .regions-body .dm-chip { display:inline-grid; place-items:center; width:16px; height:16px;
+                           border-radius:50%; background:var(--datum); color:#0A0F16;
+                           font:700 9px/1 var(--sans); flex:0 0 auto; }
+  .regions-body .dm-val { width:120px; min-width:0; padding:2px 6px; font:400 11.5px var(--mono); }
+  .regions-body .rg-drow .rg-coords { grid-column:auto; }
   /* Markup workspace: drawing LEFT, region sidebar RIGHT. */
   .mark-split { flex:1 1 auto; min-height:0; display:flex; }
   .mark-split #mk-box { flex:1 1 auto; }
@@ -427,6 +449,16 @@
   #inline-console { flex:1 1 auto; min-height:0; margin:0; overflow:auto;
                     padding:var(--sp-3) var(--sp-4); border-top:1px solid var(--line);
                     font-size:11px; }
+  /* Correction & re-run bar (foot of the Pipeline sheet). */
+  .feedback-bar { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); border-top:1px solid var(--line);
+                  background:var(--bg-raised); display:flex; flex-direction:column; gap:var(--sp-2); }
+  .feedback-bar .fb-head { font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.06em;
+                           text-transform:uppercase; color:var(--ink-3);
+                           display:flex; align-items:baseline; gap:var(--sp-3); flex-wrap:wrap; }
+  .feedback-bar .fb-head .hint { text-transform:none; letter-spacing:0; }
+  .feedback-bar .fb-row { display:flex; gap:var(--sp-2); align-items:stretch; }
+  .feedback-bar #feedback-text { flex:1 1 auto; resize:vertical; min-height:40px; }
+  .feedback-bar #rerun-feedback-btn { flex:0 0 auto; align-self:stretch; }
 
   /* Run-outputs dock: sub-tabs hosting every output panel */
   .dock { flex:1 1 auto; min-height:0; border-top:1px solid var(--line); background:var(--bg);
@@ -547,7 +579,15 @@
         <button class="btn secondary sm on" id="mark-toggle"
                 title="Draw mode: drag to draw a highlight box over a dimension callout, hole center, or offset dimension.">✎ Draw</button>
         <button class="btn secondary sm" id="origin-toggle"
-                title="Set the ORIGIN datum: click the BOTTOM-LEFT corner of the top view. Locking it gives every model a consistent (0,0) orientation relative to the drawing.">⊕ Set origin</button>
+                title="Place a reference datum: pick the kind on the right, then click the drawing. The Origin (0,0) goes at the bottom-left of the top view; datums A/B/C and datum holes are additional GD&T references — all are fed into extraction.">⊕ Place datum</button>
+        <select class="sel-input" id="datum-kind"
+                title="What to place: the primary (0,0) origin, a lettered GD&T datum, or a datum hole">
+          <option value="origin">Origin (0,0)</option>
+          <option value="datum_a">Datum A</option>
+          <option value="datum_b">Datum B</option>
+          <option value="datum_c">Datum C</option>
+          <option value="datum_hole">Datum hole</option>
+        </select>
         <button class="btn secondary sm" id="origin-lock" style="display:none"
                 title="Lock/unlock the origin so it can't be moved by accident">🔓 Unlocked</button>
         <span class="mb-sep"></span>
@@ -710,6 +750,19 @@
     </details>
 
     <pre id="inline-console" class="console-c" style="display:none"></pre>
+
+    <!-- Correction feedback: describe what's wrong with the produced model and
+         re-run — the feedback becomes an authoritative must-meet correction and
+         the pipeline re-extracts + rebuilds the part. -->
+    <div class="feedback-bar" id="feedback-bar">
+      <div class="fb-head">↻ Correction &amp; re-run
+        <span class="hint" id="fb-hint">select a part, describe what's wrong with its model, then re-run — your note is applied as a must-meet correction and the model is rebuilt</span></div>
+      <div class="fb-row">
+        <textarea id="feedback-text" class="input-c" rows="2"
+                  placeholder="e.g. the center bore should be 3.880 DIA not 3.5; the 6th bolt hole is missing on the bottom tab; datum A should be the left hole not the corner"></textarea>
+        <button class="btn" id="rerun-feedback-btn" disabled>↻ Re-run with correction</button>
+      </div>
+    </div>
   </section>
 
   <!-- ── Sheet 4 · Run Outputs (browse every artifact of any completed run) ── -->
@@ -1185,7 +1238,11 @@ const REGION_ROLES = ['center', 'x-dimension', 'y-dimension', 'tolerance', 'othe
 const INTAKE_REGION_KEY = '__intake__';
 let regionsByKey = {};              // context key (part name or intake) -> region[]
 let originByKey = {};               // context key -> { x, y, locked, view } | undefined
+let datumsByKey = {};               // context key -> datum[] (GD&T reference points)
 let regionsDirty = new Set();       // keys with local edits not yet on the server
+function datumList() { const k = regionCtxKey(); return datumsByKey[k] || (datumsByKey[k] = []); }
+function datumGlyph(kind) { return ({origin:'0,0', datum_a:'A', datum_b:'B', datum_c:'C', datum_hole:'⌀'})[kind] || '•'; }
+function datumName(kind) { return ({origin:'Origin (0,0)', datum_a:'Datum A', datum_b:'Datum B', datum_c:'Datum C', datum_hole:'Datum hole'})[kind] || kind; }
 let markOn = true;           // draw-boxes tool (Sheet 1 markup opens in draw mode)
 let originOn = false;        // set-origin tool
 window.__markOn = true;      // any active tool pauses image panning
@@ -1331,6 +1388,26 @@ function renderMarkBoxes() {
     }
     markLayer.appendChild(om);
   }
+  // Datum reference points (A / B / C / datum holes).
+  markLayer.querySelectorAll('.datum-mark').forEach(el => el.remove());
+  for (const dm of datumList()) {
+    const el = document.createElement('div');
+    el.className = 'datum-mark';
+    el.style.left = (dm.x * 100) + '%'; el.style.top = (dm.y * 100) + '%';
+    el.innerHTML = `<span class="dm-dot"></span><span class="dm-lab">${esc(datumGlyph(dm.kind))}</span>`;
+    if (originOn) {
+      const del = document.createElement('span');
+      del.className = 'dm-del'; del.textContent = '×'; del.title = `Remove ${datumName(dm.kind)}`;
+      del.addEventListener('pointerdown', ev => ev.stopPropagation());
+      del.addEventListener('click', ev => {
+        ev.stopPropagation();
+        datumsByKey[regionCtxKey()] = datumList().filter(d => d.id !== dm.id);
+        renderRegions();
+      });
+      el.appendChild(del);
+    }
+    markLayer.appendChild(el);
+  }
   updateOriginControls();
 }
 
@@ -1347,12 +1424,24 @@ function layerPoint(ev) {
 let drawState = null;
 markLayer.addEventListener('pointerdown', ev => {
   if (ev.button !== 0 || ev.target !== markLayer) return;
-  // Origin tool: a single click sets/moves the locked (0,0) datum.
+  // Datum tool: place the kind chosen in the dropdown. Origin is the single
+  // locked (0,0); datums A/B/C are one each; datum holes can be multiple.
   if (originOn) {
-    const cur = currentOrigin();
-    if (cur && cur.locked) return;         // locked — must unlock to move
     const p = layerPoint(ev); if (!p) return;
-    originByKey[regionCtxKey()] = { x: p.x, y: p.y, locked: false, view: 'top' };
+    const kind = document.getElementById('datum-kind').value || 'origin';
+    if (kind === 'origin') {
+      const cur = currentOrigin();
+      if (cur && cur.locked) return;       // locked — must unlock to move
+      originByKey[regionCtxKey()] = { x: p.x, y: p.y, locked: false, view: 'top' };
+    } else {
+      const list = datumList();
+      if (kind !== 'datum_hole') {         // one lettered datum of each kind
+        const i = list.findIndex(d => d.kind === kind);
+        if (i >= 0) list.splice(i, 1);
+      }
+      list.push({ id: 'dm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                  x: p.x, y: p.y, kind, value: '' });
+    }
     renderRegions();
     return;
   }
@@ -1426,17 +1515,26 @@ function renderRegionsPanel() {
   const originHTML = o
     ? `<div class="rg-origin set">◎ Origin datum ${o.locked ? '🔒 locked' : '🔓 unlocked'} ` +
       `at (${fmt3(o.x)}, ${fmt3(o.y)}) — bottom-left of the top view; the fixed (0,0) for model orientation.</div>`
-    : `<div class="rg-origin">◎ Origin not set — click <b>⊕ Set origin</b>, then the bottom-left corner ` +
-      `of the top view, so every model shares the drawing's orientation.</div>`;
+    : `<div class="rg-origin">◎ Origin not set — pick <b>Origin (0,0)</b> and click <b>⊕ Place datum</b>, ` +
+      `then the bottom-left corner of the top view, so every model shares the drawing's orientation.</div>`;
+  const datums = datumList();
+  const datumHTML = datums.length
+    ? `<div class="rg-datums"><div class="rg-datums-t">Datum reference points</div>` +
+      datums.map(d => `<div class="rg-drow" data-id="${esc(d.id)}">
+        <span class="dm-chip">${esc(datumGlyph(d.kind))}</span>${esc(datumName(d.kind))}
+        <input class="input-c dm-val" placeholder="value (e.g. ⌀.406)" value="${esc(d.value || '')}">
+        <span class="rg-coords">(${fmt3(d.x)}, ${fmt3(d.y)})</span>
+        <button class="rg-del dm-del-row" title="Remove this datum">×</button></div>`).join('') + `</div>`
+    : '';
   if (!regions.length) {
-    body.innerHTML = originHTML + '<div class="ms-empty">No regions marked yet.<br><br>' +
+    body.innerHTML = originHTML + datumHTML + '<div class="ms-empty">No regions marked yet.<br><br>' +
       'Pick a <b>group color</b> and a <b>role</b> in the toolbar, then drag on the ' +
       'drawing to highlight a dimension callout, a hole center, or an offset ' +
       'dimension line. All boxes of one color form one feature group.</div>';
     return;
   }
   const fmt = n => n.toFixed(3).replace(/^0/, '');
-  body.innerHTML = originHTML + regionGroups(regions).map(g => `
+  body.innerHTML = originHTML + datumHTML + regionGroups(regions).map(g => `
     <div class="rg-group">
       <div class="rg-head"><span class="mark-swatch" style="background:${esc(g.color)}"></span>${esc(g.colorLabel)}
         <span class="grow"></span>
@@ -1460,12 +1558,20 @@ document.getElementById('mark-clear').addEventListener('click', () => {
   renderRegions();
 });
 document.getElementById('regions-body').addEventListener('change', e => {
+  const drow = e.target.closest('.rg-drow');
+  if (drow && e.target.classList.contains('dm-val')) {
+    const d = datumList().find(x => x.id === drow.dataset.id);
+    if (d) { d.value = e.target.value; renderRegions(); }
+    return;
+  }
   const row = e.target.closest('.rg-row'); if (!row) return;
   if (e.target.classList.contains('rg-role')) patchRegion(row.dataset.id, { role: e.target.value });
   if (e.target.classList.contains('rg-val')) patchRegion(row.dataset.id, { value: e.target.value });
 });
 document.getElementById('regions-body').addEventListener('click', e => {
   if (!e.target.classList.contains('rg-del')) return;
+  const drow = e.target.closest('.rg-drow');
+  if (drow) { datumsByKey[regionCtxKey()] = datumList().filter(d => d.id !== drow.dataset.id); renderRegions(); return; }
   const row = e.target.closest('.rg-row'); if (row) deleteRegion(row.dataset.id);
 });
 
@@ -1493,7 +1599,8 @@ async function saveRegionsNow() {
   try {
     await fetch(`/api/parts/${sessionId}/${encodeURIComponent(key)}/regions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ regions: regionsByKey[key] || [], origin: originByKey[key] || null }),
+      body: JSON.stringify({ regions: regionsByKey[key] || [], origin: originByKey[key] || null,
+                             datums: datumsByKey[key] || [] }),
     });
     regionsDirty.delete(key);
     saveMarkedViewNow(key);     // keep full_marked_view.jpg in sync with boxes + origin
@@ -1510,7 +1617,7 @@ function hexToRgba(hex, a) {
   const n = parseInt(m[1], 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
-function buildMarkedCanvas(regions, origin) {
+function buildMarkedCanvas(regions, origin, datums) {
   const img = document.getElementById('mk-img');
   if (!img || img.style.display === 'none' || !img.naturalWidth) return null;
   const W = img.naturalWidth, H = img.naturalHeight;
@@ -1518,13 +1625,13 @@ function buildMarkedCanvas(regions, origin) {
   const ctx = c.getContext('2d');
   try { ctx.drawImage(img, 0, 0, W, H); } catch { return null; }
   const lw = Math.max(2, Math.round(Math.max(W, H) / 700));
+  const datum = getComputedStyle(document.documentElement).getPropertyValue('--datum').trim() || '#00C2FF';
   for (const r of regions) {
     const bb = r.boundingBox, x = bb.x * W, y = bb.y * H, w = bb.width * W, h = bb.height * H;
     ctx.fillStyle = hexToRgba(r.color, 0.18); ctx.fillRect(x, y, w, h);
     ctx.lineWidth = lw; ctx.strokeStyle = r.color; ctx.strokeRect(x, y, w, h);
   }
   if (origin) {                              // datum crosshair + label (token color)
-    const datum = getComputedStyle(document.documentElement).getPropertyValue('--datum').trim() || '#00C2FF';
     const ox = origin.x * W, oy = origin.y * H, L = Math.max(16, Math.round(Math.max(W, H) / 38));
     ctx.strokeStyle = datum; ctx.lineWidth = Math.max(2, lw);
     ctx.beginPath();
@@ -1535,21 +1642,31 @@ function buildMarkedCanvas(regions, origin) {
     ctx.font = `700 ${Math.max(12, Math.round(W / 85))}px sans-serif`;
     ctx.fillText('(0,0)', ox + L + 3, oy - 5);
   }
+  for (const d of datums || []) {            // datum reference points (A/B/C/⌀)
+    const dx = d.x * W, dy = d.y * H, R = Math.max(6, Math.round(Math.max(W, H) / 90));
+    ctx.fillStyle = datum; ctx.beginPath(); ctx.arc(dx, dy, R, 0, 6.29); ctx.fill();
+    ctx.strokeStyle = '#0A0F16'; ctx.lineWidth = Math.max(1, lw - 1);
+    ctx.beginPath(); ctx.arc(dx, dy, R, 0, 6.29); ctx.stroke();
+    ctx.fillStyle = '#0A0F16'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.max(10, Math.round(R * 1.2))}px sans-serif`;
+    ctx.fillText(datumGlyph(d.kind), dx, dy + 1);
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+  }
   return c;
 }
-function composeMarkedBlob(regions, origin, cb) {
-  const c = buildMarkedCanvas(regions, origin);
+function composeMarkedBlob(regions, origin, datums, cb) {
+  const c = buildMarkedCanvas(regions, origin, datums);
   if (!c) { cb(null); return; }
   try { c.toBlob(b => cb(b), 'image/jpeg', 0.92); } catch { cb(null); }
 }
 function composeMarkedDataURL() {
-  const c = buildMarkedCanvas(regionList(), currentOrigin());
+  const c = buildMarkedCanvas(regionList(), currentOrigin(), datumList());
   try { return c ? c.toDataURL('image/jpeg', 0.92) : null; } catch { return null; }
 }
 function saveMarkedViewNow(key, _retried) {
-  const regions = regionsByKey[key] || [], origin = originByKey[key] || null;
-  if (!regions.length && !origin) return; // server drops the stale marked view otherwise
-  composeMarkedBlob(regions, origin, blob => {
+  const regions = regionsByKey[key] || [], origin = originByKey[key] || null, datums = datumsByKey[key] || [];
+  if (!regions.length && !origin && !datums.length) return; // server drops the stale marked view otherwise
+  composeMarkedBlob(regions, origin, datums, blob => {
     if (!blob) {                 // image not ready yet — retry once shortly
       if (!_retried) setTimeout(() => saveMarkedViewNow(key, true), 500);
       return;
@@ -1577,6 +1694,7 @@ async function loadRegionsFor(name) {
     const d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(name)}/regions`)).json();
     regionsByKey[name] = d.regions || [];
     originByKey[name] = d.origin || undefined;
+    datumsByKey[name] = d.datums || [];
   } catch { regionsByKey[name] = regionsByKey[name] || []; }
   if (regionCtxKey() === name) renderRegions(false);
 }
@@ -1617,6 +1735,10 @@ function updateRunEnabled() {
   document.getElementById('run-btn').disabled = isRunning || !p || p.n_views < 1;
   const ra = document.getElementById('run-all-btn');
   if (ra) ra.disabled = isRunning || !partsData.some(x => x.n_views >= 1);
+  // Correction re-run needs a selected, already-run part (nothing to correct yet
+  // if it has never produced a model).
+  const rf = document.getElementById('rerun-feedback-btn');
+  if (rf) rf.disabled = isRunning || !p || !p.has_output;
 }
 function selectPart(name) {
   selectedPart = name;
@@ -2038,16 +2160,19 @@ saveBtn.addEventListener('click', async () => {
   // the intake markup onto the new part and persist it.
   const pendingRegions = regionsByKey[INTAKE_REGION_KEY] || [];
   const pendingOrigin = originByKey[INTAKE_REGION_KEY];
-  if (pendingRegions.length || pendingOrigin) {
+  const pendingDatums = datumsByKey[INTAKE_REGION_KEY] || [];
+  if (pendingRegions.length || pendingOrigin || pendingDatums.length) {
     if (pendingRegions.length) regionsByKey[res.part] = pendingRegions;
     if (pendingOrigin) originByKey[res.part] = pendingOrigin;
+    if (pendingDatums.length) datumsByKey[res.part] = pendingDatums;
     delete regionsByKey[INTAKE_REGION_KEY];
     delete originByKey[INTAKE_REGION_KEY];
+    delete datumsByKey[INTAKE_REGION_KEY];
     regionsDirty.delete(INTAKE_REGION_KEY);
     regionsDirty.add(res.part);
   }
   selectPart(res.part);
-  if (pendingRegions.length || pendingOrigin) scheduleRegionSave();
+  if (pendingRegions.length || pendingOrigin || pendingDatums.length) scheduleRegionSave();
   setStatus(`Saved part "${res.part}". Open the Pipeline &amp; Results tab and press ▶ Pull &amp; Run Pipeline.`, 'ok');
 });
 
@@ -2190,6 +2315,29 @@ runBtn.addEventListener('click', async () => {
   currentRunId = res.id;
   monitorRun(res.id, selectedPart);
   showTab('pipeline'); // watch the stage strip + live overview analysis here
+});
+
+// ── Correction & re-run: the feedback becomes a must-meet correction line and
+// the part is re-extracted + rebuilt so the model is corrected. ─────────────
+document.getElementById('rerun-feedback-btn').addEventListener('click', async () => {
+  if (!selectedPart || isRunning) return;
+  const fb = document.getElementById('feedback-text').value.trim();
+  if (!fb) { setStatus('Describe what to correct first.', 'err'); return; }
+  setRunning(true);
+  setStatus(`<span class="spinner"></span>Re-running "${selectedPart}" with your correction…`, 'run');
+  inlineConsole.style.display = ''; inlineConsole.textContent = ''; consolePre.textContent = '';
+  resetOutputs('Waiting for the corrected run…');
+  const fd = new FormData();
+  fd.append('session', sessionId); fd.append('part', selectedPart);
+  fd.append('feedback', fb); fd.append('no_cache', 'true');
+  let res;
+  try { res = await (await fetch('/api/run-part', { method: 'POST', body: fd })).json(); }
+  catch (e) { setStatus('Re-run failed: ' + e.message, 'err'); setRunning(false); return; }
+  if (res.error || !res.id) { setStatus(res.detail || res.error || 'Re-run failed to start', 'err'); setRunning(false); return; }
+  document.getElementById('feedback-text').value = '';
+  currentRunId = res.id;
+  monitorRun(res.id, selectedPart);
+  showTab('pipeline');
 });
 
 // ── Upload a folder of preprocessed parts (subfolder = part) ────────────────

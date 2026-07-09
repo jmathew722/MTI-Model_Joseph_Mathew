@@ -1370,6 +1370,28 @@ def _sanitize_origin(o: object) -> dict | None:
             "view": str(o.get("view") or "top")[:16]}
 
 
+# GD&T datum reference points — the primary origin plus lettered datums and
+# datum holes. Included in extraction so the model anchors positions/orientation
+# to the same references the operator marked.
+_DATUM_KINDS = {"origin", "datum_a", "datum_b", "datum_c", "datum_hole"}
+
+
+def _sanitize_datum(d: object) -> dict | None:
+    if not isinstance(d, dict):
+        return None
+    try:
+        x, y = float(d["x"]), float(d["y"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
+        return None
+    kind = str(d.get("kind") or "datum_a")
+    return {"id": str(d.get("id") or uuid.uuid4().hex[:10])[:40],
+            "x": round(x, 6), "y": round(y, 6),
+            "kind": kind if kind in _DATUM_KINDS else "datum_a",
+            "value": str(d.get("value") or "")[:120]}
+
+
 def _group_regions(regions: list[dict]) -> list[dict]:
     """Group regions by color into the featureGroups structure (stable order)."""
     groups: dict[str, dict] = {}
@@ -1394,8 +1416,9 @@ def get_regions(session: str, part: str):
     except json.JSONDecodeError:
         return {"regions": [], "featureGroups": []}
     regions = [s for s in (_sanitize_region(r) for r in data.get("regions", [])) if s]
+    datums = [s for s in (_sanitize_datum(d) for d in data.get("datums", [])) if s]
     return {"regions": regions, "featureGroups": _group_regions(regions),
-            "origin": _sanitize_origin(data.get("origin"))}
+            "origin": _sanitize_origin(data.get("origin")), "datums": datums}
 
 
 @app.post("/api/parts/{session}/{part}/regions")
@@ -1410,16 +1433,18 @@ async def save_regions(session: str, part: str, request: Request):
     raw = body.get("regions", []) if isinstance(body, dict) else []
     regions = [s for s in (_sanitize_region(r) for r in raw) if s]
     origin = _sanitize_origin(body.get("origin")) if isinstance(body, dict) else None
-    payload = {"regions": regions, "featureGroups": _group_regions(regions), "origin": origin}
+    datums = [s for s in (_sanitize_datum(d) for d in (body.get("datums", []) if isinstance(body, dict) else [])) if s]
+    payload = {"regions": regions, "featureGroups": _group_regions(regions),
+               "origin": origin, "datums": datums}
     (pdir / REGIONS_FILENAME).write_text(json.dumps(payload, indent=2), encoding="utf-8")
     # Nothing marked -> drop the stale composited marked view so extraction never
     # feeds an out-of-date annotation.
-    if not regions and not origin:
+    if not regions and not origin and not datums:
         try:
             (pdir / MARKED_VIEW_FILENAME).unlink()
         except OSError:
             pass
-    return {"saved": len(regions), "origin": origin,
+    return {"saved": len(regions), "origin": origin, "datums": datums,
             "featureGroups": payload["featureGroups"]}
 
 
@@ -1613,7 +1638,8 @@ def clear_run_history():
 
 
 @app.post("/api/run-part")
-def run_part(session: str = Form(...), part: str = Form(...)):
+def run_part(session: str = Form(...), part: str = Form(...),
+             feedback: str = Form(""), no_cache: bool = Form(False)):
     if not _has_api_key():
         raise HTTPException(
             400,
@@ -1624,6 +1650,21 @@ def run_part(session: str = Form(...), part: str = Form(...)):
     if not pdir.is_dir() or not _part_images(pdir):
         raise HTTPException(400, "Selected part has no saved views.")
     out_dir = pdir / "output"
+    # Correction feedback from the reviewer (Tab 3) becomes an authoritative
+    # must-meet correction line, appended to the spec so the specs-first
+    # extraction + Stage 2.5 resolution + final grading all apply it. Forcing a
+    # fresh extraction guarantees the correction takes effect on the re-run.
+    fb = (feedback or "").strip()
+    if fb:
+        from datetime import datetime
+
+        stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        line = f"CORRECTION ({stamp}): {fb}"
+        for fname in ("must_meet_spec.txt", "notes.txt"):
+            f = pdir / fname
+            prev = f.read_text(encoding="utf-8", errors="replace").rstrip("\n") + "\n" if f.is_file() else ""
+            f.write_text(prev + line + "\n", encoding="utf-8")
+        no_cache = True
     # Scope the run to EXACTLY this one part's subfolder (not the parent).
     cmd = [
         sys.executable, "main.py",
@@ -1631,6 +1672,8 @@ def run_part(session: str = Form(...), part: str = Form(...)):
         "--output", str(out_dir),
         "--no-export",
     ]
+    if no_cache:
+        cmd.append("--no-extract-cache")
     # Deliver the untouched original upload (if any) alongside the outputs.
     extras = sorted((_session_dir(session) / ORIGINALS_DIRNAME).glob(f"{_sanitize(part)}.*")) \
         if (_session_dir(session) / ORIGINALS_DIRNAME).is_dir() else []
