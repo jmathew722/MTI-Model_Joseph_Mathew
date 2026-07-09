@@ -540,6 +540,8 @@ def _run_views_folder(args) -> int:
     rows = []
     for part in parts:
         present = ", ".join(v for v, _ in _views_for_extraction(part)) or "none"
+        if getattr(part, "marked_view", None) is not None:
+            present += ", marked"  # the annotated drawing is pulled in too
         # ── Specs-first: read the operator's must-meet notes BEFORE extraction
         # so the specifications shape the extraction prompt and Stage 2.5
         # resolution from the start (they are re-verified against the build in

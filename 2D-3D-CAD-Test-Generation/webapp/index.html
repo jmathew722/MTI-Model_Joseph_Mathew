@@ -205,7 +205,12 @@
   .pcard .thumb { width:100%; height:76px; object-fit:cover; background:var(--well); display:block; }
   .pcard .meta { padding:var(--sp-2); }
   .pcard .nm { font-size:var(--fs-small); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pcard .vw { font-size:var(--fs-caption); color:var(--ink-3); font-family:var(--mono); }
+  .pcard .vw { font-size:var(--fs-caption); color:var(--ink-3); font-family:var(--mono);
+               display:flex; flex-wrap:wrap; align-items:center; gap:3px; margin-top:2px; }
+  .pcard .vw-chip { font:600 9px/14px var(--sans); letter-spacing:.03em; padding:0 5px;
+                    border-radius:var(--r-sm); border:1px solid var(--line); color:var(--ink-3);
+                    background:var(--bg-raised); }
+  .pcard .vw-chip.datum { color:var(--datum); border-color:var(--datum); background:var(--datum-dim); }
   .pcard .ran { position:absolute; top:var(--sp-2); right:var(--sp-2); background:var(--ok); color:#04160C;
                 font:700 9px/14px var(--sans); letter-spacing:.05em; text-transform:uppercase;
                 padding:1px 6px; border-radius:var(--r-sm); }
@@ -1583,11 +1588,26 @@ function renderParts() {
   partsData.forEach(p => {
     const card = document.createElement('div');
     card.className = 'pcard' + (p.name === selectedPart ? ' sel' : '');
+    // Show EVERY image the run pulls: orthographic views + the Full Overview
+    // View + the Marked View (both are fed into extraction), so the card
+    // reflects the full input set, not just the cropped orthographic views.
+    const extras = [];
+    if (p.has_overview) extras.push('overview');
+    if (p.has_marked) extras.push('marked');
+    const vwText = `${p.n_views} view${p.n_views === 1 ? '' : 's'}` +
+                   (extras.length ? ` + ${extras.join(' + ')}` : '');
+    const pulled = (p.views || []).concat(
+      p.has_overview ? ['Full Overview View'] : [],
+      p.has_marked ? ['Marked View'] : []);
     card.innerHTML =
       `<img class="thumb" src="/api/parts/${sessionId}/${encodeURIComponent(p.name)}/thumb.jpg" onerror="this.style.visibility='hidden'"/>` +
       (p.has_output ? '<span class="ran">ran</span>' : '') +
       (p.name === selectedPart ? '<span class="tickbadge">✓ selected</span>' : '') +
-      `<div class="meta"><div class="nm" title="${p.name}">${p.name}</div><div class="vw">${p.n_views} view${p.n_views===1?'':'s'}</div></div>`;
+      `<div class="meta"><div class="nm" title="${p.name}">${p.name}</div>` +
+      `<div class="vw" title="Pulled into the run: ${pulled.join(', ')}">${vwText}` +
+      (extras.includes('overview') ? '<span class="vw-chip">◱ overview</span>' : '') +
+      (extras.includes('marked') ? '<span class="vw-chip datum">✎ marked</span>' : '') +
+      `</div></div>`;
     card.onclick = () => selectPart(p.name);
     list.appendChild(card);
   });

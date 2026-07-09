@@ -1103,6 +1103,10 @@ def _list_parts(sdir: Path) -> list[dict]:
             "views": views,
             "has_output": out.is_dir() and _categorize_output(out)["has_any"],
             "has_overview": _find_overview_image(pdir) is not None,
+            # The Full Overview View + Marked View are ALSO pulled into the run
+            # (overview as whole-part context, marked as hole-placement ground
+            # truth) — surfaced so the Pipeline tab shows every image it uses.
+            "has_marked": (pdir / MARKED_VIEW_FILENAME).is_file(),
             "source_format": fmt_file.read_text(encoding="utf-8").strip()
                              if fmt_file.is_file() else "",
             "notes": notes_text,
