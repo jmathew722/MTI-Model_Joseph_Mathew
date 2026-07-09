@@ -33,7 +33,7 @@ cd webapp; .\run.ps1
 
 Useful `main.py` flags: `--no-sldprt` (macros/reports only), `--no-export` (skip copy to `~/Downloads/SolidWorksModel_Parts`), `--no-extract-cache` (force paid re-extraction), `--skip-overview-check` / `--skip-requirements-check` (bypass the final READY gates), `--strict-gate` (block on failing verification). Exit codes: 0 = all parts READY, 8 = completed but not all READY, 2 = bad args.
 
-Setup: `python setup.py`, then put `ANTHROPIC_API_KEY` in `.env` (gitignored). Optional env: `EXTRACTION_MODEL` (default `claude-sonnet-5`), `SOLIDWORKS_TEMPLATE_PATH` (must point at a real `.prtdot`), `MAX_IMAGE_LONG_EDGE`.
+Setup: `python setup.py`, then put `ANTHROPIC_API_KEY` in `.env` (gitignored). Optional env: `EXTRACTION_MODEL` (default `claude-opus-4-8`), `SOLIDWORKS_TEMPLATE_PATH` (must point at a real `.prtdot`), `MAX_IMAGE_LONG_EDGE`.
 
 **Web UI dev gotcha:** after editing `webapp/app.py` or pipeline code, restart the uvicorn server on 8092 — it otherwise serves stale endpoints.
 

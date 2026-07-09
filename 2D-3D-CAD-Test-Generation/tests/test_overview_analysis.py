@@ -298,11 +298,14 @@ class TestGracefulDegradation:
 
     def test_cache_hit_needs_no_key(self, monkeypatch, tmp_path):
         """A previously cached analysis is served even with no key (free re-runs)."""
+        from pipeline.extractor import DEFAULT_MODEL
         from pipeline.overview_analysis import _cache_key
 
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("EXTRACTION_MODEL", raising=False)
-        key = _cache_key("aGVsbG8=", "claude-sonnet-5")
+        # Key on the SAME model analyze_overview will resolve (the default), so
+        # the pre-seeded cache hits regardless of what the default model is.
+        key = _cache_key("aGVsbG8=", DEFAULT_MODEL)
         (tmp_path / f"{key}.json").write_text(
             json.dumps(_a050211e_overview_analysis()), encoding="utf-8")
         usage: dict = {}

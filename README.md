@@ -1,7 +1,7 @@
 # MTI 2D → 3D SolidWorks Pipeline — Run Guide
 
 Convert 2D engineering drawings into **SolidWorks 2024 parts** —
-extraction (Claude `claude-sonnet-5`) → ambiguity resolution → verification →
+extraction (Claude `claude-opus-4-8`) → ambiguity resolution → verification →
 VBA macros + a real `.sldprt`, with token costs logged, a severity-ranked
 engineering review per part, and all deliverables copied to your Downloads folder.
 
@@ -15,7 +15,7 @@ To have an agent run + verify a batch for you, use
 ## What one run does (the whole flow)
 
 ```
-drawing(s) + must-meet specs → image prep → Sonnet 5 extract (specs injected)
+drawing(s) + must-meet specs → image prep → Opus 4.8 extract (specs injected)
            → Stage 2.5 resolve (specs take precedence) → verify
            → VBA macros + build_plan.json + resolved_extraction.json
            → .sldprt (SolidWorks COM) → final checks (overview cross-check
@@ -53,7 +53,7 @@ drawing(s) + must-meet specs → image prep → Sonnet 5 extract (specs injected
 | Need | For |
 |------|-----|
 | Python 3.10+ | the whole pipeline |
-| `ANTHROPIC_API_KEY` | Sonnet 5 extraction (skipped on cache hits) |
+| `ANTHROPIC_API_KEY` | Opus 4.8 extraction (skipped on cache hits) |
 | SolidWorks 2024 (Windows) | building the `.sldprt` (optional — macros work anywhere) |
 
 DWG needs **nothing extra to install**: a built-in engine chain converts it
