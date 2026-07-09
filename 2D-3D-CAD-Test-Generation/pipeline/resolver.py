@@ -385,14 +385,25 @@ def _overview_flags(overview: dict, raw: dict) -> list[dict[str, Any]]:
         note = f"CROSS-VIEW CONFLICT ({views or 'sheet'}): {desc}"
         if rec:
             note += f" Recommendation: {rec}"
-        flags.append({
+        # Fix 4.3: route tier-2 ambiguities to markup, and flag cropped/off-sheet
+        # cases as needing the full sheet so they don't recur every run.
+        blob = f"{desc} {rec}".lower()
+        needs_full_sheet = any(k in blob for k in
+                               ("crop", "title block", "off-sheet", "off sheet", "cut off", "not shown"))
+        flag = {
             "dimension_id": f"OV-{i:03d}",
             "flag_tier": tier,
             "human_note": note,
             "macro_behavior": behavior_for_tier(tier),
             "resolved_by_tier": TIER_OVERVIEW,
             "source": "overview_analysis",
-        })
+            "route_to_markup": True,
+        }
+        if needs_full_sheet:
+            flag["request_full_sheet"] = True
+            flag["human_note"] += (" [request-full-sheet: this looks like a cropped/off-sheet "
+                                   "region — upload the complete sheet rather than re-running.]")
+        flags.append(flag)
 
     # Deterministic count cross-check: overview note count vs extracted callouts.
     # The count comes from the note's resolved_count, else is parsed from the note
@@ -596,14 +607,43 @@ def _resolve_feature(feat: dict, model: DrawingData) -> FeatureResolution:
             "HIGH",
             f"{fid} position read from the drawing — no action needed.",
         )
-    # Position not dimensioned -> centered on the parent/part. Always buildable.
+    # Fix 3.1 (learning-loop 2026-07-09: 33 POSITION ASSUMED flags, the top issue,
+    # causally linked to cuts that miss the solid). An undimensioned location is
+    # NOT silently centered any more. Centering is defensible ONLY when the
+    # drawing gives symmetry evidence (the feature sits on a marked centerline /
+    # is named in a symmetry relationship); otherwise the location is genuinely
+    # unknown and must go to markup review, not a center guess.
+    if _has_symmetry_evidence(feat, model):
+        return FeatureResolution(
+            fid, "build", True, "centered_on_parent", "LOW",
+            f"{fid} centered on the parent: the drawing shows symmetry (centerline / "
+            f"symmetry relationship) and no offset, so the center is the defensible "
+            f"placement — verify in SolidWorks.",
+        )
     return FeatureResolution(
-        fid, "build", True,
-        "centered_on_parent",
-        "LOW",
-        f"POSITION ASSUMED for {fid}: centered on the parent feature because the drawing "
-        f"did not dimension its location — verify placement in SolidWorks.",
+        fid, "build", False, "needs_markup_review", "MEDIUM",
+        f"POSITION UNRESOLVED for {fid}: no location dimension and no symmetry evidence "
+        f"on the drawing. Routed to markup review — box the feature center and its X/Y "
+        f"dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color "
+        f"group is authoritative). Until then it is placed at the parent center as a "
+        f"LAST-RESORT guess that will likely be wrong.",
     )
+
+
+def _has_symmetry_evidence(feat: dict, model: DrawingData) -> bool:
+    """True when the drawing justifies centering a feature: it is named in a
+    symmetry relationship (mirrored about / lying on a plane of symmetry). This
+    is the only evidence the extraction schema records for symmetry."""
+    fid = feat.get("id", "")
+    if not fid:
+        return False
+    try:
+        for note in model.relationships.symmetry or []:
+            if fid in (getattr(note, "feature_ids", None) or []):
+                return True
+    except AttributeError:
+        pass
+    return False
 
 
 def _feature_has_depth(feat: dict, dims_by_id: dict[str, dict]) -> bool:
@@ -761,6 +801,86 @@ def _propagate_typ(resolved: dict, result: "ResolutionResult") -> None:
             rel = feat.setdefault("related_dimensions", [])
             if new_id not in rel:
                 rel.append(new_id)
+
+
+def _illegible_diameter_flags(resolved: dict, result: "ResolutionResult") -> list[dict[str, Any]]:
+    """Fix 3.2 (learning-loop 2026-07-09: part 102 D008/D009, the whole part's
+    hole diameter kept as an unverified guess). For every hole/diameter that was
+    resolved from an illegible/last-resort reading, cross-check it against the
+    standard drill-size table: a match is evidence the guess is right; a non-match
+    at low confidence routes the callout to markup for human transcription — a
+    'must verify' note that does not stop the build is not a gate."""
+    from pipeline.drill_sizes import is_standard_drill, nearest_drill
+
+    weak = {"unverifiable_reading", "value_only_fallback", "conservative_geometry",
+            "geometric_reasonableness", "default_general_tolerance"}
+    flags: list[dict[str, Any]] = []
+    for dim in resolved.get("dimensions", []) or []:
+        if canonicalize_applies_to(dim.get("applies_to", "")) not in ("diameter", "hole_diameter"):
+            continue
+        dres = result.dim_resolutions.get(dim.get("id"))
+        if dres is None or not dres.assumption_made or dres.assumption_basis not in weak:
+            continue
+        val = float(dim.get("value") or 0)
+        units = (resolved.get("units") or "inch").lower()
+        val_in = val if units.startswith("inch") else val / 25.4
+        if is_standard_drill(val_in):
+            # Plausible reading — annotate the resolution, no new flag.
+            dres.human_note += (f" [plausibility: {_fmt(val)} matches a standard drill size — "
+                                f"supports the reading.]")
+            continue
+        near, diff = nearest_drill(val_in)
+        flags.append({
+            "dimension_id": dim.get("id", "?"),
+            "flag_tier": "CRITICAL",
+            "human_note": (
+                f"ILLEGIBLE DIAMETER {dim.get('id', '?')} = {_fmt(val)}: read at low confidence "
+                f"and NOT a standard drill size (nearest {near:.4f} in, off by {diff:.4f} in). "
+                f"Do not build on this guess — box the diameter callout in the Tab-1 markup tool "
+                f"and transcribe it, then re-run. Routed to markup review."),
+            "macro_behavior": behavior_for_tier("CRITICAL"),
+            "resolved_by_tier": TIER_PER_VIEW,
+            "source": "illegible_dimension",
+            "route_to_markup": True,
+        })
+    return flags
+
+
+def _incomplete_cut_profile_flags(resolved: dict) -> list[dict[str, Any]]:
+    """Fix 2.4 (learning-loop 2026-07-09: A001821M F004 'profile needs a diameter
+    or length+width; got [height]' ×3; A001211E F005). An extrude cut/boss whose
+    profile has neither a diameter nor BOTH in-plane sides can't be sketched. Do
+    not emit a known-incomplete macro silently every run — surface it as a
+    CRITICAL review item naming the missing parameter, routed to markup (box the
+    two chain dimensions that bound the notch)."""
+    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+    flags: list[dict[str, Any]] = []
+    for feat in resolved.get("features", []) or []:
+        if (feat.get("type") or "").lower() not in ("extrude_cut", "extrude_boss"):
+            continue
+        rel = list(feat.get("related_dimensions", []) or [])
+        tokens = {canonicalize_applies_to((dims_by_id.get(r) or {}).get("applies_to", ""))
+                  for r in rel if (dims_by_id.get(r) or {}).get("value", 0) > 0}
+        has_diameter = bool(tokens & {"diameter", "hole_diameter"})
+        has_rect = ("length" in tokens) and ("width" in tokens)
+        if has_diameter or has_rect:
+            continue
+        fid = feat.get("id", "?")
+        missing = "width" if "length" in tokens else ("length" if "width" in tokens else "length+width")
+        flags.append({
+            "dimension_id": fid,
+            "flag_tier": "CRITICAL",
+            "human_note": (
+                f"INCOMPLETE CUT PROFILE for {fid}: has {sorted(t for t in tokens if t)} but needs "
+                f"a diameter OR both length+width — missing {missing}. A notch width is often the "
+                f"difference of two chain dimensions; box those two dimensions (or the missing "
+                f"{missing}) in the Tab-1 markup tool and transcribe, then re-run. Routed to markup."),
+            "macro_behavior": behavior_for_tier("CRITICAL"),
+            "resolved_by_tier": TIER_PER_VIEW,
+            "source": "incomplete_profile",
+            "route_to_markup": True,
+        })
+    return flags
 
 
 def _dimensionless_feature_flags(resolved: dict) -> list[dict[str, Any]]:
@@ -954,13 +1074,17 @@ def resolve_extraction(raw: dict,
             })
     for fres in result.feature_resolutions.values():
         if fres.flag_tier in ("MEDIUM", "LOW", "CRITICAL"):
-            result.flags.append({
+            flag = {
                 "dimension_id": fres.feature_id,
                 "flag_tier": fres.flag_tier,
                 "human_note": fres.human_note,
                 "macro_behavior": behavior_for_tier(fres.flag_tier),
                 "resolved_by_tier": TIER_PER_VIEW,
-            })
+            }
+            if fres.position_assumption == "needs_markup_review":
+                flag["source"] = "position_unresolved"
+                flag["route_to_markup"] = True
+            result.flags.append(flag)
     for hole in resolved.get("hole_callouts", []) or []:
         flag = _resolve_hole_position_flag(hole, "")
         if flag:
@@ -971,6 +1095,11 @@ def resolve_extraction(raw: dict,
     # markup (so the emphasized A001821M chamfer regression surfaces as a review
     # task, not a silent per-run build skip).
     result.flags.extend(_dimensionless_feature_flags(resolved))
+    # Fix 2.4: extrude cut/boss with an incomplete profile → CRITICAL review.
+    result.flags.extend(_incomplete_cut_profile_flags(resolved))
+    # Fix 3.2: low-confidence hole diameters cross-checked against drill sizes;
+    # implausible ones route to markup instead of building on a guess.
+    result.flags.extend(_illegible_diameter_flags(resolved, result))
 
     # --- Tier 2: Stage 1.5 holistic overview analysis (cross-view conflicts
     # + callout-count cross-check). Only adds flags — never changes a tier-1

@@ -278,6 +278,96 @@ def _item(severity: str, item_id: str, what: str, decision: str, why: str,
 # Kinds where the overview's count is reliable enough to flag a mismatch.
 _COUNT_CHECKED = {"hole", "counterbore", "countersink", "thread"}
 
+# Fix 4.1 (learning-loop 2026-07-09: 15 recurring "cannot auto-match" noise
+# flags). Legitimate drawing content that isn't a machinable feature — classify
+# it and give each a reconciliation rule instead of the generic noise flag.
+_NONFEATURE_KINDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("stock_thickness_view", ("thick", "thickness", "stock", "gauge", "gage", "material thick")),
+    ("surface_finish_note",  ("finish", "coat", "plat", "anodiz", "cfs", "paint", "powder", "zinc")),
+    ("hardware_reference_note", ("hardware", "screw", "nut", "rivet", "standoff", "insert",
+                                 "pem", "washer", "bolt ", "fastener")),
+    ("reference_boundary", ("dashed", "phantom", "hidden line", "reference", "ref only",
+                            "envelope", "boundary")),
+    ("formed_profile", ("form", "bend", "bent", "flange", "tab", "brake", "developed")),
+)
+_NUM_RE = __import__("re").compile(r"(\d*\.\d+|\d+)")  # captures ".105", "0.105", "105"
+
+
+def _classify_nonfeature(text: str) -> str:
+    t = (text or "").lower()
+    for kind, needles in _NONFEATURE_KINDS:
+        if any(k in t for k in needles):
+            return kind
+    return "unknown"
+
+
+def _extraction_thickness_in(extraction: dict) -> Optional[float]:
+    """Part thickness/extrude depth from the extraction (drawing units), if any."""
+    for d in extraction.get("dimensions", []) or []:
+        applies = str(d.get("applies_to", "")).lower()
+        if any(t in applies for t in ("thick", "depth", "height")) and (d.get("value") or 0) > 0:
+            return float(d["value"])
+    return None
+
+
+def _reconcile_nonfeature(fid: str, desc: str, where: str, clearly: bool,
+                          extraction: dict) -> Optional[dict[str, Any]]:
+    """Reconcile a non-machinable overview item by kind. Returns a review item,
+    or None when it reconciles cleanly (no noise flag)."""
+    kind = _classify_nonfeature(f"{desc} {where}")
+    loc = f" ({where})" if where else ""
+
+    if kind == "stock_thickness_view":
+        m = _NUM_RE.search(desc)
+        thk_build = _extraction_thickness_in(extraction)
+        if m and thk_build:
+            shown = float(m.group(1))
+            if abs(shown - thk_build) <= max(0.01, 0.03 * thk_build):
+                return None  # thickness view agrees with the built extrude depth
+            return _item("HIGH", fid,
+                         what=f"Thickness mismatch: the overview's thickness view shows {shown} but "
+                              f"the build's extrude depth is {thk_build}{loc}.",
+                         decision="build kept its extracted thickness",
+                         why="stock-thickness view disagrees with the extrude depth",
+                         affects="part thickness / extrude depth")
+        return _item("LOW", fid,
+                     what=f"Stock/thickness view noted: {desc}{loc}.",
+                     decision="recorded as the part's thickness reference",
+                     why="a thickness edge view is not a machinable feature",
+                     affects="metadata: stock thickness")
+
+    if kind in ("surface_finish_note", "hardware_reference_note"):
+        label = "surface finish" if kind == "surface_finish_note" else "hardware reference"
+        return _item("LOW", fid,
+                     what=f"{label.title()} note: {desc}{loc}.",
+                     decision=f"attached to part metadata as a {label} note",
+                     why="a note, not part geometry — no build counterpart expected",
+                     affects=f"metadata: {label}")
+
+    if kind == "reference_boundary":
+        return _item("LOW", fid,
+                     what=f"Reference/phantom geometry noted: {desc}{loc}.",
+                     decision="treated as a reference boundary, not built geometry",
+                     why="dashed/phantom/reference linework is not a solid feature",
+                     affects="metadata: reference boundary")
+
+    if kind == "formed_profile":
+        return _item("MEDIUM" if clearly else "LOW", fid,
+                     what=f"Formed/bent profile shown: {desc}{loc}.",
+                     decision="not built — the pipeline models machined prismatic parts, "
+                              "not sheet-metal forming",
+                     why="a bend/flange is an unsupported feature kind (escalate if the part "
+                         "is truly sheet metal)",
+                     affects="unsupported feature kind: formed profile")
+
+    # Genuinely unknown content keeps the honest generic flag (now rare, so it
+    # regains signal value).
+    return _item("MEDIUM" if clearly else "LOW", fid,
+                 what=f"The overview shows content the checker cannot auto-match: {desc}{loc}",
+                 decision="not automatically verified against the build",
+                 why="no direct counterpart in the build inventory or the non-feature taxonomy",
+                 affects="manual visual comparison recommended")
+
 
 def cross_check(overview: dict, extraction: dict) -> list[dict[str, Any]]:
     """Diff the overview feature list against the consolidated extraction.
@@ -310,14 +400,10 @@ def cross_check(overview: dict, extraction: dict) -> list[dict[str, Any]]:
             ov_counts[kind] = ov_counts.get(kind, 0) + count
 
         if kind == "other":
-            items.append(_item(
-                "MEDIUM" if clearly else "LOW", fid,
-                what=f"The overview shows a feature the checker cannot auto-match: "
-                     f"{desc}" + (f" ({where})" if where else ""),
-                decision="not automatically verified against the build",
-                why="feature kind has no direct counterpart in the build inventory",
-                affects="manual visual comparison recommended",
-            ))
+            item = _reconcile_nonfeature(fid, desc, where, clearly, extraction)
+            if item is not None:
+                items.append(item)
+            # a reconciled non-feature that checks out (None) raises no noise flag
         elif have == 0:
             items.append(_item(
                 "CRITICAL" if clearly else "MEDIUM", fid,

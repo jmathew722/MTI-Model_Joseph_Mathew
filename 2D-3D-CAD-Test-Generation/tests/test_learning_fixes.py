@@ -152,6 +152,137 @@ class TestTypAndMissingDimension:
 # --------------------------------------------------------------------------- #
 # Fix 1.3 / 4.2 — learning-loop fingerprint + rapid-rerun detection
 # --------------------------------------------------------------------------- #
+class TestPositionDemotion:
+    """Fix 3.1 — undimensioned feature with no symmetry evidence routes to review."""
+    def _hole_no_position(self, symmetric: bool = False) -> dict:
+        d = _extraction_with_holes()
+        d["dimensions"] = [
+            {"id": "D001", "type": "linear", "value": 4.0, "unit": "inch", "applies_to": "length"},
+            {"id": "D002", "type": "linear", "value": 3.0, "unit": "inch", "applies_to": "width"},
+            {"id": "D003", "type": "linear", "value": 0.5, "unit": "inch", "applies_to": "thickness"},
+        ]
+        d["confidence"] = 0.9
+        d["hole_callouts"] = [{"id": "H1", "type": "thru", "diameter": 0.25, "qty": 1}]
+        d["features"] = [
+            {"id": "F001", "type": "extrude_boss", "description": "plate",
+             "related_dimensions": ["D001", "D002"], "depth_dimension_id": "D003", "position_known": True},
+            {"id": "F002", "type": "hole", "description": "a hole", "parent_feature": "F001"},
+        ]
+        d["build_order"] = ["F001", "F002"]
+        d["relationships"] = ({"symmetry": [{"plane": "Front", "feature_ids": ["F002"]}]}
+                              if symmetric else {})
+        return d
+
+    def test_no_symmetry_routes_to_markup(self):
+        res = resolve_extraction(self._hole_no_position(symmetric=False))
+        fres = res.feature_resolutions["F002"]
+        assert fres.position_assumption == "needs_markup_review" and fres.flag_tier == "MEDIUM"
+        flag = next(f for f in res.flags if f["dimension_id"] == "F002")
+        assert flag.get("route_to_markup") is True and flag.get("source") == "position_unresolved"
+
+    def test_symmetric_feature_stays_centered_low(self):
+        res = resolve_extraction(self._hole_no_position(symmetric=True))
+        fres = res.feature_resolutions["F002"]
+        assert fres.position_assumption == "centered_on_parent" and fres.flag_tier == "LOW"
+
+
+class TestDrillSizeAndIllegible:
+    """Fix 3.2 — drill-size plausibility + illegible-diameter routing."""
+    def test_drill_table(self):
+        from pipeline.drill_sizes import is_standard_drill, nearest_drill
+
+        assert is_standard_drill(0.218)      # #2 letter/number drill
+        assert is_standard_drill(0.250)      # 1/4"
+        assert not is_standard_drill(0.425)  # in a gap between Z (.413) and 7/16 (.4375)
+        assert nearest_drill(0.2185)[1] < 0.002
+
+    def test_illegible_nonstandard_diameter_routed(self):
+        d = _extraction_with_holes()
+        d["confidence"] = 0.9
+        d["dimensions"] = [
+            {"id": "D001", "type": "linear", "value": 4.0, "unit": "inch", "applies_to": "length"},
+            {"id": "D002", "type": "linear", "value": 3.0, "unit": "inch", "applies_to": "width"},
+            {"id": "D003", "type": "linear", "value": 0.5, "unit": "inch", "applies_to": "thickness"},
+            # illegible, non-standard diameter with only one candidate -> CRITICAL unverifiable
+            {"id": "D009", "type": "diameter", "value": 0.400, "unit": "inch",
+             "applies_to": "hole_diameter", "value_unclear": True, "resolution_required": True,
+             "ambiguity_reason": "degraded handwriting"},
+        ]
+        d["features"] = [{"id": "F001", "type": "extrude_boss", "description": "plate",
+                          "related_dimensions": ["D001", "D002"], "depth_dimension_id": "D003",
+                          "position_known": True}]
+        d["build_order"] = ["F001"]
+        res = resolve_extraction(d)
+        flag = [f for f in res.flags if f.get("source") == "illegible_dimension"]
+        assert flag and flag[0]["route_to_markup"] is True and flag[0]["dimension_id"] == "D009"
+
+    def test_illegible_standard_diameter_not_routed(self):
+        d = _extraction_with_holes()
+        d["confidence"] = 0.9
+        d["dimensions"] = [
+            {"id": "D001", "type": "linear", "value": 4.0, "unit": "inch", "applies_to": "length"},
+            {"id": "D002", "type": "linear", "value": 3.0, "unit": "inch", "applies_to": "width"},
+            {"id": "D003", "type": "linear", "value": 0.5, "unit": "inch", "applies_to": "thickness"},
+            {"id": "D009", "type": "diameter", "value": 0.218, "unit": "inch",
+             "applies_to": "hole_diameter", "value_unclear": True, "resolution_required": True,
+             "ambiguity_reason": "degraded handwriting"},
+        ]
+        d["features"] = [{"id": "F001", "type": "extrude_boss", "description": "plate",
+                          "related_dimensions": ["D001", "D002"], "depth_dimension_id": "D003",
+                          "position_known": True}]
+        d["build_order"] = ["F001"]
+        res = resolve_extraction(d)
+        assert not [f for f in res.flags if f.get("source") == "illegible_dimension"]
+
+
+class TestIncompleteProfile:
+    """Fix 2.4 — extrude cut with no diameter and not both sides -> markup review."""
+    def test_height_only_cut_routed(self):
+        d = _extraction_with_holes()
+        d["confidence"] = 0.9
+        d["dimensions"] = [
+            {"id": "D001", "type": "linear", "value": 4.0, "unit": "inch", "applies_to": "length"},
+            {"id": "D002", "type": "linear", "value": 3.0, "unit": "inch", "applies_to": "width"},
+            {"id": "D003", "type": "linear", "value": 0.5, "unit": "inch", "applies_to": "thickness"},
+            {"id": "D010", "type": "linear", "value": 0.75, "unit": "inch", "applies_to": "height"},
+        ]
+        d["features"] = [
+            {"id": "F001", "type": "extrude_boss", "description": "plate",
+             "related_dimensions": ["D001", "D002"], "depth_dimension_id": "D003", "position_known": True},
+            {"id": "F004", "type": "extrude_cut", "description": "notch",
+             "related_dimensions": ["D010"], "parent_feature": "F001", "position_known": True},
+        ]
+        d["build_order"] = ["F001", "F004"]
+        res = resolve_extraction(d)
+        flag = [f for f in res.flags if f.get("source") == "incomplete_profile" and f["dimension_id"] == "F004"]
+        assert flag and flag[0]["route_to_markup"] is True
+
+
+class TestOverviewNonFeatureTaxonomy:
+    """Fix 4.1 — thickness/finish/hardware/reference reconcile instead of noise."""
+    def test_thickness_view_matching_extrude_depth_no_flag(self):
+        extraction = {"dimensions": [{"applies_to": "thickness", "value": 0.105}],
+                      "hole_callouts": [], "features": []}
+        overview = {"features": [{"kind": "other", "count": 1,
+                                  "description": "side view showing .105 thickness"}]}
+        items = cross_check(overview, extraction)
+        assert not items  # reconciles cleanly, no noise
+
+    def test_thickness_view_mismatch_flagged(self):
+        extraction = {"dimensions": [{"applies_to": "thickness", "value": 0.25}],
+                      "hole_callouts": [], "features": []}
+        overview = {"features": [{"kind": "other", "count": 1,
+                                  "description": "edge view .105 thick"}]}
+        items = cross_check(overview, extraction)
+        assert any("thickness mismatch" in i["what"].lower() for i in items)
+
+    def test_finish_note_downgraded_to_metadata(self):
+        extraction = {"dimensions": [], "hole_callouts": [], "features": []}
+        overview = {"features": [{"kind": "other", "count": 1, "description": "CFS finish all over"}]}
+        items = cross_check(overview, extraction)
+        assert items and items[0]["severity"] == "LOW" and "finish" in items[0]["affects"].lower()
+
+
 class TestLearningLoopFingerprint:
     def test_fingerprint_stable_and_number_invariant(self):
         from pipeline.learning_loop import _failure_fingerprint

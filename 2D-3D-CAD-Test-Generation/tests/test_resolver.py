@@ -120,9 +120,11 @@ class TestResolutionAlgorithm:
         assert d001.flag_tier == "HIGH"
         assert d001.resolved_value == 11.0
 
-    def test_unknown_position_feature_flagged_low_but_builds(self):
+    def test_unknown_position_feature_routes_to_review_but_builds(self):
         d = _plate_with_holes()
-        # Add a cut whose location was never dimensioned -> POSITION ASSUMED, but
+        # A cut whose location was never dimensioned and has no symmetry evidence:
+        # Fix 3.1 (learning-loop 2026-07-09) demotes the old silent "centered LOW"
+        # to a MEDIUM markup-review routing (never a silent center guess) — but it
         # still build_status == "build" (we never skip).
         d["dimensions"].append(
             {"id": "D070", "type": "diameter", "value": 0.5, "unit": "inch", "applies_to": "diameter"}
@@ -136,9 +138,12 @@ class TestResolutionAlgorithm:
         res = resolve_extraction(d)
         f009 = res.feature_resolutions["F009"]
         assert f009.build_status == "build"
-        assert f009.position_resolved is True
-        assert f009.flag_tier == "LOW"
-        assert "POSITION ASSUMED" in f009.human_note
+        assert f009.position_resolved is False
+        assert f009.flag_tier == "MEDIUM"
+        assert f009.position_assumption == "needs_markup_review"
+        assert "POSITION UNRESOLVED" in f009.human_note
+        flag = next(f for f in res.flags if f["dimension_id"] == "F009")
+        assert flag.get("route_to_markup") is True
         # The positioned hole feature F002 (callout carries instance positions) is HIGH.
         assert res.feature_resolutions["F002"].flag_tier == "HIGH"
 
