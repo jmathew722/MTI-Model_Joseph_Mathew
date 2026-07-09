@@ -250,9 +250,9 @@ extraction (no API call).
    from a dropdown — **Front View / Back View / Left Side View / Right Side View
    / Top View / Bottom View / Full Overview View / Marked View**. Rotate 90° (⟳)
    for scanned drawings. Duplicate view types show a warning badge and need a
-   confirm on save. The inline banner requires **Top + one more orthographic
-   view** before saving is enabled — the top view anchors the bottom-left (0,0)
-   origin convention, and the second view resolves depth. An image tagged
+   confirm on save. The inline banner requires **Front + one more orthographic
+   view** before saving is enabled — the front view defines the base profile,
+   and the second view resolves depth. An image tagged
    **Full Overview View** becomes the canonical `00_full.jpg` overview
    (whole-part extraction context and the post-build overview cross-check) and
    appears live in the left panel below; an image tagged **Marked View** becomes

@@ -653,7 +653,7 @@
       </div>
       <div class="gcol">
         <div class="grp-title">3 · Name &amp; save</div>
-        <div class="hint" id="save-placeholder" style="max-width:250px">Appears once images are added — Top + one more orthographic view are required (the top view anchors the (0,0) origin).</div>
+        <div class="hint" id="save-placeholder" style="max-width:250px">Appears once images are added — Front + one more orthographic view are required.</div>
         <div class="intake-foot" id="intake-foot" style="display:none">
           <span class="req-warn" id="req-warn"></span>
           <div class="rowline">
@@ -1836,10 +1836,10 @@ const ORIENTATIONS = [
 // the locked origin for consistent model orientation.
 const ORIENT_TO_NAME = { front:'front', back:'back', top:'top', bottom:'bottom',
                          left:'left', right:'right', overview:'overview', marked:'marked' };
-// Views that satisfy "one more orthographic view" ALONGSIDE the required TOP
-// view (the top view anchors the bottom-left origin convention, so it is the
-// mandatory one; overview/marked are context, never orthographic).
-const ORTHO_SET = new Set(['front','bottom','left','right','back']);
+// Views that satisfy "one more orthographic view" ALONGSIDE the required FRONT
+// view (the front view defines the base profile, so it is the mandatory one;
+// overview/marked are context, never orthographic).
+const ORTHO_SET = new Set(['top','bottom','left','right','back']);
 let intake = { items: [], source: null, originalFile: null, stem: 'drawing', format: '' };
 let intakeSeq = 0;
 
@@ -1897,14 +1897,14 @@ function dupOrientations() {
 
 function validateIntake() {
   const assigned = intake.items.map(i => i.orientation).filter(Boolean);
-  const hasTop = assigned.includes('top');
+  const hasFront = assigned.includes('front');
   const hasOther = assigned.some(o => ORTHO_SET.has(o));
   const named = !!partNameEl.value.trim();
   const dups = dupOrientations();
   let msg = '', ok = false;
   if (!intake.items.length) msg = '';
-  else if (!hasTop) msg = '⚠ Assign a TOP view — it anchors the bottom-left (0,0) origin, so every model orients consistently to the drawing.';
-  else if (!hasOther) msg = '⚠ Assign at least one more orthographic view (Front / Bottom / Left / Right / Back) so depth can be read.';
+  else if (!hasFront) msg = '⚠ Assign a FRONT view — the base profile cannot be built without it.';
+  else if (!hasOther) msg = '⚠ Assign at least one more orthographic view (Top / Bottom / Left / Right / Back) so depth can be read.';
   else if (!named) msg = 'Name the part to save it.';
   else { ok = true; msg = dups.size ? `⚠ Duplicate orientation(s): ${[...dups].join(', ')} — you can save, but confirm the override.` : '✓ Ready to save.'; }
   reqWarn.textContent = msg;

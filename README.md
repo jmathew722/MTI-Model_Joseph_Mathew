@@ -96,9 +96,9 @@ Four sheet-tabs, one flow, no folder editing:
    dropdown — exactly eight options: **Front View, Back View, Left Side View,
    Right Side View, Top View, Bottom View, Full Overview View, Marked View**
    (⟳ rotates sideways scans; a Marked View is the annotated drawing whose
-   color groups + locked origin feed extraction). **Top + one more orthographic
-   view are required to save** — the top view anchors the bottom-left (0,0)
-   origin so every model orients consistently to the drawing.
+   color groups + locked origin feed extraction). **Front + one more orthographic
+   view are required to save** — the front view defines the base profile the part
+   is built from.
    Optionally type **must-meet specifications** (one requirement per line) —
    these are applied from the start of extraction and resolution, then graded
    against the built part (an unmet line blocks READY). Below, two half-screen

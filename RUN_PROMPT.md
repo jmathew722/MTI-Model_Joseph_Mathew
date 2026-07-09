@@ -26,8 +26,8 @@ Then, in the browser (four sheet-tabs, in order):
 2. **Tab 2 — Part Setup & 3D Model:** click **⬇ Pull queued crops** (or
    **📄 Upload drawing** directly on this tab), assign each image an
    **orientation** (Front / Back / Top / Bottom / Left / Right / Overview /
-   Marked View — ⟳ rotates sideways scans; TOP + one more orthographic view
-   are required, since the top view anchors the (0,0) origin),
+   Marked View — ⟳ rotates sideways scans; FRONT + one more orthographic view
+   are required, since the front view defines the base profile),
    **name the part**, optionally type **must-meet notes** (one requirement per
    line — graded against the built part; an unmet line blocks READY), and
    **💾 Save part**. The left box below shows the input document (format badge
