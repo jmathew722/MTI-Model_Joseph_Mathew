@@ -1,0 +1,98 @@
+LEARNING LOOP — 102
+============================================================
+Run:     2026-07-09 15:21:32
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001611E\output\102
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The top view shows a closed, symmetric elongated hexagonal band (like a bent/rolled oval frame) with fully defined outer geometry, but the profile view shows only a straight flat strip with two sample through-holes and no dimensioned hole spacing or total count. The note 'SPACING & QUANTITY OF HOLES TO SUIT' means the actual number and location of .218 holes around the finished band is undefined and cannot be cross-checked against the top view.
+       -> Obtain a supplemental note, tabulation, or separate detail specifying exact hole count and spacing before fabrication; do not assume only two holes exist just because two are drawn in the strip view.
+   - [MEDIUM] The top view gives an 'INSIDE' dimension of 14.00 and an overall length of 32.25, but no wall/band width dimension is given in the top view to relate to the 4.00 strip width shown in the profile view, making it ambiguous whether the 4.00 width is the flat width of the band as installed (vertical height of the formed loop) or something else.
+       -> Verify with a third (side) view or isometric that the 4.00 dimension corresponds to the band's height (Z-axis) when the strip is bent into the oval shown in the top view.
+   - [LOW] No explicit view callout or section line ties the profile/strip view directly to the top view (e.g., no 'SECTION A-A' or projection arrows), so the assumption that the strip view is the flattened/developed version of the top-view band relies on the 'APPX. DEVELOPED LGTH.' note alone.
+       -> Confirm with the designer/CAD model that the strip view is indeed the developed flat pattern of the closed oval band rather than an unrelated separate part.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 4, HIGH 4, MEDIUM 7
+   - [CRITICAL] D008 (dimension): D008 reading (0.5) is illegible/ambiguous with no alternative or chain to confirm it; kept as a best guess for offset — MUST verify before rebuild.
+       decision: resolved value 0.5
+       why: unverifiable reading
+       affects: dimension D008
+   - [CRITICAL] D009 (dimension): D009 reading (0.218) is illegible/ambiguous with no alternative or chain to confirm it; kept as a best guess for hole_diameter — MUST verify before rebuild.
+       decision: resolved value 0.218
+       why: unverifiable reading
+       affects: dimension D009
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (hole): FeatureCut4 returned None for F002.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F002.
+       affects: feature F002
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F003.
+       affects: feature F003
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F002 (feature): POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [HIGH] F003 (feature): POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (top_outline, front_profile): No explicit view callout or section line ties the profile/strip view directly to the top view (e.g., no 'SECTION A-A' or projection arrows), so the assumption that the strip view is the flattened/developed version of the top-view band relies on the 'APPX. DEVELOPED LGTH.' note alone. Recommendation: Confirm with the designer/CAD model that the strip view is indeed the developed flat pattern of the closed oval band rather than an unrelated separate part.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top_outline, front_profile): The top view shows a closed, symmetric elongated hexagonal band (like a bent/rolled oval frame) with fully defined outer geometry, but the profile view shows only a straight flat strip with two sample through-holes and no dimensioned hole spacing or total count. The note 'SPACING & QUANTITY OF HOLES TO SUIT' means the actual number and location of .218 holes around the finished band is undefined and cannot be cross-checked against the top view. Recommendation: Obtain a supplemental note, tabulation, or separate detail specifying exact hole count and spacing before fabrication; do not assume only two holes exist just because two are drawn in the strip view.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top_outline, front_profile): The top view gives an 'INSIDE' dimension of 14.00 and an overall length of 32.25, but no wall/band width dimension is given in the top view to relate to the 4.00 strip width shown in the profile view, making it ambiguous whether the 4.00 width is the flat width of the band as installed (vertical height of the formed loop) or something else. Recommendation: Verify with a third (side) view or isometric that the 4.00 dimension corresponds to the band's height (Z-axis) when the strip is bent into the oval shown in the top view.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F002 (hole) skipped: FeatureCut4 returned None for F002.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV001 (overview): The overview shows a feature the checker cannot auto-match: Elongated hexagonal/lozenge-shaped formed profile (top view) with 15° typic angled sides and pointed ends, overall length 32.25, inside width 14.00, with 7.00 half-height dimension shown (top view outline)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [MEDIUM] OV003 (overview): The overview shows a feature the checker cannot auto-match: 15° typical angled straight segments forming the tapered ends of the shape (upper and lower angled edges of profile)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [MEDIUM] OV006 (overview): The overview shows a feature the checker cannot auto-match: Sheet metal strip side view, 16 GA (.060) thickness material, 4.00 height, .50 lower flange dimension (bottom view (side/profile of formed part))
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F002 FAILED: FeatureCut4 returned None for F002.
+   - feature F003 FAILED: FeatureFillet3 returned None for F003.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '102' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001611E\output\102

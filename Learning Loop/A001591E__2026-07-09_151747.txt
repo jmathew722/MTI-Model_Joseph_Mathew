@@ -1,0 +1,73 @@
+LEARNING LOOP — A001591E
+============================================================
+Run:     2026-07-09 15:17:47
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001591E\output\A001591E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The inner dashed rectangle in the front view has no clearly corresponding feature or callout in the side (edge) view or in the note block, so its function (bend line vs. hidden edge of a formed flange vs. reference outline) cannot be confirmed from this sheet alone.
+       -> Check for a separate bend/form detail view or note specifying this dashed boundary; if absent, request clarification on whether this indicates a formed flange, a stiffener, or purely a reference/CAD construction line.
+   - [HIGH] The upper-right note referencing 'MCMASTER-CARR #1117A11 OR EQUIV.' has a leader line pointing off the visible sheet area with no clear target feature shown in the front view, making it unclear which hole or feature this hardware note governs.
+       -> Obtain the uncropped/full sheet to see where the leader terminates; verify whether it points to one of the 8 through-holes (implying a specific fastener/insert is required there) or to a separate feature not shown.
+   - [MEDIUM] Balloons 2 and 3 both show a secondary small numeral '2' beneath them (2/2), which is non-standard and could indicate a sheet/revision reference or a duplicate callout numbering error; their relationship to the single value each displays (7.00 IN. and 6.00 IN.) is not fully clear from the side view alone since the side view is a simple flat bar with no obvious 6.00/7.00 feature marks distinguishable.
+       -> Confirm with the title block or notes legend what the '/2' subscript denotes (e.g., sheet 2 reference) and verify placement of the 6.00 IN. and 7.00 IN. dimensions along the actual edge view geometry.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 1, MEDIUM 6, LOW 1
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (fillet): FeatureFillet3 returned None for F002.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F002.
+       affects: feature F002
+   - [HIGH] F002 (feature): POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The inner dashed rectangle in the front view has no clearly corresponding feature or callout in the side (edge) view or in the note block, so its function (bend line vs. hidden edge of a formed flange vs. reference outline) cannot be confirmed from this sheet alone. Recommendation: Check for a separate bend/form detail view or note specifying this dashed boundary; if absent, request clarification on whether this indicates a formed flange, a stiffener, or purely a reference/CAD construction line.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, partial_note): The upper-right note referencing 'MCMASTER-CARR #1117A11 OR EQUIV.' has a leader line pointing off the visible sheet area with no clear target feature shown in the front view, making it unclear which hole or feature this hardware note governs. Recommendation: Obtain the uncropped/full sheet to see where the leader terminates; verify whether it points to one of the 8 through-holes (implying a specific fastener/insert is required there) or to a separate feature not shown.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (side, callout_table): Balloons 2 and 3 both show a secondary small numeral '2' beneath them (2/2), which is non-standard and could indicate a sheet/revision reference or a duplicate callout numbering error; their relationship to the single value each displays (7.00 IN. and 6.00 IN.) is not fully clear from the side view alone since the side view is a simple flat bar with no obvious 6.00/7.00 feature marks distinguishable. Recommendation: Confirm with the title block or notes legend what the '/2' subscript denotes (e.g., sheet 2 reference) and verify placement of the 6.00 IN. and 7.00 IN. dimensions along the actual edge view geometry.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F002 (fillet) skipped: FeatureFillet3 returned None for F002.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV003 (overview): The overview POSSIBLY shows 1x cutout (Dashed inner rectangle suggesting a recessed or reference boundary line (possibly a bend/step line or inner cutout boundary, not fully clear), Centered within outer plate outline, inset from edges) with no matching feature in the build.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: cutout feature(s) — verify against the drawing
+   - [MEDIUM] OV004 (overview): The overview shows a feature the checker cannot auto-match: Flat plate/sheet metal part shown in side (edge) view, 12 GA. (.105) thickness (Side view below main plate view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [LOW] OV005 (overview): The overview shows a feature the checker cannot auto-match: Reference callout to hardware note 'MCMASTER-CARR #1117A11 OR EQUIV.' possibly indicating a fastener or insert type, but no visible feature geometry for it on this sheet (Upper right corner, leader line pointing off view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F002 FAILED: FeatureFillet3 returned None for F002.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001591E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001591E\output\A001591E

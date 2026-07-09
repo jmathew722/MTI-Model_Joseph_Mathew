@@ -1,0 +1,71 @@
+LEARNING LOOP — A001621E
+============================================================
+Run:     2026-07-09 15:22:48
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001621E\output\A001621E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] The front edge view shows a cluster of dashed hidden lines near the right end that could represent either the two .406 holes or additional unlabeled features; the exact correspondence to hole positions (2.500 BSC, 5.000 BSC) is not explicitly confirmed by matching centerline projections.
+       -> Verify by projecting exact X-positions from the top view (at 2.500, 3.00 center, and 5.000 BSC) onto the edge view to confirm each hidden line pairs correctly with a hole location.
+   - [MEDIUM] A small unidentified view fragment appears at the top-right of the sheet, cut off from the main content; its relationship to the plate (e.g., a section, thickness note, or unrelated title block element) cannot be determined.
+       -> Obtain a wider or higher-resolution crop of the top-right corner to determine if it is a section view, surface finish symbol, or unrelated note, since it may carry information (e.g., finish or material spec) that applies globally.
+   - [MEDIUM] No explicit depth/through callout is given for the 1.090 DIA B or .406 DIA B holes; the drawing relies on convention (no blind depth noted) to assume through-holes, which could be misread as blind holes if the front view depth cues are misinterpreted due to lack of full hidden-line rectangles.
+       -> Confirm hole depth intent by checking for any additional note (e.g., 'THRU') elsewhere on the sheet or in title block notes not captured in this crop.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: HIGH 5, MEDIUM 2, LOW 2
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F004 (feature): POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front_edge_view, top_view): The front edge view shows a cluster of dashed hidden lines near the right end that could represent either the two .406 holes or additional unlabeled features; the exact correspondence to hole positions (2.500 BSC, 5.000 BSC) is not explicitly confirmed by matching centerline projections. Recommendation: Verify by projecting exact X-positions from the top view (at 2.500, 3.00 center, and 5.000 BSC) onto the edge view to confirm each hidden line pairs correctly with a hole location.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV001 (overview): Count mismatch for hole: the overview shows 2, the build contains 3 (0.406 dia holes referenced to datum B, positioned symmetrically at 2.500 BSC from center and 1.75 from bottom edge, with position tolerance 0.010 dia (true position callout), left and right of center, on horizontal centerline).
+       decision: build kept its extracted count of 3
+       why: overview count disagrees with the consolidated extraction
+       affects: hole count
+   - [HIGH] OV002 (overview): Count mismatch for hole: the overview shows 1, the build contains 3 (1.090 dia hole referenced to datum B, centered on part (main central bore), center of plate).
+       decision: build kept its extracted count of 3
+       why: overview count disagrees with the consolidated extraction
+       affects: hole count
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (partial_detail_top_right): A small unidentified view fragment appears at the top-right of the sheet, cut off from the main content; its relationship to the plate (e.g., a section, thickness note, or unrelated title block element) cannot be determined. Recommendation: Obtain a wider or higher-resolution crop of the top-right corner to determine if it is a section view, surface finish symbol, or unrelated note, since it may carry information (e.g., finish or material spec) that applies globally.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (top_view, front_edge_view): No explicit depth/through callout is given for the 1.090 DIA B or .406 DIA B holes; the drawing relies on convention (no blind depth noted) to assume through-holes, which could be misread as blind holes if the front view depth cues are misinterpreted due to lack of full hidden-line rectangles. Recommendation: Confirm hole depth intent by checking for any additional note (e.g., 'THRU') elsewhere on the sheet or in title block notes not captured in this crop.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV003 (overview): The overview shows a feature the checker cannot auto-match: Small rectangular detail/section view in upper right corner, appears to be a side or end view with hidden lines - possibly a separate feature callout or section symbol, not fully legible (upper right corner of sheet)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [LOW] OV004 (overview): The overview shows a feature the checker cannot auto-match: Hidden/dashed lines visible in the side/profile view of the plate, suggesting internal features (possibly the through-holes) projected into this view (side view, along length of plate)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001621E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001621E\output\A001621E

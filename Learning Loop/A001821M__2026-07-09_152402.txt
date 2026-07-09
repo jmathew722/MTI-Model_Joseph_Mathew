@@ -1,0 +1,109 @@
+LEARNING LOOP — A001821M
+============================================================
+Run:     2026-07-09 15:24:02
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001821M\output\A001821M
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The note calls out 'M-6 X 1 (.236) THD. 7-HOLES' but the front view clearly shows only 6 small circles arranged as two rows of 3 (top-left cluster) plus what appears to be a partial 7th at a different offset (1.465/2.930 column) — the exact count and pattern of 7 threaded holes is not unambiguously resolvable from the single plan view since some holes appear to align in an irregular (non-rectangular grid) pattern.
+       -> Recount and mark each of the 7 M6 threaded hole locations individually against the X (0.750, 2.312, 2.750, 3.875) and Y (1.465, 1.988, 2.750, 2.930, 6.250, 7.000) dimension leader lines to confirm all 7 positions; verify no hole is hidden/overlapping another callout leader.
+   - [MEDIUM] The .422 DIA callout states '6-HOLES' and 6 larger circles are visible (2 rows of 3) in the front view — this count appears consistent, but the middle-row hole pattern of the M6 threaded holes and the .422 holes are dimensioned from different, partially overlapping baselines (1.375, 2.750, 3.347, 4.500 vs 0.750, 2.312, 2.750, 3.875), raising risk of misreading which circles belong to which callout.
+       -> Cross-check each circle diameter against the .236 (M6 tap drill visual) vs .422 dia visual size difference in the plan view to ensure the 6 larger holes are correctly separated from the 7 smaller threaded holes, especially in the central region where hole rows are close together.
+   - [HIGH] The side view shows no hidden lines for any of the 13 total holes (7 threaded + 6 through), so whether the .422 dia holes are through-holes (as implied by 'HOLES' without depth spec) versus the M6 threaded holes (implied blind/tapped to a controlled depth) cannot be cross-confirmed visually from the profile view.
+       -> Add or request hidden-line detail or a sectioned side view to confirm through vs blind depth for both hole types; currently relying solely on the threaded-hole convention (tap holes typically blind unless noted) and 'THD.' terminology.
+   - [MEDIUM] The CFS callout in the side view has no clear counterpart or leader reference in the front view, making its exact location/extent on the part ambiguous (top edge only, or all edges).
+       -> Clarify whether CFS (possibly 'Chamfer From Surface' or a finish symbol) applies only to the top edge shown or to the entire perimeter of the plate; check if it should appear as a note in the front view as well.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 3, HIGH 6, MEDIUM 8
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (extrude_cut): extrude_cut F004 needs diameter or two in-plane sides; got {'notch_depth': 0.053974999999999995, 'depth': 0.053974999999999995}.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: extrude_cut F004 needs diameter or two in-plane sides; got {'notch_depth': 0.053974999999999995, 'depth': 0.053974999999999995}.
+       affects: feature F004
+   - [CRITICAL] F005 (build): The .sldprt build SKIPPED feature F005 (chamfer): chamfer F005 has no distance dimension.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: chamfer F005 has no distance dimension.
+       affects: feature F005
+   - [CRITICAL] F006 (build): The .sldprt build SKIPPED feature F006 (fillet): fillet F006 has no radius dimension.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: fillet F006 has no radius dimension.
+       affects: feature F006
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F004 (feature): POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [HIGH] F005 (feature): POSITION ASSUMED for F005: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [HIGH] F006 (feature): POSITION ASSUMED for F006: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F006
+   - [HIGH] F004 (macro): Macro for F004 (extrude_cut) needs manual review: 02_F004: profile needs a diameter or length+width; got ['depth']
+       decision: macro 02_F004_Rectangular_notch_cutout_at_left_middle_.vba generated with manual instructions
+       why: 02_F004: profile needs a diameter or length+width; got ['depth']
+       affects: feature F004
+   - [HIGH] OV002 (overview): Count mismatch for hole: the overview shows 6, the build contains 13 (.422 diameter through holes, 6 total, larger holes at corners/rows of plate, outer rows (top, middle, bottom) - larger circles).
+       decision: build kept its extracted count of 13
+       why: overview count disagrees with the consolidated extraction
+       affects: hole count
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): The note calls out 'M-6 X 1 (.236) THD. 7-HOLES' but the front view clearly shows only 6 small circles arranged as two rows of 3 (top-left cluster) plus what appears to be a partial 7th at a different offset (1.465/2.930 column) — the exact count and pattern of 7 threaded holes is not unambiguously resolvable from the single plan view since some holes appear to align in an irregular (non-rectangular grid) pattern. Recommendation: Recount and mark each of the 7 M6 threaded hole locations individually against the X (0.750, 2.312, 2.750, 3.875) and Y (1.465, 1.988, 2.750, 2.930, 6.250, 7.000) dimension leader lines to confirm all 7 positions; verify no hole is hidden/overlapping another callout leader.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front): The .422 DIA callout states '6-HOLES' and 6 larger circles are visible (2 rows of 3) in the front view — this count appears consistent, but the middle-row hole pattern of the M6 threaded holes and the .422 holes are dimensioned from different, partially overlapping baselines (1.375, 2.750, 3.347, 4.500 vs 0.750, 2.312, 2.750, 3.875), raising risk of misreading which circles belong to which callout. Recommendation: Cross-check each circle diameter against the .236 (M6 tap drill visual) vs .422 dia visual size difference in the plan view to ensure the 6 larger holes are correctly separated from the 7 smaller threaded holes, especially in the central region where hole rows are close together.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view shows no hidden lines for any of the 13 total holes (7 threaded + 6 through), so whether the .422 dia holes are through-holes (as implied by 'HOLES' without depth spec) versus the M6 threaded holes (implied blind/tapped to a controlled depth) cannot be cross-confirmed visually from the profile view. Recommendation: Add or request hidden-line detail or a sectioned side view to confirm through vs blind depth for both hole types; currently relying solely on the threaded-hole convention (tap holes typically blind unless noted) and 'THD.' terminology.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-004 (overview_analysis): CROSS-VIEW CONFLICT (side): The CFS callout in the side view has no clear counterpart or leader reference in the front view, making its exact location/extent on the part ambiguous (top edge only, or all edges). Recommendation: Clarify whether CFS (possibly 'Chamfer From Surface' or a finish symbol) applies only to the top edge shown or to the entire perimeter of the plate; check if it should appear as a note in the front view as well.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F004 (extrude_cut) skipped: extrude_cut F004 needs diameter or two in-plane sides; got {'notch_depth': 0.053974999999999995, 'depth': 0.053974999999999995}.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F005 (chamfer) skipped: chamfer F005 has no distance dimension.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F006 (fillet) skipped: fillet F006 has no radius dimension.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV005 (overview): The overview shows a feature the checker cannot auto-match: Side view showing plate thickness .312 with hatch marks indicating surface finish or edge treatment along length (right side view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F004 FAILED: extrude_cut F004 needs diameter or two in-plane sides; got {'notch_depth': 0.053974999999999995, 'depth': 0.053974999999999995}.
+   - feature F005 FAILED: chamfer F005 has no distance dimension.
+   - feature F006 FAILED: fillet F006 has no radius dimension.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001821M' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001821M\output\A001821M

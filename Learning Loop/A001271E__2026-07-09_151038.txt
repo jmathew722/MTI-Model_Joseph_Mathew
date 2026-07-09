@@ -1,0 +1,57 @@
+LEARNING LOOP — A001271E
+============================================================
+Run:     2026-07-09 15:10:38
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001271E\output\A001271E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The edge view shows only two distinct hidden-line hole groupings (a stepped counterbore profile and a smaller through-hole profile), but the top view shows two separate patterns of 4 holes each at different X/Y offsets (corner c'bore holes vs. inner .531 thru holes). It is not fully clear from the edge view alone which hidden lines correspond to which of the 8 total holes, since the edge view is a single 2D slice and cannot distinguish overlapping hole positions along its length.
+       -> Confirm via a full section view or by cross-checking X-offsets that the hidden lines in the edge view at the two shown X-positions align exactly with the .844/15.812 (corner) and 6.781/7.000 (inner) dimensioned hole locations; add a section callout if ambiguity persists.
+   - [LOW] The note '.531 DR. THRU. (4) HL'S' calls out 4 through holes, and the top view shows 4 crossed-circle symbols in the inner pattern — count matches. Similarly 'DR. & C'BORE FOR .500 SOC. HD. SCR. (4) HL'S' matches the 4 corner circles. No count mismatch is visible, but the inner 4-hole pattern is not perfectly rectangular in the sketch (positions appear slightly offset/staggered in the image), which could indicate either a drafting inaccuracy or an intentional non-symmetric layout.
+       -> Verify against the actual CAD/master dimensions that the 4 inner through-holes form a true rectangle (using the .500/6.000/6.500/6.781/7.000 offsets) rather than a staggered/trapezoidal pattern; re-measure hole centers from the raster image if higher resolution is available.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: HIGH 3, MEDIUM 1, LOW 2
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top): The note '.531 DR. THRU. (4) HL'S' calls out 4 through holes, and the top view shows 4 crossed-circle symbols in the inner pattern — count matches. Similarly 'DR. & C'BORE FOR .500 SOC. HD. SCR. (4) HL'S' matches the 4 corner circles. No count mismatch is visible, but the inner 4-hole pattern is not perfectly rectangular in the sketch (positions appear slightly offset/staggered in the image), which could indicate either a drafting inaccuracy or an intentional non-symmetric layout. Recommendation: Verify against the actual CAD/master dimensions that the 4 inner through-holes form a true rectangle (using the .500/6.000/6.500/6.781/7.000 offsets) rather than a staggered/trapezoidal pattern; re-measure hole centers from the raster image if higher resolution is available.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV002 (overview): Count mismatch for hole: the overview shows 4, the build contains 8 (.531 DIA drill thru holes, inner pattern (7.000 x 6.000 spacing approx), inner rectangular pattern, center area of plate).
+       decision: build kept its extracted count of 8
+       why: overview count disagrees with the consolidated extraction
+       affects: hole count
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top, front_edge): The edge view shows only two distinct hidden-line hole groupings (a stepped counterbore profile and a smaller through-hole profile), but the top view shows two separate patterns of 4 holes each at different X/Y offsets (corner c'bore holes vs. inner .531 thru holes). It is not fully clear from the edge view alone which hidden lines correspond to which of the 8 total holes, since the edge view is a single 2D slice and cannot distinguish overlapping hole positions along its length. Recommendation: Confirm via a full section view or by cross-checking X-offsets that the hidden lines in the edge view at the two shown X-positions align exactly with the .844/15.812 (corner) and 6.781/7.000 (inner) dimensioned hole locations; add a section callout if ambiguity persists.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV005 (overview): The overview shows a feature the checker cannot auto-match: Short vertical hidden/construction lines near center-left, possibly indicating an internal feature or edge not fully dimensioned (center-left region of top view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [LOW] OV006 (overview): The overview shows a feature the checker cannot auto-match: Hidden line details visible in side/edge view near right end, possibly representing a slot or step feature (right end of side view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001271E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001271E\output\A001271E

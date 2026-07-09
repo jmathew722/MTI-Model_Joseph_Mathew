@@ -1,0 +1,94 @@
+LEARNING LOOP — A001551E
+============================================================
+Run:     2026-07-09 15:13:41
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001551E\output\A001551E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] The side view does not show any hidden lines or breaks that would confirm whether the slotted holes are through-cuts or blind pockets; this must be inferred solely from plate thinness (.50) and typical slot conventions.
+       -> Confirm with a section view or note whether slots are through-cut; if none exists, assume through per standard practice for thin plates with corner/center mounting slots.
+   - [MEDIUM] The .187 dimension near the central slot area is unclear in context — it is not clearly tied to a labeled feature (could be a fillet radius or slot width) and could be misread as a hole size.
+       -> Verify the .187 callout against the actual slot corner radius or width in a zoomed crop; confirm it is not a separate undocumented hole size.
+   - [LOW] The '±.005' tolerance is attached to the 4.000 dimension but its exact reference points (which edges/features) are not fully clear from the layout.
+       -> Cross-check the 4.000 ±.005 dimension against the vertical spacing between the central slot centerlines to confirm which feature it constrains.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 8, MEDIUM 4
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (extrude_cut): FeatureCut4 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F003.
+       affects: feature F003
+   - [CRITICAL] F006 (build): The .sldprt build SKIPPED feature F006 (fillet): FeatureFillet3 returned None for F006.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F006.
+       affects: feature F006
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F002 (feature): POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [HIGH] F003 (feature): POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [HIGH] F004 (feature): POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [HIGH] F005 (feature): POSITION ASSUMED for F005: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [HIGH] F006 (feature): POSITION ASSUMED for F006: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F006
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view does not show any hidden lines or breaks that would confirm whether the slotted holes are through-cuts or blind pockets; this must be inferred solely from plate thinness (.50) and typical slot conventions. Recommendation: Confirm with a section view or note whether slots are through-cut; if none exists, assume through per standard practice for thin plates with corner/center mounting slots.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front): The '±.005' tolerance is attached to the 4.000 dimension but its exact reference points (which edges/features) are not fully clear from the layout. Recommendation: Cross-check the 4.000 ±.005 dimension against the vertical spacing between the central slot centerlines to confirm which feature it constrains.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front): The .187 dimension near the central slot area is unclear in context — it is not clearly tied to a labeled feature (could be a fillet radius or slot width) and could be misread as a hole size. Recommendation: Verify the .187 callout against the actual slot corner radius or width in a zoomed crop; confirm it is not a separate undocumented hole size.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (extrude_cut) skipped: FeatureCut4 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F006 (fillet) skipped: FeatureFillet3 returned None for F006.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV004 (overview): The overview shows a feature the checker cannot auto-match: Side view showing plate thickness of 0.50 in, flat rectangular profile (right side view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureCut4 returned None for F003.
+   - feature F006 FAILED: FeatureFillet3 returned None for F006.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001551E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001551E\output\A001551E

@@ -1,0 +1,106 @@
+LEARNING LOOP — A001211E
+============================================================
+Run:     2026-07-09 15:09:26
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001211E\output\A001211E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] Front view overall height dimension is 4.50, but the side view overall height dimension is 5.50 - these do not match for what should presumably be the same overall vertical extent of the part.
+       -> Verify whether 4.50 in the front view refers to a partial/reference height (e.g., to a step line) rather than the true overall top-to-bottom extent, and whether 5.50 in the side view is the true overall height; check title block or additional notes for clarification, or re-measure from the original CAD model.
+   - [LOW] The note '.406 DIA THRU (2) HL'S' and '10-24 TAP THRU (2) HL'S (3) PL'S' together imply 5 holes total (2+3), which matches the 5 hole markers drawn (2 large circles + 3 smaller tapped-hole symbols) in the front view - this actually reconciles correctly, but the mixed HL's/PL's terminology (Hole Locations vs Places) is unusual and could cause miscounting if misread.
+       -> Confirm that 'HL'S' denotes hole call-out groupings (2 distinct hidden-line/leader references) and 'PL'S' denotes total places (3 places) for the tapped holes, and cross-check that exactly 3 tapped-hole symbols and 2 large-diameter symbols are physically present in the front view (visually confirmed: yes).
+   - [MEDIUM] The side view does not show any hole hidden lines or callouts for the .406 DIA THRU or 10-24 TAP THRU holes, so through-hole depth (full .25 thickness) cannot be independently confirmed from the side view alone.
+       -> Since the plate is only .25 thick and holes are explicitly labeled THRU, through-hole condition is likely by inference from thin stock, but ideally a section view or hidden lines in the side view should be added/checked to positively confirm full penetration.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 10, MEDIUM 5
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (hole): FeatureCut4 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F003.
+       affects: feature F003
+   - [CRITICAL] F006 (build): The .sldprt build SKIPPED feature F006 (fillet): fillet F006 has no radius dimension.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: fillet F006 has no radius dimension.
+       affects: feature F006
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F002 (feature): POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [HIGH] F005 (feature): POSITION ASSUMED for F005: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [HIGH] F006 (feature): POSITION ASSUMED for F006: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F006
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front): The note '.406 DIA THRU (2) HL'S' and '10-24 TAP THRU (2) HL'S (3) PL'S' together imply 5 holes total (2+3), which matches the 5 hole markers drawn (2 large circles + 3 smaller tapped-hole symbols) in the front view - this actually reconciles correctly, but the mixed HL's/PL's terminology (Hole Locations vs Places) is unusual and could cause miscounting if misread. Recommendation: Confirm that 'HL'S' denotes hole call-out groupings (2 distinct hidden-line/leader references) and 'PL'S' denotes total places (3 places) for the tapped holes, and cross-check that exactly 3 tapped-hole symbols and 2 large-diameter symbols are physically present in the front view (visually confirmed: yes).
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F005 (macro): Macro for F005 (extrude_cut) needs manual review: 03_F005: profile needs a diameter or length+width; got ['depth', 'height', 'horizontal location', 'thickness', 'vertical location']
+       decision: macro 03_F005_Right_side_lower_step_notch_cut_right_po.vba generated with manual instructions
+       why: 03_F005: profile needs a diameter or length+width; got ['depth', 'height', 'horizontal location', 'thickness', 'vertical location']
+       affects: feature F005
+   - [HIGH] F004 (macro): Macro for F004 (thread) needs manual review: Cosmetic thread step requires manual verification.
+       decision: macro 05_F004_10_24_TAP_THRU_holes_3_places.vba generated with manual instructions
+       why: Cosmetic thread step requires manual verification.
+       affects: feature F004
+   - [HIGH] OV001 (overview): Count mismatch for hole: the overview shows 2, the build contains 5 (.406 DIA. THRU holes (2 places), shown as crosshair circles in the middle row, middle horizontal row, near center of part).
+       decision: build kept its extracted count of 5
+       why: overview count disagrees with the consolidated extraction
+       affects: hole count
+   - [HIGH] OV002 (overview): Count mismatch for thread: the overview shows 3, the build contains 4 (10-24 TAP THRU holes, 3 places (2 HL's + 1 more per note '(2) HL'S. (3) PL'S.'), distributed across stepped top and middle sections, shown as small crossed circles).
+       decision: build kept its extracted count of 4
+       why: overview count disagrees with the consolidated extraction
+       affects: thread count
+   - [HIGH] OV003 (overview): Count mismatch for hole: the overview shows 1, the build contains 5 (Additional small crossed-circle hole in lower stepped region, possibly part of the tapped hole pattern, lower right step area, below the 2.344 dimension).
+       decision: build kept its extracted count of 5
+       why: overview count disagrees with the consolidated extraction
+       affects: hole count
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): Front view overall height dimension is 4.50, but the side view overall height dimension is 5.50 - these do not match for what should presumably be the same overall vertical extent of the part. Recommendation: Verify whether 4.50 in the front view refers to a partial/reference height (e.g., to a step line) rather than the true overall top-to-bottom extent, and whether 5.50 in the side view is the true overall height; check title block or additional notes for clarification, or re-measure from the original CAD model.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view does not show any hole hidden lines or callouts for the .406 DIA THRU or 10-24 TAP THRU holes, so through-hole depth (full .25 thickness) cannot be independently confirmed from the side view alone. Recommendation: Since the plate is only .25 thick and holes are explicitly labeled THRU, through-hole condition is likely by inference from thin stock, but ideally a section view or hidden lines in the side view should be added/checked to positively confirm full penetration.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (hole) skipped: FeatureCut4 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F006 (fillet) skipped: fillet F006 has no radius dimension.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV006 (overview): The overview shows a feature the checker cannot auto-match: Side view showing flat plate profile with thickness .25, overall depth 5.50 (right side of drawing, side view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureCut4 returned None for F003.
+   - feature F006 FAILED: fillet F006 has no radius dimension.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001211E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001211E\output\A001211E

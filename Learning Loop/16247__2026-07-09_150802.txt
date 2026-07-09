@@ -1,0 +1,97 @@
+LEARNING LOOP — 16247
+============================================================
+Run:     2026-07-09 15:08:02
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\16247\output\16247
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side view shows what appears to be a small stepped/offset line near the top edge (a thin sliver parallel to the main profile), but this feature is not depicted or dimensioned anywhere in the front view. It's unclear if this represents a separate thin flange, a bend line, or a drafting artifact.
+       -> Check for an additional detail view or section callout that clarifies this small parallel line in the side view; verify if it represents a formed tab, bent flange, or is simply the .280 thickness dimension leader line overlapping the profile edge.
+   - [LOW] The front view shows two distinct notch/slot features (top and bottom) with .531 R corners, but only one is explicitly labeled '.531 R. TYP' (bottom notch); the TYP callout implies both notches share this radius, but this is an inference rather than an explicit dimension on the top notch.
+       -> Confirm via note or additional dimension that TYP truly applies to both notches (top and bottom) and not just repeated instances of the bottom feature elsewhere on the same edge.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 3, HIGH 6, MEDIUM 6
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (extrude_cut): FeatureCut4 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F003.
+       affects: feature F003
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (fillet): FeatureFillet3 returned None for F004.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F004.
+       affects: feature F004
+   - [CRITICAL] F005 (build): The .sldprt build SKIPPED feature F005 (fillet): FeatureFillet3 returned None for F005.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F005.
+       affects: feature F005
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F002 (feature): POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [HIGH] F003 (feature): POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [HIGH] F004 (feature): POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [HIGH] F005 (feature): POSITION ASSUMED for F005: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front): The front view shows two distinct notch/slot features (top and bottom) with .531 R corners, but only one is explicitly labeled '.531 R. TYP' (bottom notch); the TYP callout implies both notches share this radius, but this is an inference rather than an explicit dimension on the top notch. Recommendation: Confirm via note or additional dimension that TYP truly applies to both notches (top and bottom) and not just repeated instances of the bottom feature elsewhere on the same edge.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view shows what appears to be a small stepped/offset line near the top edge (a thin sliver parallel to the main profile), but this feature is not depicted or dimensioned anywhere in the front view. It's unclear if this represents a separate thin flange, a bend line, or a drafting artifact. Recommendation: Check for an additional detail view or section callout that clarifies this small parallel line in the side view; verify if it represents a formed tab, bent flange, or is simply the .280 thickness dimension leader line overlapping the profile edge.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (extrude_cut) skipped: FeatureCut4 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F004 (fillet) skipped: FeatureFillet3 returned None for F004.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F005 (fillet) skipped: FeatureFillet3 returned None for F005.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV003 (overview): The overview shows a feature the checker cannot auto-match: Thin edge/flange view on right side showing material thickness of .280 (+.010/-.000), noted to allow .030-.040 stock to fit at assembly (right side edge view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [MEDIUM] OV004 (overview): The overview shows a feature the checker cannot auto-match: Overall long rectangular flat plate/bar shape with two lengthwise dimensions (19.25 overall, 16.500 between notch features) (main body)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureCut4 returned None for F003.
+   - feature F004 FAILED: FeatureFillet3 returned None for F004.
+   - feature F005 FAILED: FeatureFillet3 returned None for F005.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '16247' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\16247\output\16247

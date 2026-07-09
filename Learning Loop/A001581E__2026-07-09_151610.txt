@@ -1,0 +1,73 @@
+LEARNING LOOP — A001581E
+============================================================
+Run:     2026-07-09 15:16:10
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001581E\output\A001581E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The edge/front view is drawn as a simple thin strip with two small tabs at the ends and does not clearly project the U-notch, the six holes, or show hole depth/through-ness directly — it appears to be a schematic or partial profile rather than a full orthographic front view.
+       -> Verify with the source drawing whether the bottom view is intended as a true front/edge projection or a simplified material-thickness reference; confirm hole through-condition is governed solely by the '.218 DR. THRU' note rather than by hidden lines in the edge view.
+   - [HIGH] Leader callouts '1' and '2' in the edge view point to a mid-span location and to the right end (near 6.25 IN. label) but no corresponding numbered flags, section cuts, or detail callouts appear in the top view to explain what these circled numbers reference (e.g., section/detail identifiers or weld/finish symbols).
+       -> Check adjacent sheet notes, a legend, or additional sheets for what flags 1 and 2 designate (possibly detail/section markers or inspection points); without this the meaning of these callouts is ambiguous.
+   - [MEDIUM] Six holes are called out as '6-HLS' with one leader pointing to the bottom-right hole, and six hole symbols are indeed drawn in the top view (2 near each of the left and right edges, forming 3 rows), so the count matches — however the two small end tabs shown in the edge view are not dimensioned or explained anywhere in the top view.
+       -> Confirm whether the small tabs at each end of the edge view represent bent flanges, mounting lugs, or edge features that should also appear as additional lines/dimensions in the top view; if they are formed features, the top view is incomplete.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 2, MEDIUM 5, LOW 1
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (fillet): FeatureFillet3 returned None for F004.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F004.
+       affects: feature F004
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F004 (feature): POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top, front_edge): The edge/front view is drawn as a simple thin strip with two small tabs at the ends and does not clearly project the U-notch, the six holes, or show hole depth/through-ness directly — it appears to be a schematic or partial profile rather than a full orthographic front view. Recommendation: Verify with the source drawing whether the bottom view is intended as a true front/edge projection or a simplified material-thickness reference; confirm hole through-condition is governed solely by the '.218 DR. THRU' note rather than by hidden lines in the edge view.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front_edge): Leader callouts '1' and '2' in the edge view point to a mid-span location and to the right end (near 6.25 IN. label) but no corresponding numbered flags, section cuts, or detail callouts appear in the top view to explain what these circled numbers reference (e.g., section/detail identifiers or weld/finish symbols). Recommendation: Check adjacent sheet notes, a legend, or additional sheets for what flags 1 and 2 designate (possibly detail/section markers or inspection points); without this the meaning of these callouts is ambiguous.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (top, front_edge): Six holes are called out as '6-HLS' with one leader pointing to the bottom-right hole, and six hole symbols are indeed drawn in the top view (2 near each of the left and right edges, forming 3 rows), so the count matches — however the two small end tabs shown in the edge view are not dimensioned or explained anywhere in the top view. Recommendation: Confirm whether the small tabs at each end of the edge view represent bent flanges, mounting lugs, or edge features that should also appear as additional lines/dimensions in the top view; if they are formed features, the top view is incomplete.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F004 (fillet) skipped: FeatureFillet3 returned None for F004.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV004 (overview): The overview shows a feature the checker cannot auto-match: Thin flat plate/bracket shown in side view, 12 GA (.105 thick) material (side view below main drawing)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [LOW] OV005 (overview): The overview shows a feature the checker cannot auto-match: Small tabs or feet visible at ends of side view profile (side view, left and right ends)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F004 FAILED: FeatureFillet3 returned None for F004.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001581E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001581E\output\A001581E

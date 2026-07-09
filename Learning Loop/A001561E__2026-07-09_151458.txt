@@ -1,0 +1,63 @@
+LEARNING LOOP — A001561E
+============================================================
+Run:     2026-07-09 15:14:58
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001561E\output\A001561E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The edge/profile view shows a single flat uniform thickness (12 GA, .105) with no visible step, bend, or offset, but the front view shows a dashed inner rectangle suggesting an internal boundary or step feature. This dashed rectangle is not explained by any dimension or the flat profile view.
+       -> Verify whether the dashed rectangle represents a hidden edge (e.g., a doubler plate, bend line, or reinforcement) on the back side of the part; check for a separate detail or note referencing this boundary, or confirm it is simply a non-machined/reference boundary line.
+   - [LOW] The callout states '.218 DR. THRU 7-HOLES' but only 7 hole locations are drawn (4 across the top row, 3 along the left/bottom area based on the layout) — need to confirm all 7 are clearly circled and none are occluded or omitted, since the pattern shown (4 top + 3 bottom-left column) totals 7, but the spatial arrangement is asymmetric (right side bottom hole near cutout vs left side has an extra hole at .375 from bottom).
+       -> Recount hole circles directly on the full-scale front view to confirm exactly 7 are drawn and match the 7-HOLES callout; verify no hole is hidden behind dimension lines or leader text.
+   - [MEDIUM] Two dimension leaders (labeled '1' and '2' circles) point to the semicircular cutout and to a '6.50 IN.' and '10.00 IN.' callout respectively, but these appear to be flag/balloon notes (possibly for a finish, coating, or material spec) rather than standard dimensions, and their meaning is not fully legible from the sheet alone.
+       -> Cross-reference the flag note numbers (1, 2) with a notes list or BOM elsewhere on the sheet (possibly in the cropped-off title block area) to determine what '6.50 IN.' and '10.00 IN.' specify (e.g., length of adhesive bead, weld length, or coating extent).
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: HIGH 4, MEDIUM 3
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F002 (feature): POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [HIGH] F003 (feature): POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front): The callout states '.218 DR. THRU 7-HOLES' but only 7 hole locations are drawn (4 across the top row, 3 along the left/bottom area based on the layout) — need to confirm all 7 are clearly circled and none are occluded or omitted, since the pattern shown (4 top + 3 bottom-left column) totals 7, but the spatial arrangement is asymmetric (right side bottom hole near cutout vs left side has an extra hole at .375 from bottom). Recommendation: Recount hole circles directly on the full-scale front view to confirm exactly 7 are drawn and match the 7-HOLES callout; verify no hole is hidden behind dimension lines or leader text.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side_edge): The edge/profile view shows a single flat uniform thickness (12 GA, .105) with no visible step, bend, or offset, but the front view shows a dashed inner rectangle suggesting an internal boundary or step feature. This dashed rectangle is not explained by any dimension or the flat profile view. Recommendation: Verify whether the dashed rectangle represents a hidden edge (e.g., a doubler plate, bend line, or reinforcement) on the back side of the part; check for a separate detail or note referencing this boundary, or confirm it is simply a non-machined/reference boundary line.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side_edge): Two dimension leaders (labeled '1' and '2' circles) point to the semicircular cutout and to a '6.50 IN.' and '10.00 IN.' callout respectively, but these appear to be flag/balloon notes (possibly for a finish, coating, or material spec) rather than standard dimensions, and their meaning is not fully legible from the sheet alone. Recommendation: Cross-reference the flag note numbers (1, 2) with a notes list or BOM elsewhere on the sheet (possibly in the cropped-off title block area) to determine what '6.50 IN.' and '10.00 IN.' specify (e.g., length of adhesive bead, weld length, or coating extent).
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV003 (overview): The overview shows a feature the checker cannot auto-match: Flat sheet metal plate, 12 GA (.105 in thick), shown in side/edge view (side view below main view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001561E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001561E\output\A001561E

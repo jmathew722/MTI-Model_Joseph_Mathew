@@ -1,0 +1,55 @@
+LEARNING LOOP — A001601E
+============================================================
+Run:     2026-07-09 15:19:16
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001601E\output\A001601E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The .440 and .75 dimensions near the right end (labeled with downward arrows suggesting a step or notch) are not reconcilable with the simple rectangular outline shown in the front view — no step, notch, or additional profile line is visible in the front view at the right end to confirm what .440/.75 actually measure.
+       -> Obtain a proper end or side view (not the tiny cropped one) to clarify whether .440 and .75 refer to a stepped height, a tab, or a separate section of the bar. Verify if .75 is simply the bar height/width and .440 is a partial-height sub-feature.
+   - [MEDIUM] The end view / profile views at the right side of the sheet are extremely small and appear cropped or unclear; it's not certain whether they are true orthographic side/end views or just isolated dimension callouts for thickness (.188) and a step (.440) with no clear outline connecting them to the main bar view.
+       -> Re-examine sheet at higher resolution or request the cropped view to confirm whether these are genuine orthographic views or supplementary detail dimensions.
+   - [LOW] Only 5 hole circles are drawn in the front view and the callout states '5-HOLES', so the count matches visually — no discrepancy here, but flagged for confirmation since dimensioning is X-only (linear chain) with no Y-offset given, so hole vertical placement (on centerline) is assumed rather than explicitly dimensioned in a second view.
+       -> Confirm holes are on the bar's true centerline via a side or top view; currently assumed from front view symmetry of hole marks about the horizontal centerline shown.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: HIGH 2, MEDIUM 2, LOW 1
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front): Only 5 hole circles are drawn in the front view and the callout states '5-HOLES', so the count matches visually — no discrepancy here, but flagged for confirmation since dimensioning is X-only (linear chain) with no Y-offset given, so hole vertical placement (on centerline) is assumed rather than explicitly dimensioned in a second view. Recommendation: Confirm holes are on the bar's true centerline via a side or top view; currently assumed from front view symmetry of hole marks about the horizontal centerline shown.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, end_view_right): The .440 and .75 dimensions near the right end (labeled with downward arrows suggesting a step or notch) are not reconcilable with the simple rectangular outline shown in the front view — no step, notch, or additional profile line is visible in the front view at the right end to confirm what .440/.75 actually measure. Recommendation: Obtain a proper end or side view (not the tiny cropped one) to clarify whether .440 and .75 refer to a stepped height, a tab, or a separate section of the bar. Verify if .75 is simply the bar height/width and .440 is a partial-height sub-feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (end_view_right, side_profile_small): The end view / profile views at the right side of the sheet are extremely small and appear cropped or unclear; it's not certain whether they are true orthographic side/end views or just isolated dimension callouts for thickness (.188) and a step (.440) with no clear outline connecting them to the main bar view. Recommendation: Re-examine sheet at higher resolution or request the cropped view to confirm whether these are genuine orthographic views or supplementary detail dimensions.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV003 (overview): The overview shows a feature the checker cannot auto-match: Bar/plate stock with step or notch at right end, reduced width section .440 tall x .75 overall height, .188 thick per end cross-section view (right end of bar)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001601E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001601E\output\A001601E

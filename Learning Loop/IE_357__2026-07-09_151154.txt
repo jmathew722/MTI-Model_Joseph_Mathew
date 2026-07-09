@@ -1,0 +1,83 @@
+LEARNING LOOP — IE 357
+============================================================
+Run:     2026-07-09 15:11:54
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001291E\output\IE_357
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The front view shows inner bore as 3.500 DIA, but the side view labels an inner diameter as 3.765 DIA. These do not match and it is unclear if 3.765 DIA refers to a different internal step/counterbore diameter or is a conflicting duplicate of the same bore.
+       -> Check side view for an internal step line separating a 3.500 bore from a 3.765 relief/counterbore diameter; if only one bore exists, verify which dimension (3.500 or 3.765) is authoritative and correct the drawing or reading.
+   - [MEDIUM] The note '(4) HLS' calls out 4 holes, matching the 4 circles visible in the front view on the bolt circle - no discrepancy in count, but the counterbore depth (.250) and hole through-condition are not explicitly confirmed as through-holes in either view; the side view shows hidden lines suggesting a blind counterbore over a through drill, but this is not fully dimensioned for full depth.
+       -> Confirm in the side view (or an additional section view if available) that the drilled hole passes fully through the flange thickness beneath the .250 counterbore, rather than being a blind hole.
+   - [MEDIUM] Overall part thickness is not directly dimensioned in the side view; only a .250 counterbore depth and a .094 edge dimension are given, leaving the total axial thickness of the flange ambiguous.
+       -> Look for a missing overall thickness dimension, possibly cropped off-sheet or omitted; request a full section view or overall length dimension to confirm total flange thickness.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: HIGH 5, MEDIUM 6, LOW 1
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F002 (feature): POSITION ASSUMED for F002: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [HIGH] F003 (feature): POSITION ASSUMED for F003: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [HIGH] F004 (feature): POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [HIGH] OV-ENV-DEPTH (overview): The overview shows an overall depth of 0.344 in, but no extracted dimension matches it (±2%, inch/mm checked).
+       decision: build proceeded with the extracted dimensions
+       why: overall envelope read from the overview drawing disagrees with or is missing from the extraction
+       affects: overall part envelope
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The front view shows inner bore as 3.500 DIA, but the side view labels an inner diameter as 3.765 DIA. These do not match and it is unclear if 3.765 DIA refers to a different internal step/counterbore diameter or is a conflicting duplicate of the same bore. Recommendation: Check side view for an internal step line separating a 3.500 bore from a 3.765 relief/counterbore diameter; if only one bore exists, verify which dimension (3.500 or 3.765) is authoritative and correct the drawing or reading.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The note '(4) HLS' calls out 4 holes, matching the 4 circles visible in the front view on the bolt circle - no discrepancy in count, but the counterbore depth (.250) and hole through-condition are not explicitly confirmed as through-holes in either view; the side view shows hidden lines suggesting a blind counterbore over a through drill, but this is not fully dimensioned for full depth. Recommendation: Confirm in the side view (or an additional section view if available) that the drilled hole passes fully through the flange thickness beneath the .250 counterbore, rather than being a blind hole.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (side): Overall part thickness is not directly dimensioned in the side view; only a .250 counterbore depth and a .094 edge dimension are given, leaving the total axial thickness of the flange ambiguous. Recommendation: Look for a missing overall thickness dimension, possibly cropped off-sheet or omitted; request a full section view or overall length dimension to confirm total flange thickness.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV004 (overview): The overview shows a feature the checker cannot auto-match: Central bore/step, 3.500 DIA through inner face, with adjacent 3.765 DIA counterbore/step visible in side view (center of part)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [MEDIUM] OV005 (overview): The overview shows a feature the checker cannot auto-match: Outer flange OD, 5.00 DIA (outer edge of part)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [MEDIUM] OV007 (overview): The overview POSSIBLY shows 1x fillet (Possible small fillet or rounded edge at flange corner, not explicitly dimensioned, flange OD/ID transition) with no matching feature in the build.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: fillet feature(s) — verify against the drawing
+   - [LOW] OV006 (overview): The overview shows a feature the checker cannot auto-match: Thin step/lip of .250 width and .094 depth shown at top edge in side view, possibly a shoulder or retaining lip (top edge, side view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'IE 357' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001291E\output\IE_357

@@ -1,0 +1,102 @@
+LEARNING LOOP — A001901E
+============================================================
+Run:     2026-07-09 15:26:08
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001901E\output\A001901E
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] Only 9 hole circles are drawn and 9 dimension leaders (10 through 80 in increments of 10) are given, matching the '9 HOLES' callout count exactly — however the dimensioning starts at 1.500 from the left edge and the last hole appears near 80.000, while the overall bar length is 83.00, leaving an unexplained 3.00 margin on the right end with no dimension confirming hole-to-right-edge distance.
+       -> Verify the right-end margin (83.00 - 80.000 - hole offset) is intentional stock/clearance and not a missing 10th hole or edge callout; check for an additional dimension line near the right end that may be cut off or obscured.
+   - [HIGH] The detail view (lower left) showing the 7.250 height, 2.50/H/2.50 widths, 1.750 dimension, and GD&T frames (⟂ A .001, // A .001) is not clearly labeled as a SECTION or DETAIL of the top view, and its relationship (end view? cross-section at a hole? separate tab feature?) to the long bar in the top view is not explicit — no section cutting-plane line or view callout letter ties it back to the main view.
+       -> Look for a section/cutting-plane indicator (e.g., SECTION A-A or VIEW B) on the top view that should correspond to this detail; confirm whether this profile represents the end cross-section of the 6.000-wide bar (implying the bar is not a flat plate but has a raised rib/boss of height 7.250) or a separate detached part.
+   - [MEDIUM] The heat treatment note specifies hardening on '3 SURFACES' with an 'H' length, but the top view and detail view do not clearly indicate which 3 surfaces (e.g., top face + two sides of a rib?) are hardened, nor is the H length dimension explicitly resolved to a numeric value on the sheet.
+       -> Cross-check the detail view's repeated 'H' labels against a possible legend or additional note (possibly on a page not shown) that defines H numerically; without it, hardened zone length/location remains ambiguous.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 5, MEDIUM 7, LOW 2
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (hole): FeatureCut4 returned None for F002.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F002.
+       affects: feature F002
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (hole): CreateCircleByRadius returned None.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: CreateCircleByRadius returned None.
+       affects: feature F003
+   - [HIGH] D021 (dimension): Multiple readings of D021 are valid; chose the most conservative (0.06, smallest) for fillet_radius — verify before relying on this feature.
+       decision: resolved value 0.06
+       why: conservative geometry
+       affects: dimension D021
+   - [HIGH] F001 (feature): POSITION ASSUMED for F001: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F001
+   - [HIGH] F004 (feature): POSITION ASSUMED for F004: centered on the parent feature because the drawing did not dimension its location — verify placement in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top_long_view): Only 9 hole circles are drawn and 9 dimension leaders (10 through 80 in increments of 10) are given, matching the '9 HOLES' callout count exactly — however the dimensioning starts at 1.500 from the left edge and the last hole appears near 80.000, while the overall bar length is 83.00, leaving an unexplained 3.00 margin on the right end with no dimension confirming hole-to-right-edge distance. Recommendation: Verify the right-end margin (83.00 - 80.000 - hole offset) is intentional stock/clearance and not a missing 10th hole or edge callout; check for an additional dimension line near the right end that may be cut off or obscured.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F003 (macro): Macro for F003 (hole) needs manual review: 03_F003: profile needs a diameter or length+width; got ['cbore_diameter']
+       decision: macro 03_F003_1_625_dia_counterbore_1_00_deep_coaxial_.vba generated with manual instructions
+       why: 03_F003: profile needs a diameter or length+width; got ['cbore_diameter']
+       affects: feature F003
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top_long_view, detail_end_profile): The detail view (lower left) showing the 7.250 height, 2.50/H/2.50 widths, 1.750 dimension, and GD&T frames (⟂ A .001, // A .001) is not clearly labeled as a SECTION or DETAIL of the top view, and its relationship (end view? cross-section at a hole? separate tab feature?) to the long bar in the top view is not explicit — no section cutting-plane line or view callout letter ties it back to the main view. Recommendation: Look for a section/cutting-plane indicator (e.g., SECTION A-A or VIEW B) on the top view that should correspond to this detail; confirm whether this profile represents the end cross-section of the 6.000-wide bar (implying the bar is not a flat plate but has a raised rib/boss of height 7.250) or a separate detached part.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (top_long_view, detail_end_profile, heat_treatment_block): The heat treatment note specifies hardening on '3 SURFACES' with an 'H' length, but the top view and detail view do not clearly indicate which 3 surfaces (e.g., top face + two sides of a rib?) are hardened, nor is the H length dimension explicitly resolved to a numeric value on the sheet. Recommendation: Cross-check the detail view's repeated 'H' labels against a possible legend or additional note (possibly on a page not shown) that defines H numerically; without it, hardened zone length/location remains ambiguous.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F002 (hole) skipped: FeatureCut4 returned None for F002.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F003 (hole) skipped: CreateCircleByRadius returned None.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F004: fillet applied to 12 edges (all edges); verify against the drawing (selective fillets need the interactive macro).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV005 (overview): The overview shows a feature the checker cannot auto-match: Datum feature symbol B labeling one of the holes as a reference datum (near center hole of the bar (5th hole), pointing to hole with leader)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [MEDIUM] OV006 (overview): The overview shows a feature the checker cannot auto-match: Datum feature A and associated perpendicularity/parallelism callouts on cross-section (⊥ A .001, // A .001) (bottom detail view, vertical bar cross-section)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+   - [LOW] D018 (dimension): Resolved D018 to 2.25 — the only reading that closes chain D015+D016+D017+D018; verify against the drawing callout.
+       decision: resolved value 2.25
+       why: arithmetic chain
+       affects: dimension D018 (chain D015+D016+D017+D018)
+   - [LOW] OV004 (overview): The overview shows a feature the checker cannot auto-match: Heat treatment (induction hardening) callout 'HDN H LGTH 3 SURFACES RKW C58 MIN .125 MIN DEPTH' indicating hardened surfaces on 3 surfaces of the H-shaped cross-section (vertical bar cross-section, bottom detail view)
+       decision: not automatically verified against the build
+       why: feature kind has no direct counterpart in the build inventory
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F002 FAILED: FeatureCut4 returned None for F002.
+   - feature F003 FAILED: CreateCircleByRadius returned None.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001901E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\8fce224ffb08\A001901E\output\A001901E
