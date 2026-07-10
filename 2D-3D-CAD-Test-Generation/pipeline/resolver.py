@@ -896,6 +896,97 @@ def _ensure_buildable_extrudes(resolved: dict, model: DrawingData, result: "Reso
             rel.append(new_id)
 
 
+def _normalize_revolves_to_extrudes(resolved: dict, result: "ResolutionResult") -> list[dict[str, Any]]:
+    """Operator rule (2026-07-10): CIRCULAR geometry is ALWAYS built by sketching
+    a CIRCLE and EXTRUDING it — never by revolving a rectangle profile about an
+    axis. Convert every ``revolve`` feature into a circular ``extrude_boss``:
+
+      * diameter = 2 × the largest profile radius (the bounding cylinder);
+      * depth    = the profile's axial span.
+
+    A constant-radius profile (a plain cylinder / disc / flange — exactly the
+    "rectangle revolved" case) converts EXACTLY. A stepped/tapered profile becomes
+    its bounding cylinder and is flagged MEDIUM so the filled steps are reviewed
+    (a complete approximate solid beats a turned feature the shop rule forbids).
+
+    Runs before the buildable-base pass, so the single resolved extraction — and
+    therefore the VBA macros, the CadQuery pre-check, and the SolidWorks COM build
+    — all see circle+extrude and no revolve survives downstream."""
+    units = resolved.get("units") or "inch"
+    flags: list[dict[str, Any]] = []
+    for feat in resolved.get("features", []) or []:
+        if (feat.get("type") or "").lower() != "revolve":
+            continue
+        profile = feat.get("revolve_profile") or []
+        pts = [(float(p[0]), float(p[1])) for p in profile
+               if isinstance(p, (list, tuple)) and len(p) == 2]
+        radials = [r for _, r in pts if r > 0]
+        axials = [a for a, _ in pts]
+        fid = feat.get("id", "?")
+        if not radials or not axials:
+            continue  # no usable profile — leave as-is (rare); gate/builder handle it
+        max_r, min_r = max(radials), min(radials)
+        axial_span = max(axials) - min(axials)
+        if axial_span <= 0 or max_r <= 0:
+            continue
+        diameter = round(2.0 * max_r, 6)
+        depth = round(axial_span, 6)
+        stepped = (max_r - min_r) > 1e-6
+
+        # Convert the feature to a circular extrude.
+        feat["type"] = "extrude_boss"
+        feat["revolve_profile"] = []
+        feat["position_known"] = False
+        feat["offset_x"] = 0.0
+        feat["offset_y"] = 0.0
+
+        dia_id = _next_dim_id(resolved)
+        note_d = (f"{dia_id}={_fmt(diameter)} {units}: revolve {fid} built as a circular extrude "
+                  f"(Ø{_fmt(diameter)} × {_fmt(depth)}) "
+                  + ("— exact for this constant-diameter part."
+                     if not stepped else
+                     "— bounding cylinder of a stepped/tapered profile; verify the steps."))
+        dres_d = DimResolution(dia_id, diameter, True, "revolve_to_extrude", [],
+                               0.9 if not stepped else 0.6,
+                               "HIGH" if not stepped else "MEDIUM", note_d)
+        dia_dim = {"id": dia_id, "type": "diameter", "value": diameter, "unit": units,
+                   "applies_to": "diameter", "feature_ref": fid,
+                   "notes": "Synthesized: revolve converted to a circle+extrude (shop rule)."}
+        dia_dim.update(dres_d.as_fields())
+        resolved.setdefault("dimensions", []).append(dia_dim)
+        result.dim_resolutions[dia_id] = dres_d
+
+        dep_id = _next_dim_id(resolved)
+        dres_p = DimResolution(dep_id, depth, True, "revolve_to_extrude", [], 0.9, "HIGH",
+                               f"{dep_id}={_fmt(depth)} {units}: axial length of revolve {fid} "
+                               f"used as the extrude depth.")
+        dep_dim = {"id": dep_id, "type": "depth", "value": depth, "unit": units,
+                   "applies_to": "thickness", "feature_ref": fid,
+                   "notes": "Synthesized: revolve axial length -> extrude depth."}
+        dep_dim.update(dres_p.as_fields())
+        resolved.setdefault("dimensions", []).append(dep_dim)
+        result.dim_resolutions[dep_id] = dres_p
+        feat["depth_dimension_id"] = dep_id
+
+        rel = feat.setdefault("related_dimensions", [])
+        for nid in (dia_id, dep_id):
+            if nid not in rel:
+                rel.append(nid)
+
+        if stepped:
+            flags.append({
+                "dimension_id": fid, "feature_id": fid, "flag_tier": "MEDIUM",
+                "human_note": (f"{fid}: turned profile built as a circular EXTRUDE (Ø{_fmt(diameter)} × "
+                               f"{_fmt(depth)}, bounding cylinder) per the circle+extrude rule — the "
+                               f"stepped/tapered detail is not modeled; verify against the drawing."),
+                "macro_behavior": behavior_for_tier("MEDIUM"),
+                "resolved_by_tier": TIER_PER_VIEW, "source": "revolve_to_extrude",
+            })
+        log.info("Converted revolve %s -> circular extrude_boss (Ø%.4f x %.4f, %s)",
+                 fid, diameter, depth, "stepped/approx" if stepped else "exact")
+    return flags
+
+
 _TYP_RE = _re.compile(r"\btyp(ical)?\b", _re.IGNORECASE)
 
 
@@ -1461,6 +1552,12 @@ def resolve_extraction(raw: dict,
     # dims are consistent).
     _propagate_typ(resolved, result)
 
+    # Shop rule: circular geometry is ALWAYS a sketched circle + extrude, never a
+    # rectangle revolved about an axis. Convert every revolve to a circular
+    # extrude_boss BEFORE the buildable-base pass so the whole downstream (macros,
+    # CadQuery, COM build) sees circle+extrude.
+    _revolve_flags = _normalize_revolves_to_extrudes(resolved, result)
+
     # Guarantee a buildable base: synthesize a thickness for any extrude_boss the
     # drawing never dimensioned, so the part can never produce an empty solid.
     _ensure_buildable_extrudes(resolved, model, result)
@@ -1505,6 +1602,9 @@ def resolve_extraction(raw: dict,
     # (never emitted as a doomed macro/COM step) and surfaced as a Tab-3
     # model-derived assumption. Runs after TYP + buildable-base synthesis.
     result.flags.extend(_completeness_gate(resolved, model, result))
+    # Revolve->circle+extrude conversions that approximated a stepped/tapered
+    # profile as a bounding cylinder surface as MEDIUM review items.
+    result.flags.extend(_revolve_flags)
     # Fix 3.2: low-confidence hole diameters cross-checked against drill sizes;
     # implausible ones route to markup instead of building on a guess.
     result.flags.extend(_illegible_diameter_flags(resolved, result))

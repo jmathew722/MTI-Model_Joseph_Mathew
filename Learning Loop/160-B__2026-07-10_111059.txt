@@ -1,0 +1,54 @@
+LEARNING LOOP — 160-B
+============================================================
+Run:     2026-07-10 11:10:59
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b40ecf289cd9\A001601E\output\160-B
+Fingerprint: d181d6f07c40fe94
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The .440 dimension and small stepped profile shown near the right end (side_profile area) do not clearly correspond to any visible feature (notch, step, or relief) in the top view of the bar. It is unclear whether this represents an edge chamfer, a separate end-view detail, or an unrelated reference dimension.
+       -> Verify with the original drawing whether the .440/.188 side detail is a cross-sectional end view of the bar (confirming overall .75 width and .188 thickness) or depicts an additional step/notch feature that should also appear in the top view.
+   - [LOW] The leader note calls out '5-HOLES' and 5 hole centers are indeed drawn in the top view, so the count matches; however, only 4 dimensions (4.500, 9.000, 13.500, 18.000) plus the 2.00 lead-in are given for hole locations, and it is not fully clear if the 2.00 dimension locates the first hole or just the start of the dimensioning chain — worth confirming hole 1 position.
+       -> Confirm whether the 2.00 dimension is measured to the first hole center (leftmost hole) or to some other reference edge; cross-check against the 4.500 dimension which appears to originate from the same left edge, implying 2.00 may instead be dimensioning the leftmost hole's position independently or a separate reference mark.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 2, MEDIUM 1, LOW 1
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, ANGULAR DIM ±, SCALE 1"=2"" states 2 instance(s), but the per-view extraction captured hole group(s) of [5] (total 5). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front_top): The leader note calls out '5-HOLES' and 5 hole centers are indeed drawn in the top view, so the count matches; however, only 4 dimensions (4.500, 9.000, 13.500, 18.000) plus the 2.00 lead-in are given for hole locations, and it is not fully clear if the 2.00 dimension locates the first hole or just the start of the dimensioning chain — worth confirming hole 1 position. Recommendation: Confirm whether the 2.00 dimension is measured to the first hole center (leftmost hole) or to some other reference edge; cross-check against the 4.500 dimension which appears to originate from the same left edge, implying 2.00 may instead be dimensioning the leftmost hole's position independently or a separate reference mark.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV003 (overview): Thickness mismatch: the overview's thickness view shows 0.188 but the build's extrude depth is 0.75 (right side small cross-section view).
+       decision: build kept its extracted thickness
+       why: stock-thickness view (decimal) disagrees with the extrude depth
+       affects: part thickness / extrude depth
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front_top, side_profile): The .440 dimension and small stepped profile shown near the right end (side_profile area) do not clearly correspond to any visible feature (notch, step, or relief) in the top view of the bar. It is unclear whether this represents an edge chamfer, a separate end-view detail, or an unrelated reference dimension. Recommendation: Verify with the original drawing whether the .440/.188 side detail is a cross-sectional end view of the bar (confirming overall .75 width and .188 thickness) or depicts an additional step/notch feature that should also appear in the top view.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV002 (overview): Stock/thickness view noted: Overall rectangular bar/spacer stock shape, flat bar with constant cross-section (entire part).
+       decision: recorded as the part's thickness reference
+       why: a thickness edge view is not a machinable feature
+       affects: metadata: stock thickness
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '160-B' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b40ecf289cd9\A001601E\output\160-B

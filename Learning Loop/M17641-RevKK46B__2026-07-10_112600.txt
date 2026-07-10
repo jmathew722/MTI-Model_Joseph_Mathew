@@ -1,0 +1,71 @@
+LEARNING LOOP — M17641-RevKK46B
+============================================================
+Run:     2026-07-10 11:26:00
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b40ecf289cd9\0014630E\output\M17641-RevKK46B
+Fingerprint: ef3bb68f37398173
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (post-build (measured from the built STL))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] A small unlabeled line/bracket mark appears near the top of the sheet (col 6, row A/B) with no dimensions, leader, or label - unclear if it is a stray revision mark, cross-section indicator, or leftover construction geometry unrelated to the SPACER part.
+       -> Verify against the original/higher-resolution scan whether this mark is a section arrow, revision flag, or drafting artifact; if it carries no geometric meaning it can be disregarded for the part model.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 3, HIGH 3, MEDIUM 2, LOW 1
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 3 PLACE DIM ±.010, 2 PLACE DIM ±.020, ANGULAR DIM ±1°, SCALE 1=1" states 3 instance(s), but the per-view extraction captured hole group(s) of [1] (total 1). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "(2-REQD)" states 2 instance(s), but the per-view extraction captured hole group(s) of [1] (total 1). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (hole): cut F002 positioned OUTSIDE the solid — its profile (0.0059, 0.0059, 0.0226, 0.0226) m does not overlap the body (0.0254, -0.0142, 0.0538, 0.0142) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part. The Stage 2.5 completeness gate now excludes position-unresolved cuts before the build — add an X/Y location dimension on the drawing and re-run; do not patch the build.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: cut F002 positioned OUTSIDE the solid — its profile (0.0059, 0.0059, 0.0226, 0.0226) m does not overlap the body (0.0254, -0.0142, 0.0538, 0.0142) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part. The Stage 2.5 completeness gate now excludes position-unresolved cuts before the build — add an X/Y location dimension on the drawing and re-run; do not patch the build.
+       affects: feature F002
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (misc_mark): A small unlabeled line/bracket mark appears near the top of the sheet (col 6, row A/B) with no dimensions, leader, or label - unclear if it is a stray revision mark, cross-section indicator, or leftover construction geometry unrelated to the SPACER part. Recommendation: Verify against the original/higher-resolution scan whether this mark is a section arrow, revision flag, or drafting artifact; if it carries no geometric meaning it can be disregarded for the part model.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] R001 (requirement): Operator requirement: "CORRECTION (2026-07-10 11:21): missing the bore hole through the center of one of the faces"
+       decision: status: PARTIAL
+       why: hole feature(s) exist, but no extracted dimension matches the value(s) 2026, 7, 10, 11, 21 (±1.5%)
+       affects: human-specified must-meet requirement (applied during extraction & Stage 2.5 resolution, verified against the build)
+   - [HIGH] R002 (requirement): Operator requirement: "CORRECTION (2026-07-10 11:24): The bore through all hole is on the wrong face, add the hole on circular face"
+       decision: status: PARTIAL
+       why: hole feature(s) exist, but no extracted dimension matches the value(s) 2026, 7, 10, 11, 24 (±1.5%)
+       affects: human-specified must-meet requirement (applied during extraction & Stage 2.5 resolution, verified against the build)
+   - [MEDIUM]  (build): Build caveat: F002 (hole) skipped: cut F002 positioned OUTSIDE the solid — its profile (0.0059, 0.0059, 0.0226, 0.0226) m does not overlap the body (0.0254, -0.0142, 0.0538, 0.0142) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part. The Stage 2.5 completeness gate now excludes position-unresolved cuts before the build — add an X/Y location dimension on the drawing and re-run; do not patch the build.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV002 (overview): The overview shows content the checker cannot auto-match: Cylindrical spacer outer body, 1.12 DIA x 3.12 long (overall part)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+   - [LOW] OV003 (overview): Formed/bent profile shown: Small unidentified bracket/tab shape near top of sheet (possibly a detail or title block symbol, not part of main spacer view) (top center of sheet, near column 6).
+       decision: not built — the pipeline models machined prismatic parts, not sheet-metal forming
+       why: a bend/flange is an unsupported feature kind (escalate if the part is truly sheet metal)
+       affects: unsupported feature kind: formed profile
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F002 FAILED: cut F002 positioned OUTSIDE the solid — its profile (0.0059, 0.0059, 0.0226, 0.0226) m does not overlap the body (0.0254, -0.0142, 0.0538, 0.0142) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part. The Stage 2.5 completeness gate now excludes position-unresolved cuts before the build — add an X/Y location dimension on the drawing and re-run; do not patch the build.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'M17641-RevKK46B' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * requirement: requirements_check.py (grading) + extractor.py/resolver.py (specs-first application of the must-meet line)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b40ecf289cd9\0014630E\output\M17641-RevKK46B

@@ -294,6 +294,43 @@ class TestStockQualifier:
                     if f.get("dimension_id") == "D020" and f["flag_tier"] == "CRITICAL"]
 
 
+class TestRevolveToCircleExtrude:
+    """Shop rule: circular geometry is ALWAYS circle+extrude, never a rectangle
+    revolved about an axis — every revolve is converted at the resolver."""
+
+    def _revolve_part(self, profile):
+        return {
+            "part_number": "REV-1", "units": "inch", "confidence": 0.9,
+            "general_tolerance": ".XX +/-.01",
+            "dimensions": [], "hole_callouts": [],
+            "features": [{"id": "F001", "type": "revolve", "description": "turned disc",
+                          "revolve_profile": profile}],
+            "build_order": ["F001"], "relationships": {},
+        }
+
+    def test_constant_radius_revolve_becomes_circle_extrude(self):
+        res = resolve_extraction(self._revolve_part([[0, 2.5], [0.5, 2.5]]))
+        feats = res.resolved_extraction["features"]
+        f = next(x for x in feats if x["id"] == "F001")
+        assert f["type"] == "extrude_boss" and not f.get("revolve_profile")
+        assert not any((x.get("type") or "").lower() == "revolve" for x in feats)
+        dims = {d["id"]: d for d in res.resolved_extraction["dimensions"]}
+        dia = [dims[i]["value"] for i in f["related_dimensions"] if dims[i]["type"] == "diameter"]
+        assert dia and abs(dia[0] - 5.0) < 1e-6            # Ø = 2 x radius 2.5
+        assert "F001" in res.resolved_extraction["build_order"]
+        assert not [fl for fl in res.flags if fl.get("source") == "revolve_to_extrude"]  # exact
+
+    def test_stepped_revolve_becomes_bounding_cylinder_flagged(self):
+        res = resolve_extraction(self._revolve_part([[0, 2.5], [1, 2.5], [1, 4.0], [3, 4.0]]))
+        f = next(x for x in res.resolved_extraction["features"] if x["id"] == "F001")
+        assert f["type"] == "extrude_boss"
+        dims = {d["id"]: d for d in res.resolved_extraction["dimensions"]}
+        dia = [dims[i]["value"] for i in f["related_dimensions"] if dims[i]["type"] == "diameter"]
+        assert dia and abs(dia[0] - 8.0) < 1e-6            # bounding Ø = 2 x max radius 4
+        flags = [fl for fl in res.flags if fl.get("source") == "revolve_to_extrude"]
+        assert flags and flags[0]["flag_tier"] == "MEDIUM"
+
+
 class TestUniversalCompletenessGate:
     """P1 — one feature of each type with its driving dimension absent must NOT
     reach macro generation (i.e. must be removed from build_order)."""

@@ -42,3 +42,7 @@ One line per pipeline run, newest at the bottom. Hand any run's `.txt` to Claude
 | 2026-07-10 10:46 | 116-C | NOT READY | 7 |  | 116-C__2026-07-10_104636.txt |
 | 2026-07-10 10:47 | 115 C-RevMC | READY | 8 |  | 115_C-RevMC__2026-07-10_104758.txt |
 | 2026-07-10 10:48 | 135-A-RevA | READY | 2 |  | 135-A-RevA__2026-07-10_104849.txt |
+| 2026-07-10 11:10 | 160-B | READY | 5 |  | 160-B__2026-07-10_111059.txt |
+| 2026-07-10 11:14 | M17641-RevKK46B | NOT READY | 8 |  | M17641-RevKK46B__2026-07-10_111426.txt |
+| 2026-07-10 11:23 | M17641-RevKK46B | NOT READY | 7 |  | M17641-RevKK46B__2026-07-10_112301.txt |
+| 2026-07-10 11:26 | M17641-RevKK46B | READY | 10 |  | M17641-RevKK46B__2026-07-10_112600.txt |

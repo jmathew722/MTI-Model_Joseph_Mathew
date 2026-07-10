@@ -233,15 +233,20 @@ FILLETS & CHAMFERS — CAPTURE EVERY ONE (these are routinely missed):
 - If you are unsure whether a corner is filleted, prefer creating the fillet feature
   and flagging it over omitting it. Never silently drop a radius/fillet callout.
 
-REVOLVES (turned / cylindrical / symmetric-about-an-axis parts):
-- If the part is turned on a lathe or is a solid of revolution (a shaft, hub, pin,
-  flange, bushing — its section view is symmetric about a centerline), make the base
-  feature a `revolve` and fill revolve_profile with the HALF-profile as ordered
-  [axial, radial] points in drawing units: 'axial' along the centerline, 'radial' the
-  distance from it (>=0). Trace the OUTER boundary in order; it is closed back to the
-  axis automatically. e.g. a stepped shaft ø10 x 10 then ø16 x 15 ->
-  [[0,5],[10,5],[10,8],[25,8]]. Read each diameter as radius = diameter/2.
-- Only use revolve when the part truly revolves; a prism stays an extrude_boss.
+CIRCULAR / CYLINDRICAL PARTS — ALWAYS a sketched CIRCLE + EXTRUDE (shop rule):
+- A round part with a SINGLE outside diameter (a disc, plate, flange, hub, bushing,
+  spacer, washer, plain cylinder) is an `extrude_boss` with a CIRCULAR profile: set a
+  `diameter` dimension (the outside Ø) and a depth/thickness dimension. NEVER model it
+  as a rectangle revolved about an axis — circles are made with circle+extrude.
+- Only use `revolve` for a genuinely TURNED profile whose radius VARIES along the axis
+  (a stepped shaft, cone/taper, or a turned groove that a single circle cannot capture).
+  Fill revolve_profile with the HALF-profile as ordered [axial, radial] points (radius =
+  diameter/2), tracing the OUTER boundary in order; it is closed back to the axis
+  automatically. e.g. a stepped shaft ø10 x 10 then ø16 x 15 -> [[0,5],[10,5],[10,8],[25,8]].
+  NOTE: the pipeline still builds every revolve as a circular extrude (a bounding
+  cylinder), so prefer extrude_boss with an explicit diameter whenever the part is a
+  constant-diameter cylinder — that is exact.
+- A prism (non-round) stays an extrude_boss with length+width.
 
 MIRRORS (symmetric features):
 - When a feature (or group) is the MIRROR IMAGE of another about a plane, you may add
@@ -460,9 +465,11 @@ MULTIVIEW_USER_TEXT = (
     "emit a fillet/chamfer FEATURE with its radius/distance linked in "
     "related_dimensions. A range callout like '.06/.09 R' still becomes a feature "
     "(use the nominal value, flag value_unclear). Never silently drop a fillet.\n"
-    "- A TURNED/REVOLVED part (shaft/hub/flange, section symmetric about a "
-    "centerline): make the base a `revolve` and fill revolve_profile with the "
-    "ordered [axial, radial] half-profile points (radius = diameter/2).\n"
+    "- A CIRCULAR part with ONE outside diameter (disc/plate/flange/hub/bushing/"
+    "cylinder): make the base an `extrude_boss` with a `diameter` dimension + a "
+    "depth/thickness — circles are ALWAYS circle+extrude, never a revolved rectangle. "
+    "Use `revolve` (ordered [axial, radial] half-profile, radius = diameter/2) ONLY "
+    "for a turned profile whose radius VARIES (stepped shaft, cone, groove).\n"
     "- A CIRCULAR/BOLT-CIRCLE hole pattern: set the callout's pattern='circular', "
     "bolt_circle_diameter, optional bolt_circle_center/start_angle, and qty.\n"
     "- build_order: base extrude/revolve first, then cuts/holes in view order, "
