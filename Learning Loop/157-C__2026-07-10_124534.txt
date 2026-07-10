@@ -1,0 +1,54 @@
+LEARNING LOOP — 157-C
+============================================================
+Run:     2026-07-10 12:45:34
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6cd93a5da0d4\Image20260710124356\output\157-C
+Fingerprint: 0a4bfaad70bb58ca
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] Only 2 hole locations are dimensioned explicitly (top-left and bottom-left at .25/.375/4.500 offsets, and the right side hole at same row height via hidden/dashed line), while all 4 corner holes are called out generically as '4-HOLES .218 DR. THRU' with only one leader — the exact X/Y position of the two right-side holes is not fully dimensioned in the visible crop (dashed vertical line suggests symmetry but is not explicitly toleranced).
+       -> Verify whether the right-side holes are meant to mirror the left-side dimensions exactly (11.00 - 0.25 = 10.75 from left, and same 4.500/.375 vertical spacing) or whether additional dimensions exist off-sheet/cropped; confirm via the dashed centerline construction shown for the right column of holes.
+   - [LOW] The semicircular notch is dimensioned with a diameter (3.062 DIA) and a radius leader arrow, but it is a notch cut into the top edge (open, not a closed circle) — need to confirm this is a half-circle cutout (blind on the material, open at the top edge) rather than a full circular hole partially obscured by the edge line.
+       -> Confirm from geometry that the notch center lies exactly on the top edge (5.25 from left, on the boundary line) making it a true semicircular edge cutout, consistent with a shaft/cable pass-through notch rather than a full bore.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 1, MEDIUM 1, LOW 2
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, ANGULAR DIM ±, SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [4] (total 4). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front): The semicircular notch is dimensioned with a diameter (3.062 DIA) and a radius leader arrow, but it is a notch cut into the top edge (open, not a closed circle) — need to confirm this is a half-circle cutout (blind on the material, open at the top edge) rather than a full circular hole partially obscured by the edge line. Recommendation: Confirm from geometry that the notch center lies exactly on the top edge (5.25 from left, on the boundary line) making it a true semicircular edge cutout, consistent with a shaft/cable pass-through notch rather than a full bore.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): Only 2 hole locations are dimensioned explicitly (top-left and bottom-left at .25/.375/4.500 offsets, and the right side hole at same row height via hidden/dashed line), while all 4 corner holes are called out generically as '4-HOLES .218 DR. THRU' with only one leader — the exact X/Y position of the two right-side holes is not fully dimensioned in the visible crop (dashed vertical line suggests symmetry but is not explicitly toleranced). Recommendation: Verify whether the right-side holes are meant to mirror the left-side dimensions exactly (11.00 - 0.25 = 10.75 from left, and same 4.500/.375 vertical spacing) or whether additional dimensions exist off-sheet/cropped; confirm via the dashed centerline construction shown for the right column of holes. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV003 (overview): Surface Finish note: Item 1 - PLATE, 1018 STL 12GA, .105 x 5.25 x 11.00 overall size (main plate body).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV004 (overview): Surface Finish note: Item 2 - Weather stripping (sponge rubber with adhesive back), McMaster Carr #1117A11 or equiv, 5/32 THK x 1/2 WIDE, 10.5 IN length, applied along one edge (5.25 IN callout also shown) (along edge of plate, shown in side/strip view at bottom).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '157-C' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6cd93a5da0d4\Image20260710124356\output\157-C

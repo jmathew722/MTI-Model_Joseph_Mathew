@@ -1,0 +1,59 @@
+LEARNING LOOP — 157-C
+============================================================
+Run:     2026-07-10 12:43:35
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6cd93a5da0d4\A001341E\output\157-C
+Fingerprint: 4e7f96268dd0d9f3
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (post-build (measured from the built STL))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] The BOM lists item 2 (weather stripping) quantity as '10.5 IN.' but this is a length value, not a discrete count, and no weather stripping location/path is shown in the front or edge views — its placement on the part is ambiguous.
+       -> Confirm with engineering whether the weather stripping runs along one full edge (matching the 10.5 dimension close to 11.00 length) and add a placement callout or view showing its path.
+   - [MEDIUM] Small end tabs/notches visible in the edge/side view are not shown or dimensioned anywhere in the front view, making their size, location, and purpose unclear.
+       -> Check if these represent a formed flange, tab, or simply the plate's cut edge drawn schematically; request a detail view or additional dimensions if they are functional features.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 2, MEDIUM 1, LOW 1
+   - [CRITICAL] F003 (feature): POSITION UNRESOLVED for F003: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 3 unassociated linear dim(s) (no leader reached F003's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption — add an X and/or Y location dimension on the drawing and re-run.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "THIRD ANGLE PROJECTION / DIMENSIONS IN INCHES / 2 PLACE DIM ±.02 / 3 PLACE DIM ±.010 / ANGULAR DIM: / SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [4, 1] (total 5). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (parts_list, front): The BOM lists item 2 (weather stripping) quantity as '10.5 IN.' but this is a length value, not a discrete count, and no weather stripping location/path is shown in the front or edge views — its placement on the part is ambiguous. Recommendation: Confirm with engineering whether the weather stripping runs along one full edge (matching the 10.5 dimension close to 11.00 length) and add a placement callout or view showing its path.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] R001 (requirement): Operator requirement: "CORRECTION (2026-07-10 12:41): the cthe whole should be centered at the top of the front view not center"
+       decision: status: PARTIAL
+       why: hole feature(s) exist, but no extracted dimension matches the value(s) 2026, 7, 10, 12, 41 (±1.5%)
+       affects: human-specified must-meet requirement (applied during extraction & Stage 2.5 resolution, verified against the build)
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (edge_side, front): Small end tabs/notches visible in the edge/side view are not shown or dimensioned anywhere in the front view, making their size, location, and purpose unclear. Recommendation: Check if these represent a formed flange, tab, or simply the plate's cut edge drawn schematically; request a detail view or additional dimensions if they are functional features. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV003 (overview): Surface Finish note: Weather stripping (sponge rubber with adhesive back) applied along one edge, 5/32 THK x 1/2 WIDE, 10.5 IN length (along an edge of plate, item 2 in BOM).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '157-C' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * requirement: requirements_check.py (grading) + extractor.py/resolver.py (specs-first application of the must-meet line)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6cd93a5da0d4\A001341E\output\157-C

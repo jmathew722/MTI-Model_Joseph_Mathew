@@ -1,0 +1,50 @@
+LEARNING LOOP — 157-C
+============================================================
+Run:     2026-07-10 12:31:25
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6cd93a5da0d4\A001341E\output\157-C
+Fingerprint: 11c3e1b3a71b43ea
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The 3.062 DIA feature is drawn as roughly a half circle with the diameter dimension leader pointing to its center, but it is unclear if this is a full circular hole partially hidden by the plate's top edge (i.e., a half-round notch cut into the edge) or a mislabeled full circular hole whose upper half was omitted in error. No side/section view confirms whether this is a through-cut notch or a blind pocket.
+       -> Verify against the actual part or a section view whether the 3.062 DIA feature is a full through-hole positioned near the edge (partially obscured/clipped in the drawing) or intentionally a half-round notch machined into the top edge of the plate.
+   - [LOW] BOM lists QTY 10.5 IN. of weather stripping (item 2), and inspection balloon '2' also references '5.25 IN.' near the bottom of the sheet - these two values (10.5 vs 5.25) do not obviously reconcile without more context, though the balloon is likely an inspection reference rather than a competing BOM quantity.
+       -> Confirm that the '5.25 IN.' inspection balloon refers to a checked dimension (e.g., plate width) and not an alternate weather-stripping quantity; cross-check against the first-article inspection report referenced by the balloon numbering.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 1, MEDIUM 1, LOW 1
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, ANGULAR DIM ±" states 2 instance(s), but the per-view extraction captured hole group(s) of [1, 4] (total 5). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-002 (overview_analysis): INSPECTION-BALLOON REFERENCE (front, bom_table): BOM lists QTY 10.5 IN. of weather stripping (item 2), and inspection balloon '2' also references '5.25 IN.' near the bottom of the sheet - these two values (10.5 vs 5.25) do not obviously reconcile without more context, though the balloon is likely an inspection reference rather than a competing BOM quantity. Recognized as an inspection dimension balloon (circled numeral / 'IN.' value), attached to part metadata — NOT a competing geometry dimension, so it is excluded from dimension-conflict reconciliation.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): The 3.062 DIA feature is drawn as roughly a half circle with the diameter dimension leader pointing to its center, but it is unclear if this is a full circular hole partially hidden by the plate's top edge (i.e., a half-round notch cut into the edge) or a mislabeled full circular hole whose upper half was omitted in error. No side/section view confirms whether this is a through-cut notch or a blind pocket. Recommendation: Verify against the actual part or a section view whether the 3.062 DIA feature is a full through-hole positioned near the edge (partially obscured/clipped in the drawing) or intentionally a half-round notch machined into the top edge of the plate.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV003 (overview): Surface Finish note: Weather stripping (sponge rubber with adhesive back) applied along one edge, 5/32 THK x 1/2 WIDE, 10.5 IN length (along an edge of plate, item 2 in BOM).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '157-C' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6cd93a5da0d4\A001341E\output\157-C

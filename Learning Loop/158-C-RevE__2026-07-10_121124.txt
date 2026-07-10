@@ -1,0 +1,70 @@
+LEARNING LOOP — 158-C-RevE
+============================================================
+Run:     2026-07-10 12:11:24
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b40ecf289cd9\A001581E\output\158-C-RevE
+Fingerprint: 423e8279a4928f45
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] The note '.218 DR. THRU 6-HLS.' calls out 6 holes, and the front view shows exactly 6 hole circles (3 along left edge, 3 along right edge) - count matches, no conflict, but the note is only leader-pointed to one hole (bottom right) so it must be confirmed this applies to all 6 shown, not just similar-looking ones elsewhere.
+       -> Verify all 6 circled features in the front view are the same .218 DIA through hole; confirm none of the 6 are the notch or a different feature.
+   - [MEDIUM] Weather stripping (Item 2, qty 12.5 IN) listed in BOM is not shown/located in any view - no leader or dashed outline indicates where the 12.5 in of weather stripping attaches on the plate.
+       -> Check for a separate detail or note (possibly on notch edge or perimeter) indicating weather stripping placement; if absent from this sheet, confirm it's called out on a mating/assembly drawing instead.
+   - [LOW] Edge/profile view is very schematic (thin line) and does not clearly show the notch cutout or hole locations along the thickness - cannot cross-verify hole through-ness or notch depth independently from this view.
+       -> Since plate is thin (.105) and flat, this is expected; no additional verification needed beyond confirming flatness via BOM material spec.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 2, MEDIUM 2, LOW 2
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [6] (total 6). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (fillet): FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 24 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 24 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       affects: feature F004
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): The note '.218 DR. THRU 6-HLS.' calls out 6 holes, and the front view shows exactly 6 hole circles (3 along left edge, 3 along right edge) - count matches, no conflict, but the note is only leader-pointed to one hole (bottom right) so it must be confirmed this applies to all 6 shown, not just similar-looking ones elsewhere. Recommendation: Verify all 6 circled features in the front view are the same .218 DIA through hole; confirm none of the 6 are the notch or a different feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side_edge): Edge/profile view is very schematic (thin line) and does not clearly show the notch cutout or hole locations along the thickness - cannot cross-verify hole through-ness or notch depth independently from this view. Recommendation: Since plate is thin (.105) and flat, this is expected; no additional verification needed beyond confirming flatness via BOM material spec.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (bom_table, front): Weather stripping (Item 2, qty 12.5 IN) listed in BOM is not shown/located in any view - no leader or dashed outline indicates where the 12.5 in of weather stripping attaches on the plate. Recommendation: Check for a separate detail or note (possibly on notch edge or perimeter) indicating weather stripping placement; if absent from this sheet, confirm it's called out on a mating/assembly drawing instead. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F004 (fillet) skipped: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 24 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV004 (overview): Surface Finish note: Weather stripping (sponge rubber with adhesive back), 5/32 thk x 1/2 wide, 12.5 in length, applied along one edge (item 2 in parts list, not a machined feature of the plate itself) (edge of plate, see side view at bottom of sheet).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV005 (overview): Gauge thickness noted but material unknown: Overall flat plate, 12 GA (.105 in) thickness, per side/edge view at bottom of sheet (side view, bottom of sheet) [gauge 12]. Cannot convert a gauge number to a decimal without the material — not compared to the build.
+       decision: recorded as the part's gauge reference; not reconciled
+       why: a gauge number is ambiguous across materials (no decimal given)
+       affects: metadata: stock gauge
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F004 FAILED: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 24 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '158-C-RevE' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b40ecf289cd9\A001581E\output\158-C-RevE

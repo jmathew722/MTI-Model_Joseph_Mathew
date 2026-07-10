@@ -1,0 +1,50 @@
+LEARNING LOOP — A001821M_SIMPLE_NO_HOLES_1
+============================================================
+Run:     2026-07-10 11:46:57
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6cd93a5da0d4\A001821M_SIMPLE_NO_HOLES_1\output\A001821M_SIMPLE_NO_HOLES_1
+Fingerprint: 04a7ea207a640f97
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - none
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, LOW 4
+   - [CRITICAL] F002 (feature): POSITION UNRESOLVED for F002: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 2 unassociated linear dim(s) (no leader reached F002's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption — add an X and/or Y location dimension on the drawing and re-run.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [LOW] OV002 (overview): Thickness-view value 0.312 is out of plausible range vs the build thickness 2.75 (9x) (overall part); treated as a non-thickness number, not a conflict.
+       decision: ignored as an out-of-band capture, build thickness kept
+       why: an edge-view thickness cannot differ from the build by an order of magnitude — the extractor captured an unrelated dimension
+       affects: metadata: rejected thickness candidate
+   - [LOW] OV003 (overview): Surface Finish note: Small tick/witness marks along top and bottom edges of front view, possibly indicating surface finish marks or reference marks, exact nature unclear (top and bottom edges of front view).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV004 (overview): The overview shows content the checker cannot auto-match: Diagonal line mark at bottom right corner of front view, possibly a chamfer or corner break indicator (bottom right corner of front view)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+   - [LOW] OV005 (overview): Reference/phantom geometry noted: Small dashed horizontal line near mid-height on the side view, possibly indicating a hidden feature or edge transition not fully visible (mid-height, side view).
+       decision: treated as a reference boundary, not built geometry
+       why: dashed/phantom/reference linework is not a solid feature
+       affects: metadata: reference boundary
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001821M_SIMPLE_NO_HOLES_1' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6cd93a5da0d4\A001821M_SIMPLE_NO_HOLES_1\output\A001821M_SIMPLE_NO_HOLES_1
