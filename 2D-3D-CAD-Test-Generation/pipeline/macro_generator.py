@@ -152,6 +152,10 @@ class MacroPackage:
     steps: list[BuildStep] = field(default_factory=list)
     skipped: list[BuildStep] = field(default_factory=list)
     needs_review: list[BuildStep] = field(default_factory=list)
+    # Per-feature disposition table from the build sequencer (BUILT /
+    # BUILT_WITH_DERIVED_VALUE / EXCLUDED_INCOMPLETE), also written to
+    # <part>_build_dispositions.json.
+    dispositions: list[dict] = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
@@ -630,6 +634,8 @@ def _build_plan_dict(model: DrawingData, pkg: MacroPackage, unit_factor: float,
     plan["steps"] = [_step_to_dict(s) for s in pkg.steps]
     plan["skipped_prohibited"] = [s.feature_id for s in pkg.skipped]
     plan["needs_review"] = [s.feature_id for s in pkg.needs_review]
+    # Seven-stage per-feature disposition table (build_sequencer).
+    plan["dispositions"] = pkg.dispositions
     # Severity-ranked engineering review (CRITICAL..LOW, most urgent first) —
     # the same items are written per part as <Part>_engineering_review.txt.
     from pipeline.engineering_review import build_review_items
@@ -2031,6 +2037,25 @@ def generate_macro_package(
         pkg.resolved_extraction_json.write_text(
             json.dumps(resolution.resolved_extraction, indent=2), encoding="utf-8"
         )
+
+    # --- Canonical seven-stage build sequencer (single source of build order) ---
+    # Deterministically re-order the gate-filtered survivors into the base ->
+    # additive -> profile-cut -> hole -> pattern -> edge -> non-geometric sequence,
+    # so the macros, build_plan.json, CadQuery pre-validation, and the COM build
+    # all follow one staged order. Also emit the per-feature disposition table
+    # (BUILT / BUILT_WITH_DERIVED_VALUE / EXCLUDED_INCOMPLETE) that replaces the
+    # scattered free-text decisions lists.
+    from pipeline.build_sequencer import sequence_build_order
+
+    seq_result = sequence_build_order(model, resolution)
+    model.build_order = seq_result.build_order
+    for hf in seq_result.hard_failures:
+        if hf not in model.warnings:
+            model.warnings.append(hf)
+    pkg.dispositions = seq_result.disposition_table
+    (root / f"{name}_build_dispositions.json").write_text(
+        json.dumps(seq_result.disposition_table, indent=2), encoding="utf-8"
+    )
 
     # --- 00 setup ---
     (macros_dir / "00_setup.vba").write_text(_setup_macro(model, unit_factor), encoding="utf-8")

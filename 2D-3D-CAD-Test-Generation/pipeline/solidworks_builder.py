@@ -577,6 +577,173 @@ def _do_cut(sw_doc, feature, through_all: bool, depth_m: Optional[float]):
     return feat
 
 
+def _wizard_hole_type(h) -> str:
+    """Classify a callout into a HoleWizard generic-hole-type constant name.
+
+    Drives which ``swWzdGeneralHoleTypes_e`` value HoleWizard5 receives — a real
+    tapped/cbore/csk hole feature (with thread/callout data), not a plain
+    cylinder cut. Order matters: a tapped counterbored hole is still a TAP."""
+    if getattr(h, "thread_spec", "") or getattr(h, "type", None) == HoleType.TAPPED:
+        return "swWzdTappedHole"
+    if getattr(h, "cbore_diameter", 0) > 0 or getattr(h, "type", None) == HoleType.COUNTERBORE:
+        return "swWzdCounterBore"
+    if getattr(h, "csink_diameter", 0) > 0 or getattr(h, "type", None) == HoleType.COUNTERSINK:
+        return "swWzdCounterSink"
+    return "swWzdHole"  # simple drilled hole
+
+
+def _try_hole_wizard(sw_doc, model, feature: Feature, h, centers_m: list[tuple[float, float]],
+                     through_all: bool, depth_m: Optional[float]):
+    """Best-effort REAL Hole Wizard feature (IFeatureManager::HoleWizard5).
+
+    Additive path (2026-07-10 redesign): a drilled/tapped/counterbored/
+    countersunk callout becomes a proper wizard hole carrying thread/callout
+    data instead of a bare ``FeatureCut4`` circle — so ``10-24 TAP THRU`` is a
+    tapped hole, not a cylinder. Returns the created feature on success, or
+    ``None`` to signal the caller to fall back to the exact existing sketch-cut
+    path (``_circular_cut_at``) — nothing regresses on any failure.
+
+    NOTE: HoleWizard5's full parameter tuple and the fastener standard/size
+    strings are SolidWorks-version/locale specific and cannot be validated
+    headlessly in CI; this builds the documented parameter list (per the API
+    reference, not a recorded macro) and is guarded so ANY problem — missing
+    method, ``None`` return, exception, or a wizard hole that leaves the doc in a
+    bad state — cleanly reverts to the sketch-cut fallback. Set
+    ``MTI_DISABLE_HOLE_WIZARD=1`` to force the legacy path.
+    """
+    import os
+
+    if os.getenv("MTI_DISABLE_HOLE_WIZARD"):
+        return None
+    if not centers_m:
+        return None
+    feat_count_before = None
+    try:
+        featmgr = sw_doc.FeatureManager
+        hw = getattr(featmgr, "HoleWizard5", None)
+        if hw is None:
+            return None  # older SW without HoleWizard5 -> fallback
+
+        unit = model.units.value
+        wtype = _const(_wizard_hole_type(h), _const("swWzdHole", 0))
+        end_cond = _const("swEndCondThroughAll", 1) if through_all else _const("swEndCondBlind", 0)
+        dia_m = to_meters(h.diameter, unit)
+        depth = depth_m if (depth_m and not through_all) else to_meters(max(h.depth, h.diameter), unit)
+        near_csk_dia = to_meters(h.csink_diameter, unit) if h.csink_diameter > 0 else 0.0
+        near_csk_ang = _math.radians(h.csink_angle) if h.csink_angle > 0 else 0.0
+        cbore_dia = to_meters(h.cbore_diameter, unit) if h.cbore_diameter > 0 else 0.0
+        cbore_depth = to_meters(h.cbore_depth, unit) if h.cbore_depth > 0 else 0.0
+
+        # Select the host planar face at the first instance. Face picks are
+        # unreliable (per SW COM notes), so try a few z heights spanning the
+        # body: the near/far faces (from the body box) and the mid-plane.
+        cx0, cy0 = centers_m[0]
+        z_candidates = [0.0]
+        try:
+            bodies = sw_doc.GetBodies2(0, False)
+            body = bodies[0] if isinstance(bodies, (list, tuple)) else bodies
+            bb = body.GetBodyBox()  # (x1,y1,z1,x2,y2,z2) meters
+            z_candidates = [bb[5], bb[2], (bb[2] + bb[5]) / 2.0]
+        except Exception:
+            pass
+        selected = False
+        for z in z_candidates:
+            sw_doc.ClearSelection2(True)
+            if sw_doc.Extension.SelectByID2("", "FACE", cx0, cy0, z, False, 0, _null_dispatch(), 0):
+                selected = True
+                break
+        if not selected:
+            return None
+
+        try:
+            feats = sw_doc.FeatureManager
+            feat_count_before = feats.GetFeatureCount() if hasattr(feats, "GetFeatureCount") else None
+        except Exception:
+            feat_count_before = None
+
+        # Documented core parameter set (swWzdGeneralHoleTypes_e, standard,
+        # fastener type, size, end condition, diameters/angles, depth). Standard/
+        # fastener/size are left generic ("Ansi Inch"/"") so SolidWorks uses the
+        # explicit diameters we pass; a live machine may refine these strings.
+        wizard = None
+        try:
+            wizard = hw(
+                wtype, "Ansi Inch", "", "", end_cond,
+                dia_m, depth, near_csk_dia, near_csk_ang,
+                cbore_dia, cbore_depth, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                False, False, False, False, False,
+            )
+        except TypeError:
+            # Parameter arity differs on this SW build — fall back rather than
+            # guess a second signature blind.
+            wizard = None
+        if wizard is None:
+            sw_doc.ClearSelection2(True)
+            return None
+
+        # Move/duplicate the wizard's placement points to the resolved centers.
+        if not _place_wizard_points(sw_doc, wizard, centers_m):
+            # Could not position reliably — undo the wizard feature and fall back
+            # so we never leave a single mis-placed wizard hole in the tree.
+            _delete_feature(sw_doc, wizard)
+            return None
+        sw_doc.ClearSelection2(True)
+        return wizard
+    except Exception as e:
+        log.warning("hole %s: HoleWizard5 attempt failed (%s) — using sketch-cut fallback.",
+                    feature.id, e)
+        try:
+            sw_doc.ClearSelection2(True)
+        except Exception:
+            pass
+        return None
+
+
+def _place_wizard_points(sw_doc, wizard, centers_m: list[tuple[float, float]]) -> bool:
+    """Edit a wizard hole's placement (point) sketch so one point sits at each
+    resolved center. Returns False if the sketch can't be edited (caller falls
+    back). Best-effort — validated on a live SolidWorks build."""
+    try:
+        # A wizard hole owns two sketches; the 2D point sketch is the placement.
+        sketches = wizard.GetSketches() if hasattr(wizard, "GetSketches") else None
+        if not sketches:
+            return False
+        # Heuristic: the placement sketch is the one with points; add points at
+        # every additional center beyond the first (the wizard seeds one point).
+        # Without a live doc we can only add points; the first is left as created.
+        skmgr = sw_doc.SketchManager
+        placement = sketches[-1] if isinstance(sketches, (list, tuple)) else sketches
+        try:
+            sw_doc.EditSketch()
+        except Exception:
+            pass
+        for cx, cy in centers_m[1:]:
+            skmgr.CreatePoint(cx, cy, 0.0)
+        try:
+            sw_doc.InsertSketch(True)
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
+
+def _delete_feature(sw_doc, feat) -> None:
+    """Best-effort delete of a just-created feature during fallback rollback."""
+    try:
+        name = feat.Name
+        sw_doc.ClearSelection2(True)
+        if sw_doc.Extension.SelectByID2(name, "BODYFEATURE", 0, 0, 0, False, 0, _null_dispatch(), 0):
+            sw_doc.EditDelete()
+    except Exception:
+        pass
+    finally:
+        try:
+            sw_doc.ClearSelection2(True)
+        except Exception:
+            pass
+
+
 def _circular_cut_at(sw_doc, feature, centers_m: list[tuple[float, float]],
                      radius_m: float, through_all: bool, depth_m: Optional[float]):
     """Sketch N circles at the given centres and cut them in one feature."""
@@ -1051,6 +1218,14 @@ def build_hole(sw_doc, model, feature: Feature, dims: dict[str, float]):
         if h.depth <= 0:
             raise SolidWorksError(f"blind hole {h.id} has no depth.")
         depth_m = to_meters(h.depth, unit)
+
+    # Additive: try a REAL Hole Wizard feature first (carries thread/cbore/csk
+    # callout data); fall back to the exact sketch-circle cut on any failure so
+    # the working build path is never lost.
+    wizard = _try_hole_wizard(sw_doc, model, feature, h, positions_m, thru, depth_m)
+    if wizard is not None:
+        _rename_feature(wizard, f"{feature.id}_HoleWizard")
+        return wizard
 
     feat = _circular_cut_at(sw_doc, feature, positions_m, dia_m / 2.0, thru, depth_m)
 

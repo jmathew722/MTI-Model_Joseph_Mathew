@@ -56,6 +56,25 @@ _UNIT_TO_MM = {"inch": 25.4, "mm": 1.0, "cm": 10.0}
 DIA_FACE_TOL_MM = 0.001 * 25.4
 
 
+def to_workplane_local(x: float, y: float, k: float) -> tuple[float, float]:
+    """Map a drawing-frame point to top-face workplane-LOCAL coordinates (mm).
+
+    This is the ONE place the origin-frame -> workplane-local transform lives.
+    The build plan's ``positions_xy`` are already rebaselined to the part's
+    bottom-left-origin convention (``coordinate_origin =
+    lower_left_corner_of_base_solid``, +X right / +Y up), and the base solid is
+    extruded from the global XY plane so its lower-left corner sits at the global
+    origin. A top-face workplane created with ``origin=(0, 0, 0)`` therefore has
+    its local origin and axes coincident with that same drawing frame, so the
+    transform is a pure unit scale (drawing units -> mm) with no rotation or
+    offset. Centralizing it here keeps every hole/cut/pattern on the same datum
+    and gives the transform a single unit-tested definition.
+
+    ``k`` is the drawing-unit -> mm factor (``_UNIT_TO_MM[units]``).
+    """
+    return (x * k, y * k)
+
+
 def _steps_in_order(plan: dict) -> list[dict]:
     steps = [s for s in plan.get("steps", [])
              if s.get("type") not in ("setup", "verify", "export", "run_all")
@@ -99,15 +118,18 @@ def build_solid_from_plan(plan: dict):
                 raise ValueError(f"{step.get('feature_id')}: extrude_boss without depth")
             cx, cy = (positions[0] if positions else (0.0, 0.0))
             if dia:
-                base = (cq.Workplane("XY").center(cx * k, cy * k)
+                lx, ly = to_workplane_local(cx, cy, k)
+                base = (cq.Workplane("XY").center(lx, ly)
                         .circle(float(dia) * k / 2.0).extrude(float(depth) * k))
             else:
                 length = dims.get("length") or dims.get("width")
                 width = dims.get("width") or dims.get("length")
                 if not (length and width):
                     raise ValueError(f"{step.get('feature_id')}: extrude_boss needs diameter or length+width")
+                lx, ly = to_workplane_local(cx + float(length) / 2.0,
+                                            cy + float(width) / 2.0, k)
                 base = (cq.Workplane("XY")
-                        .center((cx + float(length) / 2.0) * k, (cy + float(width) / 2.0) * k)
+                        .center(lx, ly)
                         .rect(float(length) * k, float(width) * k)
                         .extrude(float(depth) * k))
             solid = base if solid is None else solid.union(base)
@@ -121,12 +143,14 @@ def build_solid_from_plan(plan: dict):
                 width = dims.get("width") or dims.get("length")
                 if length and width and positions:
                     cx, cy = positions[0]
+                    lx, ly = to_workplane_local(cx + float(length) / 2.0,
+                                                cy + float(width) / 2.0, k)
                     wp2 = (solid.faces(">Z").workplane(origin=(0, 0, 0))
-                           .center((cx + float(length) / 2.0) * k, (cy + float(width) / 2.0) * k)
+                           .center(lx, ly)
                            .rect(float(length) * k, float(width) * k))
                     solid = wp2.cutThruAll() if (thru or not depth) else wp2.cutBlind(-float(depth) * k)
                 continue
-            pts = [(x * k, y * k) for x, y in positions] or None
+            pts = [to_workplane_local(x, y, k) for x, y in positions] or None
             if not pts:
                 continue
             wp2 = (solid.faces(">Z").workplane(origin=(0, 0, 0))
@@ -156,8 +180,9 @@ def build_solid_from_plan(plan: dict):
             # .polarArray(radius, startAngle, angle, count, fill=True): angle is
             # the TOTAL angle when fill=True; count INCLUDES the seed. Cutting
             # the seed's own position again is a no-op by construction.
+            lx, ly = to_workplane_local(cx, cy, k)
             solid = (solid.faces(">Z").workplane(origin=(0, 0, 0))
-                     .center(cx * k, cy * k)
+                     .center(lx, ly)
                      .polarArray(r * k, a0, total, n)
                      .circle(float(dia) * k / 2.0)
                      .cutThruAll())

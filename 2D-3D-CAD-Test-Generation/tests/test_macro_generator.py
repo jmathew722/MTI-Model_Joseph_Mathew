@@ -91,7 +91,7 @@ class TestUnitConversion:
 
     def test_values_written_with_unit_factor(self, package):
         pkg, _ = package
-        base = next(pkg.macros_dir.glob("01_F001_*.vba")).read_text()
+        base = next(pkg.macros_dir.glob("*_F001_*.vba")).read_text()
         # depth 0.5" must be converted via UNIT_FACTOR, never a raw meter literal
         assert "0.5 * UNIT_FACTOR" in base
         # profile uses the extracted length/width
@@ -101,7 +101,7 @@ class TestUnitConversion:
 class TestHoleGeneration:
     def test_pattern_emits_qty_circles(self, package):
         pkg, _ = package
-        holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
+        holes = next(pkg.macros_dir.glob("*_F002_*.vba")).read_text()
         assert holes.count("CreateCircleByRadius") == 4
         # Drawing frame: the 4x2 plate's corner is at the origin, so the unplaced
         # row spans (qty-1)*spacing = 3.0 centered on the plate center (2, 1)
@@ -111,12 +111,12 @@ class TestHoleGeneration:
 
     def test_thru_hole_uses_through_all(self, package):
         pkg, _ = package
-        holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
+        holes = next(pkg.macros_dir.glob("*_F002_*.vba")).read_text()
         assert "swEndCondThroughAll" in holes
 
     def test_position_assumption_flagged(self, package):
         pkg, _ = package
-        holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
+        holes = next(pkg.macros_dir.glob("*_F002_*.vba")).read_text()
         assert "POSITIONS ASSUMED" in holes
 
 
@@ -131,14 +131,14 @@ class TestMachineRobustness:
 
     def test_feature_macros_select_planes_robustly(self, package):
         pkg, _ = package
-        base = next(pkg.macros_dir.glob("01_F001_*.vba")).read_text()
+        base = next(pkg.macros_dir.glob("*_F001_*.vba")).read_text()
         assert "SelectRefPlane" in base
         # Fallback by tree position, never only by hard-coded name:
         assert 'GetTypeName2 = "RefPlane"' in base
 
     def test_cuts_are_direction_proof(self, package):
         pkg, _ = package
-        holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
+        holes = next(pkg.macros_dir.glob("*_F002_*.vba")).read_text()
         # Thru cuts reach material on either side of the sketch plane...
         assert "swEndCondThroughAllBoth" in holes
         # ...and a failed cut is retried once with the direction flipped.
@@ -151,7 +151,7 @@ class TestMachineRobustness:
         """Recorded-macro pattern: feature calls consume the ACTIVE sketch.
         No closing InsertSketch, no name-based sketch reselection."""
         pkg, _ = package
-        for name in ("01_F001_*.vba", "02_F002_*.vba"):
+        for name in ("*_F001_*.vba", "*_F002_*.vba"):
             text = next(pkg.macros_dir.glob(name)).read_text()
             assert text.count("InsertSketch") == 1, name  # open only, never close
             assert 'SelectByID2(sketchName' not in text, name
@@ -185,7 +185,7 @@ class TestMachineRobustness:
 
     def test_base_plate_uses_drawing_frame_corner_rectangle(self, package):
         pkg, _ = package
-        base = next(pkg.macros_dir.glob("01_F001_*.vba")).read_text()
+        base = next(pkg.macros_dir.glob("*_F001_*.vba")).read_text()
         # Corner at the origin so edge-referenced hole positions land in material.
         assert "CreateCornerRectangle 0 * UNIT_FACTOR, 0 * UNIT_FACTOR" in base
         assert "CreateCenterRectangle" not in base
@@ -278,7 +278,7 @@ class TestVbaSafety:
         )
         model, report = run_verification(data)
         pkg = generate_macro_package(model, data, "x", tmp_path)
-        holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
+        holes = next(pkg.macros_dir.glob("*_F002_*.vba")).read_text()
         assert "COUNTERBORE" in holes
         assert "(0.5 / 2#) * UNIT_FACTOR" in holes
         assert "0.2 * UNIT_FACTOR" in holes
@@ -307,7 +307,7 @@ class TestVbaSafety:
         data["hole_callouts"][0].update({"type": "tapped", "thread_spec": "1/4-20 UNC"})
         model, report = run_verification(data)
         pkg = generate_macro_package(model, data, "x", tmp_path)
-        holes = next(pkg.macros_dir.glob("02_F002_*.vba")).read_text()
+        holes = next(pkg.macros_dir.glob("*_F002_*.vba")).read_text()
         assert "1/4-20 UNC" in holes
         assert "Cosmetic Thread" in holes
         # Never model real threads:

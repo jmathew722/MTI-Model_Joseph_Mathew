@@ -281,12 +281,25 @@ Sub Step01_F001()
     WriteMacroResult "F001_Base_plate", "PASS", ""
 End Sub
 
-Sub Step02_F002()
+Sub Step02_F004_Manual()
+    ' ============ MANUAL STEP - NO GEOMETRY IS CREATED HERE ============
+    ' Feature F004 (shell) cannot be scripted reliably.
+    ' Build it by hand in SolidWorks using the drawing and these values:
+    '   height = 0.5 (drawing units)
+    ' Description: Shell body
+    ' When done, re-run this macro so the build log records the step.
+    MsgBox "MANUAL STEP 02_F004: build feature F004 (shell) by hand." & vbCrLf & _
+        "Shell body" & vbCrLf & "See this macro's comments for the extracted values.", _
+        vbExclamation, "Manual step required - F004"
+    LogResult "WARN", "02_F004", "F004 (shell) requires MANUAL modeling - no geometry created"
+End Sub
+
+Sub Step03_F002()
     ' ---- PLANE SELECTION (Front Plane; name auto-detected) ----
     If Not SelectRefPlane("Front Plane", 1) Then
         MsgBox "Could not select Front Plane (no reference plane found).", vbCritical
-        LogResult "FAIL", "02_F002", "Could not select Front Plane (no reference plane found)."
-        WriteMacroResult "02_F002", "FAIL", "Could not select Front Plane (no reference plane found)."
+        LogResult "FAIL", "03_F002", "Could not select Front Plane (no reference plane found)."
+        WriteMacroResult "03_F002", "FAIL", "Could not select Front Plane (no reference plane found)."
         End
     End If
 
@@ -309,8 +322,8 @@ Sub Step02_F002()
     swModel.ClearSelection2 True
     If swModel.SketchManager.ActiveSketch Is Nothing Then
         MsgBox "No active sketch to build the feature from.", vbCritical
-        LogResult "FAIL", "02_F002", "No active sketch to build the feature from."
-        WriteMacroResult "02_F002", "FAIL", "No active sketch to build the feature from."
+        LogResult "FAIL", "03_F002", "No active sketch to build the feature from."
+        WriteMacroResult "03_F002", "FAIL", "No active sketch to build the feature from."
         End
     End If
 
@@ -352,32 +365,19 @@ Sub Step02_F002()
 
     If swFeat Is Nothing Then
         MsgBox "Feature creation returned Nothing - check the sketch.", vbCritical
-        LogResult "FAIL", "02_F002", "Feature creation returned Nothing - check the sketch."
-        WriteMacroResult "02_F002", "FAIL", "Feature creation returned Nothing - check the sketch."
+        LogResult "FAIL", "03_F002", "Feature creation returned Nothing - check the sketch."
+        WriteMacroResult "03_F002", "FAIL", "Feature creation returned Nothing - check the sketch."
         End
     End If
     swFeat.Name = "F002_Mounting_holes"
-    If Not VerifySolidBody("02_F002") Then
+    If Not VerifySolidBody("03_F002") Then
         MsgBox "No solid body after this feature.", vbCritical
-        LogResult "FAIL", "02_F002", "No solid body after this feature."
-        WriteMacroResult "02_F002", "FAIL", "No solid body after this feature."
+        LogResult "FAIL", "03_F002", "No solid body after this feature."
+        WriteMacroResult "03_F002", "FAIL", "No solid body after this feature."
         End
     End If
-    LogResult "PASS", "02_F002", "Created feature F002_Mounting_holes"
+    LogResult "PASS", "03_F002", "Created feature F002_Mounting_holes"
     WriteMacroResult "F002_Mounting_holes", "PASS", ""
-End Sub
-
-Sub Step03_F004_Manual()
-    ' ============ MANUAL STEP - NO GEOMETRY IS CREATED HERE ============
-    ' Feature F004 (shell) cannot be scripted reliably.
-    ' Build it by hand in SolidWorks using the drawing and these values:
-    '   height = 0.5 (drawing units)
-    ' Description: Shell body
-    ' When done, re-run this macro so the build log records the step.
-    MsgBox "MANUAL STEP 03_F004: build feature F004 (shell) by hand." & vbCrLf & _
-        "Shell body" & vbCrLf & "See this macro's comments for the extracted values.", _
-        vbExclamation, "Manual step required - F004"
-    LogResult "WARN", "03_F004", "F004 (shell) requires MANUAL modeling - no geometry created"
 End Sub
 
 Sub Step04_FilletsChamfers()
@@ -494,8 +494,8 @@ Sub main()
     LogResult "INFO", "RUN_ALL", "Starting full build"
     Step00_Setup
     Step01_F001
-    Step02_F002
-    Step03_F004_Manual
+    Step02_F004_Manual
+    Step03_F002
     Step04_FilletsChamfers
     StepZZ_FinalVerify
     StepZZZ_ExportStl
