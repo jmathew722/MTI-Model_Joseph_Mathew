@@ -22,6 +22,7 @@ Windows + SolidWorks 2024 to exercise the COM paths.
 """
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -371,6 +372,38 @@ def _select_plane(sw_doc, sketch_plane: Optional[str]) -> None:
         raise SolidWorksError(f"Could not select sketch plane {name!r}.")
 
 
+def _begin_sketch(sw_doc, sketch_plane: Optional[str], context: str) -> None:
+    """Open a FRESH sketch on the named plane, robust to prior document state.
+
+    ``InsertSketch(True)`` TOGGLES sketch mode, so if a sketch is already active
+    (a prior feature left the doc in sketch mode, or a failed step didn't close
+    cleanly) a naive call CLOSES it and leaves no active sketch — the
+    "Failed to enter sketch mode" failure class seen on multi-hole parts. This
+    guarantees the open by: closing any dangling sketch first, clearing the
+    selection, selecting the plane, opening, and retrying once if needed."""
+    sm = sw_doc.SketchManager
+    # 1) Close any sketch left open by a prior step (toggle it shut), then clear.
+    if sm.ActiveSketch is not None:
+        try:
+            sm.InsertSketch(True)
+        except Exception:
+            pass
+    sw_doc.ClearSelection2(True)
+    # 2) Select the plane and open a new sketch; retry once on failure.
+    for attempt in (1, 2):
+        _select_plane(sw_doc, sketch_plane)
+        sm.InsertSketch(True)
+        if sm.ActiveSketch is not None:
+            return
+        # Failed to open — a stray active sketch may have just been toggled shut;
+        # clear and try again before giving up.
+        sw_doc.ClearSelection2(True)
+    raise SolidWorksError(
+        f"Failed to enter sketch mode for {context} on plane "
+        f"{sketch_plane or 'front'!r} after retrying (document left in an "
+        "unexpected sketch state).")
+
+
 def _verify_sketch_fully_defined(sw_doc) -> None:
     """Verify the active sketch is fully defined before extruding.
 
@@ -500,9 +533,39 @@ def _body_center_xy_m(sw_doc) -> Optional[tuple[float, float]]:
 
 
 def _draw_circles(sw_doc, centers_m: list[tuple[float, float]], radius_m: float) -> None:
-    for cx, cy in centers_m:
-        if sw_doc.SketchManager.CreateCircleByRadius(cx, cy, 0.0, radius_m) is None:
-            raise SolidWorksError("CreateCircleByRadius returned None.")
+    # A finite, positive radius is mandatory — a zero/NaN radius (e.g. a diameter
+    # that never resolved) is one reason SketchManager returns Nothing.
+    if not (isinstance(radius_m, (int, float)) and math.isfinite(radius_m) and radius_m > 0):
+        raise SolidWorksError(
+            f"cannot sketch a circle with radius {radius_m!r} m — the diameter did "
+            "not resolve to a positive value.")
+    # Add entities straight to the sketch DB with inferencing/auto-relations and
+    # per-entity redraw OFF. Programmatic CreateCircleByRadius calls are otherwise
+    # subject to snap/inference resolution that intermittently REJECTS a valid
+    # circle (returns Nothing) — the multi-hole failure class. This is the
+    # documented robust pattern for API-driven sketch geometry; state is always
+    # restored, even on error.
+    ext_ok = hasattr(sw_doc, "SetAddToDB")
+    try:
+        if ext_ok:
+            sw_doc.SetAddToDB(True)
+            try:
+                sw_doc.SetDisplayWhenAdded(False)
+            except Exception:
+                pass
+        for cx, cy in centers_m:
+            if sw_doc.SketchManager.CreateCircleByRadius(cx, cy, 0.0, radius_m) is None:
+                raise SolidWorksError(
+                    f"CreateCircleByRadius returned Nothing for a circle r={radius_m:.5f} m "
+                    f"at ({cx:.5f}, {cy:.5f}) m — the active sketch rejected it (check the "
+                    f"sketch plane/face is valid and the point lies on it).")
+    finally:
+        if ext_ok:
+            try:
+                sw_doc.SetAddToDB(False)
+                sw_doc.SetDisplayWhenAdded(True)
+            except Exception:
+                pass
 
 
 def _bboxes_overlap_xy(a: tuple[float, float, float, float],
@@ -723,10 +786,7 @@ def _delete_feature(sw_doc, feat) -> None:
 def _circular_cut_at(sw_doc, feature, centers_m: list[tuple[float, float]],
                      radius_m: float, through_all: bool, depth_m: Optional[float]):
     """Sketch N circles at the given centres and cut them in one feature."""
-    _select_plane(sw_doc, feature.sketch_plane)
-    sw_doc.SketchManager.InsertSketch(True)
-    if sw_doc.SketchManager.ActiveSketch is None:
-        raise SolidWorksError("Failed to enter sketch mode for hole/cut.")
+    _begin_sketch(sw_doc, feature.sketch_plane, f"hole/cut {feature.id}")
     _draw_circles(sw_doc, centers_m, radius_m)
     _verify_sketch_fully_defined(sw_doc)
     sw_doc.SketchManager.InsertSketch(True)  # close the sketch
@@ -744,10 +804,7 @@ def _circular_cut_at(sw_doc, feature, centers_m: list[tuple[float, float]],
 
 def build_extrude_boss(sw_doc, model, feature: Feature, dims: dict[str, float]):
     """Create the solid base body: a rectangular or circular extruded boss."""
-    _select_plane(sw_doc, feature.sketch_plane)
-    sw_doc.SketchManager.InsertSketch(True)
-    if sw_doc.SketchManager.ActiveSketch is None:
-        raise SolidWorksError("Failed to enter sketch mode for extrude_boss.")
+    _begin_sketch(sw_doc, feature.sketch_plane, f"extrude_boss {feature.id}")
 
     diameter = dims.get("diameter") or dims.get("hole_diameter")
     side_u, side_v = _rect_sides(dims)
@@ -817,10 +874,7 @@ def build_extrude_cut(sw_doc, model, feature: Feature, dims: dict[str, float]):
     if not (side_u and side_v):
         raise SolidWorksError(f"extrude_cut {feature.id} needs diameter or two in-plane sides; got {dims}.")
 
-    _select_plane(sw_doc, feature.sketch_plane)
-    sw_doc.SketchManager.InsertSketch(True)
-    if sw_doc.SketchManager.ActiveSketch is None:
-        raise SolidWorksError("Failed to enter sketch mode for extrude_cut.")
+    _begin_sketch(sw_doc, feature.sketch_plane, f"extrude_cut {feature.id}")
     cx, cy = _feature_center_m(model, feature, circular=False)
     if sw_doc.SketchManager.CreateCornerRectangle(cx, cy, 0, cx + side_u, cy + side_v, 0) is None:
         raise SolidWorksError("CreateCornerRectangle returned None for extrude_cut.")
