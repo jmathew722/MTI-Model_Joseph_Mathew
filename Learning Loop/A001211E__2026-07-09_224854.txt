@@ -1,0 +1,112 @@
+LEARNING LOOP — A001211E
+============================================================
+Run:     2026-07-09 22:48:54
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001211E\output\A001211E
+Fingerprint: 36ac3898a36c9606
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] Callout states '(2) HL'S' for .406 DIA THRU and '(2) HL'S, (3) PL'S' for 10-24 TAP THRU, but only three cross-hair hole symbols are clearly visible in the mid-row of the front view plus one additional symbol near the top step and one near the lower shelf, making it ambiguous which two holes are the .406 dia and which three are the 10-24 taps.
+       -> Zoom into each cross-hair symbol location and correlate with leader line origin points to confirm which 2 holes are .406 DIA and which 3 are 10-24 TAP; verify total hole count equals 5 distinct locations, not overlapping counts.
+   - [MEDIUM] Side view overall height (5.50) does not match front view overall height (4.50); no clear feature in front view accounts for the extra 1.00 shown in side view.
+       -> Check if side view includes a mounting tab, bracket, or extended edge not fully shown in front view outline; verify if 5.50 includes an out-of-plane feature or if it is a drafting discrepancy.
+   - [MEDIUM] The stepped/L-shaped upper-left profile in the front view (steps at 1.88 and 4.38 from left, with additional step downward) has no corresponding hidden or profile line shown in the side view to confirm step depth or height into the page.
+       -> Add or inspect a top view or additional side profile to confirm whether the stepped outline is a through-cut notch or a surface step, since side view only shows thickness .25 with a small notch line that may or may not correspond.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 3, HIGH 4, MEDIUM 11
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (hole): cut F004 positioned OUTSIDE the solid — its profile (0.0647, 0.0505, 0.075, 0.0608) m does not overlap the body (0.0874, 0.0, 0.1748, 0.0889) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part — fix the position upstream (markup review), not the build.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: cut F004 positioned OUTSIDE the solid — its profile (0.0647, 0.0505, 0.075, 0.0608) m does not overlap the body (0.0874, 0.0, 0.1748, 0.0889) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part — fix the position upstream (markup review), not the build.
+       affects: feature F004
+   - [CRITICAL] F005 (build): The .sldprt build SKIPPED feature F005 (hole): hole F005 has no diameter dimension.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: hole F005 has no diameter dimension.
+       affects: feature F005
+   - [CRITICAL] F006 (build): The .sldprt build SKIPPED feature F006 (pattern): pattern F006 has no spacing dimension.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: pattern F006 has no spacing dimension.
+       affects: feature F006
+   - [HIGH] F003 (macro): Macro for F003 (extrude_cut) needs manual review: 03_F003: profile needs a diameter or length+width; got ['height', 'hole_x_position', 'hole_y_position']
+       decision: macro 03_F003_Upper_right_step_cut.vba generated with manual instructions
+       why: 03_F003: profile needs a diameter or length+width; got ['height', 'hole_x_position', 'hole_y_position']
+       affects: feature F003
+   - [HIGH] F005 (macro): Macro for F005 (hole) needs manual review: 05_F005: profile needs a diameter or length+width; got ['hole_x_position', 'hole_y_position']
+       decision: macro 05_F005_10_24_TAP_THRU_holes_3_places.vba generated with manual instructions
+       why: 05_F005: profile needs a diameter or length+width; got ['hole_x_position', 'hole_y_position']
+       affects: feature F005
+   - [HIGH] F006 (macro): Macro for F006 (pattern) needs manual review: Pattern left for manual application (see macro).
+       decision: macro 06_F006_Grouping_note_tapped_holes_at_2_HL_s_3_P.vba generated with manual instructions
+       why: Pattern left for manual application (see macro).
+       affects: feature F006
+   - [HIGH] OV005 (overview): Count shortfall for thread: the overview's callouts total 6, but the build contains 3.
+       decision: build kept its extracted total of 3
+       why: the summed overview callout counts exceed the built total — a group of this feature may be missing (per-group counts that sum to the build total are treated as consistent and NOT flagged)
+       affects: thread total count
+   - [MEDIUM] F002 (feature): POSITION UNRESOLVED for F002: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [MEDIUM] F003 (feature): POSITION UNRESOLVED for F003: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [MEDIUM] F004 (feature): POSITION UNRESOLVED for F004: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [MEDIUM] F005 (feature): POSITION UNRESOLVED for F005: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): Callout states '(2) HL'S' for .406 DIA THRU and '(2) HL'S, (3) PL'S' for 10-24 TAP THRU, but only three cross-hair hole symbols are clearly visible in the mid-row of the front view plus one additional symbol near the top step and one near the lower shelf, making it ambiguous which two holes are the .406 dia and which three are the 10-24 taps. Recommendation: Zoom into each cross-hair symbol location and correlate with leader line origin points to confirm which 2 holes are .406 DIA and which 3 are 10-24 TAP; verify total hole count equals 5 distinct locations, not overlapping counts.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): Side view overall height (5.50) does not match front view overall height (4.50); no clear feature in front view accounts for the extra 1.00 shown in side view. Recommendation: Check if side view includes a mounting tab, bracket, or extended edge not fully shown in front view outline; verify if 5.50 includes an out-of-plane feature or if it is a drafting discrepancy.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The stepped/L-shaped upper-left profile in the front view (steps at 1.88 and 4.38 from left, with additional step downward) has no corresponding hidden or profile line shown in the side view to confirm step depth or height into the page. Recommendation: Add or inspect a top view or additional side profile to confirm whether the stepped outline is a through-cut notch or a surface step, since side view only shows thickness .25 with a small notch line that may or may not correspond.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F004 (hole) skipped: cut F004 positioned OUTSIDE the solid — its profile (0.0647, 0.0505, 0.075, 0.0608) m does not overlap the body (0.0874, 0.0, 0.1748, 0.0889) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part — fix the position upstream (markup review), not the build.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F005 (hole) skipped: hole F005 has no diameter dimension.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F006 (pattern) skipped: pattern F006 has no spacing dimension.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV003 (overview): The overview shows content the checker cannot auto-match: stepped profile cut into top edge of the part, creating an upper shelf and lower shelf at different heights (top edge, right-center area)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F004 FAILED: cut F004 positioned OUTSIDE the solid — its profile (0.0647, 0.0505, 0.075, 0.0608) m does not overlap the body (0.0874, 0.0, 0.1748, 0.0889) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part — fix the position upstream (markup review), not the build.
+   - feature F005 FAILED: hole F005 has no diameter dimension.
+   - feature F006 FAILED: pattern F006 has no spacing dimension.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001211E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001211E\output\A001211E

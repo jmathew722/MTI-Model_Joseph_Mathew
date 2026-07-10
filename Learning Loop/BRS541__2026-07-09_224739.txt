@@ -1,0 +1,60 @@
+LEARNING LOOP — BRS541
+============================================================
+Run:     2026-07-09 22:47:39
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\16247\output\BRS541
+Fingerprint: 4234f1326e584eae
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - overview verification found CRITICAL gap(s)
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side view shows a stepped/relieved edge near the top (small ledge/step in thickness) that has no corresponding callout or visible feature in the front view; it's unclear if this step is a chamfer, a relief cut, or a rebate along the full length or just at one end.
+       -> Check for an additional detail view or note clarifying the extent (full length vs. local) and depth of the stepped edge feature seen in the side view; if only inferred from the .280 stock-fit note, confirm whether this step correlates to the .030-.040 stock allowance mentioned.
+   - [LOW] The .280 dimension with +.010/-.000 tolerance and the note 'ALLOWS .030-.040 STOCK TO FIT AT ASSY' is only shown in the side view region, but it's not clear which specific edge/surface in the front view this thickness/step applies to, since the front view shows only a flat outline without a matching step line.
+       -> Verify against a plan or top view (if one exists on another sheet) whether the .280 dimension is overall thickness or a local step depth, and confirm placement relative to the U-slot ends.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 1, MEDIUM 3
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F003.
+       affects: feature F003
+   - [CRITICAL] OV004 (overview): The overview clearly shows 2x pattern (Repeated identical U-shaped tab/cutout features (top and bottom) symmetric about the vertical centerline, spaced 16.5 in apart, left side, top and bottom) but the build contains no matching feature.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: pattern feature(s) — verify against the drawing
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The .280 dimension with +.010/-.000 tolerance and the note 'ALLOWS .030-.040 STOCK TO FIT AT ASSY' is only shown in the side view region, but it's not clear which specific edge/surface in the front view this thickness/step applies to, since the front view shows only a flat outline without a matching step line. Recommendation: Verify against a plan or top view (if one exists on another sheet) whether the .280 dimension is overall thickness or a local step depth, and confirm placement relative to the U-slot ends.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] F002 (feature): POSITION UNRESOLVED for F002: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view shows a stepped/relieved edge near the top (small ledge/step in thickness) that has no corresponding callout or visible feature in the front view; it's unclear if this step is a chamfer, a relief cut, or a rebate along the full length or just at one end. Recommendation: Check for an additional detail view or note clarifying the extent (full length vs. local) and depth of the stepped edge feature seen in the side view; if only inferred from the .280 stock-fit note, confirm whether this step correlates to the .030-.040 stock allowance mentioned.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureFillet3 returned None for F003.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'BRS541' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\16247\output\BRS541

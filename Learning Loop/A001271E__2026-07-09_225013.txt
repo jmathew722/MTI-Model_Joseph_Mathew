@@ -1,0 +1,56 @@
+LEARNING LOOP — A001271E
+============================================================
+Run:     2026-07-09 22:50:13
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001271E\output\A001271E
+Fingerprint: 45114c94faff53c9
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The front (edge) view only shows two sets of hidden lines (one plain, one stepped) but there are actually 4 counterbored holes and 4 through holes in the top view; because the edge view is a straight-on profile, multiple holes at different Y positions collapse into overlapping hidden lines, making it impossible to independently verify all 8 hole depths/counterbore conditions from the edge view alone.
+       -> Confirm counterbore depth and through-hole condition for all 8 holes via a proper section view or by checking hole callouts; do not rely on the edge view to distinguish individual hole positions.
+   - [LOW] Dimension '15.812 ±.005' spans from the left edge to the right corner-hole centerline, and '17.50' spans the full plate width, but there is no dimension confirming the right-edge margin from the right corner hole to the plate edge, making the counterbore hole position near the right edge indirectly derived rather than directly stated.
+       -> Verify right-edge margin = 17.50 - 15.812 = 1.688 is intended and matches the .844 left margin pattern (asymmetric margins) or check for a missing direct dimension.
+   - [MEDIUM] Inner through-hole Y-offsets of 6.000 and 6.500 (both ±.005) from a common reference appear close but not symmetric about the plate's vertical center (11.250/2 = 5.625), raising a question about whether the inner hole pattern is meant to be symmetric or intentionally offset.
+       -> Double-check the 6.000 and 6.500 dimensions against the plate centerline to confirm whether the inner hole pattern is symmetric or purposely asymmetric relative to plate center.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: HIGH 1, MEDIUM 2, LOW 2
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top): Dimension '15.812 ±.005' spans from the left edge to the right corner-hole centerline, and '17.50' spans the full plate width, but there is no dimension confirming the right-edge margin from the right corner hole to the plate edge, making the counterbore hole position near the right edge indirectly derived rather than directly stated. Recommendation: Verify right-edge margin = 17.50 - 15.812 = 1.688 is intended and matches the .844 left margin pattern (asymmetric margins) or check for a missing direct dimension.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top, front): The front (edge) view only shows two sets of hidden lines (one plain, one stepped) but there are actually 4 counterbored holes and 4 through holes in the top view; because the edge view is a straight-on profile, multiple holes at different Y positions collapse into overlapping hidden lines, making it impossible to independently verify all 8 hole depths/counterbore conditions from the edge view alone. Recommendation: Confirm counterbore depth and through-hole condition for all 8 holes via a proper section view or by checking hole callouts; do not rely on the edge view to distinguish individual hole positions.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (top): Inner through-hole Y-offsets of 6.000 and 6.500 (both ±.005) from a common reference appear close but not symmetric about the plate's vertical center (11.250/2 = 5.625), raising a question about whether the inner hole pattern is meant to be symmetric or intentionally offset. Recommendation: Double-check the 6.000 and 6.500 dimensions against the plate centerline to confirm whether the inner hole pattern is symmetric or purposely asymmetric relative to plate center.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV005 (overview): Surface Finish note: Faint vertical hairline marks near left-center of plate, possibly scribe lines or reference marks, unclear purpose (left-center area of front view).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV006 (overview): Reference/phantom geometry noted: Small dashed feature detail shown in side/edge view near right end, possibly a hidden hole or step not fully dimensioned (right end of edge view).
+       decision: treated as a reference boundary, not built geometry
+       why: dashed/phantom/reference linework is not a solid feature
+       affects: metadata: reference boundary
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001271E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001271E\output\A001271E

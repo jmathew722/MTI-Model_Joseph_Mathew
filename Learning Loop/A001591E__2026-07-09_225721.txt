@@ -1,0 +1,80 @@
+LEARNING LOOP — A001591E
+============================================================
+Run:     2026-07-09 22:57:21
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001591E\output\A001591E
+Fingerprint: 22547c2803beea85
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The callout note states '.218 DR. THRU 8-HOLES' and exactly 8 hole circles are visible in the front view (3 top, 3 bottom, 2 left, 2 right), so the count matches - no discrepancy here, but the McMaster-Carr hardware callout leader points only to ONE hole (top-right) while it is unclear whether this special hardware insert applies to just that hole or should be understood as applying to all 8 holes.
+       -> Check for additional leader lines or a note stating '8 PLACES' near the McMaster-Carr callout; if absent, confirm with engineering whether only one corner hole gets the insert or all 8 holes are identical.
+   - [MEDIUM] The inner dashed rectangle offset .25 from the plate edges in the front view has no corresponding feature (bend, step, lip, or hidden edge) depicted in the side/profile view, which shows only a uniform flat thickness.
+       -> Verify whether the dashed rectangle represents a bend line for a formed lip/flange (which would require a corresponding step in the side view), a hidden/interior feature such as a foam gasket boundary, or purely a reference/keep-out zone with no physical change in geometry.
+   - [MEDIUM] Side view callouts labeled 1, 2, 3 reference dimensions 7.00 IN. and 6.00 IN., but these values do not clearly match any dimension shown in the front view (which uses 8.00, 7.00, 7.500, 3.750, 6.500, 3.250); it's ambiguous what physical locations or features on the plate these callouts identify.
+       -> Trace callouts 1/2/3 to a legend or notes area (possibly cropped off-sheet) to determine if they denote material spec, coating zones, or specific hole/feature indices distinct from the hole pattern.
+   - [LOW] The overall plate height is dimensioned as 7.00 in the front view (right side dimension) which matches the 7.00 IN. label near callout 2 in the side view, but this side-view callout appears positioned near the middle of the length rather than at an end, raising ambiguity about whether it is reiterating the overall dimension or marking a distinct feature location.
+       -> Confirm whether the 7.00 IN. and 6.00 IN. labels in the side view are simply repeating overall envelope dimensions for reference or indicating separate feature positions along the plate's length not otherwise dimensioned.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 2, MEDIUM 4, LOW 2
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout ".12 R. TYP." states 4 instance(s), but the per-view extraction captured hole group(s) of [8] (total 8). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F003.
+       affects: feature F003
+   - [HIGH] OV-004 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The overall plate height is dimensioned as 7.00 in the front view (right side dimension) which matches the 7.00 IN. label near callout 2 in the side view, but this side-view callout appears positioned near the middle of the length rather than at an end, raising ambiguity about whether it is reiterating the overall dimension or marking a distinct feature location. Recommendation: Confirm whether the 7.00 IN. and 6.00 IN. labels in the side view are simply repeating overall envelope dimensions for reference or indicating separate feature positions along the plate's length not otherwise dimensioned.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV004 (overview): Thickness mismatch: the overview's thickness view shows 12.0 but the build's extrude depth is 0.105 (Bottom side view of part).
+       decision: build kept its extracted thickness
+       why: stock-thickness view disagrees with the extrude depth
+       affects: part thickness / extrude depth
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, hardware_callout): The callout note states '.218 DR. THRU 8-HOLES' and exactly 8 hole circles are visible in the front view (3 top, 3 bottom, 2 left, 2 right), so the count matches - no discrepancy here, but the McMaster-Carr hardware callout leader points only to ONE hole (top-right) while it is unclear whether this special hardware insert applies to just that hole or should be understood as applying to all 8 holes. Recommendation: Check for additional leader lines or a note stating '8 PLACES' near the McMaster-Carr callout; if absent, confirm with engineering whether only one corner hole gets the insert or all 8 holes are identical.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The inner dashed rectangle offset .25 from the plate edges in the front view has no corresponding feature (bend, step, lip, or hidden edge) depicted in the side/profile view, which shows only a uniform flat thickness. Recommendation: Verify whether the dashed rectangle represents a bend line for a formed lip/flange (which would require a corresponding step in the side view), a hidden/interior feature such as a foam gasket boundary, or purely a reference/keep-out zone with no physical change in geometry.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): Side view callouts labeled 1, 2, 3 reference dimensions 7.00 IN. and 6.00 IN., but these values do not clearly match any dimension shown in the front view (which uses 8.00, 7.00, 7.500, 3.750, 6.500, 3.250); it's ambiguous what physical locations or features on the plate these callouts identify. Recommendation: Trace callouts 1/2/3 to a legend or notes area (possibly cropped off-sheet) to determine if they denote material spec, coating zones, or specific hole/feature indices distinct from the hole pattern. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV003 (overview): Surface Finish note: Dashed rectangular reference/bend or inner boundary line inset from plate edge, likely indicating an inner flange line or bend region (Inset from outer edge, parallel to plate perimeter).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV006 (overview): Hardware Reference note: Callout reference to hardware 'McMaster-Carr #1117A11 or equiv.' possibly indicating a fastener or standoff feature not fully shown in this view (Upper right corner, partially cut off in overview).
+       decision: attached to part metadata as a hardware reference note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: hardware reference
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureFillet3 returned None for F003.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001591E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001591E\output\A001591E

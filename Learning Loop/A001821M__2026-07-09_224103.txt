@@ -1,0 +1,76 @@
+LEARNING LOOP — A001821M
+============================================================
+Run:     2026-07-09 22:41:03
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001821M\output\A001821M
+Fingerprint: 6f67a202ef30c362
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side view shows the plate thickness as .312, but the front view carries a .375 dimension near the top-right that could be misread as thickness or as an edge-to-hole offset; these are not the same feature but visually could be confused.
+       -> Confirm that .375 in the front view is a horizontal offset dimension for the hole pattern (edge to first hole column) and not a thickness callout; rely on the .312 in the side view as the definitive plate thickness.
+   - [HIGH] No view (section or hidden-line) confirms whether the 7 M6x1 threaded holes and the 6 .422 DIA holes are through-holes or blind; the side/profile view is drawn as a thin strip with a break and does not show hole depth lines for either hole pattern.
+       -> Add or request a section view (e.g., section A-A through a hole row) to confirm through vs blind depth for both the M6x1 tapped holes and the .422 DIA clearance holes.
+   - [MEDIUM] The notched/stepped cutout in the front view (rectangular step on the left-middle edge, dimensioned 2.125 and implied width) has no corresponding profile shown in the side view, which is drawn as a simple uniform rectangular strip with a break - the step depth into the material thickness is not shown.
+       -> Verify whether the notch is a through-cut (full thickness) or a shallow step machined into one face; request an additional side view or section aligned with the notch to clarify.
+   - [LOW] The CFS finish callout in the side view has an ambiguous leader target (pointing near the top edge break) - it is unclear if it governs only that edge or the entire part as implied by common drafting convention for such symbols.
+       -> Confirm with title block or general notes whether CFS applies globally (all surfaces) or only to the specific edge indicated by the leader.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 2, MEDIUM 5, LOW 1
+   - [CRITICAL] F005 (build): The .sldprt build SKIPPED feature F005 (chamfer): chamfer F005 has no distance dimension.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: chamfer F005 has no distance dimension.
+       affects: feature F005
+   - [HIGH] OV-004 (overview_analysis): CROSS-VIEW CONFLICT (side): The CFS finish callout in the side view has an ambiguous leader target (pointing near the top edge break) - it is unclear if it governs only that edge or the entire part as implied by common drafting convention for such symbols. Recommendation: Confirm with title block or general notes whether CFS applies globally (all surfaces) or only to the specific edge indicated by the leader. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F002 (macro): Macro for F002 (extrude_cut) needs manual review: 02_F002: profile needs a diameter or length+width; got ['height']
+       decision: macro 02_F002_Stepped_notch_cutout_on_left_side_width_.vba generated with manual instructions
+       why: 02_F002: profile needs a diameter or length+width; got ['height']
+       affects: feature F002
+   - [MEDIUM] F002 (feature): POSITION UNRESOLVED for F002: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view shows the plate thickness as .312, but the front view carries a .375 dimension near the top-right that could be misread as thickness or as an edge-to-hole offset; these are not the same feature but visually could be confused. Recommendation: Confirm that .375 in the front view is a horizontal offset dimension for the hole pattern (edge to first hole column) and not a thickness callout; rely on the .312 in the side view as the definitive plate thickness.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): No view (section or hidden-line) confirms whether the 7 M6x1 threaded holes and the 6 .422 DIA holes are through-holes or blind; the side/profile view is drawn as a thin strip with a break and does not show hole depth lines for either hole pattern. Recommendation: Add or request a section view (e.g., section A-A through a hole row) to confirm through vs blind depth for both the M6x1 tapped holes and the .422 DIA clearance holes.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The notched/stepped cutout in the front view (rectangular step on the left-middle edge, dimensioned 2.125 and implied width) has no corresponding profile shown in the side view, which is drawn as a simple uniform rectangular strip with a break - the step depth into the material thickness is not shown. Recommendation: Verify whether the notch is a through-cut (full thickness) or a shallow step machined into one face; request an additional side view or section aligned with the notch to clarify. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F005 (chamfer) skipped: chamfer F005 has no distance dimension.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV005 (overview): Surface Finish note: Thin plate side profile showing overall depth .312 with hatch marks indicating hole depths/thread pattern positions along edge (right-side edge view).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F005 FAILED: chamfer F005 has no distance dimension.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001821M' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001821M\output\A001821M

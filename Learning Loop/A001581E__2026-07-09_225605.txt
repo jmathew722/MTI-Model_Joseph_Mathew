@@ -1,0 +1,79 @@
+LEARNING LOOP — A001581E
+============================================================
+Run:     2026-07-09 22:56:05
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001581E\output\A001581E
+Fingerprint: ebcca208252e642c
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The edge/side view is drawn as a simple thin strip with only two small end tabs and does not show the notch cutout, the bolt holes, or hidden lines for hole depth that would be expected if this were a true orthogonal side view of the plate with the notch on one edge.
+       -> Verify whether the edge view is intended as a true projected side view or merely a schematic thickness/gauge callout strip; if a true side view, hidden lines for the through-holes and the notch profile should be added or confirmed absent by design intent.
+   - [LOW] Flagged notes '1' and '2' in the edge view point to specific locations on the strip (left-center and right end) but their referenced dimensions (implied length, and 6.25 IN) are not clearly distinguished as separate features versus restating plan-view dimensions; it is ambiguous whether flag '1' refers to overall length (11.00) or some other feature since no numeric value is given at flag 1 besides an unlabeled leader.
+       -> Confirm with the source drawing/legend what dimension or note flags '1' and '2' actually reference; add explicit values or a note table if these are standard callout flags (e.g., referencing a bend or material spec).
+   - [LOW] 6 holes are called out as '.218 DR. THRU 6-HLS.' and 6 circles are indeed visible in the plan view (3 left, 3 right), so the count matches the drawing — no discrepancy found, but this should be explicitly verified since count-mismatches are a common failure mode.
+       -> No action needed; count confirmed visually consistent with callout.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 4, MEDIUM 4
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (hole): FeatureCut4 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F003.
+       affects: feature F003
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (fillet): FeatureFillet3 returned None for F004.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F004.
+       affects: feature F004
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (side/edge view): Flagged notes '1' and '2' in the edge view point to specific locations on the strip (left-center and right end) but their referenced dimensions (implied length, and 6.25 IN) are not clearly distinguished as separate features versus restating plan-view dimensions; it is ambiguous whether flag '1' refers to overall length (11.00) or some other feature since no numeric value is given at flag 1 besides an unlabeled leader. Recommendation: Confirm with the source drawing/legend what dimension or note flags '1' and '2' actually reference; add explicit values or a note table if these are standard callout flags (e.g., referencing a bend or material spec).
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (top/front (plan) view): 6 holes are called out as '.218 DR. THRU 6-HLS.' and 6 circles are indeed visible in the plan view (3 left, 3 right), so the count matches the drawing — no discrepancy found, but this should be explicitly verified since count-mismatches are a common failure mode. Recommendation: No action needed; count confirmed visually consistent with callout.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV004 (overview): Thickness mismatch: the overview's thickness view shows 12.0 but the build's extrude depth is 1.88 (side view at bottom of sheet).
+       decision: build kept its extracted thickness
+       why: stock-thickness view disagrees with the extrude depth
+       affects: part thickness / extrude depth
+   - [HIGH] OV005 (overview): Thickness mismatch: the overview's thickness view shows 1.0 but the build's extrude depth is 1.88 (side view).
+       decision: build kept its extracted thickness
+       why: stock-thickness view disagrees with the extrude depth
+       affects: part thickness / extrude depth
+   - [MEDIUM] F002 (feature): POSITION UNRESOLVED for F002: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top/front (plan) view, side/edge view): The edge/side view is drawn as a simple thin strip with only two small end tabs and does not show the notch cutout, the bolt holes, or hidden lines for hole depth that would be expected if this were a true orthogonal side view of the plate with the notch on one edge. Recommendation: Verify whether the edge view is intended as a true projected side view or merely a schematic thickness/gauge callout strip; if a true side view, hidden lines for the through-holes and the notch profile should be added or confirmed absent by design intent.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (hole) skipped: FeatureCut4 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F004 (fillet) skipped: FeatureFillet3 returned None for F004.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureCut4 returned None for F003.
+   - feature F004 FAILED: FeatureFillet3 returned None for F004.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001581E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001581E\output\A001581E

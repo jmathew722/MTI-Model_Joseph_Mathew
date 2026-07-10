@@ -1,0 +1,78 @@
+LEARNING LOOP — IE357
+============================================================
+Run:     2026-07-09 22:51:57
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001291E\output\IE357
+Fingerprint: 333c88d6ad933d0f
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side view shows dashed/hidden lines near the top edge that could represent either a through-hole for the mounting screws or a blind counterbore; without a clear section cut through a bolt hole, it's ambiguous whether the 4 holes are straight through or counterbored-blind on one side only.
+       -> Request or infer a sectioned view cutting directly through one of the 4 counterbored holes to confirm full through-hole depth vs blind counterbore depth.
+   - [MEDIUM] The front view shows a clean single 3.500 DIA circle for the center bore, but the side view implies a stepped diameter (3.765 DIA labeled separately, with a thin .094 lip) — it's unclear if this 3.765 DIA is a separate counterbore/rabbet feature on the bore or a different feature (e.g., an ID step) not clearly delineated in the front view.
+       -> Check for an additional hidden circle at 3.765 DIA in the front view (may be obscured by other linework) or confirm via section view that this is an ID rabbet/step, not a separate bore.
+   - [LOW] The note '(4) HLS' calls out 4 holes for the socket head screws, and the front view does show exactly 4 counterbored holes on the bolt circle — count matches, no conflict here, but flagged for verification given handwriting clarity.
+       -> Verify hole count of 4 against the front view circle count (confirmed: 4 holes visible at 12, 3, 6, 9 o'clock-ish positions).
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 4, MEDIUM 4, LOW 1
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (hole): hole F004 has no diameter dimension.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: hole F004 has no diameter dimension.
+       affects: feature F004
+   - [HIGH] D009 (dimension): Multiple readings of D009 are valid; chose the most conservative (0.125, smallest) for counterbore_depth — verify before relying on this feature.
+       decision: resolved value 0.125
+       why: conservative geometry
+       affects: dimension D009
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The note '(4) HLS' calls out 4 holes for the socket head screws, and the front view does show exactly 4 counterbored holes on the bolt circle — count matches, no conflict here, but flagged for verification given handwriting clarity. Recommendation: Verify hole count of 4 against the front view circle count (confirmed: 4 holes visible at 12, 3, 6, 9 o'clock-ish positions).
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F004 (macro): Macro for F004 (hole) needs manual review: 04_F004: profile needs a diameter or length+width; got ['depth', 'thickness']
+       decision: macro 04_F004_Counterbore_for_the_4_socket_head_cap_sc.vba generated with manual instructions
+       why: 04_F004: profile needs a diameter or length+width; got ['depth', 'thickness']
+       affects: feature F004
+   - [HIGH] OV007 (overview): Thickness mismatch: the overview's thickness view shows 0.094 but the build's extrude depth is 0.25 (bottom edge of side view).
+       decision: build kept its extracted thickness
+       why: stock-thickness view disagrees with the extrude depth
+       affects: part thickness / extrude depth
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view shows dashed/hidden lines near the top edge that could represent either a through-hole for the mounting screws or a blind counterbore; without a clear section cut through a bolt hole, it's ambiguous whether the 4 holes are straight through or counterbored-blind on one side only. Recommendation: Request or infer a sectioned view cutting directly through one of the 4 counterbored holes to confirm full through-hole depth vs blind counterbore depth.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The front view shows a clean single 3.500 DIA circle for the center bore, but the side view implies a stepped diameter (3.765 DIA labeled separately, with a thin .094 lip) — it's unclear if this 3.765 DIA is a separate counterbore/rabbet feature on the bore or a different feature (e.g., an ID step) not clearly delineated in the front view. Recommendation: Check for an additional hidden circle at 3.765 DIA in the front view (may be obscured by other linework) or confirm via section view that this is an ID rabbet/step, not a separate bore.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F004 (hole) skipped: hole F004 has no diameter dimension.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV006 (overview): The overview POSSIBLY shows 1x chamfer (Small edge break or chamfer shown in side view near the .250 thick section at top edge, top edge of side view, near .250 dimension) with no matching feature in the build.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: chamfer feature(s) — verify against the drawing
+   - [LOW] OV005 (overview): The overview shows content the checker cannot auto-match: Inner circular step/groove at 3.765 DIA, shown as a thin ring between outer edge and central bore, likely a shallow recess or O-ring groove (concentric with central bore, inside outer diameter)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F004 FAILED: hole F004 has no diameter dimension.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'IE357' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001291E\output\IE357

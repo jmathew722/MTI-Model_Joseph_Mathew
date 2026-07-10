@@ -1,0 +1,104 @@
+LEARNING LOOP — 102
+============================================================
+Run:     2026-07-09 22:59:57
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001611E\output\102
+Fingerprint: 64b110fda6162c4c
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - overview verification found CRITICAL gap(s)
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The front_profile (flat pattern) view shows only 2 sample .218 DR THRU holes with a note 'SPACING & QUANTITY OF HOLES TO SUIT', meaning the actual number of holes around the full 85.68 developed length is undefined/variable, not fixed at 2. This is not a hard conflict but a significant ambiguity that could be misread as a fixed 2-hole count.
+       -> Confirm with engineering/manufacturing what the intended hole spacing and total quantity should be (likely determined by downstream assembly or a separate spec) before fabrication; do not assume only 2 holes.
+   - [MEDIUM] The top view shows the finished formed (rolled) 3D lens-shaped outline with specific corner radii and angles, while the front_profile view is the flat/developed strip; there is no dimension directly tying hole positions to the formed outline's geometry (e.g., relative to the 3.00R corners or 15° facets), making it ambiguous where holes fall relative to the bends.
+       -> Add a note or dimension referencing hole locations relative to bend lines/corners in the formed part, or confirm holes are only needed in straight sections away from bends.
+   - [LOW] Title block and part number are cropped/truncated at the right edge of the sheet, limiting verification of revision, material spec, and full part number.
+       -> Obtain an uncropped scan of the title block to confirm part number, revision, and general tolerance notes.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 5, HIGH 2, MEDIUM 9
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "3.00 R. TYP." states 4 instance(s), but the per-view extraction captured hole group(s) of [2] (total 2). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (extrude_cut): extrude_cut F002 needs diameter or two in-plane sides; got {'depth': 0.1016, 'offset': 0.0127, 'thickness': 0.001524}.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: extrude_cut F002 needs diameter or two in-plane sides; got {'depth': 0.1016, 'offset': 0.0127, 'thickness': 0.001524}.
+       affects: feature F002
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (hole): FeatureCut4 returned None for F004.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F004.
+       affects: feature F004
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F003.
+       affects: feature F003
+   - [CRITICAL] OV004 (overview): The overview clearly shows 2x chamfer (15° TYP angled edges forming the tapered ends of the shape, left and right tapering sides of profile) but the build contains no matching feature.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: chamfer feature(s) — verify against the drawing
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (title_block): Title block and part number are cropped/truncated at the right edge of the sheet, limiting verification of revision, material spec, and full part number. Recommendation: Obtain an uncropped scan of the title block to confirm part number, revision, and general tolerance notes. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F002 (macro): Macro for F002 (extrude_cut) needs manual review: 02_F002: profile needs a diameter or length+width; got ['depth', 'offset', 'thickness']
+       decision: macro 02_F002_Represents_the_side_view_depth_thickness.vba generated with manual instructions
+       why: 02_F002: profile needs a diameter or length+width; got ['depth', 'offset', 'thickness']
+       affects: feature F002
+   - [MEDIUM] F002 (feature): POSITION UNRESOLVED for F002: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [MEDIUM] F004 (feature): POSITION UNRESOLVED for F004: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front_profile): The front_profile (flat pattern) view shows only 2 sample .218 DR THRU holes with a note 'SPACING & QUANTITY OF HOLES TO SUIT', meaning the actual number of holes around the full 85.68 developed length is undefined/variable, not fixed at 2. This is not a hard conflict but a significant ambiguity that could be misread as a fixed 2-hole count. Recommendation: Confirm with engineering/manufacturing what the intended hole spacing and total quantity should be (likely determined by downstream assembly or a separate spec) before fabrication; do not assume only 2 holes.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top_outline, front_profile): The top view shows the finished formed (rolled) 3D lens-shaped outline with specific corner radii and angles, while the front_profile view is the flat/developed strip; there is no dimension directly tying hole positions to the formed outline's geometry (e.g., relative to the 3.00R corners or 15° facets), making it ambiguous where holes fall relative to the bends. Recommendation: Add a note or dimension referencing hole locations relative to bend lines/corners in the formed part, or confirm holes are only needed in straight sections away from bends.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F002 (extrude_cut) skipped: extrude_cut F002 needs diameter or two in-plane sides; got {'depth': 0.1016, 'offset': 0.0127, 'thickness': 0.001524}.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F004 (hole) skipped: FeatureCut4 returned None for F004.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV005 (overview): The overview shows content the checker cannot auto-match: Rounded end cap (semi-circular end) on left side of the profile shape (far left end of top view)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+   - [MEDIUM] OV006 (overview): The overview shows content the checker cannot auto-match: Pointed/angled end (peaked shape) on right side of the profile (far right end of top view)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F002 FAILED: extrude_cut F002 needs diameter or two in-plane sides; got {'depth': 0.1016, 'offset': 0.0127, 'thickness': 0.001524}.
+   - feature F004 FAILED: FeatureCut4 returned None for F004.
+   - feature F003 FAILED: FeatureFillet3 returned None for F003.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '102' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001611E\output\102

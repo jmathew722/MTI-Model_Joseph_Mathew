@@ -1,0 +1,109 @@
+LEARNING LOOP — A001901E
+============================================================
+Run:     2026-07-09 23:03:30
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001901E\output\A001901E
+Fingerprint: 49e92b1819940c32
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The callout states '9 HOLES' with a single leader pointing at one hole, and the top view does show 9 hole symbols (dimensioned at 0,10,20,...,80), so the count matches visually - but there is no side/front/section view showing the plate thickness or a cross-section of the counterbore depth (1.00 DEEP) relative to overall material thickness, so it cannot be confirmed whether the 1.125 DIA hole is a through-hole or blind hole beneath the counterbore.
+       -> Add or locate a side/front section view showing plate thickness and hole profile to confirm the 1.125 DIA hole is a through bore beneath the 1.00 deep counterbore, not a blind pocket.
+   - [CRITICAL] The detail view (bottom left) showing the 7.250 tall rib/tab with 2.50 offsets and 1.750 width has no clear callout or view label tying it to the main 83.00 long bar in the top view. It is unclear if this is an end view, a separate detail of one of the 9 bosses, or an unrelated feature.
+       -> Verify with the source drawing/title block or adjacent notes whether this detail is a projected end view of the bar (showing thickness/height 7.250) or a separate detail callout; check for a view label or section cut line connecting it to the top view.
+   - [MEDIUM] The 4.375 dimension is shown near the second hole (at 20.000) but its purpose (spacing to an edge, to the next hole, or a step feature) is not clearly indicated, and no matching feature appears in any other view.
+       -> Confirm what edge or feature the 4.375 dimension terminates at by checking extension lines in the original full-resolution drawing; look for a step or shoulder that would explain this vertical offset.
+   - [LOW] Overall length is dimensioned as both 80.000 (to last hole) and 83.00 (to the right edge), and the first hole is offset 1.500 from the left edge - these are consistent with each other, but the 6.000 width dimension on the right side is not corroborated by any other width callout elsewhere on the sheet (e.g., near the left end), leaving uniform width unconfirmed along the full 83 length.
+       -> Check for a width dimension near the left end of the bar to confirm constant 6.000 width along the entire 83.00 length.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 4, HIGH 4, MEDIUM 6, LOW 3
+   - [CRITICAL] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top_view, detail_end_view): The detail view (bottom left) showing the 7.250 tall rib/tab with 2.50 offsets and 1.750 width has no clear callout or view label tying it to the main 83.00 long bar in the top view. It is unclear if this is an end view, a separate detail of one of the 9 bosses, or an unrelated feature. Recommendation: Verify with the source drawing/title block or adjacent notes whether this detail is a projected end view of the bar (showing thickness/height 7.250) or a separate detail callout; check for a view label or section cut line connecting it to the top view. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 3 PLACE DIM ±.010, 2 PLACE DIM ±.020, ANGULAR DIM ±1°, SCALE 1=4" states 3 instance(s), but the per-view extraction captured hole group(s) of [9] (total 9). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (hole): FeatureCut4 returned None for F003.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F003.
+       affects: feature F003
+   - [CRITICAL] F005 (build): The .sldprt build SKIPPED feature F005 (extrude_cut): FeatureCut4 returned None for F005.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F005.
+       affects: feature F005
+   - [HIGH] D021 (dimension): Multiple readings of D021 are valid; chose the most conservative (0.06, smallest) for fillet_radius — verify before relying on this feature.
+       decision: resolved value 0.06
+       why: conservative geometry
+       affects: dimension D021
+   - [HIGH] F005 (feature): F005 centered on the parent: the drawing shows symmetry (centerline / symmetry relationship) and no offset, so the center is the defensible placement — verify in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [HIGH] OV-004 (overview_analysis): CROSS-VIEW CONFLICT (top_view): Overall length is dimensioned as both 80.000 (to last hole) and 83.00 (to the right edge), and the first hole is offset 1.500 from the left edge - these are consistent with each other, but the 6.000 width dimension on the right side is not corroborated by any other width callout elsewhere on the sheet (e.g., near the left end), leaving uniform width unconfirmed along the full 83 length. Recommendation: Check for a width dimension near the left end of the bar to confirm constant 6.000 width along the entire 83.00 length.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F003 (macro): Macro for F003 (hole) needs manual review: 03_F003: profile needs a diameter or length+width; got ['cbore_depth', 'cbore_diameter']
+       decision: macro 03_F003_Counterbore_for_each_of_9_holes_1_625_DI.vba generated with manual instructions
+       why: 03_F003: profile needs a diameter or length+width; got ['cbore_depth', 'cbore_diameter']
+       affects: feature F003
+   - [MEDIUM] F003 (feature): POSITION UNRESOLVED for F003: no location dimension and no symmetry evidence on the drawing. Routed to markup review — box the feature center and its X/Y dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color group is authoritative). Until then it is placed at the parent center as a LAST-RESORT guess that will likely be wrong.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top_view): The callout states '9 HOLES' with a single leader pointing at one hole, and the top view does show 9 hole symbols (dimensioned at 0,10,20,...,80), so the count matches visually - but there is no side/front/section view showing the plate thickness or a cross-section of the counterbore depth (1.00 DEEP) relative to overall material thickness, so it cannot be confirmed whether the 1.125 DIA hole is a through-hole or blind hole beneath the counterbore. Recommendation: Add or locate a side/front section view showing plate thickness and hole profile to confirm the 1.125 DIA hole is a through bore beneath the 1.00 deep counterbore, not a blind pocket.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (top_view): The 4.375 dimension is shown near the second hole (at 20.000) but its purpose (spacing to an edge, to the next hole, or a step feature) is not clearly indicated, and no matching feature appears in any other view. Recommendation: Confirm what edge or feature the 4.375 dimension terminates at by checking extension lines in the original full-resolution drawing; look for a step or shoulder that would explain this vertical offset.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (hole) skipped: FeatureCut4 returned None for F003.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F005 (extrude_cut) skipped: FeatureCut4 returned None for F005.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F006: fillet applied to 75 edges (all edges); verify against the drawing (selective fillets need the interactive macro).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] D020 (dimension): Resolved D020 to 2.25 — the only reading that closes chain D016+D017+D020+D018; verify against the drawing callout.
+       decision: resolved value 2.25
+       why: arithmetic chain
+       affects: dimension D020 (chain D016+D017+D020+D018)
+   - [LOW] OV005 (overview): The overview shows content the checker cannot auto-match: Heat treated surfaces (HDN 'H' LGTH, 3 SURFACES) per note, RKW C 58 min, .125 min depth - treatment applied to 3 unspecified surfaces (surfaces per heat treatment note, exact locations not visible)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+   - [LOW] OV006 (overview): Reference/phantom geometry noted: Datum reference features A and B with associated GD&T callouts (flatness, parallelism, perpendicularity symbols) shown in lower detail view (lower left detail view).
+       decision: treated as a reference boundary, not built geometry
+       why: dashed/phantom/reference linework is not a solid feature
+       affects: metadata: reference boundary
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureCut4 returned None for F003.
+   - feature F005 FAILED: FeatureCut4 returned None for F005.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'A001901E' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_Joseph_Mathew\2D-3D-CAD-Test-Generation\webapp\parts\ae419e0f8216\A001901E\output\A001901E
