@@ -163,22 +163,34 @@ class TestPositionDemotion:
         ]
         d["confidence"] = 0.9
         d["hole_callouts"] = [{"id": "H1", "type": "thru", "diameter": 0.25, "qty": 1}]
+        # F002 has a diameter (so the ONLY thing missing is its position) — isolates
+        # the P3 position-exclusion path from the P1 missing-driving-dim path.
+        d["dimensions"].append(
+            {"id": "D050", "type": "diameter", "value": 0.25, "unit": "inch", "applies_to": "hole_diameter"})
         d["features"] = [
             {"id": "F001", "type": "extrude_boss", "description": "plate",
              "related_dimensions": ["D001", "D002"], "depth_dimension_id": "D003", "position_known": True},
-            {"id": "F002", "type": "hole", "description": "a hole", "parent_feature": "F001"},
+            {"id": "F002", "type": "hole", "description": "a hole", "parent_feature": "F001",
+             "related_dimensions": ["D050"]},
         ]
         d["build_order"] = ["F001", "F002"]
         d["relationships"] = ({"symmetry": [{"plane": "Front", "feature_ids": ["F002"]}]}
                               if symmetric else {})
         return d
 
-    def test_no_symmetry_routes_to_markup(self):
+    def test_no_symmetry_is_excluded_not_center_guessed(self):
+        # P3 (2026-07-10): position-unresolved cut/hole is EXCLUDED from the build
+        # (no parent-center guess) and surfaced as a Tab-3 model-derived assumption.
         res = resolve_extraction(self._hole_no_position(symmetric=False))
         fres = res.feature_resolutions["F002"]
-        assert fres.position_assumption == "needs_markup_review" and fres.flag_tier == "MEDIUM"
+        assert fres.position_assumption == "needs_markup_review"
+        assert fres.build_status == "excluded"
+        assert "F002" not in res.resolved_extraction["build_order"]
         flag = next(f for f in res.flags if f["dimension_id"] == "F002")
-        assert flag.get("route_to_markup") is True and flag.get("source") == "position_unresolved"
+        assert flag.get("source") == "position_unresolved"
+        assert flag.get("excluded_from_build") is True
+        assert flag["flag_tier"] == "CRITICAL"
+        assert "Tab-1" not in flag["human_note"]
 
     def test_symmetric_feature_stays_centered_low(self):
         res = resolve_extraction(self._hole_no_position(symmetric=True))

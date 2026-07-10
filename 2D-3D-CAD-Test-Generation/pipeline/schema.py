@@ -84,6 +84,16 @@ _FEATURE_ALIASES = {
     "lathe": "revolve",
     "mirrored": "mirror",
     "mirror_feature": "mirror",
+    # Pattern sub-kinds Claude emits — canonicalized to the single PATTERN type.
+    # (The circular-vs-linear routing is decided downstream from geometry, not the
+    # feature type name.) Keeps a "circular_pattern" feature from failing schema
+    # validation and silently taking the value-only fallback (which skips the
+    # Stage 2.5 completeness gate) — learning-loop 2026-07-10, P1.
+    "circular_pattern": "pattern",
+    "linear_pattern": "pattern",
+    "circular pattern": "pattern",
+    "linear pattern": "pattern",
+    "bolt_circle": "pattern",
 }
 
 

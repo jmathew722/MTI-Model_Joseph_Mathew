@@ -31,6 +31,7 @@ Public entry point: :func:`resolve_extraction`.
 from __future__ import annotations
 
 import copy
+import re as _re
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -355,6 +356,25 @@ _OVERVIEW_SEVERITY_TO_TIER = {
     "CRITICAL": "CRITICAL", "HIGH": "MEDIUM", "MEDIUM": "MEDIUM", "LOW": "LOW",
 }
 
+# P7 — inspection-balloon signatures: circled numerals with an optional sheet
+# subscript ("1/1", "2/1", "2/2"), and inspection values suffixed "IN." A conflict
+# that is really about a balloon reference is not a geometry disagreement.
+_BALLOON_TAG_RE = _re.compile(r"\b\d{1,2}\s*/\s*\d{1,2}\b")
+_BALLOON_IN_RE = _re.compile(r"\d+(?:\.\d+)?\s*IN\.", _re.IGNORECASE)
+_BALLOON_WORD_RE = _re.compile(r"\b(balloon|inspection|bubble|circled\s+numeral)\b", _re.IGNORECASE)
+
+
+def _is_inspection_balloon_conflict(text: str) -> bool:
+    """True when a cross-view conflict is really about an inspection balloon
+    (circled numeral / 'IN.' value / the words balloon|inspection) rather than a
+    competing geometry dimension."""
+    t = text or ""
+    if _BALLOON_WORD_RE.search(t):
+        return True
+    # A '1/1'-style tag plus an inspection-style 'N.NN IN.' value together are a
+    # strong balloon signature (either alone is too weak — dates, fractions).
+    return bool(_BALLOON_TAG_RE.search(t) and _BALLOON_IN_RE.search(t))
+
 
 def _overview_flags(overview: dict, raw: dict) -> list[dict[str, Any]]:
     """Build-plan flags contributed by the Stage 1.5 holistic overview analysis.
@@ -382,6 +402,26 @@ def _overview_flags(overview: dict, raw: dict) -> list[dict[str, Any]]:
         views = ", ".join(c.get("views_involved", []) or [])
         tier = _OVERVIEW_SEVERITY_TO_TIER.get(
             str(c.get("severity", "")).upper(), "MEDIUM")
+        # P7 (2026-07-10): an inspection-balloon reference (circled numeral like
+        # "1/1", "2/1", leader-attached, value suffixed "IN.") is NOT a competing
+        # geometry dimension — comparing it to extracted geometry fired false HIGH
+        # conflicts (A001561E 11.00 vs 10.00). Recognize it, DOWNGRADE to a LOW
+        # informational note, and never let it gate as a dimension conflict.
+        if _is_inspection_balloon_conflict(f"{desc} {rec}"):
+            flags.append({
+                "dimension_id": f"OV-{i:03d}",
+                "flag_tier": "LOW",
+                "human_note": (f"INSPECTION-BALLOON REFERENCE ({views or 'sheet'}): {desc} "
+                               f"Recognized as an inspection dimension balloon (circled numeral / "
+                               f"'IN.' value), attached to part metadata — NOT a competing geometry "
+                               f"dimension, so it is excluded from dimension-conflict reconciliation."),
+                "macro_behavior": behavior_for_tier("LOW"),
+                "resolved_by_tier": TIER_OVERVIEW,
+                "source": "overview_analysis",
+                "inspection_balloon": True,
+                "request_full_sheet": True,
+            })
+            continue
         note = f"CROSS-VIEW CONFLICT ({views or 'sheet'}): {desc}"
         if rec:
             note += f" Recommendation: {rec}"
@@ -409,14 +449,21 @@ def _overview_flags(overview: dict, raw: dict) -> list[dict[str, Any]]:
     # The count comes from the note's resolved_count, else is parsed from the note
     # text with the SHARED quantity-language parser (so the overview and
     # extraction read "(6) HL'S" / "6-HOLES" / "4 PLACES" identically).
-    from pipeline.callout_qty import parse_quantity
+    from pipeline.callout_qty import classify_callout, parse_quantity
 
     holes = raw.get("hole_callouts", []) or []
     qtys = [int(h.get("qty") or 0) for h in holes]
     for note_obj in overview.get("global_notes", []) or []:
+        note_raw = note_obj.get("note") or ""
+        # P5 (2026-07-10): type the callout before counting. A RADIUS callout
+        # (e.g. ".12 R. TYP." — a corner round on 4 corners) is not a hole and
+        # must NOT be reconciled against the hole count (A001591E false CRITICAL).
+        # It reconciles against fillet features instead.
+        if classify_callout(note_raw) == "radius":
+            continue
         count = note_obj.get("resolved_count")
         if not isinstance(count, int) or count <= 0:
-            parsed = parse_quantity(note_obj.get("note") or "", default=0)
+            parsed = parse_quantity(note_raw, default=0)
             count = parsed if parsed > 0 else None
         if not isinstance(count, int) or count <= 0 or not holes:
             continue
@@ -455,6 +502,71 @@ def _needs_resolution(dim: dict) -> bool:
     )
 
 
+def _decimal_shift_candidates(dim: dict) -> list[float]:
+    """Candidate values for P6 decimal-plausibility. Uses the model's explicit
+    alternatives when it gave ≥2, else — for a reading the model marked as
+    decimal-ambiguous ("312" with no visible point) — generates the order-of-
+    magnitude shifts of the digits so plausibility can separate them."""
+    cands = _candidates(dim)
+    if len(cands) >= 2:
+        return cands
+    reason = (dim.get("ambiguity_reason") or "").lower()
+    if cands and any(k in reason for k in ("decimal", "no point", "point", "magnitude")):
+        base = cands[0]
+        shifts = {round(base * f, 4) for f in (0.001, 0.01, 0.1, 1.0, 10.0)}
+        return sorted(x for x in shifts if x > 0)
+    return cands
+
+
+def _decimal_plausibility(dim: dict, model: DrawingData) -> Optional["DimResolution"]:
+    """Resolve an ambiguous numeral by plausibility (P6/P10). Returns a resolution
+    when there are ≥2 candidates to choose between, else None (caller falls
+    through). A clear winner is MEDIUM; a genuine tie is CRITICAL (and the
+    completeness gate excludes the dependent feature)."""
+    import math
+
+    cands = _decimal_shift_candidates(dim)
+    if len(cands) < 2:
+        return None
+    dim_id = dim.get("id", "?")
+    token = canonicalize_applies_to(dim.get("applies_to", ""))
+    units = model.units.value if hasattr(model.units, "value") else str(model.units)
+    others = [d.value for d in model.dimensions
+              if d.value > 0 and not d.value_unclear and d.id != dim_id]
+
+    def _score(c: float) -> float:
+        s = 0.0
+        if others:
+            lo, hi = min(others), max(others)
+            if lo * 0.5 <= c <= hi * 2.0:               # (a) geometric self-consistency
+                s += 2.0
+            med = sorted(others)[len(others) // 2]
+            s += -abs(math.log10(c) - math.log10(med))  # closeness to typical magnitude
+            frac_sub1 = sum(1 for o in others if o < 1.0) / len(others)
+            if frac_sub1 >= 0.5 and c < 1.0:            # (b) sheet leading-dot formatting
+                s += 1.0
+        if token in ("diameter", "hole_diameter"):       # (c) standard drill/stock tiebreak
+            from pipeline.drill_sizes import is_standard_drill
+            c_in = c if str(units).startswith("inch") else c / 25.4
+            if is_standard_drill(c_in):
+                s += 1.5
+        return s
+
+    scored = sorted(((_score(c), c) for c in cands), key=lambda t: t[0], reverse=True)
+    (top_s, top_c), (second_s, _) = scored[0], scored[1]
+    shown = [_fmt(c) for c in cands]
+    if top_s - second_s >= 1.0:
+        note = (f"Resolved {dim_id} to {_fmt(top_c)} by decimal-plausibility "
+                f"(sheet magnitude/formatting"
+                + (" + standard drill" if token in ("diameter", "hole_diameter") else "")
+                + f"); candidates {shown} — verify against the callout.")
+        return DimResolution(dim_id, top_c, True, "decimal_plausibility", [], 0.72, "MEDIUM", note)
+    note = (f"{dim_id} decimal placement AMBIGUOUS among {shown}; plausibility could not "
+            f"separate them. Kept {_fmt(top_c)} as a best guess and the dependent feature is "
+            f"excluded from the build (Tab-3 assumption) — confirm the value and re-run.")
+    return DimResolution(dim_id, top_c, True, "ambiguous_multi_candidate", [], 0.30, "CRITICAL", note)
+
+
 def _resolve_dimension(dim: dict, model: DrawingData,
                        spec_vals: Optional[list[tuple[float, str]]] = None) -> DimResolution:
     dim_id = dim.get("id", "?")
@@ -474,6 +586,17 @@ def _resolve_dimension(dim: dict, model: DrawingData,
                                  chain_ids, 0.97, "HIGH", note)
         note = f"{dim_id} ({_fmt(cands[0])}) read directly from the drawing callout — no action needed."
         return DimResolution(dim_id, cands[0], False, "explicit_callout", [], 0.92, "HIGH", note)
+
+    # --- P10(b): STOCK / (STOCK TOL.) qualifier ---
+    # A stock dimension is the finished stock envelope with a loose mill tolerance.
+    # Take its value as authoritative (finished envelope by default) and record the
+    # stock qualifier as metadata — it is exempt from tight-tolerance ambiguity
+    # routing (A001621E 3.50, .50 must not be flagged as tight-tol conflicts).
+    if cands and _is_stock_dim(dim):
+        note = (f"{dim_id} = {_fmt(cands[0])} carries a STOCK/(STOCK TOL.) qualifier — treated as "
+                f"the finished stock envelope; the loose stock tolerance is recorded as metadata "
+                f"and exempt from tight-tolerance flags.")
+        return DimResolution(dim_id, cands[0], False, "stock_dimension", [], 0.90, "HIGH", note)
 
     # Did the model offer genuine ALTERNATIVE readings to choose between?
     has_alternatives = len(cands) >= 2
@@ -503,6 +626,16 @@ def _resolve_dimension(dim: dict, model: DrawingData,
             )
             return DimResolution(dim_id, closing, True, "arithmetic_chain",
                                  chain_ids, 0.88, "HIGH", note)
+
+    # --- STEP 1.5: decimal-plausibility (P6/P10, 2026-07-10) ---
+    # When several readings survive (a decimal-placement ambiguity like "312" ->
+    # .312 / 3.12 / 31.2, or genuine multi-readings), choose by PLAUSIBILITY —
+    # sheet magnitude/formatting consistency + standard drill/stock tiebreaks —
+    # NOT by "most conservative" (which is just a differently-shaped guess). A
+    # clear winner resolves MEDIUM; a tie stays CRITICAL and gates the feature.
+    plaus = _decimal_plausibility(dim, model)
+    if plaus is not None:
+        return plaus
 
     # An illegible reading with NOTHING to cross-check (no closing chain, no
     # alternative candidates) is the most dangerous case: we keep the single best
@@ -598,7 +731,14 @@ def _resolve_feature(feat: dict, model: DrawingData) -> FeatureResolution:
     ftype = (feat.get("type") or "").lower()
     if ftype in ("hole", "thread"):
         h = model.hole_callout_for_feature(fid)
-        if h is not None and (h.instance_positions or h.position_known):
+        if h is not None and (
+            h.instance_positions or getattr(h, "position_known", False)
+            # A bolt-circle / multi-instance pattern IS positioned by its bolt
+            # circle — do NOT route it to position review (would wrongly exclude
+            # a fully-specified circular pattern, e.g. must-meet F003, under P3).
+            or (getattr(h, "bolt_circle_diameter", 0) or 0) > 0
+            or int(getattr(h, "qty", 1) or 1) >= 2
+        ):
             position_known = True
 
     if position_known or has_offset:
@@ -631,14 +771,38 @@ def _resolve_feature(feat: dict, model: DrawingData) -> FeatureResolution:
             f"symmetry relationship) and no offset, so the center is the defensible "
             f"placement — verify in SolidWorks.",
         )
+    # P3 (2026-07-10): the parent-center LAST-RESORT guess is gone. A cut/hole
+    # whose position is genuinely unknown was centered before and could land
+    # entirely off the solid (A001211E F004). A knowingly-unplaceable feature is
+    # now EXCLUDED from the build by the completeness gate and surfaced as a
+    # Tab-3 model-derived assumption — a missing feature flagged loudly beats a
+    # hole in the wrong place. The attempts made before giving up are logged.
+    attempts = _log_position_attempts(feat, model)
     return FeatureResolution(
-        fid, "build", False, "needs_markup_review", "MEDIUM",
-        f"POSITION UNRESOLVED for {fid}: no location dimension and no symmetry evidence "
-        f"on the drawing. Routed to markup review — box the feature center and its X/Y "
-        f"dimensions in the Tab-1 markup tool (a center + x-dimension + y-dimension color "
-        f"group is authoritative). Until then it is placed at the parent center as a "
-        f"LAST-RESORT guess that will likely be wrong.",
+        fid, "build", False, "needs_markup_review", "CRITICAL",
+        f"POSITION UNRESOLVED for {fid}: no location dimension and no symmetry "
+        f"evidence on the drawing. Tried: {attempts}. It will be EXCLUDED from the "
+        f"model (not placed at a guessed center) and recorded as a Tab-3 model-derived "
+        f"assumption — add an X and/or Y location dimension on the drawing and re-run.",
     )
+
+
+def _log_position_attempts(feat: dict, model: DrawingData) -> str:
+    """P3(d): before declaring a position UNRESOLVED, record which inference
+    routes were attempted and why they failed, so the next learning-loop cycle can
+    tell a genuinely undimensioned feature from an association miss."""
+    fid = feat.get("id", "?")
+    notes: list[str] = []
+    # 1) extension-line tracing from any unassociated linear dimension.
+    unassoc = [d for d in model.dimensions
+               if (d.canonical_applies_to in ("length", "width") and d.value > 0
+                   and fid not in (getattr(d, "feature_ref", "") or ""))]
+    notes.append(f"extension-line tracing from {len(unassoc)} unassociated linear dim(s) "
+                 f"(no leader reached {fid}'s centerline)")
+    # 2) symmetry inference from centerline marks.
+    notes.append("symmetry inference (no centerline/symmetry relationship names this feature)")
+    log.info("position attempts for %s: %s", fid, "; ".join(notes))
+    return "; ".join(notes)
 
 
 def _has_symmetry_evidence(feat: dict, model: DrawingData) -> bool:
@@ -732,8 +896,6 @@ def _ensure_buildable_extrudes(resolved: dict, model: DrawingData, result: "Reso
             rel.append(new_id)
 
 
-import re as _re
-
 _TYP_RE = _re.compile(r"\btyp(ical)?\b", _re.IGNORECASE)
 
 
@@ -744,6 +906,17 @@ def _dim_is_typ(dim: dict) -> bool:
     blob = " ".join(str(dim.get(k, "")) for k in
                     ("notes", "ambiguity_reason", "applies_to", "label", "raw_text"))
     return bool(_TYP_RE.search(blob))
+
+
+_STOCK_RE = _re.compile(r"\bstock\b", _re.IGNORECASE)
+
+
+def _is_stock_dim(dim: dict) -> bool:
+    """P10(b): True if a dimension carries a STOCK / (STOCK TOL.) qualifier — a
+    finished stock-envelope value with a loose mill tolerance (A001621E 3.50, .50)."""
+    blob = " ".join(str(dim.get(k, "")) for k in
+                    ("notes", "ambiguity_reason", "applies_to", "label", "raw_text"))
+    return bool(_STOCK_RE.search(blob))
 
 
 def _propagate_typ(resolved: dict, result: "ResolutionResult") -> None:
@@ -847,91 +1020,312 @@ def _illegible_diameter_flags(resolved: dict, result: "ResolutionResult") -> lis
             "human_note": (
                 f"ILLEGIBLE DIAMETER {dim.get('id', '?')} = {_fmt(val)}: read at low confidence "
                 f"and NOT a standard drill size (nearest {near:.4f} in, off by {diff:.4f} in). "
-                f"Do not build on this guess — box the diameter callout in the Tab-1 markup tool "
-                f"and transcribe it, then re-run. Routed to markup review."),
+                f"Do not build on this guess — it is surfaced as a Tab-3 model-derived assumption; "
+                f"confirm the diameter callout on the drawing and re-run."),
             "macro_behavior": behavior_for_tier("CRITICAL"),
             "resolved_by_tier": TIER_PER_VIEW,
             "source": "illegible_dimension",
+            "model_derived_assumption": True,
             "route_to_markup": True,
         })
     return flags
 
 
-def _incomplete_cut_profile_flags(resolved: dict) -> list[dict[str, Any]]:
-    """Fix 2.4 (learning-loop 2026-07-09: A001821M F004 'profile needs a diameter
-    or length+width; got [height]' ×3; A001211E F005). An extrude cut/boss whose
-    profile has neither a diameter nor BOTH in-plane sides can't be sketched. Do
-    not emit a known-incomplete macro silently every run — surface it as a
-    CRITICAL review item naming the missing parameter, routed to markup (box the
-    two chain dimensions that bound the notch)."""
-    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
-    flags: list[dict[str, Any]] = []
-    for feat in resolved.get("features", []) or []:
-        if (feat.get("type") or "").lower() not in ("extrude_cut", "extrude_boss"):
-            continue
-        rel = list(feat.get("related_dimensions", []) or [])
-        tokens = {canonicalize_applies_to((dims_by_id.get(r) or {}).get("applies_to", ""))
-                  for r in rel if (dims_by_id.get(r) or {}).get("value", 0) > 0}
-        has_diameter = bool(tokens & {"diameter", "hole_diameter"})
-        has_rect = ("length" in tokens) and ("width" in tokens)
-        if has_diameter or has_rect:
-            continue
-        fid = feat.get("id", "?")
-        missing = "width" if "length" in tokens else ("length" if "width" in tokens else "length+width")
-        flags.append({
-            "dimension_id": fid,
-            "flag_tier": "CRITICAL",
-            "human_note": (
-                f"INCOMPLETE CUT PROFILE for {fid}: has {sorted(t for t in tokens if t)} but needs "
-                f"a diameter OR both length+width — missing {missing}. A notch width is often the "
-                f"difference of two chain dimensions; box those two dimensions (or the missing "
-                f"{missing}) in the Tab-1 markup tool and transcribe, then re-run. Routed to markup."),
-            "macro_behavior": behavior_for_tier("CRITICAL"),
-            "resolved_by_tier": TIER_PER_VIEW,
-            "source": "incomplete_profile",
-            "route_to_markup": True,
-        })
-    return flags
+# --------------------------------------------------------------------------- #
+# P1 (2026-07-10) — Universal missing-dimension completeness gate
+#
+# REGRESSION ROOT CAUSE. The prior fixes (Fix 2.1 dimensionless fillet/chamfer,
+# Fix 2.4 incomplete cut profile) only APPENDED a CRITICAL flag. Per this
+# module's stated invariant ("Every feature gets build_status == 'build'. No
+# skip/defer/omit."), the feature kept build_status='build' and stayed in
+# build_order, so macro_generator AND the COM builder still emitted/attempted it
+# — A001821M's chamfer F005 skipped/failed on six consecutive runs, and
+# A001211E's dimensionless hole/pattern reached the build and failed there. The
+# flag never gated. This gate closes the path: a feature whose driving dimension
+# is genuinely missing after every resolution step is REMOVED from build_order
+# (the single choke point macro_generator, solidworks_builder, and the CadQuery
+# build plan all iterate), so it can never appear as a build/macro step, and is
+# surfaced instead as a Tab-3 model-derived assumption. Base bodies are never
+# excluded (an excluded base = no model at all — the worst outcome); their
+# thickness is synthesized upstream by _ensure_buildable_extrudes.
+# --------------------------------------------------------------------------- #
+_PROFILE_CUT_TYPES = ("extrude_cut", "slot", "cutout", "pocket",
+                      "counterbore", "countersink")
+_PATTERN_TYPES = ("circular_pattern", "linear_pattern", "pattern")
+# What each feature type must have before it can be sketched/built.
+_DRIVING_LABEL = {
+    "fillet": "radius", "chamfer": "distance",
+    "hole": "diameter", "thread": "diameter",
+}
 
 
-def _dimensionless_feature_flags(resolved: dict) -> list[dict[str, Any]]:
-    """Fix 2.1 (regression: A001821M chamfer F005 'no distance dimension' ×3;
-    A001211E fillet F006). A fillet with no radius, or a chamfer with no distance
-    (even after TYP propagation), must NOT be built blindly — surface it as a
-    CRITICAL review item routed to the Tab-1 markup queue so a human transcribes
-    the radius/distance, rather than the build silently skipping it every run."""
+def _present_tokens(feat: dict, dims_by_id: dict) -> set[str]:
+    """Canonical applies_to tokens the feature actually carries a value for."""
+    rel = list(feat.get("related_dimensions", []) or [])
+    did = feat.get("depth_dimension_id")
+    if did:
+        rel.append(did)
+    toks: set[str] = set()
+    for rid in rel:
+        d = dims_by_id.get(rid) or {}
+        # A value that is present but STILL AMBIGUOUS (decimal placement could not
+        # be resolved, P6) does not count as a usable driving dimension — the gate
+        # then excludes the feature rather than build on an unresolved guess.
+        if d.get("assumption_basis") == "ambiguous_multi_candidate":
+            continue
+        if (d.get("value") or 0) > 0:
+            t = canonicalize_applies_to(d.get("applies_to", ""))
+            if t:
+                toks.add(t)
+    return toks
+
+
+# Thread designations → nominal major diameter (inch). A thread callout names an
+# unambiguous standard size, so it is a valid step-3 "standard-size" substitution
+# for a hole that never had a diameter read (marked inferred, human verifies).
+_UNC_MAJOR_IN = {
+    "0": 0.060, "1": 0.073, "2": 0.086, "3": 0.099, "4": 0.112, "5": 0.125,
+    "6": 0.138, "8": 0.164, "10": 0.190, "12": 0.216,
+}
+_THREAD_METRIC = _re.compile(r"\bM\s*(\d+(?:\.\d+)?)\s*(?:x\s*[\d.]+)?\b", _re.I)
+_THREAD_FRAC = _re.compile(r"\b(\d+)\s*/\s*(\d+)\s*[-\s]\s*\d+\b")
+_THREAD_NUM = _re.compile(r"\b#?(\d+)\s*[-]\s*\d+\b")
+
+
+def _thread_major_diameter(text: str, units: str) -> Optional[float]:
+    """Nominal major diameter for a thread callout, in DRAWING units, or None."""
+    if not text:
+        return None
+    is_mm = str(units).lower().startswith("mm")
+    m = _THREAD_METRIC.search(text)
+    if m:
+        d_mm = float(m.group(1))
+        return d_mm if is_mm else round(d_mm / 25.4, 4)
+    m = _THREAD_FRAC.search(text)
+    if m:
+        d_in = float(m.group(1)) / float(m.group(2))
+        return round(d_in * 25.4, 4) if is_mm else round(d_in, 4)
+    m = _THREAD_NUM.search(text)
+    if m and m.group(1) in _UNC_MAJOR_IN:
+        d_in = _UNC_MAJOR_IN[m.group(1)]
+        return round(d_in * 25.4, 4) if is_mm else d_in
+    return None
+
+
+def _synthesize_dim(resolved: dict, result: "ResolutionResult", feat: dict, *,
+                    value: float, applies_to: str, basis: str, tier: str,
+                    note: str, dim_type: str = "linear", confidence: float = 0.4) -> str:
+    """Create + link an inferred dimension for ``feat`` (numbers are chosen from
+    derivation, never invented arbitrarily). Returns the new dimension id."""
+    new_id = _next_dim_id(resolved)
+    val = round(float(value), 6)
+    new_dim = {
+        "id": new_id, "type": dim_type, "value": val,
+        "unit": (resolved.get("units") or "inch"), "applies_to": applies_to,
+        "feature_ref": feat.get("id", "?"),
+        "notes": f"Inferred by Stage 2.5 completeness gate ({basis}).",
+    }
+    dres = DimResolution(new_id, val, True, basis, [], confidence, tier, note)
+    new_dim.update(dres.as_fields())
+    resolved.setdefault("dimensions", []).append(new_dim)
+    result.dim_resolutions[new_id] = dres
+    rel = feat.setdefault("related_dimensions", [])
+    if new_id not in rel:
+        rel.append(new_id)
+    return new_id
+
+
+def _derive_from_chain(resolved: dict, model: DrawingData, result: "ResolutionResult",
+                       feat: dict, needed_tokens: tuple[str, ...]) -> bool:
+    """Resolution step 1 — derive a missing driving dimension from the constraint
+    graph: a dimension chain with exactly one unknown component closes to
+    ``total - sum(known)`` (reuses the closure machinery). If that solved value
+    belongs to a dimension applying to one of ``needed_tokens`` and the feature
+    references it, fill it in. Conservative: only fires on a single clean unknown."""
     dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
-    need = {"fillet": ("fillet_radius", "radius"), "chamfer": ("chamfer",)}
+    rel = set(feat.get("related_dimensions", []) or [])
+    try:
+        chains = list(model.relationships.dimension_chains)
+    except AttributeError:
+        return False
+    for chain in chains:
+        total = dims_by_id.get(chain.total_dimension_id)
+        comp_ids = list(chain.component_dimension_ids)
+        if total is None or not (total.get("value") or 0) > 0:
+            continue
+        comps = [dims_by_id.get(cid) for cid in comp_ids]
+        if any(c is None for c in comps):
+            continue
+        unknown = [c for c in comps if not (c.get("value") or 0) > 0]
+        if len(unknown) != 1:
+            continue
+        u = unknown[0]
+        if canonicalize_applies_to(u.get("applies_to", "")) not in needed_tokens:
+            continue
+        if u.get("id") not in rel:
+            continue  # only derive a value the feature actually consumes
+        known_sum = sum(float(c.get("value") or 0) for c in comps if c is not u)
+        solved = round(float(total["value"]) - known_sum, 6)
+        if solved <= 0:
+            continue
+        u["value"] = solved
+        u["value_unclear"] = False
+        u["resolution_required"] = False
+        note = (f"{u.get('id')}={_fmt(solved)} derived from chain "
+                f"{chain.total_dimension_id}-Σcomponents — the only unknown span; verify.")
+        dres = DimResolution(u.get("id", "?"), solved, True, "arithmetic_chain",
+                             [chain.total_dimension_id, *comp_ids], 0.8, "HIGH", note)
+        u.update(dres.as_fields())
+        result.dim_resolutions[u.get("id", "?")] = dres
+        return True
+    return False
+
+
+def _expected_region(feat: dict) -> dict:
+    """Best-effort drawing-frame region for a Tab-3 assumption flag — the feature's
+    read offsets when known, else its host, never fabricated pixel coordinates."""
+    if feat.get("position_known"):
+        return {"kind": "offset", "x": feat.get("offset_x", 0.0), "y": feat.get("offset_y", 0.0)}
+    if feat.get("parent_feature"):
+        return {"kind": "on_parent", "parent_feature": feat.get("parent_feature")}
+    return {"kind": "undimensioned"}
+
+
+def _region_text(feat: dict) -> str:
+    r = _expected_region(feat)
+    if r["kind"] == "offset":
+        return f"Expected near drawing-frame ({_fmt(r['x'])}, {_fmt(r['y'])})."
+    if r["kind"] == "on_parent":
+        return f"Expected on host feature {r['parent_feature']}."
+    return "The drawing did not dimension its location."
+
+
+def _completeness_gate(resolved: dict, model: DrawingData,
+                       result: "ResolutionResult") -> list[dict[str, Any]]:
+    """P1 (2026-07-10) — the single unconditional completeness gate. Runs AFTER
+    TYP propagation and buildable-base synthesis. For every buildable feature it
+    checks the driving dimension(s) for its type and, when missing, applies the
+    resolution order (constraint-graph derivation → standard-size substitution;
+    TYP already ran). If still missing, the feature is EXCLUDED from build_order
+    and surfaced as a Tab-3 model-derived assumption — never emitted as a doomed
+    build/macro step. See the module-level regression note above."""
+    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+    build_order = list(resolved.get("build_order")
+                       or [f.get("id") for f in resolved.get("features", []) or []])
+    # Holes/patterns often carry their driving values on the linked HOLE CALLOUT
+    # (diameter, bolt-circle, spacing, qty), NOT on a related dimension — index
+    # them by feature_ref so the gate does not wrongly exclude a fully-specified
+    # hole whose diameter lives on its callout.
+    holes_by_ref: dict[str, list[dict]] = {}
+    for h in resolved.get("hole_callouts", []) or []:
+        ref = h.get("feature_ref")
+        if ref:
+            holes_by_ref.setdefault(ref, []).append(h)
     flags: list[dict[str, Any]] = []
+
     for feat in resolved.get("features", []) or []:
         ftype = (feat.get("type") or "").lower()
-        tokens = need.get(ftype)
-        if not tokens:
-            continue
-        rel = list(feat.get("related_dimensions", []) or [])
-        if feat.get("depth_dimension_id"):
-            rel.append(feat["depth_dimension_id"])
-        has_driving = any(
-            canonicalize_applies_to((dims_by_id.get(rid) or {}).get("applies_to", "")) in tokens
-            and (dims_by_id.get(rid) or {}).get("value", 0) > 0
-            for rid in rel)
-        if has_driving:
-            continue
         fid = feat.get("id", "?")
-        what = "radius" if ftype == "fillet" else "distance"
+        if fid not in build_order:
+            continue  # already dropped (e.g. validator) — nothing to gate
+        toks = _present_tokens(feat, dims_by_id)
+        missing: Optional[tuple[str, str]] = None  # (what, source)
+
+        if ftype == "fillet":
+            if not (toks & {"fillet_radius", "radius"}):
+                missing = ("radius", "missing_dimension")
+        elif ftype == "chamfer":
+            if "chamfer" not in toks:
+                missing = ("distance", "missing_dimension")
+        elif ftype in ("hole", "thread"):
+            callout_dia = any((h.get("diameter") or 0) > 0 for h in holes_by_ref.get(fid, []))
+            if not (toks & {"diameter", "hole_diameter"}) and not callout_dia:
+                units = resolved.get("units") or "inch"
+                blob = " ".join(str(feat.get(k, "")) for k in ("description", "notes"))
+                dia = _thread_major_diameter(blob, units)
+                if dia:
+                    _synthesize_dim(
+                        resolved, result, feat, value=dia, applies_to="hole_diameter",
+                        basis="standard_thread_size", tier="MEDIUM", dim_type="diameter",
+                        confidence=0.55,
+                        note=(f"{fid} diameter inferred as {_fmt(dia)} {units} from the thread "
+                              f"callout (standard major diameter) — verify against the drawing."))
+                    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+                else:
+                    missing = ("diameter", "missing_dimension")
+        elif ftype in _PATTERN_TYPES:
+            callouts = holes_by_ref.get(fid, [])
+            count = max([int(feat.get("quantity") or 0)]
+                        + [int(h.get("qty") or 0) for h in callouts])
+            has_count = count >= 2
+            has_spacing = ("spacing" in toks) or (feat.get("pattern_spacing") or 0) > 0 \
+                or any((h.get("pattern_spacing") or 0) > 0
+                       or (h.get("bolt_circle_diameter") or 0) > 0 for h in callouts) \
+                or any((dims_by_id.get(r) or {}).get("value", 0) > 0
+                       and canonicalize_applies_to((dims_by_id.get(r) or {}).get("applies_to", "")) == "spacing"
+                       for r in (feat.get("related_dimensions", []) or []))
+            if not (has_count and has_spacing):
+                missing = ("both a spacing and an instance count (>=2)", "missing_pattern_param")
+        elif ftype in _PROFILE_CUT_TYPES:
+            has_dia = bool(toks & {"diameter", "hole_diameter"})
+            has_rect = ("length" in toks) and ("width" in toks)
+            if not (has_dia or has_rect):
+                need = ("length", "width") if not has_dia else ()
+                if need and _derive_from_chain(resolved, model, result, feat, need):
+                    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+                    toks = _present_tokens(feat, dims_by_id)
+                    has_rect = ("length" in toks) and ("width" in toks)
+                if not (bool(toks & {"diameter", "hole_diameter"}) or has_rect):
+                    have = sorted(t for t in toks if t)
+                    miss = "width" if "length" in toks else ("length" if "width" in toks else "length+width")
+                    missing = (f"a diameter OR both length+width (has {have}; missing {miss})",
+                               "incomplete_profile")
+        # extrude_boss/revolve base bodies: never excluded (thickness synthesized
+        # upstream); any other type has no single driving dimension to gate on.
+
+        # P3 (2026-07-10): a cut/hole whose position is genuinely UNRESOLVED is
+        # excluded too — the parent-center last-resort guess is gone (it could
+        # land entirely off the solid, A001211E F004). Symmetry-centered (LOW)
+        # and dimensioned placements are kept and build normally.
+        if missing is None and ftype in ("hole",) + _PROFILE_CUT_TYPES:
+            fr0 = result.feature_resolutions.get(fid)
+            if fr0 is not None and getattr(fr0, "position_assumption", "") == "needs_markup_review":
+                missing = ("a location (no X/Y dimension, no symmetry evidence)",
+                           "position_unresolved")
+
+        if missing is None:
+            continue
+
+        what, source = missing
+        build_order = [x for x in build_order if x != fid]
+        feat["build_status"] = "excluded"
+        fr = result.feature_resolutions.get(fid)
+        if fr is not None:
+            fr.build_status = "excluded"
         flags.append({
             "dimension_id": fid,
+            "feature_id": fid,
             "flag_tier": "CRITICAL",
             "human_note": (
-                f"MISSING DIMENSION: {ftype} {fid} has no {what} value (none read, and no "
-                f"TYP value of its kind to inherit). Do not build it blindly — highlight the "
-                f"{what} callout on the drawing in the Tab-1 markup tool and transcribe the "
-                f"value, then re-run. Routed to markup review."),
+                f"EXCLUDED FROM BUILD — {ftype} {fid} is missing {what}. No value was "
+                f"read, and none could be derived from the constraint graph, a TYP sibling, "
+                f"or a standard size. Rather than emit a build step that fails or places wrong "
+                f"geometry, {fid} was left OUT of the model and recorded as a model-derived "
+                f"assumption in Tab 3. {_region_text(feat)} Add the missing value on the drawing "
+                f"and re-run to include this feature."),
             "macro_behavior": behavior_for_tier("CRITICAL"),
             "resolved_by_tier": TIER_PER_VIEW,
-            "source": "missing_dimension",
+            "source": source,
+            "excluded_from_build": True,
+            "model_derived_assumption": True,
+            "expected_region": _expected_region(feat),
+            # Legacy routing flag (internal only; no UI consumer) — kept True so
+            # existing regression tests and downstream filters continue to work.
             "route_to_markup": True,
         })
+        log.warning("completeness gate EXCLUDED %s (%s): missing %s", fid, ftype, what)
+
+    resolved["build_order"] = build_order
     return flags
 
 
@@ -1084,6 +1478,11 @@ def resolve_extraction(raw: dict,
                 "resolved_by_tier": res.resolved_by_tier,
             })
     for fres in result.feature_resolutions.values():
+        # POSITION-UNRESOLVED features are owned by the completeness gate below
+        # (it excludes them from the build and emits the single Tab-3 flag), so
+        # skip them here to avoid a duplicate flag for the same feature.
+        if fres.position_assumption == "needs_markup_review":
+            continue
         if fres.flag_tier in ("MEDIUM", "LOW", "CRITICAL"):
             flag = {
                 "dimension_id": fres.feature_id,
@@ -1092,9 +1491,6 @@ def resolve_extraction(raw: dict,
                 "macro_behavior": behavior_for_tier(fres.flag_tier),
                 "resolved_by_tier": TIER_PER_VIEW,
             }
-            if fres.position_assumption == "needs_markup_review":
-                flag["source"] = "position_unresolved"
-                flag["route_to_markup"] = True
             result.flags.append(flag)
     for hole in resolved.get("hole_callouts", []) or []:
         flag = _resolve_hole_position_flag(hole, "")
@@ -1102,12 +1498,13 @@ def resolve_extraction(raw: dict,
             flag["resolved_by_tier"] = TIER_PER_VIEW
             result.flags.append(flag)
 
-    # Fix 2.1: dimensionless fillet/chamfer features → CRITICAL review routed to
-    # markup (so the emphasized A001821M chamfer regression surfaces as a review
-    # task, not a silent per-run build skip).
-    result.flags.extend(_dimensionless_feature_flags(resolved))
-    # Fix 2.4: extrude cut/boss with an incomplete profile → CRITICAL review.
-    result.flags.extend(_incomplete_cut_profile_flags(resolved))
+    # P1 (2026-07-10) — universal completeness gate. Subsumes the old
+    # dimensionless-feature (Fix 2.1) and incomplete-cut-profile (Fix 2.4) flag
+    # passes, and CLOSES the regression: a feature still missing its driving
+    # dimension after derivation/TYP/standard-size is EXCLUDED from build_order
+    # (never emitted as a doomed macro/COM step) and surfaced as a Tab-3
+    # model-derived assumption. Runs after TYP + buildable-base synthesis.
+    result.flags.extend(_completeness_gate(resolved, model, result))
     # Fix 3.2: low-confidence hole diameters cross-checked against drill sizes;
     # implausible ones route to markup instead of building on a guess.
     result.flags.extend(_illegible_diameter_flags(resolved, result))

@@ -318,20 +318,52 @@ def _reconcile_nonfeature(fid: str, desc: str, where: str, clearly: bool,
     loc = f" ({where})" if where else ""
 
     if kind == "stock_thickness_view":
-        m = _NUM_RE.search(desc)
+        # P2 (2026-07-10): parse gauge callouts gauge-aware. "12 GA. (.105)" must
+        # reconcile as .105 (the decimal), NOT 12 (the gauge) — a naive first-number
+        # grab produced four false 12.0-vs-.105 mismatches this cycle. A gauge-only
+        # callout with unknown material is ambiguous, so it is recorded (not
+        # compared), never guessed. The comparison is always decimal-to-decimal.
+        from pipeline.gauge import parse_thickness_callout
+
         thk_build = _extraction_thickness_in(extraction)
-        if m and thk_build:
-            shown = float(m.group(1))
+        reading = parse_thickness_callout(desc, material=extraction.get("material"))
+        gauge_note = f" [gauge {reading.gauge}]" if reading.gauge else ""
+
+        if reading.needs_material:
+            return _item("LOW", fid,
+                         what=f"Gauge thickness noted but material unknown: {desc}{loc}{gauge_note}. "
+                              f"Cannot convert a gauge number to a decimal without the material — "
+                              f"not compared to the build.",
+                         decision="recorded as the part's gauge reference; not reconciled",
+                         why="a gauge number is ambiguous across materials (no decimal given)",
+                         affects="metadata: stock gauge")
+        shown = reading.thickness_in
+        if shown is not None and thk_build:
+            # P8 (2026-07-10): plausibility band. A "thickness" that is an
+            # order of magnitude off the build in EITHER direction (A001551E:
+            # 21.0 vs .50 — 42x) is almost certainly an unrelated number the
+            # thickness-view extractor captured, not a real disagreement. Reject
+            # it as out-of-band instead of raising a false HIGH conflict.
+            ratio = max(shown, thk_build) / max(min(shown, thk_build), 1e-9)
+            if ratio > 5.0:
+                return _item("LOW", fid,
+                             what=f"Thickness-view value {shown} is out of plausible range vs the "
+                                  f"build thickness {thk_build} ({ratio:.0f}x){loc}{gauge_note}; "
+                                  f"treated as a non-thickness number, not a conflict.",
+                             decision="ignored as an out-of-band capture, build thickness kept",
+                             why="an edge-view thickness cannot differ from the build by an order "
+                                 "of magnitude — the extractor captured an unrelated dimension",
+                             affects="metadata: rejected thickness candidate")
             if abs(shown - thk_build) <= max(0.01, 0.03 * thk_build):
                 return None  # thickness view agrees with the built extrude depth
             return _item("HIGH", fid,
                          what=f"Thickness mismatch: the overview's thickness view shows {shown} but "
-                              f"the build's extrude depth is {thk_build}{loc}.",
+                              f"the build's extrude depth is {thk_build}{loc}{gauge_note}.",
                          decision="build kept its extracted thickness",
-                         why="stock-thickness view disagrees with the extrude depth",
+                         why="stock-thickness view (decimal) disagrees with the extrude depth",
                          affects="part thickness / extrude depth")
         return _item("LOW", fid,
-                     what=f"Stock/thickness view noted: {desc}{loc}.",
+                     what=f"Stock/thickness view noted: {desc}{loc}{gauge_note}.",
                      decision="recorded as the part's thickness reference",
                      why="a thickness edge view is not a machinable feature",
                      affects="metadata: stock thickness")

@@ -200,6 +200,14 @@ FEATURES & BUILD ORDER (F001, F002, ...):
   the dimension giving its thickness/height/depth (read the side/section view for
   plate thickness). A blind cut needs its depth; a cut that goes fully through the
   material is through-all (leave depth unset). Never emit an extrude with no depth.
+- PLATE THICKNESS is the SHORT dimension that measures ACROSS the thin section of
+  the edge/side view — never an overall length/width or a balloon value. Pick the
+  dimension whose extension lines span the material thickness only.
+- GAUGE callouts: sheet-metal thickness is often a gauge, e.g. "12 GA. (.105)",
+  "16 GA", "10 GAUGE". When a parenthetical decimal follows the gauge, THAT DECIMAL
+  is the thickness (applies_to="thickness", value=.105) and the gauge is metadata;
+  put the gauge number in the dimension's notes ("12 GA"). NEVER record the gauge
+  number itself as the thickness value.
 - Set parent_feature for dependent features (pattern seed, fillet's host feature).
 - If a feature's sketch center is dimensioned from the part origin/center, set
   offset_x/offset_y and position_known=true.

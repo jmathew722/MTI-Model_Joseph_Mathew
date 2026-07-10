@@ -151,6 +151,13 @@ Answer these questions:
    view — state which views/features each note actually governs, and when a
    note states a count, report it as resolved_count.
 
+INSPECTION BALLOONS: circled numerals with an optional sheet-reference subscript
+("1/1", "2/1", "2/2"), leader-attached, often with values suffixed "IN."
+("6.50 IN.", "10.00 IN.") are INSPECTION references keyed to a first-article
+inspection report — NOT part geometry. Report them ONLY as global_notes
+(applies_to "inspection"), never as cross_view_conflicts, and never treat a
+balloon value as a competing overall dimension.
+
 Be honest: use the conflicts list for anything you cannot reconcile. Never
 invent features to make views agree.\
 """

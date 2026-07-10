@@ -540,8 +540,9 @@ def _assert_cut_intersects_body(sw_doc, feature, profile_xy: tuple[float, float,
             f"cut {feature.id} positioned OUTSIDE the solid — its profile "
             f"{tuple(round(v, 4) for v in profile_xy)} m does not overlap the body "
             f"{tuple(round(v, 4) for v in body)} m. Root cause: the feature's location was "
-            f"assumed (POSITION ASSUMED) and lands off the part — fix the position upstream "
-            f"(markup review), not the build.")
+            f"assumed (POSITION ASSUMED) and lands off the part. The Stage 2.5 completeness "
+            f"gate now excludes position-unresolved cuts before the build — add an X/Y "
+            f"location dimension on the drawing and re-run; do not patch the build.")
 
 
 def _do_cut(sw_doc, feature, through_all: bool, depth_m: Optional[float]):
@@ -564,7 +565,15 @@ def _do_cut(sw_doc, feature, through_all: bool, depth_m: Optional[float]):
     if feat is None:
         feat = _cut(False)
     if feat is None:
-        raise SolidWorksError(f"FeatureCut4 returned None for {feature.id}.")
+        # Callers verify the preconditions before calling (sketch closed & fully
+        # defined, profile overlaps the body via _assert_cut_intersects_body, depth
+        # in meters). If BOTH directions still return None the profile does not
+        # actually remove material — name that, never a bare None (P4 regression).
+        raise SolidWorksError(
+            f"FeatureCut4 returned None for {feature.id} in BOTH directions despite verified "
+            f"preconditions (sketch closed & fully defined, profile overlaps the body, "
+            f"depth in meters) — the cut removes no material (coincident with a face or "
+            f"zero-area profile); check the profile geometry, not the build call.")
     return feat
 
 
@@ -676,6 +685,13 @@ def build_extrude_cut(sw_doc, model, feature: Feature, dims: dict[str, float]):
     sw_doc.SketchManager.InsertSketch(True)
     if depth:
         assert_meters(depth, f"{feature.id}.cut_depth")
+    # P4 (2026-07-10): the RECTANGULAR cut path skipped the intersection pre-check
+    # that the circular path (_circular_cut_at) runs — so an off-solid rectangular
+    # cut returned a bare "FeatureCut4 returned None" (A001581E F003). Run the same
+    # precondition here so a miss names its real cause, never a bare None.
+    profile_xy = (min(cx, cx + side_u), min(cy, cy + side_v),
+                  max(cx, cx + side_u), max(cy, cy + side_v))
+    _assert_cut_intersects_body(sw_doc, feature, profile_xy)
     return _do_cut(sw_doc, feature, through_all, depth)
 
 
@@ -1144,6 +1160,48 @@ def _select_feature_edges(sw_doc, feat_obj) -> int:
     return count
 
 
+def plan_fillet_scope(feature: Feature, model) -> tuple[str, int, str]:
+    """P9 (2026-07-10) — derive a fillet/chamfer's INTENDED scope from its callout
+    (pure, testable). Returns ``(mode, expected_count, reason)`` where mode is:
+
+      * ``"corners"``   — a corner-radius TYP applying to N outer corners
+                          (expected_count = N from the callout quantity);
+      * ``"slot_ends"`` — a slot-end radius (the slot's 2 end arcs);
+      * ``"feature"``   — scoped to a named, built host feature;
+      * ``"all"``       — genuinely un-scopable (a general "ALL FILLETS R__" note):
+                          the flagged fallback, never the silent default.
+
+    This lets the builder say what it INTENDED and flag when the applied edge count
+    disagrees, instead of silently rounding all 14 edges (A001551E F004)."""
+    from pipeline.callout_qty import classify_callout, is_typ, parse_quantity
+
+    # Collect the radius callout text linked to this feature.
+    texts: list[str] = [feature.description or ""]
+    try:
+        for rid in list(feature.related_dimensions or []) + [feature.depth_dimension_id or ""]:
+            d = model.dimension_by_id(rid) if rid else None
+            if d is not None:
+                texts.append(f"{getattr(d, 'notes', '') or ''} {getattr(d, 'raw_text', '') or ''} "
+                             f"{getattr(d, 'applies_to', '') or ''}")
+    except Exception:
+        pass
+    blob = " ".join(texts)
+    desc = (feature.description or "").lower()
+
+    if "slot" in desc or "slot" in blob.lower():
+        return ("slot_ends", 2, "slot-end radius applies to the slot's 2 end arcs")
+
+    if is_typ(blob) and classify_callout(blob) == "radius":
+        n = max(int(getattr(feature, "quantity", 1) or 1), parse_quantity(blob, default=0))
+        if n >= 2:
+            return ("corners", n, f"corner-radius TYP applies to {n} outer corners")
+
+    pid = feature.parent_feature or ""
+    if pid:
+        return ("feature", 0, f"scoped to named host feature {pid}")
+    return ("all", 0, "no scope derivable from the callout — general all-edges fallback")
+
+
 def _fillet_edge_strategy(feature: Feature, feature_map: Optional[dict]) -> tuple[str, str]:
     """Decide which edges a fillet/chamfer applies to (pure, testable).
 
@@ -1200,7 +1258,11 @@ def build_fillet(sw_doc, model, feature: Feature, dims: dict[str, float], featur
 
     n, scope = _select_fillet_edges(sw_doc, model, feature, feature_map)
     if n == 0:
-        raise SolidWorksError(f"fillet {feature.id}: no body edges available to fillet.")
+        # P4/P9 (2026-07-10): no candidate edge to fillet — EXCLUDE rather than
+        # apply to nothing or all edges. Names the failed precondition explicitly.
+        raise SolidWorksError(
+            f"fillet {feature.id}: PRECONDITION FAILED — 0 edges selected for scope "
+            f"'{scope}'; no candidate edge exists within tolerance, so the fillet is not applied.")
     # FeatureFillet3(Options, R1, Ftyp, OverflowType, ...) — minimal constant-radius form.
     feat = sw_doc.FeatureManager.FeatureFillet3(
         195,  # default fillet options bitmask (propagate, etc.)
@@ -1209,10 +1271,25 @@ def build_fillet(sw_doc, model, feature: Feature, dims: dict[str, float], featur
         _null_dispatch(), _null_dispatch(), _null_dispatch(),
     )
     if feat is None:
-        raise SolidWorksError(f"FeatureFillet3 returned None for {feature.id}.")
+        # Never a bare None: every precondition was verified (radius>0 in meters,
+        # n>0 edges selected for the named scope), so enumerate them so the failure
+        # is diagnosable, not a mystery (P4 regression).
+        raise SolidWorksError(
+            f"FeatureFillet3 returned None for {feature.id} despite verified preconditions "
+            f"(radius={radius:.6f} m, {n} edge(s) selected, scope '{scope}') — the selected "
+            f"edges likely cannot accept this radius (radius exceeds the adjacent face).")
     log.info("  fillet %s applied to %d edge(s) (%s).", feature.id, n, scope)
-    _note_warning(model, f"{feature.id}: fillet applied to {n} edges ({scope}); "
-                         f"verify against the drawing (selective fillets need the interactive macro).")
+    # P9: state the INTENDED scope + expected count and flag when the applied edge
+    # count disagrees (over-application to all edges is explicit, never silent).
+    mode, expected, reason = plan_fillet_scope(feature, model)
+    if mode in ("corners", "slot_ends") and expected and n != expected:
+        _note_warning(model, f"{feature.id}: fillet callout implies {mode} ({reason}, expected "
+                             f"~{expected} edge(s)) but {n} edge(s) were selected ({scope}) — VERIFY "
+                             f"against the drawing; the geometric corner selector could not isolate "
+                             f"the intended edges, so this may be over-applied.")
+    else:
+        _note_warning(model, f"{feature.id}: fillet applied to {n} edges ({scope}; intended {mode}); "
+                             f"verify against the drawing (selective fillets need the interactive macro).")
     return feat
 
 
@@ -1233,13 +1310,18 @@ def build_chamfer(sw_doc, model, feature: Feature, dims: dict[str, float], featu
 
     n, scope = _select_fillet_edges(sw_doc, model, feature, feature_map)
     if n == 0:
-        raise SolidWorksError(f"chamfer {feature.id}: no body edges available to chamfer.")
+        raise SolidWorksError(
+            f"chamfer {feature.id}: PRECONDITION FAILED — 0 edges selected for scope "
+            f"'{scope}'; no candidate edge exists within tolerance, so the chamfer is not applied.")
     # InsertFeatureChamfer(Width, Angle, Flip, Type, OtherDist, VertexChamDist, VertexChamDist2)
     feat = sw_doc.FeatureManager.InsertFeatureChamfer(
         4, 1, distance, angle, 0, 0, 0, 0
     )
     if feat is None:
-        raise SolidWorksError(f"InsertFeatureChamfer returned None for {feature.id}.")
+        raise SolidWorksError(
+            f"InsertFeatureChamfer returned None for {feature.id} despite verified preconditions "
+            f"(distance={distance:.6f} m, angle={angle:.4f} rad, {n} edge(s) selected, scope "
+            f"'{scope}') — the selected edges likely cannot accept this chamfer distance.")
     log.info("  chamfer %s applied to %d edge(s) (%s).", feature.id, n, scope)
     _note_warning(model, f"{feature.id}: chamfer applied to {n} edges ({scope}); "
                          f"verify against the drawing (selective chamfers need the interactive macro).")
