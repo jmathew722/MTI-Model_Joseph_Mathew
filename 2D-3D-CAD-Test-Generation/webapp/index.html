@@ -115,7 +115,7 @@
   /* ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────────── */
   /* Kept compact so the Overview + 3D viewer panels below get the room. */
   .intake-strip { flex:0 0 auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto;
-                  background:var(--bg); border-bottom:1px solid var(--line); max-height:30vh; overflow:auto; }
+                  background:var(--bg); border-bottom:1px solid var(--line); max-height:22vh; overflow:auto; }
   .gcol { padding:var(--sp-3) var(--sp-4); border-right:1px solid var(--line-soft); min-width:0;
           display:flex; flex-direction:column; gap:var(--sp-2); align-items:flex-start; }
   .gcol:last-child { border-right:0; }
@@ -140,25 +140,8 @@
   .ocard.dup .dupbadge { display:inline-block; }
   .intake-foot { display:flex; flex-direction:column; gap:var(--sp-2); align-items:stretch; }
   .intake-foot .rowline { display:flex; gap:var(--sp-2); align-items:center; }
-  /* ── MUST-MEET SPECIFICATIONS — authoritative operator input (amber) ───── */
-  .mm-panel { width:100%; min-width:300px; max-width:440px; margin-top:var(--sp-3);
-              display:flex; flex-direction:column; gap:var(--sp-2);
-              padding:var(--sp-3); background:var(--bg-raised);
-              border:1px solid var(--warn); border-left:3px solid var(--warn);
-              border-radius:var(--r-lg); }
-  .mm-panel .mm-head { display:flex; flex-direction:column; gap:2px; }
-  .mm-panel .mm-title { font:700 var(--fs-caption)/1.2 var(--sans); letter-spacing:.12em;
-              text-transform:uppercase; color:var(--warn); }
-  .mm-panel .mm-sub { font:400 var(--fs-caption)/1.2 var(--sans); color:var(--ink-3); }
-  .mm-panel .mm-foot { display:flex; flex-direction:column; gap:var(--sp-2);
-              align-items:flex-start; }
-  .mm-panel code { font-family:var(--mono); font-size:var(--fs-caption); color:var(--ink-2); }
-  #part-notes { width:100%; resize:vertical; font:400 var(--fs-small)/1.5 var(--sans);
-                border:1px solid var(--warn); background:var(--input-bg); color:var(--ink);
-                border-radius:var(--r-md); padding:6px var(--sp-2); min-height:64px; }
-  #part-notes:focus { outline:none; box-shadow:0 0 0 1px var(--warn); }
 
-  /* ── Tab 2 · Must-meet checklist (between the intake strip and the viewers) */
+  /* ── Must-meet checklist (post-run results, if any specs were supplied) ─── */
   .mm-check { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); border-bottom:1px solid var(--line);
               background:var(--bg-raised); display:none; }
   .mm-check .mmc-title { font:700 var(--fs-caption)/1.8 var(--sans); letter-spacing:.12em;
@@ -255,8 +238,9 @@
   #run-banner.err { background:linear-gradient(90deg, rgba(229,72,77,.08), transparent 60%); }
   #run-banner.err .rb-main { color:var(--err-text); border-color:var(--err); }
 
-  /* Split view — exactly two half-screen panels: Full Overview View | STL */
-  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:48vh; }
+  /* Split view — the dominant element on Sheet 1: two large panels that fill
+     the viewport below the compact intake strip (Full Overview View | STL). */
+  .split { flex:1 1 auto; display:grid; grid-template-columns:1fr 1fr; min-height:70vh; }
   .ovside { border-right:1px solid var(--line); }
   .split .side { min-width:0; min-height:0; display:flex; flex-direction:column; }
   .side .cap { flex:0 0 auto; padding:var(--sp-2) var(--sp-4); font:600 var(--fs-caption)/1.6 var(--sans);
@@ -594,17 +578,6 @@
           <div class="rowline">
             <input type="text" class="input-c" id="part-name" placeholder="Part name (becomes the folder name)">
             <button class="btn" id="save-part-btn" disabled>Save part</button>
-          </div>
-        </div>
-        <div class="mm-panel">
-          <div class="mm-head">
-            <span class="mm-title">Must-Meet Specifications</span>
-            <span class="mm-sub">authoritative — overrides drawing extraction</span>
-          </div>
-          <textarea id="part-notes" class="input-c" rows="4" placeholder="e.g. there must be 6 holes in this part that can be done using a circular pattern … All holes must be through all."></textarea>
-          <div class="mm-foot">
-            <span class="hint">Saved with the part as <code>must_meet_spec.txt</code> — parsed into MM-xxx constraints, enforced through build &amp; verification.</span>
-            <button class="btn secondary sm" id="save-notes-btn" style="display:none">Update specs for selected part</button>
           </div>
         </div>
       </div>
@@ -1382,10 +1355,12 @@ function renderGallery() {
 partNameEl.addEventListener('input', validateIntake);
 
 // Update a SAVED part's must-meet specifications in place (no re-upload needed).
-document.getElementById('save-notes-btn').addEventListener('click', async () => {
+// The specs input was removed from the UI; the handler is kept null-safe so any
+// stray binding is inert.
+document.getElementById('save-notes-btn')?.addEventListener('click', async () => {
   if (!selectedPart) return;
   const fd = new FormData();
-  fd.append('notes', document.getElementById('part-notes').value || '');
+  fd.append('notes', document.getElementById('part-notes')?.value || '');
   try {
     const r = await fetch(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/notes`,
                           { method: 'POST', body: fd });
@@ -1508,7 +1483,7 @@ saveBtn.addEventListener('click', async () => {
   fd.append('session', sessionId);
   fd.append('part', part);
   fd.append('source_format', intake.format || '');
-  fd.append('notes', document.getElementById('part-notes').value || '');
+  fd.append('notes', document.getElementById('part-notes')?.value || '');
   if (intake.source) fd.append('source', window.MTIBridge.dataURLtoBlob(intake.source), 'source.jpg');
   if (intake.originalFile) fd.append('original', intake.originalFile, intake.originalFile.name);
   const counts = {};
@@ -1527,7 +1502,7 @@ saveBtn.addEventListener('click', async () => {
   partsData = res.parts;
   intake = { items: [], source: null, originalFile: null, stem: 'drawing', format: '' };
   partNameEl.value = '';
-  document.getElementById('part-notes').value = '';
+  { const pn = document.getElementById('part-notes'); if (pn) pn.value = ''; }
   renderGallery();
   selectPart(res.part);
   setStatus(`Saved part "${res.part}". Open the Pipeline &amp; Results tab and press ▶ Pull &amp; Run Pipeline.`, 'ok');
