@@ -144,6 +144,51 @@ class TestUnmeasurable:
                 assert f.get("reason"), f
 
 
+class TestLiveLoopRegressions:
+    """Regressions pinned from the live SolidWorks loop (golden set)."""
+
+    def test_counterbore_through_hole_is_ok(self, tmp_path):
+        # A cbore shows a LARGER opening near the top face than the through bore;
+        # the through-check must match by position (not diameter) or it wrongly
+        # reads a valid cbored through hole as blind -> false WRONG_SIZE.
+        # (A001271E F003: expected 0.531 THRU + 0.875 cbore.)
+        p = tmp_path / "cbore.stl"
+        wp, k = None, 25.4
+        base = (cq.Workplane("XY").center(2 * k, 1 * k)
+                .box(4 * k, 2 * k, 0.5 * k, centered=(True, True, False)))
+        base = (base.faces(">Z").workplane(origin=(0, 0, 0))
+                .pushPoints([(2 * k, 1 * k)]).cboreHole(0.531 * k, 0.875 * k, 0.2 * k))
+        cq.exporters.export(base, str(p))
+        plan = _plan([], length=4.0, width=2.0, thick=0.5)
+        plan["steps"].append({"seq": 2, "type": "hole", "feature_id": "F002",
+                              "dimensions_drawing_units": {"diameter": 0.531,
+                                                           "cbore_diameter": 0.875,
+                                                           "cbore_depth": 0.2},
+                              "positions_xy": [[2.0, 1.0]], "depth_type": "through_all"})
+        rep = verify_features(p, plan, Path("."), write=False)
+        hole = next(f for f in rep["features"] if f["feature_id"] == "F002")
+        assert hole["classification"] == OK, hole["checks"]
+
+    def test_base_second_side_metadata_is_advisory_not_failure(self, good_stl):
+        # good_stl is 4x2; a plan that only records length=4, width=4 (the true
+        # 2.0 second side omitted / mis-paired) must NOT hard-fail the base — the
+        # built geometry is right; the plan metadata is incomplete.
+        plan = _plan([(1.0, 1.0, 0.5)], length=4.0, width=4.0, thick=0.25)
+        rep = verify_features(good_stl, plan, Path("."), write=False)
+        base = next(f for f in rep["features"] if f["kind"] == "base")
+        assert base["classification"] == OK
+        second = next(c for c in base["checks"] if c["check"] == "second_side")
+        assert second["status"] == "ADVISORY"
+
+    def test_wrong_thickness_still_fails_base(self, good_stl):
+        # But a genuinely wrong extrude depth (the A001211E/A001561E class) must
+        # still fail — thickness is the reliable signal.
+        plan = _plan([(1.0, 1.0, 0.5)], length=4.0, width=2.0, thick=6.0)
+        rep = verify_features(good_stl, plan, Path("."), write=False)
+        base = next(f for f in rep["features"] if f["kind"] == "base")
+        assert base["classification"] == WRONG_SIZE
+
+
 class TestReportWriting:
     def test_writes_json(self, good_stl, tmp_path):
         plan = _plan([(1.0, 1.0, 0.5), (3.0, 1.0, 0.5)])

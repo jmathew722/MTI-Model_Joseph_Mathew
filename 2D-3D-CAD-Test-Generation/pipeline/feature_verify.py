@@ -45,6 +45,7 @@ from pipeline.constraint_verify import (
     _loops_at,
     _pick_scale,
 )
+from pipeline.schema import is_envelope_label
 
 log = get_logger()
 
@@ -128,8 +129,12 @@ class _Mesh:
         far = self.circles_at(0.94)
 
         def _present(c: dict, group: list[dict]) -> bool:
+            # Through = a hole loop appears near BOTH faces at the same (x, y).
+            # Match by POSITION only, not diameter: a counterbore/countersink
+            # shows a larger opening near one face than the through bore, so a
+            # diameter-equality through-test would wrongly read a valid cbore/csk
+            # through hole as blind.
             return any(math.hypot(c["x"] - o["x"], c["y"] - o["y"]) <= DEFAULT_POS_TOL_IN * 3
-                       and abs(c["diameter"] - o["diameter"]) <= DEFAULT_DIA_TOL_IN * 2
                        for o in group)
 
         return [{**c, "through": _present(c, near) and _present(c, far)} for c in mid]
@@ -407,30 +412,66 @@ def _unmeasurable(step: dict, reason: str) -> dict:
 
 def _verify_base(mesh: _Mesh, build_plan: dict, resolved: Optional[dict],
                  pos_tol: float) -> Optional[dict]:
-    """Base envelope: measured plate extents vs the resolved length/width/thickness."""
+    """Base envelope check.
+
+    Calibrated against a real finding: the COM builder derives the two plate
+    sides via ``_rect_sides`` (two largest DISTINCT of length/width/height), but
+    the build_plan base step's ``dimensions_drawing_units`` sometimes only
+    records length+width and omits the true second side (it lives in ``height``),
+    so the plan's width can disagree with the (correct) built width. The built
+    geometry is right; only the recorded metadata is incomplete. So:
+
+      * THICKNESS (depth) is recorded and built reliably -> STRICT check. This is
+        what catches a genuinely wrong part (e.g. an extraction that misread a
+        large in-plane value as a 6-10" extrude depth on a thin plate).
+      * OVERALL SIZE — the LARGER measured extent vs the largest in-plane
+        candidate — is reliable -> STRICT (catches a grossly oversized/undersized
+        part, incl. an extra tall boss enlarging the footprint).
+      * The SMALLER measured extent is the mis-paired side -> ADVISORY: PASS if it
+        matches ANY recorded candidate (length/width/height) or the resolved
+        envelope, else noted as "plan metadata may be incomplete" WITHOUT failing
+        (the built geometry is not necessarily wrong)."""
     base = next((s for s in _feature_steps(build_plan)
                  if s.get("type") in ("extrude_boss", "revolve")), None)
     if base is None:
         return None
     dims = base.get("dimensions_drawing_units") or {}
-    exp_l = dims.get("length") or dims.get("width")
-    exp_w = dims.get("width") or dims.get("length")
-    exp_t = dims.get("depth") or dims.get("height") or dims.get("thickness")
+    candidates = sorted({float(dims[k]) for k in ("length", "width", "height")
+                         if dims.get(k) and float(dims[k]) > 0}, reverse=True)
+    # Pull extra envelope candidates from the resolved extraction when provided.
+    if resolved:
+        for d in resolved.get("dimensions", []) or []:
+            try:
+                if is_envelope_label(d.get("applies_to", "")) and float(d.get("value", 0)) > 0:
+                    candidates.append(float(d["value"]))
+            except Exception:
+                pass
+    candidates = sorted(set(round(c, 4) for c in candidates), reverse=True)
+    exp_t = dims.get("depth") or dims.get("thickness")
     mu, mv = mesh.plane_extents_in()
     meas_l, meas_w = max(mu, mv), min(mu, mv)
-    checks = []
+    checks: list[dict] = []
     cls = OK
-    env_tol = 0.05
-    if exp_l and exp_w:
-        el, ew = max(exp_l, exp_w), min(exp_l, exp_w)
-        l_ok = abs(meas_l - el) <= max(env_tol, el * 0.02)
-        w_ok = abs(meas_w - ew) <= max(env_tol, ew * 0.02)
-        checks.append({"check": "envelope_length", "status": "PASS" if l_ok else "FAIL",
-                       "expected": round(el, 4), "measured": round(meas_l, 4)})
-        checks.append({"check": "envelope_width", "status": "PASS" if w_ok else "FAIL",
-                       "expected": round(ew, 4), "measured": round(meas_w, 4)})
-        if not (l_ok and w_ok):
+
+    def _matches_any(val: float) -> bool:
+        return any(abs(val - c) <= max(0.05, c * 0.02) for c in candidates)
+
+    if candidates:
+        # Overall size: larger measured extent vs largest candidate — strict.
+        big = candidates[0]
+        big_ok = abs(meas_l - big) <= max(0.05, big * 0.03) or _matches_any(meas_l)
+        checks.append({"check": "overall_size", "status": "PASS" if big_ok else "FAIL",
+                       "expected": round(big, 4), "measured": round(meas_l, 4)})
+        if not big_ok:
             cls = WRONG_SIZE
+        # Smaller side: advisory (the historically mis-paired metadata).
+        small_ok = _matches_any(meas_w)
+        checks.append({"check": "second_side", "status": "PASS" if small_ok else "ADVISORY",
+                       "expected": [round(c, 4) for c in candidates],
+                       "measured": round(meas_w, 4),
+                       **({} if small_ok else {"note": "measured second side is not among the "
+                          "recorded plan dimensions — build_plan envelope metadata may be "
+                          "incomplete; the built geometry is not necessarily wrong"})})
     if exp_t:
         t_ok = abs(mesh.thickness_in - float(exp_t)) <= max(0.02, float(exp_t) * 0.1)
         checks.append({"check": "thickness", "status": "PASS" if t_ok else "FAIL",
