@@ -472,9 +472,7 @@ MULTIVIEW_USER_TEXT = (
 
 
 def _multiview_cache_key(views: list[tuple[str, str, str]], model: str,
-                         requirements: Optional[list[str]] = None,
-                         marked_b64: Optional[str] = None,
-                         region_legend: Optional[str] = None) -> str:
+                         requirements: Optional[list[str]] = None) -> str:
     h = hashlib.sha256()
     h.update(PROMPT_VERSION.encode("utf-8"))
     h.update(b"\0")
@@ -487,39 +485,7 @@ def _multiview_cache_key(views: list[tuple[str, str, str]], model: str,
     for req in requirements or []:
         h.update(b"\0req\0")
         h.update(req.encode("utf-8"))
-    # The human-marked view + its legend change the prompt, so changed markup
-    # must force a fresh extraction (never serve a markup-blind cached result).
-    if marked_b64:
-        h.update(b"\0marked\0")
-        h.update(marked_b64.encode("utf-8"))
-    if region_legend:
-        h.update(b"\0legend\0")
-        h.update(region_legend.encode("utf-8"))
     return h.hexdigest()
-
-
-MARKED_VIEW_INTRO = (
-    "HUMAN-MARKED REFERENCE VIEW (operator ground truth): the next image is the "
-    "SAME drawing with reviewer-drawn reference regions overlaid as colored boxes. "
-    "Boxes sharing a color are ONE feature — typically a hole together with its "
-    "X-dimension, Y-dimension, and center.\n"
-    "BATCH BY COLOR: for EACH color group, read the boxed X-dimension and boxed "
-    "Y-dimension callouts and BIND those two values to THAT hole's position — the "
-    "color is the association between the coordinates and the hole they place. Use "
-    "the batched (x, y) pair for the hole callout's x_position/y_position and "
-    "instance_positions; never attach a boxed dimension to a different feature.\n"
-    "ORIGIN: if a cyan crosshair labeled (0,0) is present, it is the operator-"
-    "locked ORIGIN at the BOTTOM-LEFT corner of the top view. Extract it as the "
-    "coordinate datum: measure every batched X/Y position from that corner with "
-    "+X to the right and +Y upward, so the built model's orientation matches the "
-    "drawing exactly.\n"
-    "DATUMS: small labeled markers (A/B/C, or ⌀ for a datum hole) are GD&T datum "
-    "reference points — anchor feature positions and orientation to them, and "
-    "extract a datum hole as a real hole as well as a reference.\n"
-    "Treat all of this as authoritative where raw linework or overlapping leaders "
-    "are ambiguous: do not miss a hole the operator boxed, and prefer the boxed "
-    "count over an uncertain visual count."
-)
 
 
 def extract_drawing_data_multiview(
@@ -529,10 +495,12 @@ def extract_drawing_data_multiview(
     cache_dir: Optional[Union[str, Path]] = None,
     usage_out: Optional[dict[str, int]] = None,
     requirements: Optional[list[str]] = None,
-    marked_view: Optional[tuple[str, str]] = None,
-    region_legend: Optional[str] = None,
 ) -> dict[str, Any]:
     """Extract one combined part from SEPARATE per-view images.
+
+    The vision model owns interpretation: every uploaded sheet is read whole —
+    view roles, origin, and datum references are all derived by the model from
+    the drawing itself (no human markup preprocessing).
 
     Args:
         views: ordered ``(view_type, image_b64, media_type)`` — one per view,
@@ -541,12 +509,6 @@ def extract_drawing_data_multiview(
             enforcement): injected into the extraction prompt so the model
             actively looks for those features from the start. Also part of the
             cache key, so changed notes force a fresh extraction.
-        marked_view: optional ``(image_b64, media_type)`` of the human-annotated
-            composite (drawing + colored reference-region boxes). When given, it
-            is added as an extra whole-part context image with a legend so the
-            model uses the reviewer's boxes for correct hole placement.
-        region_legend: optional text describing each marked feature group
-            (colors, roles, transcribed values, normalized positions).
         Other args mirror :func:`extract_drawing_data`.
 
     Each view image is labeled with its sketch plane so the model sets every
@@ -559,11 +521,7 @@ def extract_drawing_data_multiview(
     if not views:
         raise ExtractionError("No view images supplied for multi-view extraction.")
 
-    key = _multiview_cache_key(
-        views, model, requirements,
-        marked_b64=marked_view[0] if marked_view else None,
-        region_legend=region_legend,
-    )
+    key = _multiview_cache_key(views, model, requirements)
     cached = _cache_lookup(cache_dir, key)
     if cached is not None:
         log.info("Multi-view extraction cache HIT (%s…) — skipping API call.", key[:12])
@@ -596,16 +554,6 @@ def extract_drawing_data_multiview(
             content.append({"type": "text", "text": f"=== {label} VIEW — sketch on {plane} ==="})
         content.append(_image_block(b64, media_type, cache=cached_images < 3))
         cached_images += 1
-    # Human-marked reference view (drawing + colored region boxes): added as an
-    # extra whole-part context image so the model places holes per the operator's
-    # boxes. Uncached (the cap of 3 cache breakpoints is spent on the views).
-    if marked_view is not None:
-        mb64, mmedia = marked_view
-        content.append({"type": "text", "text": MARKED_VIEW_INTRO})
-        content.append(_image_block(mb64, mmedia, cache=False))
-        if region_legend and region_legend.strip():
-            content.append({"type": "text", "text": region_legend.strip()})
-        log.info("Human-marked reference view included in multiview extraction.")
     req_block = _requirements_block(requirements)
     if req_block:
         content.append({"type": "text", "text": req_block})

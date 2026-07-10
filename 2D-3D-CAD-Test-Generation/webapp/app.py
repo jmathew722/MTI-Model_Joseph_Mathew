@@ -476,14 +476,9 @@ def _crop_filename(crop_name: str, seq: int) -> str:
     """Map a photo-app crop name to a pipeline-classifiable filename.
 
     Known views get an ordered ``NN_<view>.jpg`` name so view_ingest classifies
-    and orders them; the "Marked View" (annotated drawing) saves as the
-    canonical full_marked_view.jpg that view_ingest exposes as
-    ``PartViews.marked_view`` and extraction consumes as ground truth; anything
-    else keeps its own (sanitized) name and is left for the pipeline to warn
-    about / skip."""
+    and orders them; anything else keeps its own (sanitized) name and is left
+    for the pipeline to warn about / skip."""
     key = crop_name.strip().lower().replace(" ", "_")
-    if key in ("marked", "marked_view", "markedview"):
-        return MARKED_VIEW_FILENAME
     if key in VIEW_MAP:
         order, view = VIEW_MAP[key]
         return f"{order:02d}_{view}.jpg"
@@ -1081,8 +1076,6 @@ def _find_overview_image(pdir: Path) -> Path | None:
     if exact.is_file():
         return exact
     for p in _part_images(pdir):
-        if p.name == MARKED_VIEW_FILENAME:
-            continue  # the annotated composite is not the source overview
         if _is_overview_image(p, pdir.name):
             return p
     return None
@@ -1109,10 +1102,6 @@ def _list_parts(sdir: Path) -> list[dict]:
             "views": views,
             "has_output": out.is_dir() and _categorize_output(out)["has_any"],
             "has_overview": _find_overview_image(pdir) is not None,
-            # The Full Overview View + Marked View are ALSO pulled into the run
-            # (overview as whole-part context, marked as hole-placement ground
-            # truth) — surfaced so the Pipeline tab shows every image it uses.
-            "has_marked": (pdir / MARKED_VIEW_FILENAME).is_file(),
             "source_format": fmt_file.read_text(encoding="utf-8").strip()
                              if fmt_file.is_file() else "",
             "notes": notes_text,
@@ -1322,138 +1311,6 @@ _IMG_MEDIA = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
               ".tif": "image/tiff", ".tiff": "image/tiff"}
 
 
-# ── Human-marked reference regions (dimension-region markup) ───────────────────
-# The reviewer draws colored highlight boxes over the part's drawing BEFORE
-# extraction runs: boxes sharing a color are one feature group (e.g. a hole's
-# center + its X-dimension + its Y-dimension). Stored with the part INPUTS
-# (reference_regions.json, normalized 0-1 coordinates) so it survives
-# clear-all-models and is available to the pipeline for future OCR
-# cross-checking / low-confidence fallback.
-REGIONS_FILENAME = "reference_regions.json"
-# The composited drawing (linework + the colored region boxes) the pipeline
-# feeds into Claude extraction as human ground truth for hole placement.
-MARKED_VIEW_FILENAME = "full_marked_view.jpg"
-_REGION_ROLES = {"center", "x-dimension", "y-dimension", "tolerance", "other"}
-
-
-def _sanitize_region(r: dict) -> dict | None:
-    """Validate + normalize one region object; None if unusable."""
-    try:
-        bb = r.get("boundingBox") or {}
-        x, y = float(bb["x"]), float(bb["y"])
-        w, h = float(bb["width"]), float(bb["height"])
-    except (KeyError, TypeError, ValueError):
-        return None
-    if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0 and 0.0 < w <= 1.0 and 0.0 < h <= 1.0):
-        return None
-    role = str(r.get("role") or "other")
-    return {
-        "id": str(r.get("id") or uuid.uuid4().hex[:10])[:40],
-        "color": str(r.get("color") or "#888888")[:16],
-        "colorLabel": str(r.get("colorLabel") or "")[:64],
-        "role": role if role in _REGION_ROLES else "other",
-        "boundingBox": {"x": round(x, 6), "y": round(y, 6),
-                        "width": round(w, 6), "height": round(h, 6)},
-        "value": str(r.get("value") or "")[:200],
-        "createdAt": str(r.get("createdAt") or "")[:40],
-    }
-
-
-def _sanitize_origin(o: object) -> dict | None:
-    """Validate the locked (0,0) datum: normalized bottom-left corner of the
-    top view, the fixed reference so every model shares the drawing's
-    orientation. None if unusable."""
-    if not isinstance(o, dict):
-        return None
-    try:
-        x, y = float(o["x"]), float(o["y"])
-    except (KeyError, TypeError, ValueError):
-        return None
-    if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
-        return None
-    return {"x": round(x, 6), "y": round(y, 6),
-            "locked": bool(o.get("locked", True)),
-            "view": str(o.get("view") or "top")[:16]}
-
-
-# GD&T datum reference points — the primary origin plus lettered datums and
-# datum holes. Included in extraction so the model anchors positions/orientation
-# to the same references the operator marked.
-_DATUM_KINDS = {"origin", "datum_a", "datum_b", "datum_c", "datum_hole"}
-
-
-def _sanitize_datum(d: object) -> dict | None:
-    if not isinstance(d, dict):
-        return None
-    try:
-        x, y = float(d["x"]), float(d["y"])
-    except (KeyError, TypeError, ValueError):
-        return None
-    if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
-        return None
-    kind = str(d.get("kind") or "datum_a")
-    return {"id": str(d.get("id") or uuid.uuid4().hex[:10])[:40],
-            "x": round(x, 6), "y": round(y, 6),
-            "kind": kind if kind in _DATUM_KINDS else "datum_a",
-            "value": str(d.get("value") or "")[:120]}
-
-
-def _group_regions(regions: list[dict]) -> list[dict]:
-    """Group regions by color into the featureGroups structure (stable order)."""
-    groups: dict[str, dict] = {}
-    for r in regions:
-        g = groups.setdefault(r["color"], {"color": r["color"],
-                                           "colorLabel": r.get("colorLabel", ""),
-                                           "regions": []})
-        g["regions"].append(r)
-    return list(groups.values())
-
-
-@app.get("/api/parts/{session}/{part}/regions")
-def get_regions(session: str, part: str):
-    pdir = _session_dir(session) / _sanitize(part)
-    if not pdir.is_dir():
-        raise HTTPException(404, "Unknown part")
-    f = pdir / REGIONS_FILENAME
-    if not f.is_file():
-        return {"regions": [], "featureGroups": []}
-    try:
-        data = json.loads(f.read_text(encoding="utf-8", errors="replace"))
-    except json.JSONDecodeError:
-        return {"regions": [], "featureGroups": []}
-    regions = [s for s in (_sanitize_region(r) for r in data.get("regions", [])) if s]
-    datums = [s for s in (_sanitize_datum(d) for d in data.get("datums", [])) if s]
-    return {"regions": regions, "featureGroups": _group_regions(regions),
-            "origin": _sanitize_origin(data.get("origin")), "datums": datums}
-
-
-@app.post("/api/parts/{session}/{part}/regions")
-async def save_regions(session: str, part: str, request: Request):
-    pdir = _session_dir(session) / _sanitize(part)
-    if not pdir.is_dir():
-        raise HTTPException(404, "Unknown part")
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(400, "Body must be JSON: {\"regions\": [...]}")
-    raw = body.get("regions", []) if isinstance(body, dict) else []
-    regions = [s for s in (_sanitize_region(r) for r in raw) if s]
-    origin = _sanitize_origin(body.get("origin")) if isinstance(body, dict) else None
-    datums = [s for s in (_sanitize_datum(d) for d in (body.get("datums", []) if isinstance(body, dict) else [])) if s]
-    payload = {"regions": regions, "featureGroups": _group_regions(regions),
-               "origin": origin, "datums": datums}
-    (pdir / REGIONS_FILENAME).write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    # Nothing marked -> drop the stale composited marked view so extraction never
-    # feeds an out-of-date annotation.
-    if not regions and not origin and not datums:
-        try:
-            (pdir / MARKED_VIEW_FILENAME).unlink()
-        except OSError:
-            pass
-    return {"saved": len(regions), "origin": origin, "datums": datums,
-            "featureGroups": payload["featureGroups"]}
-
-
 @app.post("/api/parts/{session}/{part}/learning-log")
 def part_learning_log(session: str, part: str):
     """Push every flag & failure from this part's latest run into the repo's
@@ -1500,27 +1357,6 @@ def part_learning_log(session: str, part: str):
     n_flags = len(review) + len(gate) + len(mm.get("failed") or [])
     return {"saved": True, "file": Path(path).name, "path": str(path),
             "flags": len(review), "gate_reasons": len(gate), "status": status}
-
-
-@app.post("/api/parts/{session}/{part}/marked-view")
-async def save_marked_view(session: str, part: str, file: UploadFile = File(...)):
-    """Store the composited drawing (linework + region boxes) as
-    full_marked_view.jpg in the part INPUT folder — the pipeline includes it in
-    Claude extraction for correct hole placement."""
-    pdir = _session_dir(session) / _sanitize(part)
-    if not pdir.is_dir():
-        raise HTTPException(404, "Unknown part")
-    data = await file.read()
-    (pdir / MARKED_VIEW_FILENAME).write_bytes(data)
-    return {"saved": True, "bytes": len(data)}
-
-
-@app.get("/api/parts/{session}/{part}/marked-view.jpg")
-def get_marked_view(session: str, part: str):
-    p = _session_dir(session) / _sanitize(part) / MARKED_VIEW_FILENAME
-    if not p.is_file():
-        raise HTTPException(404, "No marked view for this part")
-    return FileResponse(str(p), media_type="image/jpeg")
 
 
 @app.get("/api/parts/{session}/{part}/overview.jpg")

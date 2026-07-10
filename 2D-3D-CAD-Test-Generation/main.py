@@ -409,67 +409,6 @@ def _views_for_extraction(part):
     return ordered
 
 
-def _region_legend_text(folder: Path) -> str | None:
-    """Text legend of the human-marked reference regions (from
-    reference_regions.json) that accompanies the marked view in extraction.
-    Coordinates are normalized 0-1 fractions of the image, origin top-left."""
-    f = Path(folder) / "reference_regions.json"
-    if not f.is_file():
-        return None
-    try:
-        data = json.loads(f.read_text(encoding="utf-8", errors="replace"))
-    except (OSError, ValueError):
-        return None
-    groups = data.get("featureGroups") or []
-    origin = data.get("origin") or None
-    datums = data.get("datums") or []
-    if not groups and not origin and not datums:
-        return None
-    lines = []
-    if origin:
-        lines.append(
-            "ORIGIN DATUM: (0,0) is locked at the BOTTOM-LEFT corner of the top "
-            f"view, marked at normalized image position ({origin.get('x', 0):.3f},"
-            f"{origin.get('y', 0):.3f}). Treat this as the fixed coordinate origin "
-            "for the whole part — measure every X/Y position from it with +X to the "
-            "right and +Y upward — so all models share one consistent orientation "
-            "relative to the drawing."
-        )
-    if datums:
-        _kind = {"origin": "primary origin", "datum_a": "Datum A", "datum_b": "Datum B",
-                 "datum_c": "Datum C", "datum_hole": "datum hole"}
-        lines.append(
-            "DATUM REFERENCE POINTS (GD&T datums the operator marked; positions "
-            "are image fractions, x right / y down from the top-left corner). "
-            "Anchor feature positions and orientation to these; a datum hole is a "
-            "real hole that also serves as a reference — extract it as a hole:")
-        for d in datums:
-            seg = (f"- {_kind.get(d.get('kind'), d.get('kind'))} @ "
-                   f"({float(d.get('x', 0)):.3f},{float(d.get('y', 0)):.3f})")
-            if d.get("value"):
-                seg += f" = \"{d['value']}\""
-            lines.append(seg)
-    if groups:
-        lines.append(
-            "MARKED REGION LEGEND (matches the boxes in the human-marked reference "
-            "view; positions are fractions of the image, x right / y down from the "
-            "top-left corner):"
-        )
-        for i, g in enumerate(groups, 1):
-            segs = []
-            for r in g.get("regions", []):
-                bb = r.get("boundingBox", {}) or {}
-                seg = f"{r.get('role', 'other')} @ ({bb.get('x', 0):.3f},{bb.get('y', 0):.3f})"
-                if r.get("value"):
-                    seg += f" = \"{r['value']}\""
-                segs.append(seg)
-            label = g.get("colorLabel") or g.get("color") or f"group {i}"
-            lines.append(f"- Feature {i} [{label}]: " + "; ".join(segs))
-        lines.append("Each feature is one physical hole/feature — place it and its "
-                     "spacing from these boxed positions and transcribed values.")
-    return "\n".join(lines)
-
-
 def _extract_part_views(part, page: int, cache_dir, usage: dict,
                         requirements: list | None = None) -> dict:
     """Prepare each view image and run one combined multi-view extraction.
@@ -478,9 +417,9 @@ def _extract_part_views(part, page: int, cache_dir, usage: dict,
     extraction prompt — specs-first: the model actively looks for those
     features from the start rather than being checked only after the fact.
 
-    A ``full_marked_view.jpg`` in the part folder (the reviewer's composited
-    drawing + colored region boxes) is included as human ground truth for hole
-    placement, alongside a text legend from ``reference_regions.json``."""
+    The model owns interpretation: every uploaded sheet is read whole (view
+    detection, origin, datums are derived by the vision model), with no human
+    markup preprocessing."""
     from utils.image_prep import prepare_image
     from pipeline.extractor import extract_drawing_data_multiview
 
@@ -489,22 +428,9 @@ def _extract_part_views(part, page: int, cache_dir, usage: dict,
         prepared = prepare_image(str(path), page=page, return_details=True)
         views.append((view_type, prepared.base64, prepared.media_type))
 
-    marked = None
-    region_legend = None
-    mv = getattr(part, "marked_view", None)
-    if mv is not None and Path(mv).is_file():
-        try:
-            mp = prepare_image(str(mv), page=page, return_details=True)
-            marked = (mp.base64, mp.media_type)
-            region_legend = _region_legend_text(Path(mv).parent)
-            console.print("  [cyan]Marked view:[/cyan] human-marked reference "
-                          "regions included in extraction for hole placement.")
-        except Exception as e:
-            console.print(f"  [yellow]Marked view skipped:[/yellow] {type(e).__name__}: {e}")
-
     data = extract_drawing_data_multiview(
         views, cache_dir=cache_dir, usage_out=usage, prep_warnings=part.warnings,
-        requirements=requirements, marked_view=marked, region_legend=region_legend,
+        requirements=requirements,
     )
     # Stamp the part number from the folder name when the model didn't read one.
     # An illegible title block can come back as quote/placeholder junk (e.g. '""')
@@ -555,8 +481,6 @@ def _run_views_folder(args) -> int:
     rows = []
     for part in parts:
         present = ", ".join(v for v, _ in _views_for_extraction(part)) or "none"
-        if getattr(part, "marked_view", None) is not None:
-            present += ", marked"  # the annotated drawing is pulled in too
         # ── Specs-first: read the operator's must-meet notes BEFORE extraction
         # so the specifications shape the extraction prompt and Stage 2.5
         # resolution from the start (they are re-verified against the build in

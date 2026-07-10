@@ -554,82 +554,18 @@
 </header>
 
 <nav class="tabs" id="tabbar">
-  <button class="tab tab-c active" data-tab="crop"><span class="sheet-no">SHEET 1</span>Drawing Crop</button>
-  <button class="tab tab-c" data-tab="intake"><span class="sheet-no">SHEET 2</span>Part Setup &amp; 3D Model <span class="badge">·</span></button>
-  <button class="tab tab-c" data-tab="pipeline"><span class="sheet-no">SHEET 3</span>Pipeline</button>
-  <button class="tab tab-c" data-tab="outputs"><span class="sheet-no">SHEET 4</span>Run Outputs</button>
+  <button class="tab tab-c active" data-tab="intake"><span class="sheet-no">SHEET 1</span>Upload &amp; 3D Model <span class="badge">·</span></button>
+  <button class="tab tab-c" data-tab="pipeline"><span class="sheet-no">SHEET 2</span>Pipeline</button>
+  <button class="tab tab-c" data-tab="outputs"><span class="sheet-no">SHEET 3</span>Run Outputs</button>
 </nav>
 
 <main>
-  <!-- ── Sheet 1 · Drawing Crop + preprocessing markup ─────────────────────
-       Two modes: the vendored DrawingCrop cropper (untouched, in its iframe)
-       and the reference-region markup surface (colored boxes = feature
-       groups, drawn over the drawing BEFORE extraction). ────────────────── -->
-  <section class="panel active" id="panel-crop">
-    <div class="crop-modebar">
-      <button class="tab-c sm cmode active" id="crop-mode-crop">✂ Crop views</button>
-      <button class="tab-c sm cmode" id="crop-mode-mark">✎ Mark regions</button>
-      <span class="hint" id="crop-mode-hint">crop each orthographic view, or switch to markup to highlight dimension regions before extraction</span>
-    </div>
-    <div id="crop-view">
-      <iframe id="photoapp" src="/photoapp/"></iframe>
-    </div>
-    <div id="mark-view" style="display:none">
-      <div class="mark-bar">
-        <button class="btn secondary sm on" id="mark-toggle"
-                title="Draw mode: drag to draw a highlight box over a dimension callout, hole center, or offset dimension.">✎ Draw</button>
-        <button class="btn secondary sm" id="origin-toggle"
-                title="Place a reference datum: pick the kind on the right, then click the drawing. The Origin (0,0) goes at the bottom-left of the top view; datums A/B/C and datum holes are additional GD&T references — all are fed into extraction.">⊕ Place datum</button>
-        <select class="sel-input" id="datum-kind"
-                title="What to place: the primary (0,0) origin, a lettered GD&T datum, or a datum hole">
-          <option value="origin">Origin (0,0)</option>
-          <option value="datum_a">Datum A</option>
-          <option value="datum_b">Datum B</option>
-          <option value="datum_c">Datum C</option>
-          <option value="datum_hole">Datum hole</option>
-        </select>
-        <button class="btn secondary sm" id="origin-lock" style="display:none"
-                title="Lock/unlock the origin so it can't be moved by accident">🔓 Unlocked</button>
-        <span class="mb-sep"></span>
-        <span class="mb-lab">Group color</span>
-        <span class="mark-swatch" id="mark-swatch"></span>
-        <select class="sel-input" id="mark-color" title="Active color — every box drawn with this color belongs to the same feature group"></select>
-        <span class="mb-sep"></span>
-        <span class="mb-lab">Role</span>
-        <select class="sel-input" id="mark-role" title="Role tag for the NEXT box drawn">
-          <option value="center">center</option>
-          <option value="x-dimension">x-dimension</option>
-          <option value="y-dimension">y-dimension</option>
-          <option value="tolerance">tolerance</option>
-          <option value="other">other</option>
-        </select>
-        <span class="mb-sep"></span>
-        <span class="hint" id="mark-hint">drag to draw · corner handle resizes · × deletes</span>
-        <span class="grow"></span>
-        <button class="btn secondary sm" id="mark-addview"
-                title="Add this marked drawing to the Part Setup sheet as a view (it joins the part's image list and can be assigned a view type and saved)">＋ Add to Part Setup</button>
-        <button class="btn danger sm" id="mark-clear" title="Delete every marked region for this part">✕ Clear regions</button>
-      </div>
-      <div class="mark-split">
-        <div id="mk-box">
-          <img id="mk-img" alt="drawing for markup" style="display:none" />
-          <div id="ov-mark-layer"></div>
-          <div class="emptynote" id="mk-empty">No drawing loaded yet — open a drawing in ✂ Crop views (or upload/select a part on the Part Setup sheet), then mark regions here.</div>
-        </div>
-        <aside class="mark-side">
-          <div class="ms-head">Marked reference regions
-            <span class="grow"></span><span class="hint" id="regions-count" style="text-transform:none;letter-spacing:0"></span></div>
-          <div class="ms-scroll regions-body" id="regions-body"></div>
-          <div class="ms-foot">Boxes sharing a <b>color</b> are one feature group — e.g. a hole's
-            center, its X-dimension, and its Y-dimension. Tag each box's role and transcribe its
-            value; everything saves automatically and appears in the Overview Analysis panel.</div>
-        </aside>
-      </div>
-    </div>
-  </section>
+  <!-- ── Sheet 1 · Upload & 3D Model (the pipeline's front door) ───────────
+       Full overview drawings are uploaded here; the model reads every view
+       from the sheet itself (no human crop/markup preprocessing). ────────── -->
 
-  <!-- ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────── -->
-  <section class="panel" id="panel-intake">
+  <!-- ── Sheet 1 · Upload & 3D Model ───────────────────────────────────── -->
+  <section class="panel active" id="panel-intake">
     <div class="intake-strip">
       <div class="gcol">
         <div class="grp-title">1 · Add images</div>
@@ -637,7 +573,6 @@
         <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf,.edrw,.eprt,.easm" style="display:none">
         <label class="filebtn" for="batch-folder">Upload parts folder <span class="hint">subfolders = parts (views + specs .txt)</span></label>
         <input type="file" id="batch-folder" webkitdirectory multiple style="display:none">
-        <button class="btn secondary" id="pull-crops-btn">Pull queued crops</button>
         <span class="badge-c teal fmt-badge" id="src-format" style="display:none"></span>
         <div class="grp-row" id="sheet-picker" style="display:none">
           <span class="hint">This drawing has multiple sheets:</span>
@@ -744,7 +679,7 @@
          and console: auto-expands and populates the moment the running
          pipeline writes overview_analysis.json. -->
     <details class="ovan" id="ovan-panel" style="display:none">
-      <summary><span class="twist"></span>Overview Analysis — holistic cross-view read (Stage 1.5)
+      <summary><span class="twist"></span>Model-derived interpretation — how the AI read this sheet (Stage 1.5)
         <span class="grow"></span><span id="ovan-badge"></span></summary>
       <div class="ovan-body" id="ovan-body"></div>
     </details>
@@ -833,7 +768,7 @@
 <script src="/vendor/OrbitControls.js"></script>
 <script>
 // ── Tabs: 4 top-level sheets + a sub-tab dock for run outputs (Sheet 4) ─────
-const TOP_TABS = ['crop', 'intake', 'pipeline', 'outputs'];
+const TOP_TABS = ['intake', 'pipeline', 'outputs'];
 document.getElementById('tabbar').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab);
 });
@@ -1024,29 +959,12 @@ function paintOverviewAnalysis(ov) {
   lastOvanData = (ov && ov.present && ov.data) ? ov.data : null;
   renderOvanPanel();
 }
-// The "Marked reference regions" subsection: the reviewer's color-grouped
-// markup, rendered as a native part of the Overview Analysis output and
-// updated LIVE whenever the markup changes on the Part Setup sheet.
-function regionsSubsectionHTML() {
-  const regions = regionList();
-  if (!regions.length) return '';
-  const fmt = n => n.toFixed(3).replace(/^0/, '');
-  return `<div class="sec-t">Marked reference regions — human ground truth (drawn on the Drawing Crop sheet)</div>` +
-    regionGroups(regions).map(g => `
-      <div class="rg-mini"><span class="mark-swatch" style="background:${esc(g.color)}"></span>
-        <div><b>${esc(g.colorLabel)}</b><ul>${g.regions.map(r =>
-          `<li>${esc(r.role)}${r.value ? ` — <b>${esc(r.value)}</b>` : ''} ` +
-          `<span class="rg-coords">(x ${fmt(r.boundingBox.x)}, y ${fmt(r.boundingBox.y)}, ` +
-          `w ${fmt(r.boundingBox.width)}, h ${fmt(r.boundingBox.height)})</span></li>`).join('')}</ul>
-      </div></div>`).join('');
-}
 function renderOvanPanel() {
   const panel = document.getElementById('ovan-panel');
   if (!panel) return;
   const body = document.getElementById('ovan-body'), badge = document.getElementById('ovan-badge');
   const d = lastOvanData;
-  const regionsHTML = regionsSubsectionHTML();
-  if (!d && !regionsHTML) { panel.style.display = 'none'; body.innerHTML = ''; badge.innerHTML = ''; return; }
+  if (!d) { panel.style.display = 'none'; body.innerHTML = ''; badge.innerHTML = ''; return; }
   const wasHidden = panel.style.display === 'none';
   let html = '';
   let conflicts = [];
@@ -1056,6 +974,8 @@ function renderOvanPanel() {
     badge.innerHTML = conflicts.length
       ? `<span class="conf-badge">${conflicts.length} conflict${conflicts.length === 1 ? '' : 's'}${nCrit ? ` · ${nCrit} critical` : ''}</span>`
       : `<span class="ok-badge">views agree</span>`;
+    html += `<p class="shape" style="color:var(--ink-3);font-style:italic">` +
+            `The model interprets the drawing itself — view roles, origin, and datums below are its own read of the sheet, not human markup. Ambiguities are resolved and flagged, never blocked.</p>`;
     if (d.overall_shape_summary) html += `<p class="shape"><b>Overall shape:</b> ${esc(d.overall_shape_summary)}</p>`;
     if ((d.views_detected || []).length)
       html += `<div class="sec-t">Views detected</div>` + d.views_detected.map(v =>
@@ -1079,7 +999,6 @@ function renderOvanPanel() {
   } else {
     badge.innerHTML = '';
   }
-  html += regionsHTML;
   body.innerHTML = html;
   panel.style.display = '';
   // Conflicts must be seen, not hidden — and during a LIVE run the panel
@@ -1219,489 +1138,6 @@ document.getElementById('clear-runs-btn').addEventListener('click', async () => 
             (d.errors || []).length ? '' : 'ok');
 });
 
-// ── Human-marked reference regions ("Mark regions" on the drawing panel) ─────
-// The reviewer drags colored highlight boxes over the drawing BEFORE extraction
-// runs: color = feature group (a hole's center + X-dimension + Y-dimension all
-// share one color). Coordinates are stored NORMALIZED (0-1 of image size), the
-// groups surface live inside the Overview Analysis panel, and everything is
-// persisted per part as reference_regions.json for downstream OCR cross-checks.
-// The 15-color palette lives HERE, in one place — saturated hues chosen to stay
-// legible over white/light drawing backgrounds.
-const REGION_PALETTE = [
-  { hex: '#E5484D', label: 'red' },     { hex: '#F76B15', label: 'orange' },
-  { hex: '#D9A514', label: 'amber' },   { hex: '#7CB342', label: 'lime' },
-  { hex: '#1B7F3B', label: 'green' },   { hex: '#12A594', label: 'teal' },
-  { hex: '#00A2C7', label: 'cyan' },    { hex: '#0090FF', label: 'azure' },
-  { hex: '#3E63DD', label: 'indigo' },  { hex: '#6E56CF', label: 'violet' },
-  { hex: '#AB4ABA', label: 'purple' },  { hex: '#E93D82', label: 'pink' },
-  { hex: '#8E5B3C', label: 'brown' },   { hex: '#64748B', label: 'slate' },
-  { hex: '#1F2937', label: 'charcoal' },
-];
-const REGION_ROLES = ['center', 'x-dimension', 'y-dimension', 'tolerance', 'other'];
-const INTAKE_REGION_KEY = '__intake__';
-let regionsByKey = {};              // context key (part name or intake) -> region[]
-let originByKey = {};               // context key -> { x, y, locked, view } | undefined
-let datumsByKey = {};               // context key -> datum[] (GD&T reference points)
-let regionsDirty = new Set();       // keys with local edits not yet on the server
-function datumList() { const k = regionCtxKey(); return datumsByKey[k] || (datumsByKey[k] = []); }
-function datumGlyph(kind) { return ({origin:'0,0', datum_a:'A', datum_b:'B', datum_c:'C', datum_hole:'⌀'})[kind] || '•'; }
-function datumName(kind) { return ({origin:'Origin (0,0)', datum_a:'Datum A', datum_b:'Datum B', datum_c:'Datum C', datum_hole:'Datum hole'})[kind] || kind; }
-let markOn = true;           // draw-boxes tool (Sheet 1 markup opens in draw mode)
-let originOn = false;        // set-origin tool
-window.__markOn = true;      // any active tool pauses image panning
-
-function regionCtxKey() { return selectedPart || INTAKE_REGION_KEY; }
-function currentOrigin() { return originByKey[regionCtxKey()] || null; }
-function regionList() {
-  const k = regionCtxKey();
-  return regionsByKey[k] || (regionsByKey[k] = []);
-}
-function groupLabel(hex) {
-  const i = REGION_PALETTE.findIndex(p => p.hex.toLowerCase() === String(hex).toLowerCase());
-  return i >= 0 ? `Group ${i + 1} · ${REGION_PALETTE[i].label}` : String(hex);
-}
-function regionGroups(regions) {
-  const order = [], byColor = {};
-  for (const r of regions) {
-    if (!byColor[r.color]) { byColor[r.color] = []; order.push(r.color); }
-    byColor[r.color].push(r);
-  }
-  return order.map(c => ({ color: c, colorLabel: groupLabel(c), regions: byColor[c] }));
-}
-
-// Toolbar: active color + role for the NEXT box drawn.
-const markColorSel = document.getElementById('mark-color');
-REGION_PALETTE.forEach((p, i) => {
-  const o = document.createElement('option');
-  o.value = p.hex; o.textContent = `Group ${i + 1} · ${p.label}`;
-  markColorSel.appendChild(o);
-});
-function activeColor() { return markColorSel.value || REGION_PALETTE[0].hex; }
-function updateSwatch() { document.getElementById('mark-swatch').style.background = activeColor(); }
-markColorSel.addEventListener('change', updateSwatch); updateSwatch();
-
-const markLayer = document.getElementById('ov-mark-layer');
-markLayer.classList.add('marking'); // draw mode starts ON in the markup view
-// The markup surface has two tools (draw boxes / set origin) plus a pan state;
-// selecting one deselects the other. Any active tool pauses image panning.
-function syncMarkTool() {
-  window.__markOn = markOn || originOn;
-  markLayer.classList.toggle('marking', markOn || originOn);
-  document.getElementById('mark-toggle').classList.toggle('on', markOn);
-  document.getElementById('origin-toggle').classList.toggle('on', originOn);
-  document.getElementById('mark-hint').textContent =
-    originOn ? 'origin mode — click the BOTTOM-LEFT corner of the top view to set the (0,0) datum, then 🔒 lock it'
-    : markOn ? 'drag to draw · corner handle resizes · × deletes · boxes sharing a color = one feature group'
-    : 'tools off — drag pans the image · scroll zooms · toggle ✎ Draw or ⊕ Set origin';
-  renderRegions(false);
-}
-document.getElementById('mark-toggle').addEventListener('click', () => {
-  markOn = !markOn; if (markOn) originOn = false; syncMarkTool();
-});
-document.getElementById('origin-toggle').addEventListener('click', () => {
-  originOn = !originOn; if (originOn) markOn = false; syncMarkTool();
-});
-document.getElementById('origin-lock').addEventListener('click', () => {
-  const o = originByKey[regionCtxKey()]; if (!o) return;
-  o.locked = !o.locked; renderRegions();
-});
-function updateOriginControls() {
-  const o = currentOrigin(), lockBtn = document.getElementById('origin-lock');
-  lockBtn.style.display = o ? '' : 'none';
-  lockBtn.textContent = o && o.locked ? '🔒 Locked' : '🔓 Unlocked';
-  lockBtn.classList.toggle('on', !!(o && o.locked));
-}
-
-// ── Sheet 1 mode bar: cropper ↔ markup surface ──────────────────────────────
-// The markup image mirrors the current preprocessing context: the drawing
-// loaded/cropped in this session (its overview crop wins over the raw source),
-// else the selected saved part's overview drawing.
-function updateMarkImage() {
-  const img = document.getElementById('mk-img'), empty = document.getElementById('mk-empty');
-  const ovItem = intake.items.find(i => i.orientation === 'overview');
-  const url = (ovItem && ovItem.dataURL) || intake.source ||
-    (selectedPart ? `/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/overview.jpg?t=${Date.now()}` : null);
-  if (!url) {
-    img.style.display = 'none'; empty.style.display = '';
-    if (window.__mkSyncLayer) window.__mkSyncLayer();
-    return;
-  }
-  img.onload = () => { img.style.display = ''; empty.style.display = 'none';
-                       if (window.__mkReset) window.__mkReset(); };
-  img.onerror = () => { img.style.display = 'none'; empty.style.display = '';
-                        if (window.__mkSyncLayer) window.__mkSyncLayer(); };
-  img.src = url;
-}
-function setCropMode(mode) { // 'crop' | 'mark'
-  document.getElementById('crop-mode-crop').classList.toggle('active', mode === 'crop');
-  document.getElementById('crop-mode-mark').classList.toggle('active', mode === 'mark');
-  document.getElementById('crop-view').style.display = mode === 'crop' ? '' : 'none';
-  document.getElementById('mark-view').style.display = mode === 'mark' ? '' : 'none';
-  document.getElementById('crop-mode-hint').textContent = mode === 'mark'
-    ? 'highlight dimension regions before extraction — color = feature group (a hole + its X and Y dimensions share one color)'
-    : 'crop each orthographic view, or switch to markup to highlight dimension regions before extraction';
-  if (mode === 'mark') { updateMarkImage(); syncMarkTool(); }
-}
-document.getElementById('crop-mode-crop').addEventListener('click', () => setCropMode('crop'));
-document.getElementById('crop-mode-mark').addEventListener('click', () => setCropMode('mark'));
-
-// Boxes are rendered in % of the mark layer, which exactly tracks the image
-// (same geometry + same pan/zoom transform) — so normalized coords are the
-// single source of truth at any zoom or window size.
-function renderMarkBoxes() {
-  markLayer.querySelectorAll('.mark-box').forEach(el => el.remove());
-  for (const r of regionList()) {
-    const bb = r.boundingBox;
-    const el = document.createElement('div');
-    el.className = 'mark-box'; el.dataset.id = r.id;
-    el.style.left = (bb.x * 100) + '%'; el.style.top = (bb.y * 100) + '%';
-    el.style.width = (bb.width * 100) + '%'; el.style.height = (bb.height * 100) + '%';
-    el.style.borderColor = r.color;
-    el.style.background = r.color + '2E'; // ~18% alpha fill keeps linework legible
-    // No in-drawing text label (it would cover the dimensions underneath) — the
-    // role/value live in the sidebar; the box itself stays a clean highlight.
-    if (markOn) {
-      const del = document.createElement('span');
-      del.className = 'mb-del'; del.textContent = '×'; del.title = 'Delete this region';
-      del.addEventListener('pointerdown', ev => ev.stopPropagation());
-      del.addEventListener('click', ev => { ev.stopPropagation(); deleteRegion(r.id); });
-      el.appendChild(del);
-      const rs = document.createElement('span');
-      rs.className = 'mb-resize'; rs.style.background = r.color; rs.title = 'Drag to resize';
-      rs.addEventListener('pointerdown', ev => beginResize(ev, r.id));
-      el.appendChild(rs);
-    }
-    markLayer.appendChild(el);
-  }
-  // Locked origin datum (single cyan crosshair marking 0,0).
-  markLayer.querySelectorAll('.origin-mark').forEach(el => el.remove());
-  const o = currentOrigin();
-  if (o) {
-    const om = document.createElement('div');
-    om.className = 'origin-mark';
-    om.style.left = (o.x * 100) + '%'; om.style.top = (o.y * 100) + '%';
-    om.innerHTML = '<span class="oh"></span><span class="ov"></span><span class="odot"></span>' +
-      `<span class="olabel">0,0 ${o.locked ? '🔒' : ''}</span>`;
-    if (originOn && !o.locked) {
-      const del = document.createElement('span');
-      del.className = 'odel'; del.textContent = '×'; del.title = 'Remove origin';
-      del.addEventListener('pointerdown', ev => ev.stopPropagation());
-      del.addEventListener('click', ev => { ev.stopPropagation(); delete originByKey[regionCtxKey()]; renderRegions(); });
-      om.appendChild(del);
-    }
-    markLayer.appendChild(om);
-  }
-  // Datum reference points (A / B / C / datum holes).
-  markLayer.querySelectorAll('.datum-mark').forEach(el => el.remove());
-  for (const dm of datumList()) {
-    const el = document.createElement('div');
-    el.className = 'datum-mark';
-    el.style.left = (dm.x * 100) + '%'; el.style.top = (dm.y * 100) + '%';
-    el.innerHTML = `<span class="dm-dot"></span><span class="dm-lab">${esc(datumGlyph(dm.kind))}</span>`;
-    if (originOn) {
-      const del = document.createElement('span');
-      del.className = 'dm-del'; del.textContent = '×'; del.title = `Remove ${datumName(dm.kind)}`;
-      del.addEventListener('pointerdown', ev => ev.stopPropagation());
-      del.addEventListener('click', ev => {
-        ev.stopPropagation();
-        datumsByKey[regionCtxKey()] = datumList().filter(d => d.id !== dm.id);
-        renderRegions();
-      });
-      el.appendChild(del);
-    }
-    markLayer.appendChild(el);
-  }
-  updateOriginControls();
-}
-
-function layerPoint(ev) {
-  const rect = markLayer.getBoundingClientRect(); // post-transform: zoom-proof
-  if (!rect.width || !rect.height) return null;
-  return {
-    x: Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width)),
-    y: Math.min(1, Math.max(0, (ev.clientY - rect.top) / rect.height)),
-  };
-}
-
-// Click-and-drag to draw a new box (markup mode only).
-let drawState = null;
-markLayer.addEventListener('pointerdown', ev => {
-  if (ev.button !== 0 || ev.target !== markLayer) return;
-  // Datum tool: place the kind chosen in the dropdown. Origin is the single
-  // locked (0,0); datums A/B/C are one each; datum holes can be multiple.
-  if (originOn) {
-    const p = layerPoint(ev); if (!p) return;
-    const kind = document.getElementById('datum-kind').value || 'origin';
-    if (kind === 'origin') {
-      const cur = currentOrigin();
-      if (cur && cur.locked) return;       // locked — must unlock to move
-      originByKey[regionCtxKey()] = { x: p.x, y: p.y, locked: false, view: 'top' };
-    } else {
-      const list = datumList();
-      if (kind !== 'datum_hole') {         // one lettered datum of each kind
-        const i = list.findIndex(d => d.kind === kind);
-        if (i >= 0) list.splice(i, 1);
-      }
-      list.push({ id: 'dm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-                  x: p.x, y: p.y, kind, value: '' });
-    }
-    renderRegions();
-    return;
-  }
-  if (!markOn) return;
-  const p = layerPoint(ev); if (!p) return;
-  const region = {
-    id: 'rg' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    color: activeColor(),
-    colorLabel: groupLabel(activeColor()),
-    role: document.getElementById('mark-role').value || 'other',
-    boundingBox: { x: p.x, y: p.y, width: 0, height: 0 },
-    value: '',
-    createdAt: new Date().toISOString(),
-  };
-  drawState = { region, ax: p.x, ay: p.y };
-  regionList().push(region);
-  markLayer.setPointerCapture(ev.pointerId);
-  renderMarkBoxes();
-  ev.preventDefault();
-});
-markLayer.addEventListener('pointermove', ev => {
-  const st = drawState || resizeState; if (!st) return;
-  const p = layerPoint(ev); if (!p) return;
-  const bb = st.region.boundingBox;
-  if (drawState) {
-    bb.x = Math.min(st.ax, p.x); bb.y = Math.min(st.ay, p.y);
-    bb.width = Math.abs(p.x - st.ax); bb.height = Math.abs(p.y - st.ay);
-  } else {
-    bb.width = Math.max(0.004, p.x - bb.x); bb.height = Math.max(0.004, p.y - bb.y);
-  }
-  renderMarkBoxes();
-});
-markLayer.addEventListener('pointerup', () => {
-  if (drawState) {
-    const bb = drawState.region.boundingBox;
-    if (bb.width < 0.003 || bb.height < 0.003) {           // stray click: discard
-      regionsByKey[regionCtxKey()] = regionList().filter(r => r.id !== drawState.region.id);
-    }
-    drawState = null;
-    renderRegions();
-  } else if (resizeState) { resizeState = null; renderRegions(); }
-});
-
-let resizeState = null;
-function beginResize(ev, id) {
-  ev.stopPropagation(); ev.preventDefault();
-  const region = regionList().find(r => r.id === id); if (!region) return;
-  resizeState = { region };
-  markLayer.setPointerCapture(ev.pointerId);
-}
-function deleteRegion(id) {
-  regionsByKey[regionCtxKey()] = regionList().filter(r => r.id !== id);
-  renderRegions();
-}
-function patchRegion(id, patch) {
-  const r = regionList().find(x => x.id === id); if (!r) return;
-  Object.assign(r, patch);
-  renderRegions();
-}
-
-// Region sidebar (right of the drawing): role tag + transcribed value per box.
-function renderRegionsPanel() {
-  const body = document.getElementById('regions-body');
-  const regions = regionList();
-  const o = currentOrigin();
-  const fmt3 = n => n.toFixed(3);
-  document.getElementById('regions-count').textContent =
-    regions.length ? `${regions.length} region(s) · ${regionGroups(regions).length} group(s)` : '';
-  const clearBtn = document.getElementById('mark-clear');
-  if (clearBtn) clearBtn.style.display = regions.length ? '' : 'none';
-  const originHTML = o
-    ? `<div class="rg-origin set">◎ Origin datum ${o.locked ? '🔒 locked' : '🔓 unlocked'} ` +
-      `at (${fmt3(o.x)}, ${fmt3(o.y)}) — bottom-left of the top view; the fixed (0,0) for model orientation.</div>`
-    : `<div class="rg-origin">◎ Origin not set — pick <b>Origin (0,0)</b> and click <b>⊕ Place datum</b>, ` +
-      `then the bottom-left corner of the top view, so every model shares the drawing's orientation.</div>`;
-  const datums = datumList();
-  const datumHTML = datums.length
-    ? `<div class="rg-datums"><div class="rg-datums-t">Datum reference points</div>` +
-      datums.map(d => `<div class="rg-drow" data-id="${esc(d.id)}">
-        <span class="dm-chip">${esc(datumGlyph(d.kind))}</span>${esc(datumName(d.kind))}
-        <input class="input-c dm-val" placeholder="value (e.g. ⌀.406)" value="${esc(d.value || '')}">
-        <span class="rg-coords">(${fmt3(d.x)}, ${fmt3(d.y)})</span>
-        <button class="rg-del dm-del-row" title="Remove this datum">×</button></div>`).join('') + `</div>`
-    : '';
-  if (!regions.length) {
-    body.innerHTML = originHTML + datumHTML + '<div class="ms-empty">No regions marked yet.<br><br>' +
-      'Pick a <b>group color</b> and a <b>role</b> in the toolbar, then drag on the ' +
-      'drawing to highlight a dimension callout, a hole center, or an offset ' +
-      'dimension line. All boxes of one color form one feature group.</div>';
-    return;
-  }
-  const fmt = n => n.toFixed(3).replace(/^0/, '');
-  body.innerHTML = originHTML + datumHTML + regionGroups(regions).map(g => `
-    <div class="rg-group">
-      <div class="rg-head"><span class="mark-swatch" style="background:${esc(g.color)}"></span>${esc(g.colorLabel)}
-        <span class="grow"></span>
-        <span class="hint" style="text-transform:none;letter-spacing:0">${g.regions.length} region(s)</span></div>
-      ${g.regions.map(r => `
-        <div class="rg-row" data-id="${esc(r.id)}">
-          <select class="sel-input rg-role" title="Role of this box within its feature group">${REGION_ROLES.map(ro =>
-            `<option value="${ro}"${ro === r.role ? ' selected' : ''}>${ro}</option>`).join('')}</select>
-          <input class="input-c rg-val" placeholder="value, e.g. 2.500 ± .005" value="${esc(r.value)}">
-          <button class="rg-del" title="Delete this region">×</button>
-          <span class="rg-coords">x ${fmt(r.boundingBox.x)} · y ${fmt(r.boundingBox.y)} · w ${fmt(r.boundingBox.width)} · h ${fmt(r.boundingBox.height)}</span>
-        </div>`).join('')}
-    </div>`).join('');
-}
-// Clear every region for the CURRENT part context (confirmed, autosaves).
-document.getElementById('mark-clear').addEventListener('click', () => {
-  const n = regionList().length;
-  if (!n) return;
-  if (!confirm(`Delete all ${n} marked region(s) for this part?`)) return;
-  regionsByKey[regionCtxKey()] = [];
-  renderRegions();
-});
-document.getElementById('regions-body').addEventListener('change', e => {
-  const drow = e.target.closest('.rg-drow');
-  if (drow && e.target.classList.contains('dm-val')) {
-    const d = datumList().find(x => x.id === drow.dataset.id);
-    if (d) { d.value = e.target.value; renderRegions(); }
-    return;
-  }
-  const row = e.target.closest('.rg-row'); if (!row) return;
-  if (e.target.classList.contains('rg-role')) patchRegion(row.dataset.id, { role: e.target.value });
-  if (e.target.classList.contains('rg-val')) patchRegion(row.dataset.id, { value: e.target.value });
-});
-document.getElementById('regions-body').addEventListener('click', e => {
-  if (!e.target.classList.contains('rg-del')) return;
-  const drow = e.target.closest('.rg-drow');
-  if (drow) { datumsByKey[regionCtxKey()] = datumList().filter(d => d.id !== drow.dataset.id); renderRegions(); return; }
-  const row = e.target.closest('.rg-row'); if (row) deleteRegion(row.dataset.id);
-});
-
-// One render entry point: boxes + list + the Overview Analysis subsection stay
-// in lockstep, and every change autosaves (no manual sync step anywhere).
-function renderRegions(save = true) {
-  renderMarkBoxes();
-  renderRegionsPanel();
-  renderOvanPanel();     // live "Marked reference regions" subsection (Sheet 3)
-  if (save) { regionsDirty.add(regionCtxKey()); scheduleRegionSave(); }
-}
-
-// Persistence: reference_regions.json saved with the part INPUTS (survives
-// clear-all-models; readable by the pipeline for future OCR cross-checks).
-let regionSaveTimer = null;
-function scheduleRegionSave() {
-  if (regionSaveTimer) clearTimeout(regionSaveTimer);
-  regionSaveTimer = setTimeout(saveRegionsNow, 600);
-}
-async function saveRegionsNow() {
-  regionSaveTimer = null;
-  const key = regionCtxKey();
-  if (key === INTAKE_REGION_KEY || !sessionId) return;   // flushed on Save part
-  if (!regionsDirty.has(key)) return;
-  try {
-    await fetch(`/api/parts/${sessionId}/${encodeURIComponent(key)}/regions`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ regions: regionsByKey[key] || [], origin: originByKey[key] || null,
-                             datums: datumsByKey[key] || [] }),
-    });
-    regionsDirty.delete(key);
-    saveMarkedViewNow(key);     // keep full_marked_view.jpg in sync with boxes + origin
-  } catch { /* retried on the next change */ }
-}
-
-// Composite the drawing + colored boxes and upload it as full_marked_view.jpg —
-// the human-annotated image the pipeline feeds into Claude extraction for
-// correct hole placement. Rendered at the drawing's native resolution; the
-// server removes it automatically when all regions are cleared.
-function hexToRgba(hex, a) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-  if (!m) return `rgba(136,136,136,${a})`;
-  const n = parseInt(m[1], 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-}
-function buildMarkedCanvas(regions, origin, datums) {
-  const img = document.getElementById('mk-img');
-  if (!img || img.style.display === 'none' || !img.naturalWidth) return null;
-  const W = img.naturalWidth, H = img.naturalHeight;
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const ctx = c.getContext('2d');
-  try { ctx.drawImage(img, 0, 0, W, H); } catch { return null; }
-  const lw = Math.max(2, Math.round(Math.max(W, H) / 700));
-  const datum = getComputedStyle(document.documentElement).getPropertyValue('--datum').trim() || '#00C2FF';
-  for (const r of regions) {
-    const bb = r.boundingBox, x = bb.x * W, y = bb.y * H, w = bb.width * W, h = bb.height * H;
-    ctx.fillStyle = hexToRgba(r.color, 0.18); ctx.fillRect(x, y, w, h);
-    ctx.lineWidth = lw; ctx.strokeStyle = r.color; ctx.strokeRect(x, y, w, h);
-  }
-  if (origin) {                              // datum crosshair + label (token color)
-    const ox = origin.x * W, oy = origin.y * H, L = Math.max(16, Math.round(Math.max(W, H) / 38));
-    ctx.strokeStyle = datum; ctx.lineWidth = Math.max(2, lw);
-    ctx.beginPath();
-    ctx.moveTo(ox - L, oy); ctx.lineTo(ox + L, oy);
-    ctx.moveTo(ox, oy - L); ctx.lineTo(ox, oy + L); ctx.stroke();
-    ctx.fillStyle = datum;
-    ctx.beginPath(); ctx.arc(ox, oy, Math.max(3, lw * 1.6), 0, 6.29); ctx.fill();
-    ctx.font = `700 ${Math.max(12, Math.round(W / 85))}px sans-serif`;
-    ctx.fillText('(0,0)', ox + L + 3, oy - 5);
-  }
-  for (const d of datums || []) {            // datum reference points (A/B/C/⌀)
-    const dx = d.x * W, dy = d.y * H, R = Math.max(6, Math.round(Math.max(W, H) / 90));
-    ctx.fillStyle = datum; ctx.beginPath(); ctx.arc(dx, dy, R, 0, 6.29); ctx.fill();
-    ctx.strokeStyle = '#0A0F16'; ctx.lineWidth = Math.max(1, lw - 1);
-    ctx.beginPath(); ctx.arc(dx, dy, R, 0, 6.29); ctx.stroke();
-    ctx.fillStyle = '#0A0F16'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `700 ${Math.max(10, Math.round(R * 1.2))}px sans-serif`;
-    ctx.fillText(datumGlyph(d.kind), dx, dy + 1);
-    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
-  }
-  return c;
-}
-function composeMarkedBlob(regions, origin, datums, cb) {
-  const c = buildMarkedCanvas(regions, origin, datums);
-  if (!c) { cb(null); return; }
-  try { c.toBlob(b => cb(b), 'image/jpeg', 0.92); } catch { cb(null); }
-}
-function composeMarkedDataURL() {
-  const c = buildMarkedCanvas(regionList(), currentOrigin(), datumList());
-  try { return c ? c.toDataURL('image/jpeg', 0.92) : null; } catch { return null; }
-}
-function saveMarkedViewNow(key, _retried) {
-  const regions = regionsByKey[key] || [], origin = originByKey[key] || null, datums = datumsByKey[key] || [];
-  if (!regions.length && !origin && !datums.length) return; // server drops the stale marked view otherwise
-  composeMarkedBlob(regions, origin, datums, blob => {
-    if (!blob) {                 // image not ready yet — retry once shortly
-      if (!_retried) setTimeout(() => saveMarkedViewNow(key, true), 500);
-      return;
-    }
-    const fd = new FormData();
-    fd.append('file', blob, 'full_marked_view.jpg');
-    fetch(`/api/parts/${sessionId}/${encodeURIComponent(key)}/marked-view`,
-          { method: 'POST', body: fd }).catch(() => {});
-  });
-}
-// "Add to Part Setup": push the composited marked drawing into the intake
-// gallery on Sheet 2 so it can be assigned a view type and saved with the part.
-document.getElementById('mark-addview').addEventListener('click', () => {
-  const dataURL = composeMarkedDataURL();
-  if (!dataURL) { setStatus('No drawing loaded to add — open a drawing first.', 'err'); return; }
-  // Pre-assigned as the "Marked View" type: on save it becomes
-  // full_marked_view.jpg, the annotated image extraction consumes.
-  addIntakeItems([{ dataURL, orientation: 'marked', label: 'Marked drawing' }]);
-  showTab('intake');
-  setStatus('Added the marked drawing to Part Setup as a Marked View — name the part and save.', 'ok');
-});
-async function loadRegionsFor(name) {
-  if (regionsDirty.has(name)) { renderRegions(false); return; } // local edits win
-  try {
-    const d = await (await fetch(`/api/parts/${sessionId}/${encodeURIComponent(name)}/regions`)).json();
-    regionsByKey[name] = d.regions || [];
-    originByKey[name] = d.origin || undefined;
-    datumsByKey[name] = d.datums || [];
-  } catch { regionsByKey[name] = regionsByKey[name] || []; }
-  if (regionCtxKey() === name) renderRegions(false);
-}
-
 function renderParts() {
   const list = document.getElementById('parts-list');
   if (!partsData.length) { list.innerHTML = '<div class="empty">No parts yet — create one in the Part Setup &amp; 3D Model tab.</div>'; return; }
@@ -1709,25 +1145,18 @@ function renderParts() {
   partsData.forEach(p => {
     const card = document.createElement('div');
     card.className = 'pcard' + (p.name === selectedPart ? ' sel' : '');
-    // Show EVERY image the run pulls: orthographic views + the Full Overview
-    // View + the Marked View (both are fed into extraction), so the card
-    // reflects the full input set, not just the cropped orthographic views.
-    const extras = [];
-    if (p.has_overview) extras.push('overview');
-    if (p.has_marked) extras.push('marked');
-    const vwText = `${p.n_views} view${p.n_views === 1 ? '' : 's'}` +
-                   (extras.length ? ` + ${extras.join(' + ')}` : '');
-    const pulled = (p.views || []).concat(
-      p.has_overview ? ['Full Overview View'] : [],
-      p.has_marked ? ['Marked View'] : []);
+    // The full uploaded sheet is what the run reads (the model owns view
+    // interpretation), shown alongside any orthographic views present.
+    const nImgs = (p.views || []).length + (p.has_overview ? 1 : 0);
+    const vwText = `${nImgs} image${nImgs === 1 ? '' : 's'}`;
+    const pulled = (p.views || []).concat(p.has_overview ? ['Full Overview View'] : []);
     card.innerHTML =
       `<img class="thumb" src="/api/parts/${sessionId}/${encodeURIComponent(p.name)}/thumb.jpg" onerror="this.style.visibility='hidden'"/>` +
       (p.has_output ? '<span class="ran">ran</span>' : '') +
       (p.name === selectedPart ? '<span class="tickbadge">✓ selected</span>' : '') +
       `<div class="meta"><div class="nm" title="${p.name}">${p.name}</div>` +
-      `<div class="vw" title="Pulled into the run: ${pulled.join(', ')}">${vwText}` +
-      (extras.includes('overview') ? '<span class="vw-chip">◱ overview</span>' : '') +
-      (extras.includes('marked') ? '<span class="vw-chip datum">✎ marked</span>' : '') +
+      `<div class="vw" title="Pulled into the run: ${pulled.join(', ') || 'full sheet'}">${vwText}` +
+      (p.has_overview ? '<span class="vw-chip">◱ full sheet</span>' : '') +
       `</div></div>`;
     card.onclick = () => selectPart(p.name);
     list.appendChild(card);
@@ -1735,9 +1164,10 @@ function renderParts() {
 }
 function updateRunEnabled() {
   const p = partsData.find(x => x.name === selectedPart);
-  document.getElementById('run-btn').disabled = isRunning || !p || p.n_views < 1;
+  const runnable = x => x && (x.n_views >= 1 || x.has_overview);  // a full sheet is enough
+  document.getElementById('run-btn').disabled = isRunning || !runnable(p);
   const ra = document.getElementById('run-all-btn');
-  if (ra) ra.disabled = isRunning || !partsData.some(x => x.n_views >= 1);
+  if (ra) ra.disabled = isRunning || !partsData.some(runnable);
   // Correction re-run + "save flags to Learning Loop" need a selected part that
   // has already produced output (nothing to correct/capture otherwise).
   const rf = document.getElementById('rerun-feedback-btn');
@@ -1759,7 +1189,6 @@ function selectPart(name) {
   document.getElementById('viewer-part').textContent = name;
   updateSourceBadges();
   loadPartOutputs(name);
-  loadRegionsFor(name); // the part's saved reference-region markup
 }
 async function loadPartOutputs(name) {
   resetOutputs('Waiting for pipeline output…');
@@ -1819,9 +1248,6 @@ function updateOverviewBox() {
   else if (selectedPart) show(`/api/parts/${sessionId}/${encodeURIComponent(selectedPart)}/overview.jpg?t=${Date.now()}`);
   else if (intakeOverview) show(intakeOverview);
   else { img.style.display = 'none'; empty.style.display = ''; }
-  // Keep Sheet 1's markup surface on the same preprocessing context (only
-  // refresh while it is visible — no hidden reloads).
-  if (document.getElementById('mark-view').style.display !== 'none') updateMarkImage();
 }
 
 // ── Intake: upload / pull crops → view-type dropdown → name → save ──────────
@@ -1832,7 +1258,7 @@ function updateOverviewBox() {
 const ORIENTATIONS = [
   ['front', 'Front View'], ['back', 'Back View'], ['left', 'Left Side View'],
   ['right', 'Right Side View'], ['top', 'Top View'], ['bottom', 'Bottom View'],
-  ['overview', 'Full Overview View'], ['marked', 'Marked View'],
+  ['overview', 'Full Overview View'],
 ];
 // Orientation → the crop filename the server's VIEW_MAP / view_ingest classify.
 // 'overview' becomes the canonical 00_full.jpg overview image; 'marked' becomes
@@ -1840,7 +1266,7 @@ const ORIENTATIONS = [
 // batch each color group's X/Y coordinates with its hole placement and to read
 // the locked origin for consistent model orientation.
 const ORIENT_TO_NAME = { front:'front', back:'back', top:'top', bottom:'bottom',
-                         left:'left', right:'right', overview:'overview', marked:'marked' };
+                         left:'left', right:'right', overview:'overview' };
 // Views that satisfy "one more orthographic view" ALONGSIDE the required FRONT
 // view (the front view defines the base profile, so it is the mandatory one;
 // overview/marked are context, never orthographic).
@@ -1856,7 +1282,6 @@ const saveBtn = document.getElementById('save-part-btn');
 
 function guessOrientation(name) {
   const n = (name || '').toLowerCase();
-  if (n.includes('marked')) return 'marked';
   if (n.includes('front')) return 'front';
   if (n.includes('back') || n.includes('rear')) return 'back';
   if (n.includes('bottom')) return 'bottom';
@@ -1901,17 +1326,17 @@ function dupOrientations() {
 }
 
 function validateIntake() {
+  // Full-sheet model: one uploaded overview drawing is enough — the model reads
+  // every view from the sheet itself (no per-view cropping/markup).
   const assigned = intake.items.map(i => i.orientation).filter(Boolean);
-  const hasFront = assigned.includes('front');
-  const hasOther = assigned.some(o => ORTHO_SET.has(o));
+  const hasImage = assigned.length > 0;
   const named = !!partNameEl.value.trim();
   const dups = dupOrientations();
   let msg = '', ok = false;
   if (!intake.items.length) msg = '';
-  else if (!hasFront) msg = '⚠ Assign a FRONT view — the base profile cannot be built without it.';
-  else if (!hasOther) msg = '⚠ Assign at least one more orthographic view (Top / Bottom / Left / Right / Back) so depth can be read.';
+  else if (!hasImage) msg = '⚠ Give the uploaded drawing a view type (usually Full Overview View).';
   else if (!named) msg = 'Name the part to save it.';
-  else { ok = true; msg = dups.size ? `⚠ Duplicate orientation(s): ${[...dups].join(', ')} — you can save, but confirm the override.` : '✓ Ready to save.'; }
+  else { ok = true; msg = dups.size ? `⚠ Duplicate view type(s): ${[...dups].join(', ')} — save anyway?` : '✓ Ready to save.'; }
   reqWarn.textContent = msg;
   reqWarn.className = 'req-warn' + (ok && !dups.size ? ' ok' : '');
   saveBtn.disabled = !(ok && !isRunning);
@@ -1995,9 +1420,9 @@ intakeFile.addEventListener('change', async e => {
       intake.source = urls[0]; intake.originalFile = f; intake.stem = stem;
       intake.format = 'PDF' + (pages > 1 ? ` · ${pages} pages` : '');
       addIntakeItems(urls.map((u, i) => ({ dataURL: u, label: `page ${i + 1}`,
-        orientation: pages === 1 ? 'front' : '' })));
+        orientation: i === 0 ? 'overview' : '' })));
       showSourcePreview(intake.source, stem + ' — unsaved upload');
-      setStatus(`Loaded ${pages} page(s) from ${f.name}. Assign an orientation to each.`, 'ok');
+      setStatus(`Loaded ${pages} page(s) from ${f.name}. Page 1 is the sheet; name the part and save.`, 'ok');
     } else if (['dwg', 'dxf', 'edrw', 'eprt', 'easm'].includes(ext)) {
       await loadCadFile(f, stem, '');
       return; // loadCadFile handles naming/validation itself (may await sheet pick)
@@ -2005,9 +1430,9 @@ intakeFile.addEventListener('change', async e => {
       const url = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); });
       intake.source = url; intake.originalFile = f; intake.stem = stem;
       intake.format = 'Image (' + ext.toUpperCase() + ')';
-      addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
+      addIntakeItems([{ dataURL: url, label: f.name, orientation: 'overview' }]);
       showSourcePreview(intake.source, stem + ' — unsaved upload');
-      setStatus(`Loaded ${f.name}. Assign orientations (add more views via Tab 1's cropper).`, 'ok');
+      setStatus(`Loaded ${f.name} as a full overview sheet. Name the part and save.`, 'ok');
     }
     if (!partNameEl.value.trim()) partNameEl.value = intake.stem;
     validateIntake();
@@ -2055,74 +1480,17 @@ async function loadCadFile(f, stem, layoutName) {
                 : ext.toUpperCase() + ' (converted)' + (layoutName ? ' · ' + layoutName : '');
   pendingCad = null;
   document.getElementById('sheet-picker').style.display = 'none';
-  addIntakeItems([{ dataURL: url, label: f.name, orientation: 'front' }]);
+  addIntakeItems([{ dataURL: url, label: f.name, orientation: 'overview' }]);
   showSourcePreview(intake.source, stem + ' — unsaved upload');
   if (!partNameEl.value.trim()) partNameEl.value = stem;
   validateIntake();
-  // Also open the converted image in the Tab 1 cropper — the cropper cannot
-  // read DWG/eDrawings itself, so this is how those formats "open" on Tab 1.
-  // The cropper mirrors loads back as 'src-open'; that echo is redundant here
-  // (this function already updated the left box) and can arrive seconds late,
-  // clobbering a part the user selected meanwhile — so flag it for dropping.
-  expectEcho = stem + '.png';
-  try { await window.MTIBridge.sendImage(document.getElementById('photoapp'), url, stem + '.png'); }
-  catch (e) { console.warn('cropper load failed', e); }
   setStatus(isEdrw
-    ? `Extracted a STATIC preview from ${f.name} — labeled as such (not the interactive model). Also opened in the Tab 1 cropper. Check the orientation, then save.`
-    : `Converted ${f.name}${layoutName ? ' (sheet ' + layoutName + ')' : ''} — also opened in the Tab 1 cropper for view cropping. Check the orientation, then save.`, 'ok');
+    ? `Extracted a static preview from ${f.name} — name the part and save.`
+    : `Converted ${f.name}${layoutName ? ' (sheet ' + layoutName + ')' : ''} — name the part and save.`, 'ok');
 }
 document.getElementById('sheet-load').addEventListener('click', () => {
   if (!pendingCad) return;
   loadCadFile(pendingCad.file, pendingCad.stem, document.getElementById('sheet-select').value);
-});
-
-// -- Tab 1 CAD intake: the cropper's own Open dialog / drag-drop now accepts
-// DWG/DXF/eDrawings (bridge hook). The file arrives here, is converted on the
-// server exactly like a Tab 2 upload, and the PNG is sent back into the cropper.
-window.MTIBridge.hookCadIntake(document.getElementById('photoapp'));
-window.addEventListener('message', async ev => {
-  const d = ev.data;
-  if (!d || !d.__mti) return;
-  if (d.__mti === 'cad-open' && d.buf) {
-    const f = new File([d.buf], d.name, { type: 'application/octet-stream' });
-    const stem = d.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '_');
-    await loadCadFile(f, stem, '');
-    // Multi-sheet files need the sheet picker, which lives on the Part Setup tab.
-    if (pendingCad) showTab('intake');
-    return;
-  }
-  // Any image/PDF opened in the Tab 1 viewer mirrors to Tab 2's input-document
-  // box. A converted CAD file echoes back through this path too (as stem.png);
-  // loadCadFile already showed it, so drop that echo — it can arrive late.
-  if (d.__mti === 'src-open' && d.dataURL) {
-    if (expectEcho && d.name === expectEcho) { expectEcho = null; return; }
-    const stem = (d.name || 'drawing').replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '_');
-    if (!(intake.source && intake.stem === stem)) {
-      const ext = (d.name.split('.').pop() || '').toLowerCase();
-      intake.source = d.dataURL; intake.stem = stem; intake.originalFile = null;
-      intake.format = ext === 'pdf' ? 'PDF' : 'Image (' + ext.toUpperCase() + ')';
-      if (!partNameEl.value.trim()) partNameEl.value = stem;
-    }
-    showSourcePreview(intake.source, intake.stem + ' — unsaved upload');
-  }
-});
-
-// -- Pull queued crops from the (unmodified) photo app iframe
-document.getElementById('pull-crops-btn').addEventListener('click', async () => {
-  const iframe = document.getElementById('photoapp');
-  setStatus('Reading queued views from the cropper…', 'run');
-  let payload;
-  try { payload = await window.MTIBridge.collect(iframe); }
-  catch (e) { setStatus(e.message, 'err'); return; }
-  if (payload.source && !intake.source) intake.source = payload.source;
-  if (!intake.format) intake.format = 'Cropped views';
-  if (!intake.items.length) intake.stem = payload.stem || intake.stem;
-  addIntakeItems(payload.crops.map(c => ({ dataURL: c.dataURL, label: c.name,
-                                           orientation: guessOrientation(c.name) })));
-  if (intake.source) showSourcePreview(intake.source, intake.stem + ' — unsaved upload');
-  if (!partNameEl.value.trim()) partNameEl.value = intake.stem;
-  setStatus(`Pulled ${payload.crops.length} crop(s). Check each orientation, then save.`, 'ok');
-  validateIntake();
 });
 
 // -- Save the part: writes the pipeline's --views-folder layout on the server
@@ -2161,23 +1529,7 @@ saveBtn.addEventListener('click', async () => {
   partNameEl.value = '';
   document.getElementById('part-notes').value = '';
   renderGallery();
-  // Reference regions drawn BEFORE the part was saved belong to it: transfer
-  // the intake markup onto the new part and persist it.
-  const pendingRegions = regionsByKey[INTAKE_REGION_KEY] || [];
-  const pendingOrigin = originByKey[INTAKE_REGION_KEY];
-  const pendingDatums = datumsByKey[INTAKE_REGION_KEY] || [];
-  if (pendingRegions.length || pendingOrigin || pendingDatums.length) {
-    if (pendingRegions.length) regionsByKey[res.part] = pendingRegions;
-    if (pendingOrigin) originByKey[res.part] = pendingOrigin;
-    if (pendingDatums.length) datumsByKey[res.part] = pendingDatums;
-    delete regionsByKey[INTAKE_REGION_KEY];
-    delete originByKey[INTAKE_REGION_KEY];
-    delete datumsByKey[INTAKE_REGION_KEY];
-    regionsDirty.delete(INTAKE_REGION_KEY);
-    regionsDirty.add(res.part);
-  }
   selectPart(res.part);
-  if (pendingRegions.length || pendingOrigin || pendingDatums.length) scheduleRegionSave();
   setStatus(`Saved part "${res.part}". Open the Pipeline &amp; Results tab and press ▶ Pull &amp; Run Pipeline.`, 'ok');
 });
 
@@ -2392,7 +1744,7 @@ document.getElementById('batch-folder').addEventListener('change', async e => {
 let runAllActive = false;
 document.getElementById('run-all-btn').addEventListener('click', async () => {
   if (isRunning || runAllActive) return;
-  const queue = partsData.filter(p => p.n_views >= 1).map(p => p.name);
+  const queue = partsData.filter(p => p.n_views >= 1 || p.has_overview).map(p => p.name);
   if (!queue.length) return;
   runAllActive = true;
   showTab('pipeline');
@@ -2536,52 +1888,6 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
   });
   window.addEventListener('mouseup', () => { panning = false; });
   box.addEventListener('dblclick', () => window.__ovReset());
-})();
-
-// ── Sheet 1 markup surface: pan/zoom for the markup image + mark layer ──────
-// The mark layer mirrors the markup image's exact geometry AND the same
-// pan/zoom transform, so boxes stored in normalized 0-1 coordinates stay
-// pinned to the drawing at every zoom level and window size. Draw mode is ON
-// by default here; toggling ✎ Draw off re-enables drag-panning.
-(() => {
-  const img = document.getElementById('mk-img'), box = document.getElementById('mk-box');
-  const layer = document.getElementById('ov-mark-layer');
-  let s = 1, tx = 0, ty = 0, panning = false, px = 0, py = 0;
-  const apply = () => {
-    const t = `translate(${tx}px,${ty}px) scale(${s})`;
-    img.style.transform = t;
-    layer.style.transform = t;
-  };
-  const sync = () => {
-    const on = img.style.display !== 'none' && img.offsetWidth > 0;
-    layer.style.display = on ? '' : 'none';
-    if (on) {
-      layer.style.left = img.offsetLeft + 'px';
-      layer.style.top = img.offsetTop + 'px';
-      layer.style.width = img.offsetWidth + 'px';
-      layer.style.height = img.offsetHeight + 'px';
-    }
-    apply();
-  };
-  window.__mkSyncLayer = sync;
-  window.__mkReset = () => { s = 1; tx = 0; ty = 0; sync(); };
-  new ResizeObserver(sync).observe(img);
-  new ResizeObserver(sync).observe(box);
-  box.addEventListener('wheel', e => {
-    if (img.style.display === 'none') return;
-    e.preventDefault();
-    s = Math.min(12, Math.max(0.2, s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
-    apply();
-  }, { passive: false });
-  box.addEventListener('mousedown', e => {
-    if (img.style.display === 'none' || window.__markOn) return; // draw mode pauses panning
-    panning = true; px = e.clientX - tx; py = e.clientY - ty; e.preventDefault();
-  });
-  window.addEventListener('mousemove', e => {
-    if (panning) { tx = e.clientX - px; ty = e.clientY - py; apply(); }
-  });
-  window.addEventListener('mouseup', () => { panning = false; });
-  box.addEventListener('dblclick', () => window.__mkReset());
 })();
 
 // ── Three.js STL viewer ──────────────────────────────────────────────────────
