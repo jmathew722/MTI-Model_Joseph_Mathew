@@ -18,6 +18,10 @@ All commands run from `2D-3D-CAD-Test-Generation/`:
 python -m pytest tests/ -q
 python -m pytest tests/test_multiview.py -q          # single suite
 
+# Golden macro snapshot (tests/test_golden_macros.py): after an INTENTIONAL
+# change to macro output, regenerate and review the diff like code
+$env:UPDATE_GOLDEN=1; python -m pytest tests/test_golden_macros.py -q
+
 # Full pipeline on a batch of part folders (the standard test-batch command)
 python main.py --views-folder ..\Test2 --output ..\Test2\output
 
@@ -32,6 +36,8 @@ cd webapp; .\run.ps1
 ```
 
 Useful `main.py` flags: `--no-sldprt` (macros/reports only), `--no-export` (skip copy to `~/Downloads/SolidWorksModel_Parts`), `--no-extract-cache` (force paid re-extraction), `--skip-overview-check` / `--skip-requirements-check` (bypass the final READY gates), `--strict-gate` (block on failing verification). Exit codes: 0 = all parts READY, 8 = completed but not all READY, 2 = bad args.
+
+Alternate entry points: `run_models.py <folders> --output ./output` (batch driver: extract → auto-resolve → build NON-STRICT so the run always completes, writing `<Part>_design_decisions.txt` per part); `build_sldprt.py <output_root>` (COM-builds every saved `<part>_extraction.json` under a root into `.sldprt`, one shared SolidWorks session, zero API cost).
 
 Setup: `python setup.py`, then put `ANTHROPIC_API_KEY` in `.env` (gitignored). Optional env: `EXTRACTION_MODEL` (default `claude-sonnet-5`), `SOLIDWORKS_TEMPLATE_PATH` (must point at a real `.prtdot`), `MAX_IMAGE_LONG_EDGE`.
 
