@@ -145,9 +145,16 @@ def build_solid_from_plan(plan: dict):
                     cx, cy = positions[0]
                     lx, ly = to_workplane_local(cx + float(length) / 2.0,
                                                 cy + float(width) / 2.0, k)
-                    wp2 = (solid.faces(">Z").workplane(origin=(0, 0, 0))
-                           .center(lx, ly)
-                           .rect(float(length) * k, float(width) * k))
+                    wp2 = (solid.faces(">Z").workplane(origin=(0, 0, 0)).center(lx, ly))
+                    # A step marked profile="slot" cuts a true obround via the
+                    # native slot2D primitive (two arcs + parallel flats) instead
+                    # of a sharp-cornered rect — the verified slot construction
+                    # (see METHODS.md). slot2D length is the overall tip-to-tip
+                    # length; width is the full slot width (diameter of the arcs).
+                    if step.get("profile") == "slot":
+                        wp2 = wp2.slot2D(float(length) * k, float(width) * k, 0)
+                    else:
+                        wp2 = wp2.rect(float(length) * k, float(width) * k)
                     solid = wp2.cutThruAll() if (thru or not depth) else wp2.cutBlind(-float(depth) * k)
                 continue
             pts = [to_workplane_local(x, y, k) for x, y in positions] or None

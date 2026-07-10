@@ -139,6 +139,8 @@ class BuildStep:
     position_confidence: float = 0.0   # 0..1; 0.0 when not applicable
     # Additive: canonical circular-pattern schema (only on circular_pattern steps).
     circular_pattern: dict = field(default_factory=dict)
+    # Phase D: verified construction method this feature dispatches to (methods_config).
+    construction_method: str = ""
 
 
 @dataclass
@@ -559,6 +561,26 @@ def _enrich_feature_step(step: BuildStep, model: DrawingData, feature: Feature,
     step.assumption_made, step.assumption_confidence, step.flag_tier = \
         _worst_resolution(model, feature, resolution)
 
+    # Phase D: record which verified construction method this feature dispatches
+    # to (read from methods_config / METHODS.md), for traceability and so the
+    # geometric-correction loop can swap methods when one fails Phase A.
+    try:
+        from pipeline.methods_config import method_for
+
+        h = model.hole_callout_for_feature(feature.id)
+        if feature.type in (FeatureType.HOLE, FeatureType.THREAD):
+            fclass = ("hole_tapped" if (h and getattr(h, "thread_spec", "")) else
+                      "hole_cbore" if (h and getattr(h, "cbore_diameter", 0) > 0) else
+                      "hole_csk" if (h and getattr(h, "csink_diameter", 0) > 0) else "hole")
+        elif feature.type == FeatureType.EXTRUDE_CUT:
+            fclass = "slot" if getattr(feature, "profile", "") == "slot" else "cut"
+        else:
+            fclass = ""
+        if fclass:
+            step.construction_method = method_for(fclass)
+    except Exception:
+        pass
+
 
 def _step_to_dict(s: BuildStep) -> dict[str, Any]:
     """One build-plan step as a fully self-contained dict.
@@ -597,6 +619,8 @@ def _step_to_dict(s: BuildStep) -> dict[str, Any]:
         "position_confidence": round(s.position_confidence, 3),
         # --- additive: canonical circular-pattern schema (Part 2a) ---
         **({"circular_pattern": s.circular_pattern} if s.circular_pattern else {}),
+        # --- additive: Phase D verified construction method (methods_config) ---
+        **({"construction_method": s.construction_method} if s.construction_method else {}),
     }
 
 

@@ -47,8 +47,10 @@ corrected immediately; the COM model catches up on the next `.sldprt` build.
 """
 from __future__ import annotations
 
+import copy
 import json
 import logging
+import math
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -495,3 +497,302 @@ def _reload_overview_analysis(part_dir: Path, fallback: Optional[dict]) -> Optio
         except Exception:
             pass
     return fallback
+
+
+# =========================================================================== #
+# Phase B — the geometric build->measure->correct->rebuild loop
+# =========================================================================== #
+# Where reconcile_part (above) closes the CHECKLIST-level gap (does every
+# extracted feature have a disposition?), this loop closes the GEOMETRIC gap:
+# does every BUILT feature have the right position/size? It wraps Phase A
+# (pipeline.feature_verify) in a bounded, self-correcting loop and shares the
+# exact discipline of reconcile_part — capped iterations, splice-only edits,
+# stop-when-no-progress, never fabricate, no paid re-extraction.
+
+_TRANSFORM_TOL_IN = 0.02  # deltas within this are "the same" for systematic detection
+
+
+def classify_transform(misplaced: list[dict]) -> Optional[dict]:
+    """Detect a SYSTEMATIC transform error from a set of misplaced features.
+
+    Each item is ``{"expected": (ex, ey), "measured": (mx, my)}``. Returns a
+    transform descriptor when >=2 features share one consistent error — an
+    origin offset, an x/y axis swap, or a uniform scale (unit-factor) — else
+    None (the misplacement is a one-off, handled per-feature). A systematic
+    error is a transform-layer bug, not N independent feature bugs, so it is
+    corrected once and applied to every affected step."""
+    pairs = [(m["expected"], m["measured"]) for m in misplaced
+             if m.get("expected") and m.get("measured")]
+    if len(pairs) < 2:
+        return None
+
+    # Origin offset: measured = expected + (dx, dy), constant.
+    dxs = [mx - ex for (ex, ey), (mx, my) in pairs]
+    dys = [my - ey for (ex, ey), (mx, my) in pairs]
+    if _spread(dxs) <= _TRANSFORM_TOL_IN and _spread(dys) <= _TRANSFORM_TOL_IN:
+        dx, dy = sum(dxs) / len(dxs), sum(dys) / len(dys)
+        if math.hypot(dx, dy) > _TRANSFORM_TOL_IN:
+            return {"kind": "origin_offset", "dx": round(dx, 4), "dy": round(dy, 4)}
+
+    # Axis swap: measured (x, y) == expected (y, x).
+    swap_err = [math.hypot(mx - ey, my - ex) for (ex, ey), (mx, my) in pairs]
+    if max(swap_err) <= _TRANSFORM_TOL_IN:
+        return {"kind": "axis_swap"}
+
+    # Uniform scale (unit-factor slip): measured = k * expected, same k both axes.
+    ratios = []
+    for (ex, ey), (mx, my) in pairs:
+        if abs(ex) > 1e-6:
+            ratios.append(mx / ex)
+        if abs(ey) > 1e-6:
+            ratios.append(my / ey)
+    if ratios and _spread(ratios) <= 0.02 and abs(sum(ratios) / len(ratios) - 1.0) > 0.05:
+        return {"kind": "uniform_scale", "factor": round(sum(ratios) / len(ratios), 5)}
+    return None
+
+
+def _spread(vals: list[float]) -> float:
+    return (max(vals) - min(vals)) if vals else 0.0
+
+
+def _apply_transform_to_plan(build_plan: dict, transform: dict) -> tuple[dict, list[str]]:
+    """Return a COPY of build_plan with a systematic transform compensated on
+    every feature's positions, plus the list of affected feature ids. The build
+    added the error, so we PRE-COMPENSATE the emitted positions to cancel it —
+    the drawing's resolved values are never altered, only the emitted coords."""
+    plan = copy.deepcopy(build_plan)
+    affected: list[str] = []
+
+    def _fix(pt: list[float]) -> list[float]:
+        x, y = float(pt[0]), float(pt[1])
+        if transform["kind"] == "origin_offset":
+            return [round(x - transform["dx"], 6), round(y - transform["dy"], 6)]
+        if transform["kind"] == "axis_swap":
+            return [y, x]
+        if transform["kind"] == "uniform_scale":
+            k = transform["factor"] or 1.0
+            return [round(x / k, 6), round(y / k, 6)]
+        return [x, y]
+
+    for step in plan.get("steps", []):
+        pts = step.get("positions_xy")
+        if pts and step.get("feature_id") not in ("-", None):
+            step["positions_xy"] = [_fix(p) for p in pts]
+            affected.append(step.get("feature_id"))
+    return plan, affected
+
+
+@dataclass
+class Correction:
+    feature_id: str
+    mismatch_class: str          # MISSING | MISPLACED | WRONG_SIZE | EXTRA
+    action: str                  # transform_fix | reemit_step | reresolve_dim | flag
+    detail: str
+    applied: bool = False
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"feature_id": self.feature_id, "mismatch_class": self.mismatch_class,
+                "action": self.action, "detail": self.detail, "applied": self.applied}
+
+
+def plan_corrections(verification: dict, build_plan: dict) -> tuple[Optional[dict], list[Correction]]:
+    """Map a feature_verification report to corrective actions.
+
+    Returns ``(transform_or_None, corrections)``. A detected systematic
+    transform is returned separately because it supersedes the per-feature
+    MISPLACED actions (one fix, all steps)."""
+    mismatches = verification.get("mismatches") or []
+    corrections: list[Correction] = []
+
+    misplaced = [{"feature_id": m["feature_id"],
+                  "expected": tuple((m.get("expected") or {}).get(k, 0.0) for k in ("x", "y")),
+                  "measured": tuple((m.get("measured") or {}).get(k, 0.0) for k in ("x", "y"))}
+                 for m in mismatches if m.get("classification") == "MISPLACED"
+                 and m.get("expected") and m.get("measured")]
+    transform = classify_transform(misplaced)
+
+    for m in mismatches:
+        cls, fid = m.get("classification"), m.get("feature_id")
+        if cls == "MISPLACED":
+            if transform:
+                corrections.append(Correction(fid, cls, "transform_fix",
+                                   f"systematic {transform['kind']} — corrected for all affected steps"))
+            else:
+                # One-off: the build diverged from a correct plan. Re-emit the
+                # single step (position stays resolver-derived — the drawing is
+                # truth, never the measured value). A rebuild may clear a
+                # transient COM placement failure; if it recurs, it is flagged.
+                corrections.append(Correction(fid, cls, "reemit_step",
+                                   "re-emit step with resolver-derived position (drawing is truth)"))
+        elif cls == "MISSING":
+            corrections.append(Correction(fid, cls, "flag",
+                               "feature absent from the build; check disposition/COM failure "
+                               "(no value fabricated to force it in)"))
+        elif cls == "WRONG_SIZE":
+            corrections.append(Correction(fid, cls, "reresolve_dim",
+                               "re-check the driving dimension against the resolver ladder; "
+                               "flag if the resolution does not change"))
+    for e in verification.get("extras") or []:
+        corrections.append(Correction(e.get("feature_id", "?"), "EXTRA", "flag",
+                           "measured geometry with no planned feature — surfaced for review"))
+    return transform, corrections
+
+
+@dataclass
+class GeometricLoopResult:
+    part: str
+    iterations_used: int
+    final_status: str            # READY | READY_WITH_OPEN_ITEMS
+    iteration_ledger: list[dict] = field(default_factory=list)
+    unresolved: list[dict] = field(default_factory=list)
+    transforms_applied: list[dict] = field(default_factory=list)
+    stopped_reason: str = ""
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "part": self.part,
+            "iterations_used": self.iterations_used,
+            "final_status": self.final_status,
+            "iteration_ledger": self.iteration_ledger,
+            "unresolved": self.unresolved,
+            "transforms_applied": self.transforms_applied,
+            "stopped_reason": self.stopped_reason,
+        }
+
+    def write(self, part_dir: Path, safe_name: str) -> Path:
+        path = Path(part_dir) / f"{safe_name}_geometric_loop_report.json"
+        path.write_text(json.dumps(self.as_dict(), indent=2), encoding="utf-8")
+        return path
+
+
+def geometric_correction_loop(
+    *,
+    build_fn,
+    build_plan: dict,
+    part_dir: Path,
+    part: str,
+    resolved_extraction: Optional[dict] = None,
+    expected_thickness_in: Optional[float] = None,
+    verify_fn=None,
+    max_iterations: int = 3,
+    lessons_path: Optional[Path] = None,
+) -> GeometricLoopResult:
+    """Bounded build->measure->correct->rebuild loop (Phase B).
+
+    ``build_fn(build_plan, part_dir, iteration) -> Path`` builds the model and
+    returns the STL path (COM in production; injectable for tests). ``verify_fn``
+    defaults to :func:`pipeline.feature_verify.verify_features`. Terminates on:
+    all-features-OK (READY); the iteration cap; no applicable correction for the
+    remaining mismatches; or OSCILLATION — a previously-PASS feature regressing —
+    which stops immediately rather than thrash. Every iteration appends a
+    structured entry to ``lessons_learned.jsonl``."""
+    if verify_fn is None:
+        from pipeline.feature_verify import verify_features as verify_fn  # noqa: N806
+
+    result = GeometricLoopResult(part=part, iterations_used=0,
+                                 final_status="READY_WITH_OPEN_ITEMS")
+    plan = copy.deepcopy(build_plan)
+    prev_ok_ids: set[str] = set()
+
+    for it in range(1, max_iterations + 1):
+        result.iterations_used = it
+        try:
+            stl_path = build_fn(plan, part_dir, it)
+        except Exception as e:
+            result.stopped_reason = f"build failed on iteration {it}: {type(e).__name__}: {e}"
+            log.warning("geometric loop: %s", result.stopped_reason)
+            break
+
+        verification = verify_fn(Path(stl_path), plan, Path(part_dir),
+                                 resolved_extraction=resolved_extraction, part="",
+                                 expected_thickness_in=expected_thickness_in, write=False)
+
+        ok_ids = {f.get("feature_id") for f in verification.get("features", [])
+                  if f.get("classification") == "OK"}
+        mismatches = verification.get("mismatches") or []
+        extras = verification.get("extras") or []
+
+        ledger_entry = {
+            "iteration": it,
+            "stl": Path(stl_path).name,
+            "verified_ok": verification.get("summary", {}).get("ok", 0),
+            "mismatches": [{"feature_id": m.get("feature_id"),
+                            "class": m.get("classification")} for m in mismatches],
+            "extras": len(extras),
+        }
+
+        # Oscillation: a feature that PASSED before now fails.
+        regressed = [fid for fid in prev_ok_ids if fid not in ok_ids and fid is not None]
+        if regressed:
+            ledger_entry["oscillation"] = regressed
+            result.iteration_ledger.append(ledger_entry)
+            result.stopped_reason = (f"oscillation — feature(s) {regressed} regressed after a "
+                                     "correction; stopped to avoid thrashing")
+            result.unresolved = ledger_entry["mismatches"]
+            _log_iteration(lessons_path, part, it, [], "oscillation_stop")
+            break
+
+        if not mismatches and not extras:
+            result.final_status = "READY"
+            result.stopped_reason = "all features verified within tolerance"
+            ledger_entry["result"] = "all_pass"
+            result.iteration_ledger.append(ledger_entry)
+            _log_iteration(lessons_path, part, it, [], "all_pass")
+            break
+
+        transform, corrections = plan_corrections(verification, plan)
+        ledger_entry["corrections"] = [c.as_dict() for c in corrections]
+
+        applied_any = False
+        if transform:
+            plan, affected = _apply_transform_to_plan(plan, transform)
+            result.transforms_applied.append({"iteration": it, **transform,
+                                               "affected": affected})
+            for c in corrections:
+                if c.action == "transform_fix":
+                    c.applied = True
+            applied_any = bool(affected)
+            ledger_entry["transform"] = transform
+
+        # Any correction that actually changes the plan counts as progress; a
+        # loop that can only "flag" makes no progress and stops (deterministic,
+        # like reconcile_part) rather than burning the iteration cap blindly.
+        if not applied_any and all(c.action in ("flag",) for c in corrections):
+            result.iteration_ledger.append(ledger_entry)
+            result.stopped_reason = ("no applicable geometric correction — remaining mismatches "
+                                     "need human review (never fabricated to force a pass)")
+            result.unresolved = ledger_entry["mismatches"] + [
+                {"feature_id": e.get("feature_id"), "class": "EXTRA"} for e in extras]
+            _log_iteration(lessons_path, part, it, corrections, "no_progress_stop")
+            break
+
+        prev_ok_ids = ok_ids
+        result.iteration_ledger.append(ledger_entry)
+        _log_iteration(lessons_path, part, it, corrections,
+                       "corrected" if applied_any else "reemit_only")
+    else:
+        result.stopped_reason = f"iteration cap ({max_iterations}) reached"
+
+    if result.final_status != "READY" and not result.unresolved and result.iteration_ledger:
+        result.unresolved = result.iteration_ledger[-1].get("mismatches", [])
+    return result
+
+
+def _log_iteration(lessons_path: Optional[Path], part: str, iteration: int,
+                   corrections: list, outcome: str) -> None:
+    """Append a structured geometric-loop entry to lessons_learned.jsonl (the
+    raw material for the Phase D method library). Never raises."""
+    if lessons_path is None:
+        return
+    try:
+        from pipeline.must_meet import append_lesson
+
+        append_lesson(Path(lessons_path), {
+            "kind": "geometric_loop_iteration",
+            "part": part,
+            "iteration": iteration,
+            "corrections": [c.as_dict() for c in corrections],
+            "outcome": outcome,
+        })
+    except Exception:
+        pass
