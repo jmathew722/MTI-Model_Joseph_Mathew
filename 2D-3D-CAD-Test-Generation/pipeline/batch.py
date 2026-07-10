@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from pipeline.macro_generator import MacroGenerationError, generate_macro_package
+from pipeline.reconciliation import RECONCILIATION_REPORT_SUFFIX
 from pipeline.validator import format_verification_report, run_verification
 from utils.logger import get_logger
 
@@ -465,6 +466,41 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
             detail = f"sldprt build failed: {type(e).__name__}: {e}"[:300]
             log.warning("%s: %s", part, detail)
 
+    # ── Stage 10.5: Reconciliation Pass — the self-correcting loop. Before the
+    # part is reported done, re-check EVERY feature/hole-instance in the
+    # ORIGINAL raw extraction (never the resolved/downstream artifacts, which
+    # could themselves hide the bug) against what actually made it into
+    # build_plan.json. Any gap gets a bounded, targeted re-resolution attempt
+    # (never a paid re-extraction); anything still unresolved after the cap is
+    # named explicitly — never silently dropped. See pipeline/reconciliation.py.
+    reconciliation_result = None
+    if resolution is None:
+        log.info("%s: reconciliation skipped (--resolve=False; no Stage 2.5 resolution to "
+                 "re-run against).", part)
+    else:
+        try:
+            from pipeline.reconciliation import reconcile_part
+
+            print("[STAGE] Reconciliation (Stage 10.5)", flush=True)
+            build_plan_dict = json.loads(pkg.build_plan_json.read_text(encoding="utf-8"))
+            reconciliation_result = reconcile_part(
+                raw_extraction=raw_extraction, resolution=resolution, model=model,
+                dispositions=pkg.dispositions, build_plan=build_plan_dict,
+                verification_text=verification_text, part_dir=part_dir, part=part,
+                requirements=spec_lines or None, overview_analysis=overview_analysis,
+            )
+            rr_path = reconciliation_result.write(part_dir, safe)
+            print(f"[RECONCILE] {reconciliation_result.confirmed_built}/"
+                  f"{reconciliation_result.checklist_total} checklist items confirmed built "
+                  f"after {reconciliation_result.loop_passes_used} pass(es); "
+                  f"{len(reconciliation_result.unresolved)} unresolved. Report: {rr_path}",
+                  flush=True)
+            for u in reconciliation_result.unresolved:
+                print(f"[RECONCILE] UNRESOLVED {u.feature_id} ({u.feature_type}): {u.issue}",
+                      flush=True)
+        except Exception as e:  # the reconciliation pass must never sink an otherwise good run
+            log.warning("Reconciliation pass failed (non-fatal) for %s: %s", part, e)
+
     # ── Post-build must-meet verification: measure the REAL SolidWorks STL
     # (trimesh) and grade every MM constraint PASS/FAIL with measured values.
     mm_verification = None
@@ -558,6 +594,18 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
                                    build_skipped=build_skipped, build_caveats=build_caveats)
         items.extend(overview_items)
         items.extend(req_items)
+        if reconciliation_result is not None:
+            for u in reconciliation_result.unresolved:
+                items.append({
+                    "severity": "CRITICAL",
+                    "source": "reconciliation",
+                    "id": u.feature_id,
+                    "what": f"Stage 10.5 reconciliation: {u.feature_type} {u.feature_id} "
+                            f"still unresolved after {reconciliation_result.loop_passes_used} pass(es)",
+                    "decision": u.status,
+                    "why": u.issue,
+                    "affects": u.resolution_attempted or "no re-resolution attempt could make progress",
+                })
         rank = {s: i for i, s in enumerate(SEVERITY_ORDER)}
         items.sort(key=lambda it: rank.get(it.get("severity"), len(SEVERITY_ORDER)))
         write_review(part_dir, part_dir.name, items, resolution=resolution)
@@ -577,6 +625,11 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
         gate_reasons.append(f"{n_unmet} unmet human requirement(s)")
     if not preval_ok:
         gate_reasons.append(preval_detail or "CadQuery pre-validation failed")
+    if reconciliation_result is not None and reconciliation_result.unresolved:
+        gate_reasons.append(
+            f"{len(reconciliation_result.unresolved)} reconciliation item(s) unresolved "
+            f"after {reconciliation_result.loop_passes_used} pass(es) — see "
+            f"{safe}{RECONCILIATION_REPORT_SUFFIX}")
     if mm_verification is not None and not mm_verification.get("ok"):
         gate_reasons.append("; ".join(
             mm_verification.get("failed_constraints",

@@ -865,6 +865,39 @@ def main() -> int:
                          f"({n_urgent} item(s) need attention)")
         except Exception as e:
             lines.append(f"  [yellow]Engineering review failed:[/yellow] {type(e).__name__}: {e}")
+
+        # ── Stage 10.5: Reconciliation Pass — the self-correcting loop (single-
+        # drawing path). See pipeline/batch.py's process_drawing_data for the
+        # --views-folder equivalent; both call the same pipeline.reconciliation
+        # module so the guarantee is the same regardless of entry point.
+        reconciliation_result = None
+        if resolution is not None:
+            try:
+                from pipeline.reconciliation import reconcile_part
+
+                build_plan_dict = json.loads(pkg.build_plan_json.read_text(encoding="utf-8"))
+                reconciliation_result = reconcile_part(
+                    raw_extraction=raw_extraction, resolution=resolution, model=model,
+                    dispositions=pkg.dispositions, build_plan=build_plan_dict,
+                    verification_text=verification_text, part_dir=pkg.root,
+                    part=pkg.root.name, requirements=_spec_lines_from_args(args) or None,
+                    overview_analysis=overview_analysis,
+                )
+                rr_path = reconciliation_result.write(pkg.root, pkg.root.name)
+                lines.append(
+                    f"  Reconciliation: {reconciliation_result.confirmed_built}/"
+                    f"{reconciliation_result.checklist_total} checklist items confirmed built "
+                    f"after {reconciliation_result.loop_passes_used} pass(es) ({rr_path.name})"
+                )
+                if reconciliation_result.unresolved:
+                    lines.append(
+                        f"  [yellow]{len(reconciliation_result.unresolved)} reconciliation "
+                        "item(s) still unresolved:[/yellow] "
+                        + ", ".join(u.feature_id for u in reconciliation_result.unresolved)
+                    )
+            except Exception as e:
+                lines.append(f"  [yellow]Reconciliation pass failed:[/yellow] {type(e).__name__}: {e}")
+
         if pkg.skipped:
             lines.append(
                 f"  [yellow]{len(pkg.skipped)} feature(s) skipped (prohibited):[/yellow] "
@@ -876,8 +909,14 @@ def main() -> int:
                 + ", ".join(s.feature_id for s in pkg.needs_review)
             )
         lines.append("  Next: copy the package folder to a SolidWorks machine and follow macros/README.md.")
-        console.print(Panel("\n".join(lines), style="green"))
+        style = "yellow" if (reconciliation_result is not None and reconciliation_result.unresolved) else "green"
+        console.print(Panel("\n".join(lines), style=style))
         _export_to_downloads(args, output_dir)
+        # Exit code mirrors the batch path's READY/NOT-fully-READY distinction:
+        # unresolved reconciliation items mean the part is not fully READY, even
+        # though the macros/model are still produced (never blocking, always visible).
+        if reconciliation_result is not None and reconciliation_result.unresolved:
+            return 8
         return 0
 
     # --- engine == "com": direct COM build (Windows + SolidWorks) ---

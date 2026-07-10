@@ -1120,14 +1120,21 @@ def _model_chamfer_fallback(model: DrawingData) -> tuple[float, str]:
     return 0.0, ""
 
 
-def _macro_fillet_chamfer(model: DrawingData, features: list[Feature], step: str) -> tuple[str, dict[str, float]]:
+def _macro_fillet_chamfer(model: DrawingData, features: list[Feature], step: str) -> tuple[str, dict[str, float], list[tuple[str, str]]]:
     """One combined macro: user pre-selects edges, macro applies values.
 
     Edge selection by coordinates in a generated macro is the single most
     fragile SolidWorks operation, so the reliable contract is human-in-the-loop:
     the drawing shows WHERE, the macro applies the exact extracted VALUE.
+
+    Returns ``(body, used, skipped)`` — ``skipped`` is ``[(feature_id, reason)]``
+    for any fillet/chamfer whose radius/distance could not be found even after
+    the model-wide fallback (2026-07-10 reconciliation audit fix: this used to be
+    a bare VBA comment with no JSON trace — every skip here now surfaces in
+    ``pkg.skipped`` / ``build_plan.json`` so it can never silently disappear).
     """
     used: dict[str, float] = {}
+    skipped: list[tuple[str, str]] = []
     body = """    ' This macro applies fillets/chamfers to the edges YOU have selected.
     ' For each block below: select the edge(s) in the graphics area first,
     ' then press F5 (run). Blocks for values you've already applied can be
@@ -1147,6 +1154,8 @@ def _macro_fillet_chamfer(model: DrawingData, features: list[Feature], step: str
                 radius, src_id = _model_radius_fallback(model)
                 if radius <= 0:
                     body += f"\n    ' {f.id}: SKIPPED - no radius dimension found.\n"
+                    skipped.append((f.id, "fillet radius could not be found on the feature "
+                                          "or anywhere else on the drawing"))
                     continue
                 body += f"\n    ' {f.id}: radius not linked to the feature; using {src_id}=R{_v(radius)} from the drawing - VERIFY.\n"
             used[f"{f.id}_radius"] = radius
@@ -1177,6 +1186,8 @@ def _macro_fillet_chamfer(model: DrawingData, features: list[Feature], step: str
                 distance, src_id = _model_chamfer_fallback(model)
                 if distance <= 0:
                     body += f"\n    ' {f.id}: SKIPPED - no distance dimension found.\n"
+                    skipped.append((f.id, "chamfer distance could not be found on the feature "
+                                          "or anywhere else on the drawing"))
                     continue
                 body += f"\n    ' {f.id}: distance not linked to the feature; using {src_id}={_v(distance)} from the drawing - VERIFY.\n"
             used[f"{f.id}_distance"] = distance
@@ -1199,7 +1210,7 @@ def _macro_fillet_chamfer(model: DrawingData, features: list[Feature], step: str
         swModel.ClearSelection2 True
     End If
 """
-    return body, used
+    return body, used, skipped
 
 
 def _macro_revolve_skeleton(feature: Feature, step: str) -> str:
@@ -2070,7 +2081,18 @@ def generate_macro_package(
     for fid in model.build_order:
         feature = model.feature_by_id(fid)
         if feature is None:
-            continue  # validator already flagged it
+            # Defense-in-depth (2026-07-10 reconciliation audit): build_order
+            # should never reference an unknown id (build_sequencer only ever
+            # emits real feature ids), but a silent `continue` here would let a
+            # future bug or a hand-edited build_plan.json drop a feature with
+            # zero trace. Record it instead — never just vanish.
+            log.warning("build_order referenced unknown feature id %r — recording as skipped.", fid)
+            pkg.skipped.append(BuildStep(
+                seq, "-", fid, "unknown", "-", "skipped_prohibited",
+                notes=f"build_order referenced feature id {fid!r}, which does not exist "
+                      "in the extraction. No macro was generated for it.",
+            ))
+            continue
 
         if feature.type in PROHIBITED or feature.type not in SUPPORTED:
             # NEVER silently dropped: the feature gets a numbered MANUAL-step
@@ -2217,7 +2239,7 @@ def generate_macro_package(
         seq += 1
         fname = f"{seq:02d}_fillets_chamfers.vba"
         header = _vba_header(f"{seq:02d}_fillets_chamfers - applied LAST", model.display_name, unit_factor)
-        body, used = _macro_fillet_chamfer(model, deferred, f"{seq:02d}_fillets_chamfers")
+        body, used, fc_skipped = _macro_fillet_chamfer(model, deferred, f"{seq:02d}_fillets_chamfers")
         fc_flags = []
         for f in deferred:
             fc_flags.extend(_collect_step_flags(model, f, resolution))
@@ -2242,6 +2264,22 @@ def generate_macro_package(
         )
         step.flags = fc_flags
         pkg.steps.append(step)
+
+        # 2026-07-10 reconciliation audit fix: a fillet/chamfer whose value could
+        # not be found anywhere on the drawing used to vanish with only a VBA
+        # comment. Record it in pkg.skipped so it surfaces in build_plan.json,
+        # the engineering review, and the Stage 5 reconciliation checklist.
+        for skip_fid, reason in fc_skipped:
+            skip_feat = model.feature_by_id(skip_fid)
+            skip_step = BuildStep(
+                seq, fname, skip_fid,
+                skip_feat.type.value if skip_feat else "fillet/chamfer",
+                skip_feat.description if skip_feat else "-", "skipped_prohibited",
+                notes=f"FEATURE {skip_fid} SKIPPED: {reason}. No fillet/chamfer was applied "
+                      f"for this feature in {fname}.",
+            )
+            pkg.skipped.append(skip_step)
+            log.warning("%s", skip_step.notes)
 
     # --- Final verify ---
     n_solid = sum(1 for s in pkg.steps if s.status == "generated" and s.seq > 0)
