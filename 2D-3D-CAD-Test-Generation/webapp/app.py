@@ -1554,6 +1554,24 @@ def part_overview(session: str, part: str):
         p = imgs[0] if imgs else None
     if p is None:
         raise HTTPException(404, "No overview image for this part")
+    # A PDF overview can't be shown in an <img>; rasterize page 1 to PNG so the
+    # panel displays it. Cache at SESSION level (never inside the part folder —
+    # a stray .png there would be picked up as an extra view by --views-folder).
+    if p.suffix.lower() == ".pdf":
+        cache_dir = _session_dir(session) / ".overview_cache"
+        cache_dir.mkdir(exist_ok=True)
+        cache_png = cache_dir / f"{_sanitize(part)}.png"
+        try:
+            if not cache_png.is_file() or cache_png.stat().st_mtime < p.stat().st_mtime:
+                import base64
+
+                from utils.image_prep import prepare_image
+                prepared = prepare_image(str(p), page=1, return_details=True)
+                cache_png.write_bytes(base64.b64decode(prepared.base64))
+            return FileResponse(str(cache_png), media_type="image/png")
+        except Exception as e:
+            log.warning("Could not rasterize PDF overview for %s: %s", part, e)
+            raise HTTPException(404, "Overview PDF could not be rendered")
     return FileResponse(str(p), media_type=_IMG_MEDIA.get(p.suffix.lower(), "image/jpeg"))
 
 
@@ -1719,8 +1737,13 @@ def run_part(session: str = Form(...), part: str = Form(...),
             "project .env and restart the UI.",
         )
     pdir = _session_dir(session) / _sanitize(part)
-    if not pdir.is_dir() or not _part_images(pdir):
-        raise HTTPException(400, "Selected part has no saved views.")
+    # A part is runnable when it has ANY drawing the pipeline can read — a raster
+    # view OR a full-sheet overview (PDF/image). A folder-of-overviews part often
+    # has only a PDF, which view_ingest reads directly; requiring a raster image
+    # here wrongly blocked those with "no saved views".
+    if not pdir.is_dir() or not (_part_images(pdir) or _find_overview_image(pdir)):
+        raise HTTPException(400, "Selected part has no drawing to run (upload a "
+                                 "full overview drawing or view images first).")
     out_dir = pdir / "output"
     # Correction feedback from the reviewer (Tab 3) becomes an authoritative
     # must-meet correction line, appended to the spec so the specs-first
