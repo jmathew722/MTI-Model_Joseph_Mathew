@@ -64,7 +64,7 @@
   .tab .badge, .stab .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px;
                 border-radius:var(--r-sm); font:600 10px/16px var(--mono); text-align:center;
                 background:var(--surface); color:var(--ink-3); }
-  .tab.filled .badge, .stab.filled .badge { background:var(--ok); color:#04160C; }
+  .tab.filled .badge, .stab.filled .badge { background:var(--ok); color:var(--on-ok); }
 
   main { flex:1 1 auto; min-height:0; position:relative; }
   main > .panel { position:absolute; inset:0; display:none; }
@@ -112,7 +112,7 @@
   #mk-img { max-width:100%; max-height:100%; object-fit:contain;
             transform-origin:center center; }
 
-  /* ── Tab 2 · Part Setup & 3D Model ─────────────────────────────────────── */
+  /* ── Sheet 1 · Upload & 3D Model ────────────────────────────────────────── */
   /* Kept compact so the Overview + 3D viewer panels below get the room. */
   .intake-strip { flex:0 0 auto; display:grid; grid-template-columns:auto minmax(0,1fr) auto;
                   background:var(--bg); border-bottom:1px solid var(--line); max-height:22vh; overflow:auto; }
@@ -180,10 +180,12 @@
 
   .parts-list { display:flex; gap:var(--sp-3); overflow-x:auto; padding:2px; min-height:96px; }
   .parts-list .empty { color:var(--ink-3); font-size:var(--fs-small); align-self:center; padding:var(--sp-3); }
-  .pcard { flex:0 0 auto; width:132px; border:1px solid var(--line); border-radius:var(--r-lg);
-           background:var(--surface); cursor:pointer; overflow:hidden; transition:border-color .12s;
-           position:relative; }
+  .pcard { appearance:none; display:block; flex:0 0 auto; width:132px; border:1px solid var(--line);
+           border-radius:var(--r-lg); background:var(--surface); cursor:pointer; overflow:hidden;
+           transition:border-color .12s; position:relative; padding:0; font:inherit; text-align:left;
+           color:inherit; }
   .pcard:hover { border-color:var(--line-strong); }
+  .pcard:focus-visible { outline:2px solid var(--ring); outline-offset:1px; }
   .pcard.sel { border-color:var(--blueprint); box-shadow:0 0 0 1px var(--blueprint); }
   .pcard .thumb { width:100%; height:76px; object-fit:cover; background:var(--well); display:block; }
   .pcard .meta { padding:var(--sp-2); }
@@ -194,7 +196,7 @@
                     border-radius:var(--r-sm); border:1px solid var(--line); color:var(--ink-3);
                     background:var(--bg-raised); }
   .pcard .vw-chip.datum { color:var(--datum); border-color:var(--datum); background:var(--datum-dim); }
-  .pcard .ran { position:absolute; top:var(--sp-2); right:var(--sp-2); background:var(--ok); color:#04160C;
+  .pcard .ran { position:absolute; top:var(--sp-2); right:var(--sp-2); background:var(--ok); color:var(--on-ok);
                 font:700 9px/14px var(--sans); letter-spacing:.05em; text-transform:uppercase;
                 padding:1px 6px; border-radius:var(--r-sm); }
   .pcard.sel .tickbadge { position:absolute; top:var(--sp-2); left:var(--sp-2); background:var(--blueprint);
@@ -285,7 +287,7 @@
                          border:1px solid rgba(255,255,255,.7); background:inherit;
                          border-radius:var(--r-sm); cursor:nwse-resize; pointer-events:auto; }
   .mark-box .mb-role { position:absolute; left:0; top:-15px; font:600 9px/12px var(--mono);
-                       letter-spacing:.04em; color:#fff; background:rgba(15,20,28,.75);
+                       letter-spacing:.04em; color:var(--ink); background:rgba(15,20,28,.75);
                        padding:0 4px; border-radius:2px; white-space:nowrap; pointer-events:none; }
   /* Locked origin datum: a distinct cyan crosshair marking (0,0) at the
      bottom-left of the top view — the fixed reference for model orientation. */
@@ -314,7 +316,7 @@
                         box-shadow:0 0 0 1.5px rgba(10,15,22,.75); }
   .datum-mark .dm-lab { position:absolute; left:-7px; top:-7px; width:14px; height:14px;
                         display:grid; place-items:center; font:700 9px/1 var(--sans);
-                        color:#0A0F16; }
+                        color:var(--well); }
   .datum-mark .dm-del { position:absolute; left:10px; top:-8px; width:15px; height:15px;
                         line-height:13px; text-align:center; color:var(--ink);
                         background:rgba(10,15,22,.85); border:1px solid var(--line-strong);
@@ -325,7 +327,7 @@
   .regions-body .rg-drow { display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap;
                            padding:3px 0; font-size:var(--fs-small); color:var(--ink-2); }
   .regions-body .dm-chip { display:inline-grid; place-items:center; width:16px; height:16px;
-                           border-radius:50%; background:var(--datum); color:#0A0F16;
+                           border-radius:50%; background:var(--datum); color:var(--well);
                            font:700 9px/1 var(--sans); flex:0 0 auto; }
   .regions-body .dm-val { width:120px; min-width:0; padding:2px 6px; font:400 11.5px var(--mono); }
   .regions-body .rg-drow .rg-coords { grid-column:auto; }
@@ -428,6 +430,17 @@
                max-width:360px; }
   .emptynote b { color:var(--ink-2); }
 
+  /* ── Empty-state glyph + heading (shared across every "nothing here yet"
+     panel — Sheet 1's drawing/model wells, Sheet 2's parts list, Sheet 3's
+     output tabs). Reuses only existing tokens: no new colors, no assets. ── */
+  .es { display:flex; flex-direction:column; align-items:center; gap:var(--sp-1); }
+  .es-glyph { width:36px; height:36px; border:1px solid var(--line-strong); border-radius:var(--r-lg);
+              display:grid; place-items:center; color:var(--ink-4); font:16px/1 var(--mono);
+              margin-bottom:var(--sp-1); }
+  .es-title { color:var(--ink-2); font:600 var(--fs-control)/1.4 var(--sans); }
+  .es-hint { color:var(--ink-3); font-size:var(--fs-small); max-width:340px; text-align:center; line-height:1.5; }
+  .es-hint b { color:var(--ink-2); }
+
   /* With the outputs dock moved to Sheet 4, the live console can use the
      remaining height of the Pipeline sheet. */
   #inline-console { flex:1 1 auto; min-height:0; margin:0; overflow:auto;
@@ -463,9 +476,12 @@
                   background:var(--bg-raised); font-size:var(--fs-small); color:var(--ink-3); }
   .out .toolbar .grow { flex:1; }
   .out pre { flex:1 1 auto; margin:0; overflow:auto; padding:var(--sp-4);
-             font:12px/1.6 var(--mono); color:#C2CCDA; background:var(--well); white-space:pre; }
-  .out .empty { flex:1 1 auto; display:grid; place-items:center; color:var(--ink-3);
-                padding:var(--sp-5); text-align:center; }
+             font:12px/1.6 var(--mono); color:var(--console-text); background:var(--well); white-space:pre; }
+  .out .empty { flex:1 1 auto; display:grid; align-content:center; justify-items:center;
+                gap:var(--sp-2); color:var(--ink-3); padding:var(--sp-5); text-align:center; }
+  .out .empty::before { content:"\2300"; width:36px; height:36px; border:1px solid var(--line-strong);
+                        border-radius:var(--r-lg); display:grid; place-items:center;
+                        color:var(--ink-4); font:16px/1 var(--mono); }
   .macro-tabs { display:flex; gap:var(--sp-1); flex-wrap:wrap; }
   .macro-tabs button { font:500 var(--fs-caption)/1.5 var(--mono); padding:2px var(--sp-2);
                        border-radius:var(--r-sm); cursor:pointer; background:var(--surface);
@@ -594,7 +610,11 @@
         </div>
         <div class="body" id="ov-box">
           <img id="ov-img" alt="full overview drawing" style="display:none" />
-          <div class="emptynote" id="ov-empty">No overview image provided for this part.</div>
+          <div class="emptynote es" id="ov-empty">
+            <div class="es-glyph">&#8960;</div>
+            <div class="es-title">No overview image</div>
+            <div class="es-hint">Upload a drawing or select a saved part to see its full sheet here.</div>
+          </div>
         </div>
       </div>
       <div class="side">
@@ -607,7 +627,12 @@
         </div>
         <div class="body">
           <div id="stl-canvas-wrap"></div>
-          <div class="emptynote" id="stl-empty">No STL yet — it appears after a SolidWorks build. On macOS (no SolidWorks) run the generated <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
+          <div class="emptynote es" id="stl-empty">
+            <div class="es-glyph">&#8960;</div>
+            <div class="es-title">No STL yet</div>
+            <div class="es-hint">It appears after a SolidWorks build. On macOS (no SolidWorks) run the generated
+              <b>export-STL macro</b> on a SolidWorks machine — the viewer loads it automatically when present.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -617,12 +642,12 @@
   <section class="panel" id="panel-pipeline">
     <div class="pipe-top">
       <div class="pt-parts">
-        <div class="grp-title">Saved parts <span class="hint" id="add-hint">— created in the Part Setup tab; select one, then run</span></div>
-        <div class="parts-list" id="parts-list"><div class="empty">No parts yet — create one in the Part Setup &amp; 3D Model tab.</div></div>
+        <div class="grp-title">Saved parts <span class="hint" id="add-hint">— created in the Upload &amp; 3D Model tab; select one, then run</span></div>
+        <div class="parts-list" id="parts-list"><div class="empty es"><div class="es-glyph">&#8960;</div><div class="es-hint">No parts yet — add one in <b>Sheet 1 · Upload &amp; 3D Model</b>.</div></div></div>
       </div>
       <div class="pt-actions">
         <button class="btn xl" id="run-btn" disabled>▶ Pull &amp; Run Pipeline</button>
-        <button class="btn xl" id="run-all-btn" disabled title="Runs every saved part through the full pipeline, one model at a time; all outputs are also delivered to ~/Downloads/SolidWorksModel_Parts/">▶▶ Run All Parts</button>
+        <button class="btn secondary xl" id="run-all-btn" disabled title="Runs every saved part through the full pipeline, one model at a time; all outputs are also delivered to ~/Downloads/SolidWorksModel_Parts/">▶▶ Run All Parts</button>
 
         <button class="btn danger" id="cancel-btn" style="display:none">✕ Cancel</button>
         <div class="demo-row">
@@ -752,7 +777,7 @@ function showTab(name) {
   if (!TOP_TABS.includes(name)) { showTab('outputs'); showSub(name); return; } // legacy names → Sheet 4 sub-tab
   document.querySelectorAll('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('main > .panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
-  if (name === 'intake') viewer.onShow(); // STL viewer lives on the Part Setup & 3D Model tab
+  if (name === 'intake') viewer.onShow(); // STL viewer lives on the Upload & 3D Model tab
 }
 function showSub(name) {
   document.querySelectorAll('.stab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -800,7 +825,7 @@ function paintText(panelId, name, text) {
   if (nm && name) nm.textContent = name;
   if (text != null) { pre.textContent = text; pre.style.display = ''; if (empty) empty.style.display = 'none'; }
 }
-// The "model ready" badge sits on the tab that shows the STL (Part Setup & 3D Model).
+// The "model ready" badge sits on the tab that shows the STL (Upload & 3D Model).
 function setModelTabFilled(filled) {
   const t = document.querySelector('.tab[data-tab="intake"]'); if (!t) return;
   t.classList.toggle('filled', filled);
@@ -1113,10 +1138,11 @@ document.getElementById('clear-runs-btn').addEventListener('click', async () => 
 
 function renderParts() {
   const list = document.getElementById('parts-list');
-  if (!partsData.length) { list.innerHTML = '<div class="empty">No parts yet — create one in the Part Setup &amp; 3D Model tab.</div>'; return; }
+  if (!partsData.length) { list.innerHTML = '<div class="empty es"><div class="es-glyph">&#8960;</div><div class="es-hint">No parts yet — add one in <b>Sheet 1 · Upload &amp; 3D Model</b>.</div></div>'; return; }
   list.innerHTML = '';
   partsData.forEach(p => {
-    const card = document.createElement('div');
+    const card = document.createElement('button');
+    card.type = 'button';
     card.className = 'pcard' + (p.name === selectedPart ? ' sel' : '');
     // The full uploaded sheet is what the run reads (the model owns view
     // interpretation), shown alongside any orthographic views present.

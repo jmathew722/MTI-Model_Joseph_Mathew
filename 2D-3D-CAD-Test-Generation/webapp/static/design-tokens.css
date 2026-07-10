@@ -28,6 +28,7 @@
   --ink-2:     #AEBACB;  /* secondary */
   --ink-3:     #7D8A9E;  /* muted / labels */
   --ink-4:     #4E5A6C;  /* faint / disabled */
+  --console-text: #C2CCDA;  /* console/log body text — slightly cooler than --ink for a terminal feel */
 
   /* ── Rules (cool alpha hairlines; quiet by default) ──────────────────── */
   --line:        rgba(185,212,240,0.10);
@@ -50,6 +51,7 @@
   /* ── Status (inspection: accept / reject / hold) ─────────────────────── */
   --ok:        #3EAF7C;
   --ok-text:   #6FD0A2;
+  --on-ok:     #04160C;  /* text on an --ok fill (filled "done"/"ran" badges) */
   --err:       #E5484D;
   --err-text:  #F3797E;
   --warn:      #E3A93C;
@@ -234,7 +236,7 @@ html { -webkit-font-smoothing: antialiased; }
 
 /* ── Console / build log ───────────────────────────────────────────────── */
 .console-c {
-  background: var(--well); color: #C2CCDA;
+  background: var(--well); color: var(--console-text);
   font: 12px/1.6 var(--mono); white-space: pre-wrap;
 }
 
