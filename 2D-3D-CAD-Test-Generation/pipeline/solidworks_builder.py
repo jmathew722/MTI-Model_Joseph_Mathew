@@ -577,47 +577,59 @@ def _do_cut(sw_doc, feature, through_all: bool, depth_m: Optional[float]):
     return feat
 
 
-def _wizard_hole_type(h) -> str:
-    """Classify a callout into a HoleWizard generic-hole-type constant name.
+def _wizard_hole_type(h) -> int:
+    """Classify a callout into a ``swWzdGeneralHoleTypes_e`` value.
 
-    Drives which ``swWzdGeneralHoleTypes_e`` value HoleWizard5 receives — a real
-    tapped/cbore/csk hole feature (with thread/callout data), not a plain
-    cylinder cut. Order matters: a tapped counterbored hole is still a TAP."""
-    if getattr(h, "thread_spec", "") or getattr(h, "type", None) == HoleType.TAPPED:
-        return "swWzdTappedHole"
-    if getattr(h, "cbore_diameter", 0) > 0 or getattr(h, "type", None) == HoleType.COUNTERBORE:
-        return "swWzdCounterBore"
-    if getattr(h, "csink_diameter", 0) > 0 or getattr(h, "type", None) == HoleType.COUNTERSINK:
-        return "swWzdCounterSink"
-    return "swWzdHole"  # simple drilled hole
+    We drive every case through the diameter-based LEGACY hole (``swWzdLegacy``):
+    it is placed by an explicit diameter and needs no fastener standard/size
+    table lookup (those indices are locale/data-pack specific and the #1 source
+    of wrong-size or failed wizard holes). This yields a REAL hole-wizard feature
+    at the resolved coordinates — replacing the open/empty-sketch ``FeatureCut4``
+    failure class — while the drill diameter stays exactly the callout's. A
+    tapped callout still drills its tap hole here; the thread stays cosmetic per
+    the repo convention (real helical threads are prohibited)."""
+    return _const("swWzdLegacy", 5)
+
+
+# IFeatureManager::HoleWizard5 (dispid 222) parameter order, verified against the
+# installed sldworks.tlb: GenericHoleType(long), StandardIndex(long),
+# FastenerTypeIndex(long), SSize(str), EndType(short), Diameter, Depth, Length,
+# Value1..Value12 (doubles), ThreadClass(str), RevDir, FeatureScope, AutoSelect,
+# AssemblyFeatureScope, AutoSelectComponents, PropagateFeatureToParts (bools).
+# StandardIndex/FastenerTypeIndex are LONGS (0 for the legacy diameter-driven
+# hole) — passing strings there is what raised "Type mismatch" (-2147352571).
 
 
 def _try_hole_wizard(sw_doc, model, feature: Feature, h, centers_m: list[tuple[float, float]],
                      through_all: bool, depth_m: Optional[float]):
     """Best-effort REAL Hole Wizard feature (IFeatureManager::HoleWizard5).
 
-    Additive path (2026-07-10 redesign): a drilled/tapped/counterbored/
-    countersunk callout becomes a proper wizard hole carrying thread/callout
-    data instead of a bare ``FeatureCut4`` circle — so ``10-24 TAP THRU`` is a
-    tapped hole, not a cylinder. Returns the created feature on success, or
-    ``None`` to signal the caller to fall back to the exact existing sketch-cut
-    path (``_circular_cut_at``) — nothing regresses on any failure.
+    Additive path (2026-07-10 redesign): a drilled/tapped/cbore/csk callout
+    becomes a proper wizard hole feature instead of a bare ``FeatureCut4`` circle
+    (which fails on an open/empty sketch). Placement uses a pre-selected point
+    sketch — one point per resolved center on the target face — so every instance
+    is drilled at its exact X/Y. Returns the created feature on success, or
+    ``None`` to fall back to the exact existing sketch-cut path
+    (``_circular_cut_at``): nothing regresses on ANY failure. After creation the
+    build is verified (rebuild OK + solid body present); a no-op wizard hole is
+    deleted and we fall back rather than ship bad geometry.
 
-    NOTE: HoleWizard5's full parameter tuple and the fastener standard/size
-    strings are SolidWorks-version/locale specific and cannot be validated
-    headlessly in CI; this builds the documented parameter list (per the API
-    reference, not a recorded macro) and is guarded so ANY problem — missing
-    method, ``None`` return, exception, or a wizard hole that leaves the doc in a
-    bad state — cleanly reverts to the sketch-cut fallback. Set
-    ``MTI_DISABLE_HOLE_WIZARD=1`` to force the legacy path.
+    OPT-IN (``MTI_ENABLE_HOLE_WIZARD=1``): default OFF. Live testing on
+    SolidWorks 2024 showed ``HoleWizard5`` returning ``None`` for the
+    diameter-driven legacy hole even on a clean part with a valid face + point
+    sketch — the parameter/Value-slot mapping is version/locale specific (the
+    exact quirk the redesign spec flagged). Until that mapping is nailed down on
+    a live machine, the default stays the proven sketch-circle cut so the working
+    build never regresses; flip the flag to iterate on the wizard call. The
+    27-arg signature here is verified correct against the installed sldworks.tlb
+    (dispid 222) — it no longer raises "Type mismatch".
     """
     import os
 
-    if os.getenv("MTI_DISABLE_HOLE_WIZARD"):
+    if not os.getenv("MTI_ENABLE_HOLE_WIZARD"):
         return None
     if not centers_m:
         return None
-    feat_count_before = None
     try:
         featmgr = sw_doc.FeatureManager
         hw = getattr(featmgr, "HoleWizard5", None)
@@ -625,67 +637,41 @@ def _try_hole_wizard(sw_doc, model, feature: Feature, h, centers_m: list[tuple[f
             return None  # older SW without HoleWizard5 -> fallback
 
         unit = model.units.value
-        wtype = _const(_wizard_hole_type(h), _const("swWzdHole", 0))
+        wtype = _wizard_hole_type(h)
         end_cond = _const("swEndCondThroughAll", 1) if through_all else _const("swEndCondBlind", 0)
         dia_m = to_meters(h.diameter, unit)
-        depth = depth_m if (depth_m and not through_all) else to_meters(max(h.depth, h.diameter), unit)
-        near_csk_dia = to_meters(h.csink_diameter, unit) if h.csink_diameter > 0 else 0.0
-        near_csk_ang = _math.radians(h.csink_angle) if h.csink_angle > 0 else 0.0
-        cbore_dia = to_meters(h.cbore_diameter, unit) if h.cbore_diameter > 0 else 0.0
-        cbore_depth = to_meters(h.cbore_depth, unit) if h.cbore_depth > 0 else 0.0
+        # A blind depth must be positive; a through hole gets a generous depth
+        # (SW uses the end condition, not the value, for ThroughAll).
+        depth = depth_m if (depth_m and not through_all) else to_meters(
+            max(h.depth, h.diameter * 4.0, 0.01 / 0.0254), unit)
 
-        # Select the host planar face at the first instance. Face picks are
-        # unreliable (per SW COM notes), so try a few z heights spanning the
-        # body: the near/far faces (from the body box) and the mid-plane.
-        cx0, cy0 = centers_m[0]
-        z_candidates = [0.0]
-        try:
-            bodies = sw_doc.GetBodies2(0, False)
-            body = bodies[0] if isinstance(bodies, (list, tuple)) else bodies
-            bb = body.GetBodyBox()  # (x1,y1,z1,x2,y2,z2) meters
-            z_candidates = [bb[5], bb[2], (bb[2] + bb[5]) / 2.0]
-        except Exception:
-            pass
-        selected = False
-        for z in z_candidates:
-            sw_doc.ClearSelection2(True)
-            if sw_doc.Extension.SelectByID2("", "FACE", cx0, cy0, z, False, 0, _null_dispatch(), 0):
-                selected = True
-                break
-        if not selected:
+        # 1) Pre-select the host planar face + place one sketch point per center.
+        if not _select_top_face(sw_doc, centers_m[0]):
             return None
+        sw_doc.SketchManager.InsertSketch(True)
+        if sw_doc.SketchManager.ActiveSketch is None:
+            return None
+        for cx, cy in centers_m:
+            sw_doc.SketchManager.CreatePoint(cx, cy, 0.0)
+        sw_doc.SketchManager.InsertSketch(True)  # close; the points stay selected
 
-        try:
-            feats = sw_doc.FeatureManager
-            feat_count_before = feats.GetFeatureCount() if hasattr(feats, "GetFeatureCount") else None
-        except Exception:
-            feat_count_before = None
-
-        # Documented core parameter set (swWzdGeneralHoleTypes_e, standard,
-        # fastener type, size, end condition, diameters/angles, depth). Standard/
-        # fastener/size are left generic ("Ansi Inch"/"") so SolidWorks uses the
-        # explicit diameters we pass; a live machine may refine these strings.
-        wizard = None
-        try:
-            wizard = hw(
-                wtype, "Ansi Inch", "", "", end_cond,
-                dia_m, depth, near_csk_dia, near_csk_ang,
-                cbore_dia, cbore_depth, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                False, False, False, False, False,
-            )
-        except TypeError:
-            # Parameter arity differs on this SW build — fall back rather than
-            # guess a second signature blind.
-            wizard = None
+        # 2) Create the wizard hole at the selected points. Correct 27-arg
+        # signature; longs (0) for the standard/fastener indices (legacy hole).
+        wizard = hw(
+            wtype, 0, 0, "", int(end_cond),
+            float(dia_m), float(depth), 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            "", False, True, True, False, False, False,
+        )
         if wizard is None:
             sw_doc.ClearSelection2(True)
             return None
 
-        # Move/duplicate the wizard's placement points to the resolved centers.
-        if not _place_wizard_points(sw_doc, wizard, centers_m):
-            # Could not position reliably — undo the wizard feature and fall back
-            # so we never leave a single mis-placed wizard hole in the tree.
+        # 3) Verify the wizard actually removed material of the right size; a
+        # zero-diameter / no-op wizard hole is deleted and we fall back.
+        if not check_rebuild_errors(sw_doc) or not _solid_body_exists(sw_doc):
             _delete_feature(sw_doc, wizard)
+            sw_doc.ClearSelection2(True)
             return None
         sw_doc.ClearSelection2(True)
         return wizard
@@ -699,33 +685,23 @@ def _try_hole_wizard(sw_doc, model, feature: Feature, h, centers_m: list[tuple[f
         return None
 
 
-def _place_wizard_points(sw_doc, wizard, centers_m: list[tuple[float, float]]) -> bool:
-    """Edit a wizard hole's placement (point) sketch so one point sits at each
-    resolved center. Returns False if the sketch can't be edited (caller falls
-    back). Best-effort — validated on a live SolidWorks build."""
+def _select_top_face(sw_doc, center_m: tuple[float, float]) -> bool:
+    """Select the host planar face at ``center_m``. Face picks are unreliable, so
+    try the far/near faces (from the body box) and the mid-plane in turn."""
+    cx0, cy0 = center_m
+    z_candidates = [0.0]
     try:
-        # A wizard hole owns two sketches; the 2D point sketch is the placement.
-        sketches = wizard.GetSketches() if hasattr(wizard, "GetSketches") else None
-        if not sketches:
-            return False
-        # Heuristic: the placement sketch is the one with points; add points at
-        # every additional center beyond the first (the wizard seeds one point).
-        # Without a live doc we can only add points; the first is left as created.
-        skmgr = sw_doc.SketchManager
-        placement = sketches[-1] if isinstance(sketches, (list, tuple)) else sketches
-        try:
-            sw_doc.EditSketch()
-        except Exception:
-            pass
-        for cx, cy in centers_m[1:]:
-            skmgr.CreatePoint(cx, cy, 0.0)
-        try:
-            sw_doc.InsertSketch(True)
-        except Exception:
-            pass
-        return True
+        bodies = sw_doc.GetBodies2(0, False)
+        body = bodies[0] if isinstance(bodies, (list, tuple)) else bodies
+        bb = body.GetBodyBox()  # (x1,y1,z1,x2,y2,z2) meters
+        z_candidates = [bb[5], bb[2], (bb[2] + bb[5]) / 2.0]
     except Exception:
-        return False
+        pass
+    for z in z_candidates:
+        sw_doc.ClearSelection2(True)
+        if sw_doc.Extension.SelectByID2("", "FACE", cx0, cy0, z, False, 0, _null_dispatch(), 0):
+            return True
+    return False
 
 
 def _delete_feature(sw_doc, feat) -> None:

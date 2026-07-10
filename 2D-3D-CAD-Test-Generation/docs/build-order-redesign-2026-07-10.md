@@ -58,15 +58,27 @@ backward compatibility with the learning-loop logs.
   drawing-unit → mm scale (documented invariant). CadQuery pre-validation still
   builds from the same `build_plan.json` (single source of truth) and now follows
   the staged seq order.
-- **SolidWorks** (`solidworks_builder.py`): `build_hole` attempts
-  `IFeatureManager::HoleWizard5` (`_try_hole_wizard`) — generic-hole-type derived
-  from the callout (drill / counterbore / countersink / tap), placement points at
-  the resolved centers — then falls back to the exact `_circular_cut_at`
-  sketch-cut on ANY failure, so the working build path never regresses. Set
-  `MTI_DISABLE_HOLE_WIZARD=1` to force the legacy path. The full HoleWizard5
-  parameter tuple and fastener/size strings are SolidWorks-version/locale
-  specific and must be validated on a live SolidWorks machine (cannot be
-  exercised headlessly in CI).
+- **SolidWorks** (`solidworks_builder.py`): `build_hole` can build holes as real
+  `IFeatureManager::HoleWizard5` features (`_try_hole_wizard`, diameter-driven
+  legacy hole, placement points at the resolved centers), with a verified
+  fallback to the exact `_circular_cut_at` sketch-cut on ANY failure so the
+  working build path never regresses.
+
+  **Live finding (SolidWorks 2024, this repo's machine):** the wizard path is
+  **opt-in** (`MTI_ENABLE_HOLE_WIZARD=1`), **default OFF**. The 27-argument
+  signature was verified against the installed `sldworks.tlb` (dispid 222) and no
+  longer raises "Type mismatch" (the original bug was passing strings for the
+  `StandardIndex`/`FastenerTypeIndex` **longs**). But `HoleWizard5` returned
+  `None` — producing no geometry — even on an isolated clean part with a valid
+  face + point sketch, for both the legacy (5) and hole (2) generic types. The
+  Diameter/Depth/Value1..12 slot mapping is version/locale specific (exactly the
+  macro-recorder quirk the spec warned about) and needs to be nailed down against
+  a live machine before it can be trusted as the default. Until then the proven
+  sketch-circle cut stays the default and the pipeline is unchanged. Verified: a
+  live COM build of A001211E with the flag off is byte-for-byte the pre-redesign
+  build behavior (F001/F002/F003 build, the pre-existing F004 tapped-hole
+  sketch-cut failure is unchanged, F005 pattern no-op) — no regression from the
+  HoleWizard code.
 
 ## Integration point
 
