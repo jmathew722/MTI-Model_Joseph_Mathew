@@ -1,0 +1,21 @@
+# Repo-root ignores. Per-subproject rules live in
+# 2D-3D-CAD-Test-Generation/.gitignore.
+
+# Never commit the API key
+.env
+
+# Generated pipeline run artifacts for the sibling drawing-set folders
+# (each part folder holds .SLDPRT/.STL binaries + json — regenerated on every
+# run, delivered to ~/Downloads/SolidWorksModel_Parts and UI_Output). The
+# Learning Loop/ reports are committed on purpose (the loop's training signal);
+# the heavy build outputs are not.
+*/output/
+**/output/*.SLDPRT
+**/output/*.STL
+**/output/*.sldprt
+**/output/*.stl
+
+# Logs / OS cruft
+*.log
+.DS_Store
+Thumbs.db

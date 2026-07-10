@@ -1,0 +1,66 @@
+LEARNING LOOP — 115 C-RevMC
+============================================================
+Run:     2026-07-10 10:47:58
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: ..\DrawingPDFs\output\115_C-RevMC
+Fingerprint: 1db579a73b6e30ef
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The front view's overall block dimension is labeled 2.75 (height) but the corresponding width shown as .50 (offset) and 1.88 near the bottom edge is ambiguous relative to the bottom/section view's 3.25 overall length dimension — it is not fully clear whether 3.25 is the same axis as 2.375/1.875 pattern spacing or an orthogonal depth axis.
+       -> Verify by cross-checking projection lines between front view and bottom/section view to confirm which axis the 3.25 dimension governs (should align with the 2.375 hole-pattern spacing direction, not the 1.875 direction).
+   - [HIGH] The side view shows only one threaded port (3/8-18 NPTF) but the front view shows two separate blind ports; it is unclear from the given views whether the internal passage actually connects both front blind holes to this single side port or only to one of them, since no direct hidden-line correspondence between the side view and both front holes is drawn.
+       -> Request or infer an additional section view cutting through both the side NPTF port and the two front blind holes to confirm the internal flow path connectivity (needed for a bypass/check valve function).
+   - [LOW] The (2) HLS callout for the 37/64 DRILL/C'BORE feature states a count of 2, matching the two circles visibly drawn in the front view — no discrepancy found, but the identical callout style for the 4 corner holes (4 PLS) and the 2 center holes (2 HLS) uses different hole-count abbreviation conventions on the same sheet, which could cause confusion if misread.
+       -> Confirm with drafter/checker that 'PLS' (places) and 'HLS' (holes) are being used consistently and do not indicate different feature types.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 3, HIGH 1, MEDIUM 3
+   - [CRITICAL] F004 (feature): POSITION UNRESOLVED for F004: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 1 unassociated linear dim(s) (no leader reached F004's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption — add an X and/or Y location dimension on the drawing and re-run.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F004
+   - [CRITICAL] F006 (feature): POSITION UNRESOLVED for F006: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 1 unassociated linear dim(s) (no leader reached F006's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption — add an X and/or Y location dimension on the drawing and re-run.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F006
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (hole): FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       affects: feature F003
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front): The (2) HLS callout for the 37/64 DRILL/C'BORE feature states a count of 2, matching the two circles visibly drawn in the front view — no discrepancy found, but the identical callout style for the 4 corner holes (4 PLS) and the 2 center holes (2 HLS) uses different hole-count abbreviation conventions on the same sheet, which could cause confusion if misread. Recommendation: Confirm with drafter/checker that 'PLS' (places) and 'HLS' (holes) are being used consistently and do not indicate different feature types.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, bottom_section): The front view's overall block dimension is labeled 2.75 (height) but the corresponding width shown as .50 (offset) and 1.88 near the bottom edge is ambiguous relative to the bottom/section view's 3.25 overall length dimension — it is not fully clear whether 3.25 is the same axis as 2.375/1.875 pattern spacing or an orthogonal depth axis. Recommendation: Verify by cross-checking projection lines between front view and bottom/section view to confirm which axis the 3.25 dimension governs (should align with the 2.375 hole-pattern spacing direction, not the 1.875 direction).
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side, bottom_section): The side view shows only one threaded port (3/8-18 NPTF) but the front view shows two separate blind ports; it is unclear from the given views whether the internal passage actually connects both front blind holes to this single side port or only to one of them, since no direct hidden-line correspondence between the side view and both front holes is drawn. Recommendation: Request or infer an additional section view cutting through both the side NPTF port and the two front blind holes to confirm the internal flow path connectivity (needed for a bypass/check valve function).
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (hole) skipped: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '115 C-RevMC' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: ..\DrawingPDFs\output\115_C-RevMC

@@ -1,0 +1,84 @@
+LEARNING LOOP — 117-C-RevMC
+============================================================
+Run:     2026-07-10 10:45:21
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: ..\DrawingPDFs\output\117-C-RevMC
+Fingerprint: 51ba394a50a94bcf
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The front view shows the two internal bores (29/32 DR .50 DP) as dashed/hidden circles with no visible cross-hatching or section cut, while the bottom view shows them as fully visible solid-line stepped pocket profiles. There is no formal section line (e.g., SECTION A-A) tying the bottom view to a cut plane on the front view, making it an assumption that the bottom view is a true section rather than a separate part face.
+       -> Verify whether the bottom view is an actual sectioned view (with cutting plane) of the same two bores, or a separate bottom face view; if a cutting-plane line is present elsewhere on the sheet, confirm alignment with the .880/1.590 hole spacing in the front view.
+   - [LOW] Only 2 dowel pin holes (9/32 DR .31 DP, 2 HL'S) are called out in the front view, and 2 corresponding reamed holes (1/4 RM PF .31 DP, 2 HL'S) with 2 dowel pins are shown in the side view — counts match (2=2), but the front view only clearly shows one dowel hole location near the upper-right corner; the second may be occluded or on the opposite corner without a clear leader.
+       -> Confirm from the front view whether both 9/32 dowel holes are visually present at two distinct corner locations (likely diagonal corners) since only one leader arrow is clearly visible pointing to the upper right hole.
+   - [LOW] The side view's .25 TYP dimension and stepped edge profile are not clearly cross-referenced to any dimension in the front or bottom views, leaving the exact location/extent of this edge step ambiguous.
+       -> Check if additional dimensions on an unseen supplementary view or note clarify the step location; otherwise treat as a minor edge relief feature near the dowel pin end.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 5, HIGH 2, MEDIUM 4
+   - [CRITICAL] D900 (dimension): THICKNESS ASSUMED for base F006: the drawing does not dimension the part thickness, so D900=4.31 inch was synthesized so a solid could be built — MUST set the real thickness in SolidWorks before rebuild.
+       decision: resolved value 4.31
+       why: default base thickness
+       affects: dimension D900
+   - [CRITICAL] F005 (feature): POSITION UNRESOLVED for F005: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 3 unassociated linear dim(s) (no leader reached F005's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption — add an X and/or Y location dimension on the drawing and re-run.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (hole): FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       affects: feature F003
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (hole): FeatureCut4 returned None for F004 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F004 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       affects: feature F004
+   - [CRITICAL] F009 (build): The .sldprt build SKIPPED feature F009 (hole): FeatureCut4 returned None for F009 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F009 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       affects: feature F009
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): Only 2 dowel pin holes (9/32 DR .31 DP, 2 HL'S) are called out in the front view, and 2 corresponding reamed holes (1/4 RM PF .31 DP, 2 HL'S) with 2 dowel pins are shown in the side view — counts match (2=2), but the front view only clearly shows one dowel hole location near the upper-right corner; the second may be occluded or on the opposite corner without a clear leader. Recommendation: Confirm from the front view whether both 9/32 dowel holes are visually present at two distinct corner locations (likely diagonal corners) since only one leader arrow is clearly visible pointing to the upper right hole.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (side, front, bottom): The side view's .25 TYP dimension and stepped edge profile are not clearly cross-referenced to any dimension in the front or bottom views, leaving the exact location/extent of this edge step ambiguous. Recommendation: Check if additional dimensions on an unseen supplementary view or note clarify the step location; otherwise treat as a minor edge relief feature near the dowel pin end.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, bottom): The front view shows the two internal bores (29/32 DR .50 DP) as dashed/hidden circles with no visible cross-hatching or section cut, while the bottom view shows them as fully visible solid-line stepped pocket profiles. There is no formal section line (e.g., SECTION A-A) tying the bottom view to a cut plane on the front view, making it an assumption that the bottom view is a true section rather than a separate part face. Recommendation: Verify whether the bottom view is an actual sectioned view (with cutting plane) of the same two bores, or a separate bottom face view; if a cutting-plane line is present elsewhere on the sheet, confirm alignment with the .880/1.590 hole spacing in the front view.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (hole) skipped: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F004 (hole) skipped: FeatureCut4 returned None for F004 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F009 (hole) skipped: FeatureCut4 returned None for F009 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+   - feature F004 FAILED: FeatureCut4 returned None for F004 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+   - feature F009 FAILED: FeatureCut4 returned None for F009 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '117-C-RevMC' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: ..\DrawingPDFs\output\117-C-RevMC

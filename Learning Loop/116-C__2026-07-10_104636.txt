@@ -1,0 +1,57 @@
+LEARNING LOOP — 116-C
+============================================================
+Run:     2026-07-10 10:46:36
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: ..\DrawingPDFs\output\116-C
+Fingerprint: 7c7419b8e74bfa7d
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - pre-validation failed
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The two counterbored holes are shown with double-circle (counterbore) symbols in the front view and are called out with explicit drill depth (.50 DP) and counterbore depth (.111/.113 DEEP), but Section A-A (which appears to be the section that should reveal hole depth) shows only a plain hatched block with a small corner chamfer feature and does not clearly show two blind bored holes in cross-section.
+       -> Verify that Section A-A's cutting plane actually passes through the two counterbored holes (per the A-A arrows shown in the front view) — if so, the hidden/sectioned profile of the counterbore and drill should be visible; if the section was taken elsewhere, confirm hole depth solely from the drill/counterbore textual callout.
+   - [LOW] The small end-view fragment (bottom right, near '63' and 'G') showing the 1.5 dimension and chamfer leader is not clearly labeled as a distinct projected view (no view name), making it ambiguous whether this is a separate end view, a partial detail, or part of the bottom view region.
+       -> Confirm with the source drawing whether this fragment is a labeled 'right side view' or 'detail G' — check for a missing view title or section indicator near the '63' chamfer callout and the 'G' centerline label.
+   - [MEDIUM] The bottom view shows a hidden-line tab/pocket feature near one end (with a leader to the drill/counterbore note), but it's unclear whether this hidden feature is the same as the counterbored holes shown in the front view or an entirely separate internal feature (e.g., a keyway or pocket) not otherwise dimensioned.
+       -> Cross-check the leader line origin in the bottom view against the front view hole locations to determine if the hidden lines represent the counterbore/drill holes viewed from below, or a separate un-dimensioned tab feature.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 1, MEDIUM 3
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (hole): FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       affects: feature F003
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (end, bottom): The small end-view fragment (bottom right, near '63' and 'G') showing the 1.5 dimension and chamfer leader is not clearly labeled as a distinct projected view (no view name), making it ambiguous whether this is a separate end view, a partial detail, or part of the bottom view region. Recommendation: Confirm with the source drawing whether this fragment is a labeled 'right side view' or 'detail G' — check for a missing view title or section indicator near the '63' chamfer callout and the 'G' centerline label.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, section_a_a): The two counterbored holes are shown with double-circle (counterbore) symbols in the front view and are called out with explicit drill depth (.50 DP) and counterbore depth (.111/.113 DEEP), but Section A-A (which appears to be the section that should reveal hole depth) shows only a plain hatched block with a small corner chamfer feature and does not clearly show two blind bored holes in cross-section. Recommendation: Verify that Section A-A's cutting plane actually passes through the two counterbored holes (per the A-A arrows shown in the front view) — if so, the hidden/sectioned profile of the counterbore and drill should be visible; if the section was taken elsewhere, confirm hole depth solely from the drill/counterbore textual callout.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (bottom, front): The bottom view shows a hidden-line tab/pocket feature near one end (with a leader to the drill/counterbore note), but it's unclear whether this hidden feature is the same as the counterbored holes shown in the front view or an entirely separate internal feature (e.g., a keyway or pocket) not otherwise dimensioned. Recommendation: Cross-check the leader line origin in the bottom view against the front view hole locations to determine if the hidden lines represent the counterbore/drill holes viewed from below, or a separate un-dimensioned tab feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (hole) skipped: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureCut4 returned None for F003 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '116-C' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: ..\DrawingPDFs\output\116-C

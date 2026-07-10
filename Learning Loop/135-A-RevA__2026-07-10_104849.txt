@@ -1,0 +1,41 @@
+LEARNING LOOP — 135-A-RevA
+============================================================
+Run:     2026-07-10 10:48:49
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: ..\DrawingPDFs\output\135-A-RevA
+Fingerprint: 4106a2cb26ec6ec6
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] Leader note states '2 HLS' (2 holes) matching the two circles drawn in the top view and two stepped profiles in the front view — count is consistent, no discrepancy found.
+       -> No action needed; count confirmed consistent across both views.
+   - [MEDIUM] Front view hole profiles appear as short stepped hidden lines that do not clearly extend to the bottom edge of the bar, but the exact blind hole depth (drill depth beyond counterbore) is not explicitly dimensioned in the front view.
+       -> Verify full drilled hole depth via a note or additional dimension; if unspecified, assume standard drill depth per counterbore practice, but flag for confirmation with design engineer.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: HIGH 1, MEDIUM 1
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top_view, front_view): Leader note states '2 HLS' (2 holes) matching the two circles drawn in the top view and two stepped profiles in the front view — count is consistent, no discrepancy found. Recommendation: No action needed; count confirmed consistent across both views.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front_view): Front view hole profiles appear as short stepped hidden lines that do not clearly extend to the bottom edge of the bar, but the exact blind hole depth (drill depth beyond counterbore) is not explicitly dimensioned in the front view. Recommendation: Verify full drilled hole depth via a note or additional dimension; if unspecified, assume standard drill depth per counterbore practice, but flag for confirmation with design engineer.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '135-A-RevA' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: ..\DrawingPDFs\output\135-A-RevA
