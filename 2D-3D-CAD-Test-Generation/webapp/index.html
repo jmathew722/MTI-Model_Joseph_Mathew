@@ -571,7 +571,7 @@
         <div class="grp-title">1 · Add images</div>
         <label class="filebtn" for="intake-file">Upload drawing <span class="hint">PDF · JPG · DWG · eDrawings</span></label>
         <input type="file" id="intake-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.dwg,.dxf,.edrw,.eprt,.easm" style="display:none">
-        <label class="filebtn" for="batch-folder">Upload parts folder <span class="hint">subfolders = parts (views + specs .txt)</span></label>
+        <label class="filebtn" for="batch-folder">Upload parts folder <span class="hint">one drawing per part (PDF/PNG/DWG/DXF/eDrawings) — or subfolders = parts</span></label>
         <input type="file" id="batch-folder" webkitdirectory multiple style="display:none">
         <span class="badge-c teal fmt-badge" id="src-format" style="display:none"></span>
         <div class="grp-row" id="sheet-picker" style="display:none">
@@ -1718,9 +1718,11 @@ document.getElementById('batch-folder').addEventListener('change', async e => {
   const files = [...e.target.files];
   e.target.value = '';
   if (!files.length) return;
-  const usable = files.filter(f => /\.(jpe?g|png|webp|bmp|tiff?|txt)$/i.test(f.name));
-  if (!usable.length) { setStatus('No view images or .txt spec files found in that folder.', 'err'); return; }
-  setStatus(`<span class="spinner"></span>Uploading ${usable.length} file(s) from the parts folder…`, 'run');
+  const usable = files.filter(f => /\.(jpe?g|png|webp|bmp|tiff?|pdf|dwg|dxf|edrw|eprt|easm|txt)$/i.test(f.name));
+  if (!usable.length) { setStatus('No drawings found. Accepts PDF, PNG/JPG, DWG, DXF or eDrawings (.edrw/.eprt/.easm), plus .txt specs.', 'err'); return; }
+  const hasCad = usable.some(f => /\.(dwg|dxf|edrw|eprt|easm)$/i.test(f.name));
+  setStatus(`<span class="spinner"></span>Uploading ${usable.length} file(s) from the parts folder…` +
+            (hasCad ? ' Converting DWG/eDrawings drawings…' : ''), 'run');
   const fd = new FormData();
   fd.append('session', sessionId);
   for (const f of usable) {
@@ -1736,8 +1738,11 @@ document.getElementById('batch-folder').addEventListener('change', async e => {
   partsData = d.parts || partsData;
   renderParts(); updateRunEnabled();
   if (d.added && d.added.length && !selectedPart) selectPart(d.added[0]);
+  const errNote = (d.errors && d.errors.length)
+    ? ` ⚠ ${d.errors.length} file(s) could not be converted: ${d.errors.join(' | ')}` : '';
   setStatus(`✓ Added ${d.added.length} part(s) from the folder (${d.n_files} files): ` +
-            `${d.added.join(', ')}. Select a part to view it, or use ▶▶ Run All Parts.`, 'ok');
+            `${d.added.join(', ')}. Select a part to view it, or use ▶▶ Run All Parts.` + errNote,
+            errNote ? 'warn' : 'ok');
 });
 
 // ── Run ALL saved parts through the full pipeline, one model at a time ──────

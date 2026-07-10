@@ -1030,6 +1030,77 @@ async def convert_dwg(file: UploadFile = File(...), layout: str = Form("")):
         return Response(data, media_type="image/png", headers=headers)
 
 
+def _convert_cad_to_png(blob: bytes, name: str) -> tuple[bytes, str]:
+    """Convert DWG / DXF / eDrawings bytes to a viewable PNG (first layout, or the
+    embedded eDrawings preview) so Claude can read it for extraction. Returns
+    ``(png_bytes, tool)``; raises ``ValueError`` with a clear message on failure.
+
+    Shared by ``/api/convert-dwg`` (single upload) and the folder-of-parts upload
+    so a batch of DWG/eDrawings overview drawings extracts EXACTLY the same way a
+    single interactive upload does. Cached in ``.convert_cache`` like the endpoint."""
+    import hashlib
+    import tempfile
+
+    suffix = Path(name).suffix.lower()
+    src_format = "edrawings" if suffix in _EDRAWINGS_SUFFIXES else suffix.lstrip(".")
+    CONVERT_CACHE.mkdir(exist_ok=True)
+    cached = CONVERT_CACHE / f"{hashlib.sha256(blob).hexdigest()[:32]}.png"
+    if cached.is_file():
+        _log_conversion(name, src_format, "cache", cached.name, cached.stat().st_size)
+        return cached.read_bytes(), "cache"
+
+    if src_format == "edrawings":
+        from preview_extract import extract_preview_png
+
+        png = extract_preview_png(blob)
+        if png is None:
+            raise ValueError(
+                f"'{name}': no extractable eDrawings preview — open it in eDrawings and "
+                f"export a PDF or PNG (File → Save As), then upload that.")
+        cached.write_bytes(png)
+        _log_conversion(name, "edrawings", "preview_extract(embedded raster)", cached.name, len(png))
+        return png, "preview_extract"
+
+    try:
+        import ezdxf  # noqa: F401
+    except ImportError:
+        raise ValueError("DWG/DXF support needs 'ezdxf' + 'matplotlib' "
+                         "(pip install -r webapp/requirements-ui.txt, then restart the UI).")
+
+    with tempfile.TemporaryDirectory() as td:
+        tdir = Path(td)
+        src = tdir / Path(name).name
+        src.write_bytes(blob)
+        tool = "ezdxf+matplotlib"
+        if suffix == ".dwg":
+            sys.path.insert(0, str(PROJECT_DIR))
+            from pipeline.vector_extract.dwg_convert import detect_dwg_version, dwg_to_dxf
+
+            notes: list[str] = []
+            dxf_out = tdir / (src.stem + "_converted.dxf")
+            engine = dwg_to_dxf(src, dxf_out, notes)
+            if engine is None:
+                raise ValueError(
+                    f"Could not convert '{name}' (DWG {detect_dwg_version(src)}). Tried: "
+                    + " | ".join(notes) + " — export the drawing as DXF or PDF and upload that.")
+            src = dxf_out
+            tool = f"{engine} + ezdxf+matplotlib"
+        try:
+            layouts = _dxf_layouts(src)
+        except Exception as e:
+            raise ValueError(f"Could not read '{name}': {type(e).__name__}: {e}")
+        chosen = layouts[0] if layouts else "Model"
+        png = tdir / "render.png"
+        try:
+            _render_dxf_to_png(src, png, layout=chosen)
+        except Exception as e:
+            raise ValueError(f"Could not render '{name}' ({chosen}): {type(e).__name__}: {e}")
+        data = png.read_bytes()
+        cached.write_bytes(data)
+        _log_conversion(name, src_format, tool, f"{cached.name} (layout={chosen})", len(data))
+        return data, tool
+
+
 # ── Multi-part working set (Tab 1 part selector + per-part run) ────────────────
 
 def _safe_session(session: str) -> str:
@@ -1051,6 +1122,16 @@ OVERVIEW_FILENAME = "00_full.jpg"
 # Image types accepted in a part's views folder (crop flow writes .jpg; the
 # parts-folder upload keeps whatever the preprocessed folders contain).
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
+# CAD types that must be CONVERTED (DWG/DXF/eDrawings) before Claude can read
+# them, and the document type (PDF) the pipeline reads directly.
+CAD_EXTS = {".dwg", ".dxf"} | set(_EDRAWINGS_SUFFIXES)
+PDF_EXTS = {".pdf"}
+# Everything the folder-of-parts upload accepts as a drawing (each becomes a
+# part's full/overview drawing; CAD is converted, PDF/image kept as-is).
+DRAWING_EXTS = IMG_EXTS | PDF_EXTS | CAD_EXTS
+# Rasterizable-for-preview types (a PDF overview has no image on disk but can be
+# rendered for the thumbnail + overview badge).
+PREVIEWABLE_EXTS = IMG_EXTS | PDF_EXTS
 # Filename stems view_ingest treats as the overview/full drawing.
 _OVERVIEW_STEMS = ("full", "overview", "isometric", "iso")
 
@@ -1058,6 +1139,12 @@ _OVERVIEW_STEMS = ("full", "overview", "isometric", "iso")
 def _part_images(pdir: Path) -> list[Path]:
     return sorted(p for p in pdir.iterdir()
                   if p.is_file() and p.suffix.lower() in IMG_EXTS)
+
+
+def _part_previewables(pdir: Path) -> list[Path]:
+    """Files that can stand in as the overview preview (images + PDFs)."""
+    return sorted(p for p in pdir.iterdir()
+                  if p.is_file() and p.suffix.lower() in PREVIEWABLE_EXTS)
 
 
 def _is_overview_image(p: Path, part_name: str) -> bool:
@@ -1071,14 +1158,18 @@ def _is_overview_image(p: Path, part_name: str) -> bool:
 
 def _find_overview_image(pdir: Path) -> Path | None:
     """The part's overview drawing: 00_full.jpg from the crop flow, else the
-    file the pipeline itself would classify as the full/overview view."""
+    file the pipeline itself would classify as the full/overview view (an image
+    OR a PDF full-sheet drawing from the folder-of-parts upload)."""
     exact = pdir / OVERVIEW_FILENAME
     if exact.is_file():
         return exact
-    for p in _part_images(pdir):
+    previewables = _part_previewables(pdir)
+    for p in previewables:
         if _is_overview_image(p, pdir.name):
             return p
-    return None
+    # A single full-sheet drawing (image or PDF) IS the overview even if its name
+    # matched no keyword (folder-of-parts upload names the file after the part).
+    return previewables[0] if len(previewables) == 1 else None
 
 
 def _list_parts(sdir: Path) -> list[dict]:
@@ -1110,16 +1201,26 @@ def _list_parts(sdir: Path) -> list[dict]:
 
 
 def _write_thumbnail(sdir: Path, part_name: str, image_path: Path) -> None:
-    """Small JPEG thumbnail for the parts list (never fatal)."""
+    """Small JPEG thumbnail for the parts list (never fatal). Handles PDFs by
+    rasterizing the first page the same way the pipeline does."""
     try:
+        import base64
+        import io
+
         from PIL import Image
 
         thumbs = sdir / ".thumbs"
         thumbs.mkdir(exist_ok=True)
-        with Image.open(image_path) as im:
-            im = im.convert("RGB")
-            im.thumbnail((360, 360))
-            im.save(thumbs / f"{part_name}.jpg", "JPEG", quality=85)
+        if image_path.suffix.lower() == ".pdf":
+            from utils.image_prep import prepare_image
+
+            prepared = prepare_image(str(image_path), page=1, return_details=True)
+            im = Image.open(io.BytesIO(base64.b64decode(prepared.base64)))
+        else:
+            im = Image.open(image_path)
+        im = im.convert("RGB")
+        im.thumbnail((360, 360))
+        im.save(thumbs / f"{part_name}.jpg", "JPEG", quality=85)
     except Exception:
         pass
 
@@ -1202,53 +1303,132 @@ def list_parts(session: str):
     return {"session": _safe_session(session), "parts": _list_parts(_session_dir(session))}
 
 
+def _store_part_drawing(pdir: Path, sdir: Path, part_name: str, fname: str,
+                        data: bytes, as_overview: bool) -> str:
+    """Write an uploaded drawing into a part's views folder so the pipeline can
+    read it. Returns the recorded source format. Raises ``ValueError`` when a CAD
+    file cannot be converted.
+
+    * image  -> written as-is (Claude reads it directly);
+    * PDF     -> written as-is (the pipeline rasterizes it AND uses it as the
+                 exact vector source for hole positions);
+    * DWG/DXF -> converted to a PNG (vision extraction) and the original kept
+                 in the folder (exact vector hole extraction / delivery);
+    * eDrawings -> the embedded preview PNG is extracted for vision; the original
+                 is kept in .originals for delivery (no vector geometry available).
+
+    When ``as_overview`` (folder-of-parts: one full-sheet drawing per part), the
+    stored image is named after the part so ``view_ingest`` classifies it as the
+    'full' overview view."""
+    ext = Path(fname).suffix.lower()
+    stem = part_name if as_overview else Path(fname).stem
+
+    if ext in CAD_EXTS:
+        png, _tool = _convert_cad_to_png(data, fname)   # raises ValueError on failure
+        (pdir / f"{stem}.png").write_bytes(png)
+        if ext in (".dwg", ".dxf"):
+            # Keep the original vector file IN the part folder: the pipeline globs
+            # it as the exact hole-position source (vector owns position).
+            (pdir / fname).write_bytes(data)
+            return ext.lstrip(".")
+        # eDrawings: original is not vector-usable — keep it only for delivery.
+        odir = sdir / ORIGINALS_DIRNAME
+        odir.mkdir(exist_ok=True)
+        (odir / f"{part_name}{ext}").write_bytes(data)
+        return "edrawings"
+
+    if ext in PDF_EXTS:
+        (pdir / f"{stem}.pdf").write_bytes(data)
+        return "pdf"
+
+    # Plain raster image.
+    (pdir / f"{stem}{ext}").write_bytes(data)
+    return "image"
+
+
 @app.post("/api/parts/upload-batch")
 async def upload_parts_batch(
     session: str = Form(...),
     paths: list[str] = Form(...),
     files: list[UploadFile] = File(...),
 ):
-    """Upload a whole FOLDER OF PARTS (each subfolder = one preprocessed part:
-    view images named per the --views-folder conventions plus optional
-    notes/must_meet_spec txt files). Files are written VERBATIM into
-    ``parts/<session>/<part>/`` — the exact layout the CLI runs unchanged —
-    so Run Pipeline processes each part fully, one at a time.
+    """Upload a FOLDER OF PARTS. Two layouts are auto-detected:
 
-    ``paths`` carries each file's folder-relative path (webkitRelativePath),
-    parallel to ``files``: "<root>/<part>/<file>" (or "<part>/<file>" when a
-    single part folder was selected)."""
+    * **Nested** — each subfolder is one preprocessed part (view images named per
+      the --views-folder conventions + optional notes/must_meet_spec txt). Files
+      are written verbatim, the exact layout the CLI runs unchanged.
+    * **Flat** — the selected folder holds one full/overview DRAWING PER PART
+      (``A001211E.pdf``, ``bracket.dwg``, ``plate.png`` …). Each file becomes its
+      own part; DWG/DXF/eDrawings are converted to a viewable PNG (with the
+      original kept for exact vector hole extraction), PDFs/images are used as-is.
+
+    Accepts .pdf, .png/.jpg/.jpeg/.webp/.bmp/.tif, .dwg, .dxf, and eDrawings
+    (.edrw/.eprt/.easm). ``paths`` carries each file's webkitRelativePath,
+    parallel to ``files``."""
     if len(paths) != len(files):
         raise HTTPException(400, "paths and files must be parallel lists")
     sdir = _session_dir(session)
     sdir.mkdir(parents=True, exist_ok=True)
 
     TXT_EXTS = {".txt"}
+    norm = [[c for c in p.replace("\\", "/").split("/") if c and c not in (".", "..")]
+            for p in paths]
+    # Nested (root/part/file) vs flat (root/file = one part per file).
+    nested = any(len(c) >= 3 for c in norm)
+
     added: dict[str, int] = {}
     skipped = 0
-    for rel, up in zip(paths, files):
-        comps = [c for c in rel.replace("\\", "/").split("/") if c and c not in (".", "..")]
+    errors: list[str] = []
+    for comps, up in zip(norm, files):
         if len(comps) < 2:
             skipped += 1
             continue
-        # "<root>/<part>/.../<file>" -> part = the folder directly containing
-        # the file when nested, else the first-level folder.
-        part_raw = comps[-2] if len(comps) >= 3 else comps[0]
         fname = comps[-1]
-        if fname.startswith(".") or part_raw.startswith("."):
+        ext = Path(fname).suffix.lower()
+        if fname.startswith("."):
             skipped += 1
             continue
-        ext = Path(fname).suffix.lower()
-        if ext not in IMG_EXTS and ext not in TXT_EXTS:
+
+        if nested:
+            part_raw = comps[-2] if len(comps) >= 3 else comps[0]
+            as_overview = False
+        else:
+            # Flat: each drawing file is its own part; a stray top-level txt has
+            # no part to attach to, so it is skipped.
+            if ext in TXT_EXTS:
+                skipped += 1
+                continue
+            part_raw = Path(fname).stem
+            as_overview = True
+        if part_raw.startswith("."):
             skipped += 1
             continue
         part_name = _sanitize(part_raw)
         pdir = sdir / part_name
-        pdir.mkdir(parents=True, exist_ok=True)
+
         data = await up.read()
         if not data:
             skipped += 1
             continue
-        (pdir / fname).write_bytes(data)
+
+        if ext in TXT_EXTS:
+            pdir.mkdir(parents=True, exist_ok=True)
+            (pdir / fname).write_bytes(data)
+            added.setdefault(part_name, added.get(part_name, 0))
+            continue
+        if ext not in DRAWING_EXTS:
+            skipped += 1
+            continue
+
+        pdir.mkdir(parents=True, exist_ok=True)
+        try:
+            fmt = _store_part_drawing(pdir, sdir, part_name, fname, data, as_overview)
+        except ValueError as e:
+            errors.append(str(e))
+            skipped += 1
+            continue
+        if as_overview:
+            (pdir / ".source_format").write_text(fmt, encoding="utf-8")
         added[part_name] = added.get(part_name, 0) + 1
 
     # notes.txt mirror (legacy grading) + thumbnails for every touched part.
@@ -1267,11 +1447,13 @@ async def upload_parts_batch(
             _write_thumbnail(sdir, part_name, thumb_src)
 
     if not added:
-        raise HTTPException(400, "No part folders with images/txt files were found "
-                                 "in the selected folder.")
+        detail = "No part folders/drawings were found in the selected folder."
+        if errors:
+            detail += " Conversion errors: " + " | ".join(errors[:5])
+        raise HTTPException(400, detail)
     return {"session": _safe_session(session), "added": sorted(added),
             "n_files": sum(added.values()), "n_skipped": skipped,
-            "parts": _list_parts(sdir)}
+            "errors": errors[:20], "parts": _list_parts(sdir)}
 
 
 @app.get("/api/parts/{session}/{part}/thumb.jpg")
