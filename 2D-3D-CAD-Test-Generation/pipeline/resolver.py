@@ -44,6 +44,12 @@ from utils.logger import get_logger
 
 log = get_logger()
 
+# Commit-to-extraction mode (2026-07-11): build every extracted feature, derive
+# everything derivable, flag anything inferred — never exclude, never route to
+# review as a terminal state, never a [0,0] placeholder. Default ON; OFF restores
+# the old exclude/review behavior for comparison.
+COMMIT_MODE_DEFAULT = True
+
 # Flag tiers, ordered most-severe-last so ``max`` by index gives the worst tier.
 FLAG_TIERS = ("HIGH", "MEDIUM", "LOW", "CRITICAL")
 _TIER_RANK = {t: i for i, t in enumerate(FLAG_TIERS)}
@@ -736,7 +742,8 @@ def _last_resort(dim: dict, model: DrawingData) -> DimResolution:
 # --------------------------------------------------------------------------- #
 # Per-feature resolution
 # --------------------------------------------------------------------------- #
-def _resolve_feature(feat: dict, model: DrawingData) -> FeatureResolution:
+def _resolve_feature(feat: dict, model: DrawingData,
+                     commit_mode: bool = COMMIT_MODE_DEFAULT) -> FeatureResolution:
     fid = feat.get("id", "?")
     position_known = bool(feat.get("position_known"))
     has_offset = bool(feat.get("offset_x") or feat.get("offset_y"))
@@ -761,6 +768,24 @@ def _resolve_feature(feat: dict, model: DrawingData) -> FeatureResolution:
             fid, "build", True, "",
             "HIGH",
             f"{fid} position read from the drawing — no action needed.",
+        )
+
+    # Bug 1 (2026-07-11): CONSUME any extracted positional evidence BEFORE any
+    # escalation. Positional applies_to labels (slot_offset / hole_position_x /
+    # position) canonicalize to "" so they were invisible to the token machinery
+    # and the location was dropped on the floor. Read it directly here, write it
+    # into the feature's offsets, and treat the position as resolved.
+    pos = _feature_positional_xy(feat, model)
+    if pos is not None:
+        px, py, dim_ids = pos
+        feat["offset_x"], feat["offset_y"] = round(px, 6), round(py, 6)
+        feat["position_known"] = True
+        src = "slot anchor" if any(s.id == fid for s in model.slot_cuts) else \
+              f"associated dimension(s) {', '.join(dim_ids)}"
+        return FeatureResolution(
+            fid, "build", True, "",
+            "HIGH",
+            f"{fid} position read from the drawing ({src}) — ({_fmt(px)}, {_fmt(py)}).",
         )
     # Only features with an independent in-plane LOCATION need a position. Fillets,
     # chamfers, threads, patterns, mirrors, shells, revolves, and the base boss
@@ -793,6 +818,21 @@ def _resolve_feature(feat: dict, model: DrawingData) -> FeatureResolution:
     # Tab-3 model-derived assumption — a missing feature flagged loudly beats a
     # hole in the wrong place. The attempts made before giving up are logged.
     attempts = _log_position_attempts(feat, model)
+    if commit_mode:
+        # Commit-to-extraction: no human in the loop, so we never leave a feature
+        # unplaced. Commit a geometrically conservative inside-parent placement,
+        # written into the feature's offsets (never [0,0]), and BUILD it — flagged
+        # CRITICAL with the basis and the empty rungs. The correction loop refines.
+        cx, cy = _conservative_xy(feat, model)
+        feat["offset_x"], feat["offset_y"] = cx, cy
+        feat["position_known"] = True
+        return FeatureResolution(
+            fid, "build", False, "committed_conservative", "CRITICAL",
+            f"POSITION COMMITTED for {fid} at a conservative inside-parent placement "
+            f"({_fmt(cx)}, {_fmt(cy)}): no location dimension and no symmetry evidence. "
+            f"Tried: {attempts}. Built and flagged (never left at a [0,0] placeholder) — "
+            f"verify/correct the location in SolidWorks.",
+        )
     return FeatureResolution(
         fid, "build", False, "needs_markup_review", "CRITICAL",
         f"POSITION UNRESOLVED for {fid}: no location dimension and no symmetry "
@@ -1306,8 +1346,195 @@ def _region_text(feat: dict) -> str:
     return "The drawing did not dimension its location."
 
 
+# --------------------------------------------------------------------------- #
+# Commit-to-extraction helpers (see COMMIT_MODE_DEFAULT near the top).
+# --------------------------------------------------------------------------- #
+# RAW applies_to substrings that mark a dimension as a LOCATION (canonical
+# applies_to returns "" for all of these, which is exactly why the position was
+# being dropped — Bug 1). Detected on the raw label, not the canonical token.
+_POS_X_HINTS = ("position_x", "offset_x", "x_position", "pos_x", "slot_offset")
+_POS_Y_HINTS = ("position_y", "offset_y", "y_position", "pos_y")
+_POS_ANY_HINTS = ("position", "offset", "location", "anchor")
+
+
+def _dim_is_positional(applies_to: str) -> tuple[bool, str]:
+    """(is_positional, axis) for a raw applies_to label. axis is 'x', 'y', or
+    '' (unknown/either)."""
+    a = (applies_to or "").lower()
+    if any(h in a for h in _POS_X_HINTS) or a.endswith("_x"):
+        return True, "x"
+    if any(h in a for h in _POS_Y_HINTS) or a.endswith("_y"):
+        return True, "y"
+    if any(h in a for h in _POS_ANY_HINTS):
+        return True, ""
+    return False, ""
+
+
+def _feature_positional_xy(feat: dict, model: DrawingData) -> Optional[tuple[float, float, list[str]]]:
+    """Consume any EXTRACTED positional evidence for a feature into an (x, y)
+    location BEFORE any escalation runs (Bug 1). Sources, in order:
+      1. a ``slot_cuts`` record — its anchor_offset gives the near-edge location;
+      2. related dimensions whose RAW applies_to marks them positional.
+    Returns (x, y, dim_ids) or None when there is genuinely zero positional
+    evidence. Missing axis defaults to 0 (edge of the part) rather than fabricated."""
+    fid = feat.get("id", "")
+    # 1) slot anchor
+    slot = next((s for s in model.slot_cuts if s.id == fid), None)
+    if slot is not None:
+        edge = (slot.open_edge or "").lower()
+        a = float(slot.anchor_offset)
+        if slot.anchor_semantics == "edge_to_centerline":
+            a = a - float(slot.width) / 2.0
+        if edge in ("left", "right", "top", "bottom", ""):
+            x = a if edge in ("top", "bottom", "") else 0.0
+            y = a if edge in ("left", "right") else 0.0
+            return (x, y, [slot.anchor_dimension_id] if slot.anchor_dimension_id else [])
+    # 2) associated positional dimensions
+    dims_by_id = {d.id: d for d in model.dimensions}
+    x = y = None
+    used: list[str] = []
+    for rid in (feat.get("related_dimensions") or []):
+        d = dims_by_id.get(rid)
+        if d is None or not (d.value and d.value > 0):
+            continue
+        is_pos, axis = _dim_is_positional(d.applies_to or "")
+        if not is_pos:
+            continue
+        used.append(rid)
+        if axis == "x" and x is None:
+            x = float(d.value)
+        elif axis == "y" and y is None:
+            y = float(d.value)
+        elif axis == "" and x is None:
+            x = float(d.value)
+    if x is not None or y is not None:
+        return (x or 0.0, y or 0.0, used)
+    return None
+
+
+def _conservative_xy(feat: dict, model: DrawingData) -> tuple[float, float]:
+    """A geometrically conservative in-plane placement for a feature with NO
+    positional evidence: a quarter-inset from the lower-left corner of the
+    envelope, which keeps a modest feature fully inside the parent (the
+    intersection precheck / correction loop refine it). Never [0,0]."""
+    length = width = 0.0
+    for d in model.dimensions:
+        a = (d.canonical_applies_to or "").lower()
+        if a == "length":
+            length = max(length, float(d.value or 0))
+        elif a in ("width", "height"):
+            width = max(width, float(d.value or 0))
+    return (round((length or 4.0) * 0.25, 4), round((width or 4.0) * 0.25, 4))
+
+
+def _sibling_diameter(feat: dict, resolved: dict) -> Optional[float]:
+    """The most common hole diameter among the part's OTHER holes — a hole
+    marked '(2) HOLES' / 'second instance' inherits its sibling's diameter
+    (M_121-B F005) before any standard-size fallback."""
+    fid = feat.get("id")
+    dias: list[float] = []
+    for h in resolved.get("hole_callouts", []) or []:
+        if h.get("feature_ref") != fid and (h.get("diameter") or 0) > 0:
+            dias.append(round(float(h["diameter"]), 4))
+    for d in resolved.get("dimensions", []) or []:
+        if d.get("feature_ref") != fid and (d.get("value") or 0) > 0 \
+                and canonicalize_applies_to(d.get("applies_to", "")) in ("diameter", "hole_diameter"):
+            dias.append(round(float(d["value"]), 4))
+    if not dias:
+        return None
+    from collections import Counter
+    return Counter(dias).most_common(1)[0][0]
+
+
+def _derive_profile_delta(resolved: dict, model: DrawingData, result: "ResolutionResult",
+                          feat: dict, need: tuple[str, ...]) -> bool:
+    """Task 3 — derive a step/notch cut's rectangle from the OUTER PROFILE
+    envelope minus the cut's partial anchor dims, instead of requiring
+    feature-local length+width callouts.
+
+    A step cut removes a rectangular region between an anchor (an extracted
+    position/partial-height dim it carries) and an envelope edge:
+        missing width  -> length_envelope - x_anchor
+        missing length -> width_envelope  - y_anchor (partial height)
+    When an anchor for an axis is absent, the span defaults to the full envelope
+    on that axis (a conservative full-edge step). Fills the missing dims tagged
+    ``profile_delta`` and flagged derived. Returns True if it filled anything."""
+    length = width = 0.0
+    for d in model.dimensions:
+        a = (d.canonical_applies_to or "").lower()
+        if a == "length":
+            length = max(length, float(d.value or 0))
+        elif a in ("width", "height"):
+            width = max(width, float(d.value or 0))
+    if not (length and width):
+        return False
+
+    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+    # Partial anchors the feature already carries (positional or partial spans).
+    x_anchor = y_anchor = None
+    for rid in (feat.get("related_dimensions") or []):
+        d = dims_by_id.get(rid) or {}
+        v = float(d.get("value") or 0)
+        if v <= 0:
+            continue
+        is_pos, axis = _dim_is_positional(d.get("applies_to", ""))
+        canon = canonicalize_applies_to(d.get("applies_to", ""))
+        if (is_pos and axis == "x") and x_anchor is None:
+            x_anchor = v
+        elif (is_pos and axis == "y") and y_anchor is None:
+            y_anchor = v
+        elif canon == "height" and y_anchor is None:
+            # a partial height splits the envelope: the step spans the remainder
+            y_anchor = v
+
+    filled = False
+    units = resolved.get("units") or "inch"
+    if "width" in need:
+        w = round(length - x_anchor, 6) if (x_anchor and length - x_anchor > 0) else round(length, 6)
+        _synthesize_dim(resolved, result, feat, value=w, applies_to="width",
+                        basis="profile_delta", tier="CRITICAL", confidence=0.5,
+                        note=(f"{feat.get('id')} width={_fmt(w)} {units} DERIVED from the outer "
+                              f"profile (envelope length {_fmt(length)} − step anchor "
+                              f"{_fmt(x_anchor or 0)}); no feature-local width callout. Verify."))
+        filled = True
+    if "length" in need:
+        ln = round(width - y_anchor, 6) if (y_anchor and width - y_anchor > 0) else round(width, 6)
+        _synthesize_dim(resolved, result, feat, value=ln, applies_to="length",
+                        basis="profile_delta", tier="CRITICAL", confidence=0.5,
+                        note=(f"{feat.get('id')} length={_fmt(ln)} {units} DERIVED from the outer "
+                              f"profile (envelope height {_fmt(width)} − partial "
+                              f"{_fmt(y_anchor or 0)}); no feature-local length callout. Verify."))
+        filled = True
+    return filled
+
+
+def _commit_missing_dim(resolved: dict, model: DrawingData, result: "ResolutionResult",
+                        feat: dict, token: str, tried: str) -> None:
+    """Last-resort commit-mode fill for a missing driving dimension: a
+    geometrically conservative value (a modest fraction of the envelope), applied
+    and built, with a CRITICAL flag naming the value, the basis, and the empty
+    rungs. Never excludes."""
+    length = width = 0.0
+    for d in model.dimensions:
+        a = (d.canonical_applies_to or "").lower()
+        if a == "length":
+            length = max(length, float(d.value or 0))
+        elif a in ("width", "height"):
+            width = max(width, float(d.value or 0))
+    base = min([v for v in (length, width) if v] or [1.0])
+    value = round(max(0.1, base * 0.25), 4)
+    units = resolved.get("units") or "inch"
+    _synthesize_dim(resolved, result, feat, value=value, applies_to=token,
+                    basis="committed_conservative", tier="CRITICAL", confidence=0.2,
+                    dim_type="diameter" if token in ("diameter", "hole_diameter") else "linear",
+                    note=(f"{feat.get('id')} {token}={_fmt(value)} {units} COMMITTED (conservative "
+                          f"envelope fraction) so the feature builds. No value was read or derived "
+                          f"({tried}). Built and flagged — verify/correct in SolidWorks."))
+
+
 def _completeness_gate(resolved: dict, model: DrawingData,
-                       result: "ResolutionResult") -> list[dict[str, Any]]:
+                       result: "ResolutionResult",
+                       commit_mode: bool = COMMIT_MODE_DEFAULT) -> list[dict[str, Any]]:
     """P1 (2026-07-10) — the single unconditional completeness gate. Runs AFTER
     TYP propagation and buildable-base synthesis. For every buildable feature it
     checks the driving dimension(s) for its type and, when missing, applies the
@@ -1355,6 +1582,7 @@ def _completeness_gate(resolved: dict, model: DrawingData,
                 units = resolved.get("units") or "inch"
                 blob = " ".join(str(feat.get(k, "")) for k in ("description", "notes"))
                 dia = _thread_major_diameter(blob, units)
+                sib = _sibling_diameter(feat, resolved) if commit_mode else None
                 if dia:
                     _synthesize_dim(
                         resolved, result, feat, value=dia, applies_to="hole_diameter",
@@ -1362,6 +1590,16 @@ def _completeness_gate(resolved: dict, model: DrawingData,
                         confidence=0.55,
                         note=(f"{fid} diameter inferred as {_fmt(dia)} {units} from the thread "
                               f"callout (standard major diameter) — verify against the drawing."))
+                    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+                elif sib:
+                    # A '(2) HOLES' / 'second instance' hole inherits its sibling's
+                    # diameter (M_121-B F005) — the value WAS extracted, on a peer.
+                    _synthesize_dim(
+                        resolved, result, feat, value=sib, applies_to="hole_diameter",
+                        basis="sibling_hole", tier="MEDIUM", dim_type="diameter",
+                        confidence=0.6,
+                        note=(f"{fid} diameter inherited as {_fmt(sib)} {units} from a sibling hole "
+                              f"of the same callout ('(N) HOLES') — verify against the drawing."))
                     dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
                 else:
                     missing = ("diameter", "missing_dimension")
@@ -1387,6 +1625,14 @@ def _completeness_gate(resolved: dict, model: DrawingData,
                     dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
                     toks = _present_tokens(feat, dims_by_id)
                     has_rect = ("length" in toks) and ("width" in toks)
+                # Task 3: derive a step/notch rectangle from the outer-profile
+                # envelope minus the cut's partial anchor dims (M_121-B F002/F003).
+                if commit_mode and not (("length" in toks) and ("width" in toks)):
+                    still = tuple(t for t in ("length", "width") if t not in toks)
+                    if still and _derive_profile_delta(resolved, model, result, feat, still):
+                        dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+                        toks = _present_tokens(feat, dims_by_id)
+                        has_rect = ("length" in toks) and ("width" in toks)
                 if not (bool(toks & {"diameter", "hole_diameter"}) or has_rect):
                     have = sorted(t for t in toks if t)
                     miss = "width" if "length" in toks else ("length" if "width" in toks else "length+width")
@@ -1399,7 +1645,7 @@ def _completeness_gate(resolved: dict, model: DrawingData,
         # excluded too — the parent-center last-resort guess is gone (it could
         # land entirely off the solid, A001211E F004). Symmetry-centered (LOW)
         # and dimensioned placements are kept and build normally.
-        if missing is None and ftype in ("hole",) + _PROFILE_CUT_TYPES:
+        if (not commit_mode) and missing is None and ftype in ("hole",) + _PROFILE_CUT_TYPES:
             fr0 = result.feature_resolutions.get(fid)
             if fr0 is not None and getattr(fr0, "position_assumption", "") == "needs_markup_review":
                 missing = ("a location (no X/Y dimension, no symmetry evidence)",
@@ -1409,6 +1655,22 @@ def _completeness_gate(resolved: dict, model: DrawingData,
             continue
 
         what, source = missing
+
+        # Commit-to-extraction: never EXCLUDE buildable geometry. Fill the missing
+        # driving dimension with a declared-basis conservative committed value and
+        # BUILD it (flagged CRITICAL). Exclusion survives only when commit_mode is
+        # OFF (comparison) or there is no token to commit (non-geometric type).
+        if commit_mode and ftype in ("hole", "thread") + _PROFILE_CUT_TYPES:
+            if ftype in ("hole", "thread"):
+                tokens_to_commit = ["hole_diameter"]
+            else:
+                tokens_to_commit = [t for t in ("length", "width") if t not in toks] or ["length"]
+            for tok in tokens_to_commit:
+                _commit_missing_dim(resolved, model, result, feat, tok, tried=f"missing {what}")
+            log.warning("commit-mode COMMITTED %s (%s): %s via conservative value",
+                        fid, ftype, what)
+            continue
+
         build_order = [x for x in build_order if x != fid]
         feat["build_status"] = "excluded"
         fr = result.feature_resolutions.get(fid)
@@ -1511,7 +1773,8 @@ def schema_clean(resolved: dict) -> dict:
 def resolve_extraction(raw: dict,
                        requirements: Optional[list[str]] = None,
                        overview_analysis: Optional[dict] = None,
-                       human_answers: Optional[dict[str, float]] = None) -> ResolutionResult:
+                       human_answers: Optional[dict[str, float]] = None,
+                       commit_mode: bool = COMMIT_MODE_DEFAULT) -> ResolutionResult:
     """Run the Stage 2.5 resolution pass over a raw extraction dict.
 
     ``requirements`` (operator must-meet specification lines) are a first-class
@@ -1565,7 +1828,7 @@ def resolve_extraction(raw: dict,
     # --- Features ---
     feats = resolved.get("features", []) or []
     for feat in feats:
-        fres = _resolve_feature(feat, model)
+        fres = _resolve_feature(feat, model, commit_mode=commit_mode)
         result.feature_resolutions[fres.feature_id] = fres
         feat.update(fres.as_fields())
 
@@ -1644,7 +1907,7 @@ def resolve_extraction(raw: dict,
     # dimension after derivation/TYP/standard-size is EXCLUDED from build_order
     # (never emitted as a doomed macro/COM step) and surfaced as a Tab-3
     # model-derived assumption. Runs after TYP + buildable-base synthesis.
-    result.flags.extend(_completeness_gate(resolved, model, result))
+    result.flags.extend(_completeness_gate(resolved, model, result, commit_mode=commit_mode))
     # Revolve->circle+extrude conversions that approximated a stepped/tapered
     # profile as a bounding cylinder surface as MEDIUM review items.
     result.flags.extend(_revolve_flags)

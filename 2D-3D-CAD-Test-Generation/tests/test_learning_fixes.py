@@ -178,10 +178,10 @@ class TestPositionDemotion:
                               if symmetric else {})
         return d
 
-    def test_no_symmetry_is_excluded_not_center_guessed(self):
-        # P3 (2026-07-10): position-unresolved cut/hole is EXCLUDED from the build
-        # (no parent-center guess) and surfaced as a Tab-3 model-derived assumption.
-        res = resolve_extraction(self._hole_no_position(symmetric=False))
+    def test_no_symmetry_is_excluded_not_center_guessed_commit_off(self):
+        # Legacy comparison path (commit_mode=False): position-unresolved cut/hole
+        # is EXCLUDED (no parent-center guess), surfaced as a Tab-3 assumption.
+        res = resolve_extraction(self._hole_no_position(symmetric=False), commit_mode=False)
         fres = res.feature_resolutions["F002"]
         assert fres.position_assumption == "needs_markup_review"
         assert fres.build_status == "excluded"
@@ -191,6 +191,15 @@ class TestPositionDemotion:
         assert flag.get("excluded_from_build") is True
         assert flag["flag_tier"] == "CRITICAL"
         assert "Tab-1" not in flag["human_note"]
+
+    def test_no_symmetry_is_committed_and_built_in_commit_mode(self):
+        # Commit-to-extraction (default): the same feature BUILDS at a conservative
+        # placement (never excluded, never [0,0]), flagged CRITICAL.
+        res = resolve_extraction(self._hole_no_position(symmetric=False))
+        fres = res.feature_resolutions["F002"]
+        assert fres.position_assumption == "committed_conservative"
+        assert "F002" in res.resolved_extraction["build_order"]
+        assert "COMMITTED" in fres.human_note
 
     def test_symmetric_feature_stays_centered_low(self):
         res = resolve_extraction(self._hole_no_position(symmetric=True))
@@ -248,8 +257,11 @@ class TestDrillSizeAndIllegible:
 
 
 class TestIncompleteProfile:
-    """Fix 2.4 — extrude cut with no diameter and not both sides -> markup review."""
-    def test_height_only_cut_routed(self):
+    """Fix 2.4 — extrude cut with no diameter and not both sides.
+
+    Legacy (commit_mode=False): routed to markup review. Commit-mode (default):
+    the rectangle is derived from the outer profile (profile_delta) and built."""
+    def _height_only_cut(self):
         d = _extraction_with_holes()
         d["confidence"] = 0.9
         d["dimensions"] = [
@@ -265,9 +277,23 @@ class TestIncompleteProfile:
              "related_dimensions": ["D010"], "parent_feature": "F001", "position_known": True},
         ]
         d["build_order"] = ["F001", "F004"]
-        res = resolve_extraction(d)
+        return d
+
+    def test_height_only_cut_routed_commit_off(self):
+        res = resolve_extraction(self._height_only_cut(), commit_mode=False)
         flag = [f for f in res.flags if f.get("source") == "incomplete_profile" and f["dimension_id"] == "F004"]
         assert flag and flag[0]["route_to_markup"] is True
+        assert "F004" not in res.resolved_extraction["build_order"]
+
+    def test_height_only_cut_built_via_profile_delta_in_commit_mode(self):
+        res = resolve_extraction(self._height_only_cut())
+        assert "F004" in res.resolved_extraction["build_order"]
+        # width + length were derived from the outer profile envelope
+        f004 = next(f for f in res.resolved_extraction["features"] if f["id"] == "F004")
+        dims = {d["id"]: d for d in res.resolved_extraction["dimensions"]}
+        derived = [dims[r] for r in f004["related_dimensions"]
+                   if dims.get(r, {}).get("assumption_basis") == "profile_delta"]
+        assert derived, "expected profile_delta-derived dimensions on F004"
 
 
 class TestOverviewNonFeatureTaxonomy:

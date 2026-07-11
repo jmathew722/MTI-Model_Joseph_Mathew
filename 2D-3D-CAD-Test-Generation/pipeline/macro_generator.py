@@ -2258,6 +2258,50 @@ Notes
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
+def _feature_has_positional_dimension(model: DrawingData, feature_id: str) -> bool:
+    """True if the drawing extracted a LOCATION for this feature — a slot_cut
+    anchor, or a related dimension whose raw applies_to marks it positional
+    (position/offset/slot_offset/..._x/..._y). Positional labels canonicalize to
+    "" so this checks the raw label directly (the Bug-1 root cause)."""
+    if any(s.id == feature_id for s in getattr(model, "slot_cuts", []) or []):
+        return True
+    feat = model.feature_by_id(feature_id)
+    if feat is None:
+        return False
+    if feat.position_known or feat.offset_x or feat.offset_y:
+        return True
+    dims_by_id = {d.id: d for d in model.dimensions}
+    _pos_hints = ("position", "offset", "location", "anchor", "slot_offset")
+    for rid in (feat.related_dimensions or []):
+        d = dims_by_id.get(rid)
+        if d is None or not (d.value and d.value > 0):
+            continue
+        a = (d.applies_to or "").lower()
+        if any(h in a for h in _pos_hints) or a.endswith("_x") or a.endswith("_y"):
+            return True
+    return False
+
+
+def _assert_no_dropped_positions(model: DrawingData, dispositions: list[dict]) -> None:
+    """Generation-time invariant (Bug 1). Refuse to emit a build whose
+    disposition marks a feature's position UNRESOLVED (needs_markup_review /
+    position_unresolved) while an extracted positional dimension for that
+    feature exists — that is a dropped-on-the-floor position, not an ambiguity."""
+    for d in dispositions:
+        deriv = str(d.get("derivation_source") or "").lower()
+        unresolved = ("needs_markup_review" in deriv) or ("position_unresolved" in deriv)
+        if not unresolved:
+            continue
+        fid = d.get("feature_id", "?")
+        if _feature_has_positional_dimension(model, fid):
+            raise MacroGenerationError(
+                f"INVARIANT VIOLATION ({fid}): disposition reports position "
+                f"'{d.get('derivation_source')}' while the extraction carries a positional "
+                f"dimension for {fid}. The extracted location was dropped instead of consumed "
+                f"(Bug 1). Refusing to build a part with a placeholder position that contradicts "
+                f"the drawing — fix the position-resolution ordering.")
+
+
 def generate_macro_package(
     model: DrawingData,
     raw_extraction: dict[str, Any],
@@ -2324,6 +2368,12 @@ def generate_macro_package(
         if hf not in model.warnings:
             model.warnings.append(hf)
     pkg.dispositions = seq_result.disposition_table
+    # Bug-1 invariant (commit-to-extraction, 2026-07-11): the combination of an
+    # unresolved-position disposition WITH an extracted positional dimension for
+    # that feature is a data-flow bug (the position was dropped on the floor).
+    # Refuse to emit a build for it — crash loudly here rather than ship a part
+    # with a placeholder location coexisting with a real, extracted one.
+    _assert_no_dropped_positions(model, seq_result.disposition_table)
     (root / f"{name}_build_dispositions.json").write_text(
         json.dumps(seq_result.disposition_table, indent=2), encoding="utf-8"
     )

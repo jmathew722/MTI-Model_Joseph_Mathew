@@ -1,0 +1,74 @@
+LEARNING LOOP — M 121-B
+============================================================
+Run:     2026-07-11 17:37:44
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\868bae138aed\A001641E\output\M_121-B
+Fingerprint: 846dd2ac91319779
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - 3 reconciliation item(s) unresolved after 1 pass(es) — see M_121-B_reconciliation_report.json
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] Front view shows only 3 hole locations clearly circled/crossed with centerlines in the stepped body (2 at .422 DIA and what appears to be up to 3 M5x.8 TAP positions), but the note calls out '(2) HLS' for the .422 DIA and '(2) HLS. (3) PLS.' for the M5x.8 TAP, implying 2 tapped holes visible plus a 3rd 'PLS' (places) note that could mean 3 total places across the part -- the exact count and location of all 5 combined holes is not unambiguously resolved from the single front view alone since hole markers overlap with dimension leader lines.
+       -> Verify against the actual hole pattern layout: count physical hole symbols (crossed circles) in the front view and match to 2x .422 DIA + 3x M5x.8 TAP = 5 total holes. Cross-check with an isometric or additional view if available, or confirm with the manufacturer that '3 PLS' means 3 locations for the M5x.8 tap.
+   - [LOW] No top or plan view is provided showing hole positions in the other axis (depth into the part) -- only one primary front view with X-dimensioning is present, so the Y-axis (vertical) hole spacing is inferred from stacked vertical dimensions (4.50, 2.938, 2.750, 1.938, 2.500, .938 etc.) without a clear secondary confirming view.
+       -> Request or verify a top/plan view or isometric to confirm vertical hole placement is consistent with the stepped profile edges shown in front view.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 5, HIGH 1, MEDIUM 2, LOW 2
+   - [CRITICAL] F002 (feature): POSITION UNRESOLVED for F002: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 2 unassociated linear dim(s) (no leader reached F002's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption — add an X and/or Y location dimension on the drawing and re-run.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [CRITICAL] F003 (feature): POSITION UNRESOLVED for F003: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 1 unassociated linear dim(s) (no leader reached F003's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption — add an X and/or Y location dimension on the drawing and re-run.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [CRITICAL] F002 (reconciliation): Stage 10.5 reconciliation: extrude_cut F002 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: EXCLUDED FROM BUILD — extrude_cut F002 is missing a diameter OR both length+width (has ['height']; missing length+width). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F002 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [CRITICAL] F003 (reconciliation): Stage 10.5 reconciliation: extrude_cut F003 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: EXCLUDED FROM BUILD — extrude_cut F003 is missing a diameter OR both length+width (has ['width']; missing length). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F003 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [CRITICAL] F005 (reconciliation): Stage 10.5 reconciliation: hole F005 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: EXCLUDED FROM BUILD — hole F005 is missing diameter. No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F005 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected near drawing-frame (4.594, 2.938). Add the missing value on the drawing and re-run to include this feature.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (sheet): No top or plan view is provided showing hole positions in the other axis (depth into the part) -- only one primary front view with X-dimensioning is present, so the Y-axis (vertical) hole spacing is inferred from stacked vertical dimensions (4.50, 2.938, 2.750, 1.938, 2.500, .938 etc.) without a clear secondary confirming view. Recommendation: Request or verify a top/plan view or isometric to confirm vertical hole placement is consistent with the stepped profile edges shown in front view.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] D900 (dimension): F007 diameter inferred as 0.1969 inch from the thread callout (standard major diameter) — verify against the drawing.
+       decision: resolved value 0.1969
+       why: standard thread size
+       affects: dimension D900
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): Front view shows only 3 hole locations clearly circled/crossed with centerlines in the stepped body (2 at .422 DIA and what appears to be up to 3 M5x.8 TAP positions), but the note calls out '(2) HLS' for the .422 DIA and '(2) HLS. (3) PLS.' for the M5x.8 TAP, implying 2 tapped holes visible plus a 3rd 'PLS' (places) note that could mean 3 total places across the part -- the exact count and location of all 5 combined holes is not unambiguously resolved from the single front view alone since hole markers overlap with dimension leader lines. Recommendation: Verify against the actual hole pattern layout: count physical hole symbols (crossed circles) in the front view and match to 2x .422 DIA + 3x M5x.8 TAP = 5 total holes. Cross-check with an isometric or additional view if available, or confirm with the manufacturer that '3 PLS' means 3 locations for the M5x.8 tap.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV006 (overview): Surface Finish note: Stepped profile / notch cut into top edge of plate (multi-level step feature) (top center of plate, spanning 1.88 to 4.38 region).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV007 (overview): Thickness-view value 0.25 is out of plausible range vs the build thickness 4.5 (18x) (right side of main view); treated as a non-thickness number, not a conflict.
+       decision: ignored as an out-of-band capture, build thickness kept
+       why: an edge-view thickness cannot differ from the build by an order of magnitude — the extractor captured an unrelated dimension
+       affects: metadata: rejected thickness candidate
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'M 121-B' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\868bae138aed\A001641E\output\M_121-B

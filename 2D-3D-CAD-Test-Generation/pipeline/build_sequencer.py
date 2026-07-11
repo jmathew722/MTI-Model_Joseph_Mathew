@@ -201,11 +201,14 @@ def _cut_volume(model: DrawingData, feature: Feature) -> float:
 
 
 def _feature_xy(model: DrawingData, feature: Feature) -> tuple[float, float]:
-    """(x, y) drawing-frame position for deterministic ordering.
+    """(x, y) drawing-frame position for deterministic ordering AND the
+    disposition record.
 
-    Holes read from the linked callout (edge-referenced first instance); every
-    other feature uses its own offsets. Rounded to tame float noise so the sort
-    order is stable across runs."""
+    Holes read from the linked callout (edge-referenced first instance); a
+    canonical slot reports its true near-corner (so an edge notch never records
+    a [0,0] placeholder — Bug 1); every other feature uses its own offsets
+    (which the resolver now fills from any extracted positional dimension).
+    Rounded to tame float noise so the sort order is stable across runs."""
     h = model.hole_callout_for_feature(feature.id)
     if h is not None:
         if h.instance_positions:
@@ -213,7 +216,17 @@ def _feature_xy(model: DrawingData, feature: Feature) -> tuple[float, float]:
         else:
             x, y = h.x_position, h.y_position
     else:
-        x, y = feature.offset_x, feature.offset_y
+        slot = next((s for s in getattr(model, "slot_cuts", []) or [] if s.id == feature.id), None)
+        if slot is not None:
+            try:
+                from pipeline.slot_cut import corner_array
+                corners = corner_array(slot, model)
+                # near corner = the interior corner listed first
+                x, y = corners[0][0], corners[0][1]
+            except Exception:
+                x, y = feature.offset_x, feature.offset_y
+        else:
+            x, y = feature.offset_x, feature.offset_y
     return (round(float(x), 6), round(float(y), 6))
 
 

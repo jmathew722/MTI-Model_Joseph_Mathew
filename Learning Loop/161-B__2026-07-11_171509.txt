@@ -1,0 +1,78 @@
+LEARNING LOOP — 161-B
+============================================================
+Run:     2026-07-11 17:15:09
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\404df82e4608\A001611E\output\161-B
+Fingerprint: 0af888393219764b
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - overview verification found CRITICAL gap(s)
+   - 1 reconciliation item(s) unresolved after 1 pass(es) — see 161-B_reconciliation_report.json
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side/profile view shows only two .218 DR. THRU holes with a note that spacing and quantity are 'to suit,' but no specific count or hole pattern is dimensioned or shown in the top outline view, leaving the actual number and location of mounting holes undefined and open to interpretation.
+       -> Confirm actual hole count/spacing requirement with engineering or reference the mating assembly drawing; do not assume only two holes are required — the note explicitly defers this to fit/installation conditions.
+   - [LOW] The top view depicts a flat 2D outline (32.25 x 14.00) while the side view shows a formed cross-section (4.00 tall, .50 lip) — it is not fully clear from the two views alone how the flat lens-shaped blank folds into the 4.00 x .50 channel shape; the transition/bend lines are not shown in either view.
+       -> Check for a bend-line or fold detail on a referenced/related sheet, or confirm forming operation with manufacturing to verify how the flat pattern maps to the formed profile.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 4, HIGH 1, MEDIUM 5
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.076200 m, 21 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.076200 m, 21 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       affects: feature F003
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (hole): deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F004 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F004 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       affects: feature F004
+   - [CRITICAL] OV003 (overview): The overview clearly shows 4x chamfer (15° TYP angled straight segments forming the tapered sides of the lens/hexagonal shape leading to the pointed ends, upper and lower angled edges on both left and right sides) but the build contains no matching feature.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: chamfer feature(s) — verify against the drawing
+   - [CRITICAL] F004 (reconciliation): Stage 10.5 reconciliation: hole F004 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: extraction describes 2 instance(s) but only 1 made it into the build plan.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top_outline, side_profile): The top view depicts a flat 2D outline (32.25 x 14.00) while the side view shows a formed cross-section (4.00 tall, .50 lip) — it is not fully clear from the two views alone how the flat lens-shaped blank folds into the 4.00 x .50 channel shape; the transition/bend lines are not shown in either view. Recommendation: Check for a bend-line or fold detail on a referenced/related sheet, or confirm forming operation with manufacturing to verify how the flat pattern maps to the formed profile. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top_outline, side_profile): The side/profile view shows only two .218 DR. THRU holes with a note that spacing and quantity are 'to suit,' but no specific count or hole pattern is dimensioned or shown in the top outline view, leaving the actual number and location of mounting holes undefined and open to interpretation. Recommendation: Confirm actual hole count/spacing requirement with engineering or reference the mating assembly drawing; do not assume only two holes are required — the note explicitly defers this to fit/installation conditions.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.076200 m, 21 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F004 (hole) deferred_open after retries: FeatureCut4 returned None for F004 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV001 (overview): Formed/bent profile shown: Overall elongated hexagonal/lens-shaped pan outline with pointed ends (rounded), 32.25 wide x 14.00 inside width, formed from 16 GA (.060) 1020 sheet steel (top view, full outline).
+       decision: not built — the pipeline models machined prismatic parts, not sheet-metal forming
+       why: a bend/flange is an unsupported feature kind (escalate if the part is truly sheet metal)
+       affects: unsupported feature kind: formed profile
+   - [MEDIUM] OV006 (overview): Formed/bent profile shown: Formed flange/lip profile, 4.00 tall with .50 bottom return, representing the depth/height of the formed pan wall (side profile view below main outline).
+       decision: not built — the pipeline models machined prismatic parts, not sheet-metal forming
+       why: a bend/flange is an unsupported feature kind (escalate if the part is truly sheet metal)
+       affects: unsupported feature kind: formed profile
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F004 FAILED: FeatureCut4 returned None for F004 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+   - feature F003 FAILED: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.076200 m, 21 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '161-B' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\404df82e4608\A001611E\output\161-B

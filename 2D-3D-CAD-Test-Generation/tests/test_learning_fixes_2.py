@@ -332,8 +332,13 @@ class TestRevolveToCircleExtrude:
 
 
 class TestUniversalCompletenessGate:
-    """P1 — one feature of each type with its driving dimension absent must NOT
-    reach macro generation (i.e. must be removed from build_order)."""
+    """P1/commit-mode — a feature missing its driving dimension.
+
+    Legacy (commit_mode=False): every such feature is EXCLUDED from build_order.
+    Commit-mode (default): buildable geometry (holes, profile cuts) is COMMITTED
+    and built with a derived/committed value; edge/pattern treatments that cannot
+    be committed meaningfully (a fillet/chamfer with no size, a pattern with no
+    count+spacing) remain excluded under both modes."""
 
     # (feature dict, human label) — each is missing its type's driving dimension.
     CASES = [
@@ -350,16 +355,18 @@ class TestUniversalCompletenessGate:
          "cut:height-only-profile"),
     ]
 
-    @pytest.mark.parametrize("feat,label", CASES, ids=[c[1] for c in CASES])
-    def test_dimensionless_feature_excluded_from_build_order(self, feat, label):
+    def _part(self, feat, label):
         d = _base_plate()
         if label.startswith("cut"):
-            # give it a height only (no diameter, no length+width closed profile)
             d["dimensions"].append(
                 {"id": "D010", "type": "linear", "value": 0.75, "unit": "inch", "applies_to": "height"})
         d["features"].append(feat)
         d["build_order"].append("FX")
-        res = resolve_extraction(d)
+        return d
+
+    @pytest.mark.parametrize("feat,label", CASES, ids=[c[1] for c in CASES])
+    def test_dimensionless_feature_excluded_when_commit_mode_off(self, feat, label):
+        res = resolve_extraction(self._part(feat, label), commit_mode=False)
         assert "FX" not in res.resolved_extraction["build_order"], (
             f"{label}: feature reached the build plan despite a missing driving dimension")
         excluded = [f for f in res.flags
@@ -367,6 +374,18 @@ class TestUniversalCompletenessGate:
         assert excluded, f"{label}: no exclusion flag emitted"
         assert excluded[0]["flag_tier"] == "CRITICAL"
         assert excluded[0].get("model_derived_assumption") is True
+
+    # In commit-mode, holes and profile cuts BUILD; fillet/chamfer/pattern stay excluded.
+    _COMMIT_BUILDS = {"hole:no-diameter", "cut:height-only-profile"}
+
+    @pytest.mark.parametrize("feat,label", CASES, ids=[c[1] for c in CASES])
+    def test_commit_mode_builds_geometry_excludes_only_edge_and_pattern(self, feat, label):
+        res = resolve_extraction(self._part(feat, label))  # commit_mode default ON
+        in_order = "FX" in res.resolved_extraction["build_order"]
+        if label in self._COMMIT_BUILDS:
+            assert in_order, f"{label}: buildable geometry must be committed & built in commit-mode"
+        else:
+            assert not in_order, f"{label}: non-committable edge/pattern treatment stays excluded"
 
     def test_thread_callout_supplies_hole_diameter(self):
         # Step-3 standard-size substitution: a thread callout names an unambiguous

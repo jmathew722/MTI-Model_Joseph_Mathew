@@ -120,13 +120,8 @@ class TestResolutionAlgorithm:
         assert d001.flag_tier == "HIGH"
         assert d001.resolved_value == 11.0
 
-    def test_unknown_position_feature_excluded_not_center_guessed(self):
+    def _unplaced_pocket_part(self):
         d = _plate_with_holes()
-        # A cut whose location was never dimensioned and has no symmetry evidence.
-        # P3 (2026-07-10): the parent-center last-resort guess is GONE (it could
-        # land off the solid — A001211E F004). Such a feature is now EXCLUDED from
-        # the build (removed from build_order) and surfaced as a Tab-3 model-derived
-        # assumption, rather than built at a guessed center.
         d["dimensions"].append(
             {"id": "D070", "type": "diameter", "value": 0.5, "unit": "inch", "applies_to": "diameter"}
         )
@@ -136,20 +131,35 @@ class TestResolutionAlgorithm:
             "position_known": False,
         })
         d["build_order"].append("F009")
-        res = resolve_extraction(d)
+        return d
+
+    def test_unknown_position_feature_excluded_when_commit_mode_off(self):
+        # Legacy comparison path (commit_mode=False): a cut with no location and no
+        # symmetry evidence is EXCLUDED (the parent-center guess is gone).
+        d = self._unplaced_pocket_part()
+        res = resolve_extraction(d, commit_mode=False)
         f009 = res.feature_resolutions["F009"]
         assert f009.build_status == "excluded"
-        assert f009.position_resolved is False
         assert f009.position_assumption == "needs_markup_review"
         assert "POSITION UNRESOLVED" in f009.human_note
-        assert "Tab-1" not in f009.human_note and "markup tool" not in f009.human_note
-        # Removed from the build entirely — never emitted as a macro/COM/CadQuery step.
         assert "F009" not in res.resolved_extraction["build_order"]
         flag = next(f for f in res.flags if f["dimension_id"] == "F009")
         assert flag.get("source") == "position_unresolved"
         assert flag.get("excluded_from_build") is True
-        assert flag.get("model_derived_assumption") is True
         assert flag["flag_tier"] == "CRITICAL"
+
+    def test_unknown_position_feature_committed_and_built_in_commit_mode(self):
+        # Commit-to-extraction (default): the same feature BUILDS at a conservative
+        # inside-parent placement (never [0,0], never excluded), flagged CRITICAL.
+        d = self._unplaced_pocket_part()
+        res = resolve_extraction(d)  # commit_mode defaults ON
+        f009 = res.feature_resolutions["F009"]
+        assert f009.position_assumption == "committed_conservative"
+        assert "F009" in res.resolved_extraction["build_order"]
+        assert "COMMITTED" in f009.human_note
+        # a real, non-[0,0] placement was written into the feature
+        f = next(f for f in res.resolved_extraction["features"] if f["id"] == "F009")
+        assert (f.get("offset_x"), f.get("offset_y")) != (0.0, 0.0)
         # The positioned hole feature F002 (callout carries instance positions) is HIGH.
         assert res.feature_resolutions["F002"].flag_tier == "HIGH"
 
