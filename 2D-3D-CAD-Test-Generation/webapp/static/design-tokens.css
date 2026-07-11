@@ -62,6 +62,17 @@
   --datum:     #00C2FF;
   --datum-dim: rgba(0,194,255,0.12);
 
+  /* ── Explainer orange — the Pipeline Explainer's OWN zone accent. Reserved
+     for exactly one feature (the local, zero-cost chat at the foot of the
+     Pipeline sheet) so it reads as its own distinct band; deliberately unlike
+     both the blueprint cyan and any gold/amber status color. ──────────── */
+  --explain:        #E8710A;
+  --explain-bright: #FF8C2E;
+  --explain-text:   #F5A24E;   /* orange as text on dark surfaces (legible) */
+  --explain-dim:    rgba(232,113,10,0.10);   /* 10% tint for the header strip */
+  --explain-line:   rgba(232,113,10,0.55);   /* zone border */
+  --on-explain:     #1F0E00;   /* text on a solid orange fill */
+
   /* ── Severity ladder (functional — flags, never decoration) ──────────── */
   --sev-critical: #F0545C;  --on-sev-critical: #2A0507;
   --sev-high:     #E3A13C;  --on-sev-high:     #2A1703;

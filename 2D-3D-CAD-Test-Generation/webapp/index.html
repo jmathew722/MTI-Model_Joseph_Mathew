@@ -457,6 +457,83 @@
   .feedback-bar #feedback-text { flex:1 1 auto; resize:vertical; min-height:40px; }
   .feedback-bar #rerun-feedback-btn { flex:0 0 auto; align-self:stretch; }
 
+  /* ── Pipeline Explainer — its own ORANGE zone at the foot of the sheet.
+       Orange is the FRAME + controls; message bubbles stay neutral for
+       readability. This accent is used nowhere else in the app. */
+  .explainer { flex:0 0 auto; background:var(--bg-raised);
+               border-top:2px solid var(--explain); box-shadow:inset 0 0 0 1px var(--explain-line); }
+  .explainer > summary.ex-head { display:flex; align-items:center; gap:var(--sp-2);
+               cursor:pointer; padding:var(--sp-2) var(--sp-4);
+               background:var(--explain-dim); list-style:none; user-select:none;
+               border-bottom:1px solid var(--explain-line); }
+  .explainer > summary.ex-head::-webkit-details-marker { display:none; }
+  .explainer .twist { width:0; height:0; border-left:5px solid var(--explain);
+               border-top:4px solid transparent; border-bottom:4px solid transparent;
+               transition:transform .12s; flex:0 0 auto; }
+  .explainer[open] .twist { transform:rotate(90deg); }
+  .ex-title { font:700 var(--fs-control)/1.2 var(--sans); color:var(--explain); letter-spacing:.01em; }
+  .ex-free { font:600 var(--fs-caption)/1 var(--sans); text-transform:uppercase;
+             letter-spacing:.08em; color:var(--explain-text); border:1px solid var(--explain-line);
+             border-radius:var(--r-sm); padding:2px 6px; margin-left:var(--sp-2); }
+  .ex-model { font:500 var(--fs-small)/1 var(--mono); color:var(--ink-3); }
+  .ex-dot { width:9px; height:9px; border-radius:50%; background:var(--ink-4); flex:0 0 auto;
+            box-shadow:0 0 0 3px rgba(0,0,0,.25); }
+  .ex-dot.up { background:var(--ok); }
+  .ex-dot.down { background:var(--err); }
+  .ex-body { display:flex; flex-direction:column; gap:var(--sp-2); padding:var(--sp-3) var(--sp-4); }
+  .ex-toolbar { display:flex; align-items:center; gap:var(--sp-2); }
+  .ex-toolbar #ex-part { min-width:180px; }
+  .ex-cost { font:600 var(--fs-caption)/1 var(--mono); color:var(--explain-text); letter-spacing:.02em; }
+  .ex-chips { display:flex; flex-wrap:wrap; gap:var(--sp-2); }
+  .ex-chip { font:500 var(--fs-small)/1 var(--sans); color:var(--explain-text);
+             background:transparent; border:1px solid var(--explain-line);
+             border-radius:999px; padding:5px 10px; cursor:pointer; transition:all .12s; }
+  .ex-chip:hover { background:var(--explain-dim); color:var(--explain-bright);
+                   border-color:var(--explain); }
+  .ex-log { max-height:360px; overflow:auto; display:flex; flex-direction:column;
+            gap:var(--sp-3); padding:var(--sp-2) 0; }
+  .ex-empty { color:var(--ink-3); font:400 var(--fs-small)/1.5 var(--sans);
+              padding:var(--sp-3); border:1px dashed var(--explain-line);
+              border-radius:var(--r-md); background:var(--explain-dim); }
+  .ex-msg { display:flex; flex-direction:column; gap:4px; }
+  .ex-msg .ex-role { font:600 var(--fs-caption)/1 var(--sans); text-transform:uppercase;
+                     letter-spacing:.06em; color:var(--ink-3); }
+  .ex-msg.user .ex-role { color:var(--explain-text); }
+  .ex-bubble { font:400 var(--fs-body)/1.5 var(--sans); color:var(--ink);
+               background:var(--surface); border:1px solid var(--line);
+               border-radius:var(--r-md); padding:var(--sp-2) var(--sp-3); white-space:pre-wrap;
+               word-break:break-word; }
+  .ex-msg.user .ex-bubble { background:var(--surface-2); }
+  .ex-bubble .cite { color:var(--explain-text); border-bottom:1px dotted var(--explain-line);
+                     cursor:pointer; }
+  .ex-bubble .cite:hover { color:var(--explain-bright); border-bottom-color:var(--explain); }
+  .ex-caret { display:inline-block; width:7px; background:var(--explain);
+              animation:exblink 1s steps(2) infinite; margin-left:1px; }
+  @keyframes exblink { 0%,50%{opacity:1} 51%,100%{opacity:0} }
+  .ex-meta { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap;
+             font:500 var(--fs-caption)/1.3 var(--mono); color:var(--ink-4); }
+  .ex-meta .chip-cost { color:var(--explain-text); opacity:.8; }
+  .ex-actions { display:flex; gap:var(--sp-3); }
+  .ex-actions a { font:500 var(--fs-caption)/1 var(--sans); color:var(--ink-3);
+                  cursor:pointer; text-decoration:none; }
+  .ex-actions a.to-corr { color:var(--explain-text); }
+  .ex-actions a:hover { color:var(--explain-bright); }
+  .ex-inputrow { display:flex; gap:var(--sp-2); align-items:stretch; }
+  .ex-inputrow #ex-input { flex:1 1 auto; resize:vertical; min-height:38px; }
+  .btn.ex-send { flex:0 0 auto; background:var(--explain); color:var(--on-explain);
+                 border-color:var(--explain); font-weight:700; }
+  .btn.ex-send:hover:not(:disabled) { background:var(--explain-bright); border-color:var(--explain-bright); }
+  .btn.ex-send:disabled { opacity:.5; }
+  .ex-setup { border:1px solid var(--explain-line); border-radius:var(--r-md);
+              background:var(--explain-dim); padding:var(--sp-3); display:flex;
+              flex-direction:column; gap:var(--sp-2); }
+  .ex-setup .es-title { font:600 var(--fs-small)/1.3 var(--sans); color:var(--explain-text); }
+  .ex-setup .es-body { font:400 var(--fs-small)/1.5 var(--sans); color:var(--ink-2); }
+  .ex-setup code { font:500 var(--fs-small)/1 var(--mono); color:var(--ink);
+                   background:var(--well); padding:1px 5px; border-radius:var(--r-sm); }
+  .ex-prog { height:6px; border-radius:3px; background:var(--well); overflow:hidden; }
+  .ex-prog > i { display:block; height:100%; background:var(--explain); width:0; transition:width .2s; }
+
   /* Assist Needed — batched human-question review queue (non-blocking). */
   .assist { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg-raised); }
   .assist > summary { display:flex; align-items:center; gap:var(--sp-2); cursor:pointer;
@@ -752,6 +829,47 @@
         <button class="btn" id="rerun-feedback-btn" disabled>↻ Re-run with correction</button>
       </div>
     </div>
+
+    <!-- ── Pipeline Explainer — LOCAL & FREE (Ollama). Its own orange zone at
+         the very bottom of the Pipeline sheet, directly below the corrections
+         box: inspect model -> enter corrections -> ask the explainer why. It
+         is READ-ONLY and never contacts any server but localhost. -->
+    <details class="explainer" id="explainer-panel">
+      <summary class="ex-head">
+        <span class="twist"></span>
+        <span class="ex-title">🧠 Pipeline Explainer <span class="ex-free">local &amp; free</span></span>
+        <span class="grow"></span>
+        <span class="ex-model" id="ex-model">—</span>
+        <span class="ex-dot" id="ex-dot" title="Ollama status"></span>
+      </summary>
+      <div class="ex-body">
+        <div class="ex-toolbar">
+          <label class="hint" for="ex-part" style="text-transform:none;letter-spacing:0">Part</label>
+          <select class="sel-input" id="ex-part" title="Which completed run to ask about (defaults to the open part)"></select>
+          <span class="grow"></span>
+          <span class="ex-cost" id="ex-session-footer">Session: 0 msgs · $0.00 · all local</span>
+        </div>
+
+        <div class="ex-chips" id="ex-chips">
+          <button class="ex-chip" data-q="Why was {dim} resolved this way?">Why was &lt;dim&gt; resolved this way?</button>
+          <button class="ex-chip" data-q="Trace {dim} end to end">Trace &lt;dim&gt; end to end</button>
+          <button class="ex-chip" data-q="What changed since last run?">What changed since last run?</button>
+          <button class="ex-chip" data-q="Explain macro {step}">Explain macro &lt;step&gt;</button>
+          <button class="ex-chip" data-q="What's still deferred?">What's still deferred?</button>
+          <button class="ex-chip" data-q="Where did the export go?">Where did the export go?</button>
+        </div>
+
+        <div class="ex-log" id="ex-log">
+          <div class="ex-empty" id="ex-empty">Ask about this part's run — extraction, resolution, macros, build, reconciliation, or export. Answers cite the exact artifacts and cost $0.00 (local Ollama).</div>
+        </div>
+
+        <div class="ex-inputrow">
+          <textarea id="ex-input" class="input-c" rows="1"
+                    placeholder="Ask why a value was chosen, trace a dimension, explain a macro step, or ask where the files went…"></textarea>
+          <button class="btn ex-send" id="ex-send" title="Ask (local, free)">Ask ▸</button>
+        </div>
+      </div>
+    </details>
   </section>
 
   <!-- ── Sheet 4 · Run Outputs (browse every artifact of any completed run) ── -->
@@ -831,6 +949,7 @@ function showTab(name) {
   document.querySelectorAll('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('main > .panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   if (name === 'intake') viewer.onShow(); // STL viewer lives on the Upload & 3D Model tab
+  if (window.__onTab) try { window.__onTab(name); } catch {}
 }
 function showSub(name) {
   document.querySelectorAll('.stab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -2074,6 +2193,240 @@ const viewer = (() => {
       }, undefined, err => console.warn('STL load failed', err));
     }
   };
+})();
+
+// ── Pipeline Explainer — LOCAL & FREE (Ollama). Read-only chat over a run's
+// artifacts. Never calls any host but localhost; every exchange is $0.00. ────
+(() => {
+  const panel   = document.getElementById('explainer-panel');
+  const dot     = document.getElementById('ex-dot');
+  const modelEl = document.getElementById('ex-model');
+  const partSel = document.getElementById('ex-part');
+  const logEl   = document.getElementById('ex-log');
+  const emptyEl = document.getElementById('ex-empty');
+  const input   = document.getElementById('ex-input');
+  const sendBtn = document.getElementById('ex-send');
+  const footer  = document.getElementById('ex-session-footer');
+  if (!panel) return;
+
+  let exModel = null, exReady = false, exBusy = false;
+  let sessionMsgs = 0;
+  let exCtx = null;                 // {session, part} the explainer is asking about
+
+  const escx = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+
+  function setFooter() { footer.textContent = `Session: ${sessionMsgs} msgs · $0.00 · all local`; }
+
+  // Populate the part dropdown from the shared run history; default to whatever
+  // part is currently open (outputsCtx / selectedPart).
+  function populateParts() {
+    const runs = (runHistory || []);
+    const prev = partSel.value;
+    partSel.innerHTML = '';
+    if (!runs.length) {
+      const o = document.createElement('option'); o.value = ''; o.textContent = 'no completed runs yet';
+      partSel.appendChild(o); partSel.disabled = true; return;
+    }
+    partSel.disabled = false;
+    runs.forEach(r => {
+      const o = document.createElement('option');
+      o.value = `${r.session}|${r.part}`; o.textContent = r.label || r.part;
+      partSel.appendChild(o);
+    });
+    let want = prev;
+    const cur = (typeof outputsCtx === 'object' && outputsCtx) ? outputsCtx
+              : (selectedPart ? { session: sessionId, part: selectedPart } : null);
+    if (cur) { const k = `${cur.session}|${cur.part}`; if ([...partSel.options].some(o => o.value === k)) want = k; }
+    if (want && [...partSel.options].some(o => o.value === want)) partSel.value = want;
+    syncCtxFromSelect();
+  }
+  function syncCtxFromSelect() {
+    const v = partSel.value; if (!v) { exCtx = null; return; }
+    const [session, ...rest] = v.split('|'); exCtx = { session, part: rest.join('|') };
+  }
+
+  async function refreshHealth() {
+    let h; try { h = await (await fetch('/api/explainer/health')).json(); } catch { h = { ok:false, running:false }; }
+    exReady = !!(h.ok && h.running);
+    exModel = h.model || null;
+    modelEl.textContent = exModel ? exModel : (exReady ? '—' : 'Ollama offline');
+    dot.className = 'ex-dot ' + (exReady ? 'up' : 'down');
+    dot.title = exReady ? `Ollama ${h.version||''} · ${exModel} · num_ctx ${h.num_ctx}` : 'Ollama not reachable on localhost:11434';
+    if (!exReady) { renderSetupCard(); return false; }
+    if (!h.model_ready) { await pullModel(exModel); }
+    updateSendEnabled();
+    return exReady;
+  }
+
+  function renderSetupCard() {
+    removeSetupCard();
+    const card = document.createElement('div');
+    card.className = 'ex-setup'; card.id = 'ex-setup';
+    card.innerHTML =
+      '<div class="es-title">Ollama not running — the explainer is local-only</div>' +
+      '<div class="es-body">Install <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--explain-text)">Ollama</a>, ' +
+      'then start it: <code>ollama serve</code>. The pipeline runs fine without the explainer.</div>' +
+      '<div><button class="btn ex-send sm" id="ex-retry">Retry</button></div>';
+    logEl.parentNode.insertBefore(card, logEl);
+    document.getElementById('ex-retry').addEventListener('click', () => { removeSetupCard(); refreshHealth(); });
+    updateSendEnabled();
+  }
+  function removeSetupCard() { const c = document.getElementById('ex-setup'); if (c) c.remove(); }
+
+  async function pullModel(model) {
+    removeSetupCard();
+    const bubble = document.createElement('div');
+    bubble.className = 'ex-setup'; bubble.id = 'ex-pull';
+    bubble.innerHTML = `<div class="es-title">First-time setup — downloading ${escx(model)} (one time, local)</div>` +
+      '<div class="es-body" id="ex-pull-status">Starting…</div>' +
+      '<div class="ex-prog"><i id="ex-pull-bar"></i></div>';
+    logEl.parentNode.insertBefore(bubble, logEl);
+    const statusEl = document.getElementById('ex-pull-status'), bar = document.getElementById('ex-pull-bar');
+    try {
+      const resp = await fetch('/api/explainer/pull', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model }) });
+      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream:true }); const lines = buf.split('\n'); buf = lines.pop();
+        for (const ln of lines) { if (!ln.trim()) continue; let c; try { c = JSON.parse(ln); } catch { continue; }
+          if (c.error) { statusEl.textContent = c.error; continue; }
+          if (c.total && c.completed) { const pct = Math.min(100, Math.round(c.completed / c.total * 100)); bar.style.width = pct + '%'; statusEl.textContent = `${c.status || 'downloading'} — ${pct}%`; }
+          else if (c.status) statusEl.textContent = c.status;
+        }
+      }
+      bar.style.width = '100%'; statusEl.textContent = 'Model ready.';
+      setTimeout(() => bubble.remove(), 900);
+    } catch (e) { statusEl.textContent = 'Download failed: ' + e.message; }
+    await refreshHealth();
+  }
+
+  function updateSendEnabled() {
+    sendBtn.disabled = exBusy || !exReady || !exCtx;
+  }
+
+  function addMsg(role, html) {
+    if (emptyEl) emptyEl.style.display = 'none';
+    const m = document.createElement('div'); m.className = 'ex-msg ' + role;
+    m.innerHTML = `<div class="ex-role">${role === 'user' ? 'You' : '🧠 Explainer'}</div><div class="ex-bubble"></div>`;
+    m.querySelector('.ex-bubble').innerHTML = html;
+    logEl.appendChild(m); logEl.scrollTop = logEl.scrollHeight; return m;
+  }
+
+  // Turn [cited ..._resolved_extraction.json] style refs into clickable spans
+  // that open the artifact. Uses the citation list to map filename -> rel path.
+  function linkifyCitations(text, citations) {
+    let html = escx(text);
+    (citations || []).forEach(c => {
+      const nm = c.name; if (!nm) return;
+      const re = new RegExp('(' + nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'g');
+      html = html.replace(re, `<span class="cite" data-rel="${escx(c.rel)}" title="Open ${escx(c.rel)}">$1</span>`);
+    });
+    return html;
+  }
+
+  function wireBubble(bubble, citations, answerText) {
+    bubble.querySelectorAll('.cite').forEach(sp => {
+      sp.addEventListener('click', () => {
+        if (!exCtx) return;
+        const rel = sp.dataset.rel;
+        window.open(`/api/parts/${exCtx.session}/${encodeURIComponent(exCtx.part)}/file/${rel.split('/').map(encodeURIComponent).join('/')}`, '_blank');
+      });
+    });
+  }
+
+  function addMeta(after, meta) {
+    const wrap = document.createElement('div'); wrap.className = 'ex-msg';
+    const localTag = '⏸ local';
+    wrap.innerHTML =
+      `<div class="ex-meta"><span>${localTag} · ${escx(meta.model||exModel||'')}</span>` +
+      `<span>${meta.prompt_tokens||0} in / ${meta.eval_tokens||0} out tok</span>` +
+      `<span class="chip-cost">$0.00</span><span>${(meta.duration_s||0).toFixed ? meta.duration_s.toFixed(1) : meta.duration_s} s</span></div>` +
+      `<div class="ex-actions"><a class="copy">Copy as note</a><a class="to-corr">Send to corrections</a></div>`;
+    after.appendChild(wrap);
+    wrap.querySelector('.copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(meta.answer || ''); });
+    wrap.querySelector('.to-corr').addEventListener('click', () => {
+      const fb = document.getElementById('feedback-text');
+      if (fb) { const one = (meta.answer || '').split('\n').find(l => l.trim()) || (meta.answer || '');
+                fb.value = (fb.value ? fb.value + '\n' : '') + one.trim(); fb.focus(); }
+    });
+  }
+
+  async function ask(question) {
+    if (exBusy || !exCtx) return;
+    if (!exReady) { const ok = await refreshHealth(); if (!ok) return; }
+    exBusy = true; updateSendEnabled();
+    addMsg('user', escx(question));
+    sessionMsgs++; setFooter();
+    const botMsg = addMsg('assistant', '<span class="ex-caret">&nbsp;</span>');
+    const bubble = botMsg.querySelector('.ex-bubble');
+    let citations = [], answer = '';
+    try {
+      const resp = await fetch('/api/explainer/chat', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ session: exCtx.session, part: exCtx.part, question }) });
+      if (!resp.ok) { bubble.textContent = 'Error: ' + (await resp.text()); exBusy = false; updateSendEnabled(); return; }
+      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream:true }); const lines = buf.split('\n'); buf = lines.pop();
+        for (const ln of lines) { if (!ln.trim()) continue; let ev; try { ev = JSON.parse(ln); } catch { continue; }
+          if (ev.type === 'context') { citations = ev.citations || []; }
+          else if (ev.type === 'token') { answer += ev.text; bubble.innerHTML = linkifyCitations(answer, citations) + '<span class="ex-caret">&nbsp;</span>'; logEl.scrollTop = logEl.scrollHeight; }
+          else if (ev.type === 'error') { bubble.innerHTML = escx(ev.error); }
+          else if (ev.type === 'done') {
+            const meta = ev.meta || {}; citations = meta.citations || citations;
+            bubble.innerHTML = linkifyCitations(answer, citations);
+            wireBubble(bubble, citations, answer);
+            meta.answer = answer; addMeta(botMsg, meta);
+            sessionMsgs++; setFooter();
+          }
+        }
+      }
+    } catch (e) { bubble.textContent = 'Chat failed: ' + e.message; }
+    exBusy = false; updateSendEnabled();
+  }
+
+  // Chips: those with a {placeholder} pre-fill the input for the user to fill in;
+  // the rest send immediately.
+  document.getElementById('ex-chips').addEventListener('click', e => {
+    const b = e.target.closest('.ex-chip'); if (!b) return;
+    const q = b.dataset.q;
+    if (/\{(dim|step)\}/.test(q)) { input.value = q; input.focus();
+      const i = q.indexOf('{'); input.setSelectionRange(i, q.indexOf('}') + 1); }
+    else ask(q);
+  });
+
+  sendBtn.addEventListener('click', () => { const q = input.value.trim(); if (!q) return; input.value = ''; ask(q); });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
+
+  async function loadHistoryForCtx() {
+    logEl.querySelectorAll('.ex-msg').forEach(n => n.remove());
+    if (emptyEl) { logEl.appendChild(emptyEl); emptyEl.style.display = ''; }
+    if (!exCtx) return;
+    let d; try { d = await (await fetch(`/api/explainer/history?session=${exCtx.session}&part=${encodeURIComponent(exCtx.part)}`)).json(); } catch { return; }
+    (d.history || []).forEach(h => {
+      if (h.role === 'user') addMsg('user', escx(h.content));
+      else { const m = addMsg('assistant', linkifyCitations(h.content, (h.meta||{}).citations || []));
+             wireBubble(m.querySelector('.ex-bubble'), (h.meta||{}).citations || [], h.content); }
+    });
+    const u = d.usage || {}; sessionMsgs = u.messages || 0; setFooter();
+  }
+
+  partSel.addEventListener('change', () => { syncCtxFromSelect(); loadHistoryForCtx(); updateSendEnabled(); });
+
+  // Refresh when the Pipeline sheet is shown (defaults to the open part) and on
+  // first open of the panel.
+  window.__onTab = (name) => { if (name === 'pipeline') { populateParts(); refreshHealth(); } };
+  panel.addEventListener('toggle', () => { if (panel.open) { populateParts(); loadHistoryForCtx(); refreshHealth(); } });
+
+  // Keep the explainer's part list in step with the shared run history.
+  const _origRefresh = (typeof refreshRunHistory === 'function') ? refreshRunHistory : null;
+  if (_origRefresh) {
+    refreshRunHistory = async function(...a) { const r = await _origRefresh.apply(this, a); try { populateParts(); } catch {} return r; };
+  }
+
+  setFooter();
+  // Expand by default once a run exists; collapsed on an empty workspace.
+  setTimeout(() => { if ((runHistory || []).length) { panel.open = true; populateParts(); loadHistoryForCtx(); } refreshHealth(); }, 600);
 })();
 </script>
 </body>
