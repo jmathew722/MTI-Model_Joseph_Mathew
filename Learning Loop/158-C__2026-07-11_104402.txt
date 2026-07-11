@@ -1,0 +1,68 @@
+LEARNING LOOP — 158-C
+============================================================
+Run:     2026-07-11 10:44:02
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\043a01625853\A001581E\output\158-C
+Fingerprint: b57b66383cf7acb1
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] Note calls out '6-HLS' (6 holes) for the .218 DR THRU pattern, but the front view appears to show only 6 hole locations arranged as 2 rows x 2 columns plus 2 extra on the right column (3 on left edge, 3 on right edge) — count matches, but the left-column holes appear dimensioned from a dashed centerline (offset from the physical edge) which could be misread as a 4th column; verify no 7th hole is hidden or omitted.
+       -> Cross-check the dashed vertical centerlines on both left and right sides against actual hole circle locations to confirm exactly 3 holes per side (6 total) and that dashed lines are only reference centerlines, not additional undrawn holes.
+   - [LOW] The edge/side view is extremely thin and schematic, showing only the .105 thickness dimension with two inspection balloons; it does not confirm the U-notch depth, hole through-condition, or overall length/width profile independently of the front view.
+       -> Treat the edge view as a thickness reference only; rely on the front view and BOM note for the through-hole and slot geometry.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 3, MEDIUM 1, LOW 2
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, ANGULAR DIM ±, SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [6] (total 6). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (fillet): FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 28 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 28 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       affects: feature F004
+   - [HIGH] F002 (feature): F002 centered on the parent: the drawing shows symmetry (centerline / symmetry relationship) and no offset, so the center is the defensible placement — verify in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (sheet): Note calls out '6-HLS' (6 holes) for the .218 DR THRU pattern, but the front view appears to show only 6 hole locations arranged as 2 rows x 2 columns plus 2 extra on the right column (3 on left edge, 3 on right edge) — count matches, but the left-column holes appear dimensioned from a dashed centerline (offset from the physical edge) which could be misread as a 4th column; verify no 7th hole is hidden or omitted. Recommendation: Cross-check the dashed vertical centerlines on both left and right sides against actual hole circle locations to confirm exactly 3 holes per side (6 total) and that dashed lines are only reference centerlines, not additional undrawn holes.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-002 (overview_analysis): INSPECTION-BALLOON REFERENCE (sheet): The edge/side view is extremely thin and schematic, showing only the .105 thickness dimension with two inspection balloons; it does not confirm the U-notch depth, hole through-condition, or overall length/width profile independently of the front view. Recognized as an inspection dimension balloon (circled numeral / 'IN.' value), attached to part metadata — NOT a competing geometry dimension, so it is excluded from dimension-conflict reconciliation.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F004 (fillet) skipped: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 28 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV004 (overview): Gauge thickness noted but material unknown: flat plate part, 12 GA (.105 in) thick steel, shown in side/edge view (side view at bottom of sheet) [gauge 12]. Cannot convert a gauge number to a decimal without the material — not compared to the build.
+       decision: recorded as the part's gauge reference; not reconciled
+       why: a gauge number is ambiguous across materials (no decimal given)
+       affects: metadata: stock gauge
+   - [LOW] OV005 (overview): Reference/phantom geometry noted: weather stripping (sponge rubber with adhesive back), 12.5 in length, applied along an edge per BOM item 2 - not clearly shown as a distinct feature in the views (unspecified edge, referenced only in BOM/callouts).
+       decision: treated as a reference boundary, not built geometry
+       why: dashed/phantom/reference linework is not a solid feature
+       affects: metadata: reference boundary
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F004 FAILED: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 28 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '158-C' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\043a01625853\A001581E\output\158-C

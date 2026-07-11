@@ -202,9 +202,28 @@ class TestModelBootstrap:
     def test_choose_default_when_present(self):
         assert ex.choose_model([ex.DEFAULT_MODEL]) == ex.DEFAULT_MODEL
 
-    def test_fallback_when_low_ram_and_missing(self, monkeypatch):
+    def test_model_is_always_qwen_never_llama(self):
+        assert "qwen" in ex.DEFAULT_MODEL.lower()
+        assert "qwen" in ex.FALLBACK_MODEL.lower()
+        assert "llama" not in ex.DEFAULT_MODEL.lower()
+        assert "llama" not in ex.FALLBACK_MODEL.lower()
+
+    def test_prefers_already_installed_qwen_no_redownload(self, monkeypatch):
+        # A different qwen tag is installed than the configured default — use it
+        # AS-IS (never a re-download, never a llama).
+        monkeypatch.setattr(ex, "DEFAULT_MODEL", "qwen3.6:latest")
+        chosen = ex.choose_model(["qwen2.5:14b", "llama3.1:8b"])
+        assert chosen == "qwen2.5:14b"
+
+    def test_fallback_is_small_qwen_when_low_ram_and_no_qwen(self, monkeypatch):
         monkeypatch.setattr(ex, "total_ram_gb", lambda: 8.0)
-        assert ex.choose_model([]) == ex.FALLBACK_MODEL
+        chosen = ex.choose_model([])
+        assert chosen == ex.FALLBACK_MODEL and "qwen" in chosen.lower()
+
+    def test_never_falls_back_to_llama_even_if_installed(self, monkeypatch):
+        monkeypatch.setattr(ex, "total_ram_gb", lambda: 8.0)
+        # only a llama is installed — we still choose a qwen (to pull), not llama
+        assert "llama" not in ex.choose_model(["llama3.1:8b"]).lower()
 
     def test_default_when_ram_unknown(self, monkeypatch):
         monkeypatch.setattr(ex, "total_ram_gb", lambda: None)

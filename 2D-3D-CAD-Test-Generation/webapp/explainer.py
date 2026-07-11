@@ -33,8 +33,11 @@ from urllib.parse import urlparse
 # Configuration — localhost Ollama only
 # --------------------------------------------------------------------------- #
 OLLAMA_HOST = os.getenv("EXPLAINER_OLLAMA_HOST", "http://localhost:11434").rstrip("/")
-DEFAULT_MODEL = os.getenv("EXPLAINER_OLLAMA_MODEL", "qwen2.5:14b")
-FALLBACK_MODEL = "llama3.1:8b"
+# QWEN ONLY. The explainer never uses a llama model. The default is the large
+# qwen; on a machine that already has ANY qwen installed we use that one (no
+# re-download). A small qwen is the only fallback for genuinely low-RAM boxes.
+DEFAULT_MODEL = os.getenv("EXPLAINER_OLLAMA_MODEL", "qwen3.6:latest")
+FALLBACK_MODEL = os.getenv("EXPLAINER_OLLAMA_FALLBACK", "qwen2.5:7b")
 # Ollama silently truncates context to ~2048-4096 by default — the #1 way this
 # feature would quietly break. Always request a large window.
 NUM_CTX = int(os.getenv("EXPLAINER_NUM_CTX", "16384"))
@@ -146,9 +149,18 @@ def installed_models() -> list[str]:
     return [m.get("name", "") for m in tags.get("models", []) if m.get("name")]
 
 
+def _is_qwen(name: str) -> bool:
+    return "qwen" in (name or "").lower()
+
+
 def choose_model(installed: Optional[list[str]] = None) -> str:
-    """The configured model, downgraded to the 8B fallback only when the box is
-    clearly short on RAM (< 16 GB) AND the big model is not already present."""
+    """Pick the qwen model to use — NEVER a llama. Preference order:
+      1. the configured default if it is already installed;
+      2. ANY already-installed qwen (so a machine that already has a qwen is
+         used as-is and NEVER triggers a re-download);
+      3. the small qwen fallback only on a clearly low-RAM box (< 16 GB) with
+         no qwen installed;
+      4. otherwise the configured default (which the UI will offer to pull)."""
     if installed is None:
         try:
             installed = installed_models()
@@ -156,8 +168,11 @@ def choose_model(installed: Optional[list[str]] = None) -> str:
             installed = []
     if DEFAULT_MODEL in installed:
         return DEFAULT_MODEL
+    already = [m for m in installed if _is_qwen(m)]
+    if already:
+        return already[0]
     ram = total_ram_gb()
-    if ram is not None and ram < 16 and DEFAULT_MODEL != FALLBACK_MODEL:
+    if ram is not None and ram < 16 and FALLBACK_MODEL != DEFAULT_MODEL:
         return FALLBACK_MODEL
     return DEFAULT_MODEL
 
