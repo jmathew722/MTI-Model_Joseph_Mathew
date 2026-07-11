@@ -243,6 +243,7 @@ def generate_assist_queue(
     safe_name: str,
     model=None,
     reconciliation_result=None,
+    deferred_items: Optional[list[dict]] = None,
     cap: int = DEFAULT_QUESTION_CAP,
     crop_fn: Optional[Callable[[str, str], str]] = None,
     now: str = "",
@@ -336,6 +337,26 @@ def generate_assist_queue(
                 automated_attempts=[ud.get("resolution_attempted", "")],
                 priority=_priority_for(kind, "", fanout.get(fid, 0), "CRITICAL"),
                 created_at=now, status=PENDING))
+
+        # 4) Deferred-open build features (Workstream 1): a feature the COM build
+        #    could not produce even after retry-after-completion. Its ready-to-
+        #    answer clarification question comes straight from the deferred module.
+        from pipeline.deferred_retry import DeferredItem, clarification_question
+
+        for di in (deferred_items or []):
+            if di.get("recovered"):
+                continue
+            fid = di.get("feature_id", "?")
+            if any(q.feature_id == fid for q in questions):
+                continue
+            item = DeferredItem(
+                feature_id=fid, feature_type=di.get("feature_type", ""),
+                error_text=di.get("error_text", ""), error_class=di.get("error_class", ""))
+            item.recovered = False
+            qd = clarification_question(item, part)
+            q = Question.from_dict(qd)
+            q.priority = _priority_for(q.kind, "", fanout.get(fid, 0), "CRITICAL")
+            questions.append(q)
     except Exception as e:  # the assist layer must never sink a run
         log.warning("assist queue generation failed (non-fatal): %s", e)
 

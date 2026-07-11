@@ -57,7 +57,8 @@ def resolve_part_template(template_path: Optional[str] = None) -> Optional[str]:
 def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
                           template_path: Optional[str] = None,
                           skipped_out: Optional[list] = None,
-                          caveats_out: Optional[list] = None) -> str:
+                          caveats_out: Optional[list] = None,
+                          deferred_out: Optional[list] = None) -> str:
     """Build one validated part into ``<part_dir>/<name>.sldprt`` over COM and
     write a ``<name>_model_check.txt``. Non-strict: a fragile feature is skipped
     (and documented) rather than aborting the build. Returns the saved path.
@@ -76,6 +77,7 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
     # Per-feature outcomes -> macro_result.json (feature name -> success/fail),
     # so a failed feature surfaces as ITS name + reason, never a generic exit code.
     feature_results: list[dict] = []
+    deferred: list[dict] = []  # Workstream 1: features quarantined + retried
     # Snapshot warnings so we can report only the caveats the BUILD added (e.g. a
     # fillet auto-applied to all edges), separate from extraction/resolver notes.
     pre_warnings = list(getattr(model, "warnings", []) or [])
@@ -83,6 +85,7 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
         interim_path, sw_doc = build_model(
             sw_app, model, output_dir=part_dir, template_path=template,
             strict=False, skipped_out=skipped, feature_results=feature_results,
+            deferred_out=deferred,
         )
     finally:
         try:
@@ -125,6 +128,19 @@ def build_sldprt_for_part(sw_app, model, part_dir: Path, name: str,
         skipped_out.extend(skipped)
     if caveats_out is not None:
         caveats_out.extend(build_caveats)
+    if deferred_out is not None:
+        deferred_out.extend(deferred)
+    # Persist the deferred-retry ledger (Workstream 1) whenever anything was
+    # quarantined — recovered or still-open — so the retry story is auditable.
+    if deferred:
+        try:
+            (part_dir / "_deferred_log.json").write_text(
+                json.dumps({"total": len(deferred),
+                            "recovered": sum(1 for d in deferred if d.get("recovered")),
+                            "open": sum(1 for d in deferred if not d.get("recovered")),
+                            "items": deferred}, indent=2), encoding="utf-8")
+        except OSError as e:
+            log.warning("Could not write _deferred_log.json: %s", e)
 
     # Close the document so the .sldprt is not left locked (a locked file breaks
     # re-runs and the Downloads copy). CloseDoc keys on the window title, which can
@@ -458,12 +474,19 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
         print("[PREVAL] Pre-validation flagged issue(s) — the model is still "
               "built and the flags are recorded in the verification report / "
               "Must-Meet checklist for human review.", flush=True)
+    build_deferred: list = []
     if sw_app is not None:
         print("[STAGE] Building .sldprt", flush=True)
         try:
             sldprt = build_sldprt_for_part(sw_app, model, part_dir, part_dir.name, template_path,
-                                           skipped_out=build_skipped, caveats_out=build_caveats)
+                                           skipped_out=build_skipped, caveats_out=build_caveats,
+                                           deferred_out=build_deferred)
             log.info("Built .sldprt for %s: %s", part, sldprt)
+            n_rec = sum(1 for d in build_deferred if d.get("recovered"))
+            n_open = sum(1 for d in build_deferred if not d.get("recovered"))
+            if build_deferred:
+                print(f"[DEFER] {len(build_deferred)} feature(s) deferred: {n_rec} recovered on "
+                      f"retry, {n_open} still open (see _deferred_log.json)", flush=True)
         except Exception as e:  # a build failure must not lose the macros/text output
             detail = f"sldprt build failed: {type(e).__name__}: {e}"[:300]
             log.warning("%s: %s", part, detail)
@@ -517,6 +540,7 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
             assist_queue = generate_assist_queue(
                 resolution=resolution, part=part, part_dir=part_dir, safe_name=safe,
                 model=model, reconciliation_result=reconciliation_result,
+                deferred_items=build_deferred,
                 lessons_path=output_dir / "lessons_learned.jsonl",
             )
             if assist_queue.pending():

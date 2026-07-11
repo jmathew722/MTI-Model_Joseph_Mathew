@@ -1670,6 +1670,7 @@ def build_model(
     strict: bool = True,
     skipped_out: Optional[list[tuple[str, str, str]]] = None,
     feature_results: Optional[list[dict]] = None,
+    deferred_out: Optional[list[dict]] = None,
 ):
     """Build the complete 3D model from validated drawing data.
 
@@ -1704,6 +1705,13 @@ def build_model(
 
     feature_map: dict[str, Any] = {}
     built_count = 0
+
+    # Workstream 1: a hard non-strict failure quarantines the feature here and
+    # the build CONTINUES; deferred features are retried after the rest of the
+    # part is complete (their target faces/edges now exist).
+    from pipeline.deferred_retry import DeferredQueue
+
+    deferred_queue = DeferredQueue()
 
     def _record(feature_id: str, ftype: str, status: str, detail: str = "",
                 name: str = "") -> None:
@@ -1773,13 +1781,13 @@ def build_model(
                 continue
 
             if not strict:
-                # Non-strict batch mode: skip any failing feature so the build
-                # completes; the driver records it for human verification.
-                log.warning("  ! %s (%s) FAILED and was SKIPPED (non-strict): %s",
+                # Non-strict batch mode: DEFER, don't abandon. Quarantine the
+                # feature and continue so the rest of the part completes; it is
+                # retried after completion (Workstream 1). Final skip/deferred
+                # recording happens after the retry passes below.
+                log.warning("  ! %s (%s) FAILED — deferred for post-completion retry: %s",
                             feature_id, feature.type.value, e)
-                model.warnings.append(f"{feature_id} ({feature.type.value}) skipped: {e}")
-                if skipped_out is not None:
-                    skipped_out.append((feature_id, feature.type.value, str(e)))
+                deferred_queue.add(feature_id, feature.type.value, str(e))
                 continue
 
             # Non-fragile failure (strict): save a partial model and abort with context.
@@ -1794,6 +1802,66 @@ def build_model(
                 + (f" Partial model saved to {partial_path}." if partial_path else ""),
                 partial_path=partial_path,
             ) from e
+
+    # ── Workstream 1: retry deferred features now that the rest of the solid
+    # EXISTS. The retry re-dispatches the feature builder with the completed
+    # solid as context — a feature that failed because its target face/parent
+    # did not exist yet (build-order defect) now succeeds; a genuinely
+    # unrecoverable one ends `deferred_open` with a clarification question,
+    # never a silent forever-skip.
+    if deferred_queue.items:
+        from pipeline.deferred_retry import run_retry_passes
+
+        def _topology_ctx() -> dict:
+            ctx: dict[str, Any] = {}
+            try:
+                bodies = sw_doc.GetBodies2(0, False)
+                body = bodies[0] if isinstance(bodies, (list, tuple)) else bodies
+                ctx["face_count"] = int(body.GetFaceCount()) if hasattr(body, "GetFaceCount") else None
+                ctx["bbox_m"] = list(body.GetBodyBox())
+            except Exception:
+                pass
+            return ctx
+
+        def _retry_one(item, strategy, ctx):
+            # Every strategy re-attempts the build with the completed solid in
+            # place (the new information). The strategy label is recorded; the
+            # COM action is the same converging move — re-run the builder now
+            # that faces/parents exist. A clean second failure escalates to the
+            # next strategy, then to the clarification gate.
+            feat = get_feature_by_id(model, item.feature_id)
+            dims = get_dimensions_for_feature(model, feat)
+            try:
+                result = dispatch_feature_builder(sw_doc, model, feat, dims, feature_map)
+            except Exception as e:
+                return False, f"{strategy}: {type(e).__name__}: {e}"
+            if result is None or result is _NOOP:
+                return (result is _NOOP), f"{strategy}: {'no-op' if result is _NOOP else 'returned None'}"
+            feature_map[item.feature_id] = result
+            try:
+                result.Name = f"{item.feature_id}_{feat.type.value}"
+            except Exception:
+                pass
+            if not check_rebuild_errors(sw_doc):
+                return False, f"{strategy}: rebuild errors after retry"
+            return True, f"{strategy}: recovered (faces={ctx.get('face_count')})"
+
+        run_retry_passes(deferred_queue, _retry_one, _topology_ctx)
+        # Record final outcomes: recovered -> PASS; still-open -> deferred skip.
+        for item in deferred_queue.items:
+            if item.recovered:
+                built_count += 1
+                _record(item.feature_id, item.feature_type, "PASS",
+                        f"recovered on retry ({item.attempts[-1].strategy})")
+            else:
+                model.warnings.append(
+                    f"{item.feature_id} ({item.feature_type}) deferred_open after retries: "
+                    f"{item.error_text[:120]}")
+                if skipped_out is not None:
+                    skipped_out.append((item.feature_id, item.feature_type,
+                                        f"deferred_open ({item.error_class}): {item.error_text[:120]}"))
+        if deferred_out is not None:
+            deferred_out.extend(i.as_dict() for i in deferred_queue.items)
 
     # Final rebuild + error check.
     try:
