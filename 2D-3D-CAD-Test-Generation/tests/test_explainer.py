@@ -353,10 +353,11 @@ class TestUIContract:
     def test_local_free_header(self, html):
         assert "Pipeline Explainer" in html and "local &amp; free" in html
 
-    def test_provider_toggle_present(self, html):
+    def test_provider_dropdown_present(self, html):
         assert 'id="ex-provider"' in html
-        assert 'data-provider="local"' in html and 'data-provider="claude"' in html
+        assert 'value="local"' in html and 'value="claude"' in html
         assert "Local · qwen" in html and "Claude API" in html
+        assert "Answer with" in html   # the dropdown is clearly labeled
 
 
 # --------------------------------------------------------------------------- #

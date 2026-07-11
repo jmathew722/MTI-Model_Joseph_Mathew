@@ -46,6 +46,10 @@ FALLBACK_MODEL = os.getenv("EXPLAINER_OLLAMA_FALLBACK", "qwen2.5:7b")
 #                estimated and shown. The local path's no-external-host guarantee
 #                is unaffected — only the claude path talks to the internet.
 CLAUDE_MODEL = os.getenv("EXPLAINER_CLAUDE_MODEL", "claude-sonnet-5")
+# Bound the local model so a too-big-for-RAM model fails with a clear message
+# instead of hanging for minutes. If no token arrives within this many seconds,
+# the local path errors and suggests Claude / a smaller qwen.
+LOCAL_CHAT_TIMEOUT = float(os.getenv("EXPLAINER_LOCAL_TIMEOUT", "120"))
 # Ollama silently truncates context to ~2048-4096 by default — the #1 way this
 # feature would quietly break. Always request a large window.
 NUM_CTX = int(os.getenv("EXPLAINER_NUM_CTX", "16384"))
@@ -624,8 +628,11 @@ def _local_chat(question, part_out, ctx, history, model) -> Iterator[dict]:
     prompt_tokens = eval_tokens = 0
     answer_parts: list[str] = []
     thinking_seen = False
+    too_big_hint = (f"The installed local model ({model}) is likely too large to run "
+                    "interactively on this machine's RAM. Switch the provider to "
+                    "Claude API, or install a smaller qwen (`ollama pull qwen2.5:7b`).")
     try:
-        for chunk in _post_stream("/api/chat", payload):
+        for chunk in _post_stream("/api/chat", payload, timeout=LOCAL_CHAT_TIMEOUT):
             msg = chunk.get("message") or {}
             if msg.get("thinking") and not thinking_seen:
                 thinking_seen = True
@@ -643,6 +650,14 @@ def _local_chat(question, part_out, ctx, history, model) -> Iterator[dict]:
     except ExternalHostError as e:
         yield {"type": "error", "error": str(e)}
         return
+    except Exception as e:  # read timeout / dropped stream on an over-large model
+        if answer_parts:
+            pass  # partial answer arrived — fall through and keep it
+        else:
+            yield {"type": "error",
+                   "error": f"Local model timed out after {int(LOCAL_CHAT_TIMEOUT)}s "
+                            f"({type(e).__name__}). {too_big_hint}"}
+            return
 
     answer = "".join(answer_parts)
     if not answer.strip():

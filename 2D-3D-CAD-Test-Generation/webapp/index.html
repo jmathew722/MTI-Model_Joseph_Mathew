@@ -484,14 +484,9 @@
   .ex-toolbar { display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; }
   .ex-toolbar #ex-part { min-width:180px; }
   .ex-cost { font:600 var(--fs-caption)/1 var(--mono); color:var(--explain-text); letter-spacing:.02em; }
-  /* Provider toggle — Local qwen ⟷ Claude API */
-  .ex-seg { display:inline-flex; border:1px solid var(--explain-line); border-radius:999px; overflow:hidden; }
-  .ex-pbtn { font:600 var(--fs-caption)/1 var(--sans); color:var(--ink-3); background:transparent;
-             border:0; padding:6px 12px; cursor:pointer; transition:all .12s; letter-spacing:.02em; }
-  .ex-pbtn + .ex-pbtn { border-left:1px solid var(--explain-line); }
-  .ex-pbtn:hover:not(:disabled) { color:var(--explain-text); background:var(--explain-dim); }
-  .ex-pbtn.active { background:var(--explain); color:var(--on-explain); }
-  .ex-pbtn:disabled { opacity:.4; cursor:not-allowed; }
+  /* Provider dropdown — Local qwen (free) vs Claude API (paid) */
+  .ex-prov-sel { min-width:150px; border-color:var(--explain-line); color:var(--explain-text); font-weight:600; }
+  .ex-prov-sel:focus { border-color:var(--explain); }
   .ex-chips { display:flex; flex-wrap:wrap; gap:var(--sp-2); }
   .ex-chip { font:500 var(--fs-small)/1 var(--sans); color:var(--explain-text);
              background:transparent; border:1px solid var(--explain-line);
@@ -856,10 +851,11 @@
         <div class="ex-toolbar">
           <label class="hint" for="ex-part" style="text-transform:none;letter-spacing:0">Part</label>
           <select class="sel-input" id="ex-part" title="Which completed run to ask about (defaults to the open part)"></select>
-          <span class="ex-seg" id="ex-provider" role="group" aria-label="Answer provider">
-            <button class="ex-pbtn active" data-provider="local" title="Local Ollama (qwen) — private, $0.00, but limited by this machine's RAM">Local · qwen</button>
-            <button class="ex-pbtn" data-provider="claude" title="Anthropic Claude API — fast, uses your ANTHROPIC_API_KEY (paid; cost shown per answer)">Claude API</button>
-          </span>
+          <label class="hint" for="ex-provider" style="text-transform:none;letter-spacing:0">Answer with</label>
+          <select class="sel-input ex-prov-sel" id="ex-provider" title="Choose who answers: local Ollama (qwen, free) or the Claude API (paid, uses your key)">
+            <option value="local">Local · qwen (free)</option>
+            <option value="claude">Claude API (paid)</option>
+          </select>
           <span class="grow"></span>
           <span class="ex-cost" id="ex-session-footer">Session: 0 msgs · $0.00 · all local</span>
         </div>
@@ -2228,7 +2224,7 @@ const viewer = (() => {
   let exCtx = null;                 // {session, part} the explainer is asking about
   let providers = { local: { available:false }, claude: { available:false } };
   let exProvider = localStorage.getItem('ex_provider') || 'local';   // 'local' | 'claude'
-  const provBtns = [...document.querySelectorAll('#ex-provider .ex-pbtn')];
+  const provSel = document.getElementById('ex-provider');
 
   const escx = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
 
@@ -2240,11 +2236,14 @@ const viewer = (() => {
   }
 
   function applyProviderUI() {
-    provBtns.forEach(b => {
-      const p = b.dataset.provider;
-      b.classList.toggle('active', p === exProvider);
-      b.disabled = !providerReady(p);
+    // Reflect availability in the dropdown labels, and keep it in sync.
+    [...provSel.options].forEach(o => {
+      const p = o.value, ready = providerReady(p);
+      o.disabled = !ready;
+      const base = p === 'local' ? 'Local · qwen (free)' : 'Claude API (paid)';
+      o.textContent = ready ? base : base + ' — unavailable';
     });
+    provSel.value = exProvider;
     if (exProvider === 'claude') {
       exModel = (providers.claude && providers.claude.model) || 'claude';
       modelEl.textContent = exModel;
@@ -2314,10 +2313,11 @@ const viewer = (() => {
     return providerReady(exProvider);
   }
 
-  provBtns.forEach(b => b.addEventListener('click', () => {
-    const p = b.dataset.provider; if (!providerReady(p)) return;
+  provSel.addEventListener('change', () => {
+    const p = provSel.value;
+    if (!providerReady(p)) { applyProviderUI(); return; }  // revert to a ready one
     exProvider = p; localStorage.setItem('ex_provider', p); applyProviderUI();
-  }));
+  });
 
   function renderSetupCard() {
     removeSetupCard();
