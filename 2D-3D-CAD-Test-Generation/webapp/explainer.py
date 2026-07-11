@@ -38,6 +38,14 @@ OLLAMA_HOST = os.getenv("EXPLAINER_OLLAMA_HOST", "http://localhost:11434").rstri
 # re-download). A small qwen is the only fallback for genuinely low-RAM boxes.
 DEFAULT_MODEL = os.getenv("EXPLAINER_OLLAMA_MODEL", "qwen3.6:latest")
 FALLBACK_MODEL = os.getenv("EXPLAINER_OLLAMA_FALLBACK", "qwen2.5:7b")
+
+# The explainer supports TWO providers, chosen per-message in the UI:
+#   * "local"  — Ollama on localhost (qwen), zero cost, never leaves the machine.
+#   * "claude" — the Anthropic API using the SAME ANTHROPIC_API_KEY the pipeline
+#                uses. This is a PAID, external call (opt-in); its cost is
+#                estimated and shown. The local path's no-external-host guarantee
+#                is unaffected — only the claude path talks to the internet.
+CLAUDE_MODEL = os.getenv("EXPLAINER_CLAUDE_MODEL", "claude-sonnet-5")
 # Ollama silently truncates context to ~2048-4096 by default — the #1 way this
 # feature would quietly break. Always request a large window.
 NUM_CTX = int(os.getenv("EXPLAINER_NUM_CTX", "16384"))
@@ -177,28 +185,44 @@ def choose_model(installed: Optional[list[str]] = None) -> str:
     return DEFAULT_MODEL
 
 
+def claude_available() -> bool:
+    """True when the Claude provider can be used (the SAME key the pipeline uses)."""
+    return bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
+
+
 def health() -> dict:
-    """Status snapshot for the UI: is Ollama up, which models are installed,
-    which model this explainer will use, and whether it still needs pulling."""
+    """Status snapshot for the UI: both providers. ``local`` = Ollama (up?
+    which model, needs pull?); ``claude`` = Anthropic API (key present? model).
+    Top-level Ollama fields are kept for backward-compatibility."""
+    claude = {"available": claude_available(), "model": CLAUDE_MODEL}
     try:
         ver = _get_json("/api/version")
     except OllamaUnavailable as e:
-        return {"ok": False, "running": False, "error": str(e),
+        base = {"ok": False, "running": False, "error": str(e),
                 "host": OLLAMA_HOST, "cost_usd": 0.0, "local": True}
+        base["providers"] = {
+            "local": {"available": False, "running": False, "error": str(e)},
+            "claude": claude,
+        }
+        return base
     try:
         models = installed_models()
     except OllamaUnavailable:
         models = []
     model = choose_model(models)
+    local = {
+        "available": True, "running": True, "host": OLLAMA_HOST,
+        "version": ver.get("version", "?"), "installed": models,
+        "model": model, "model_ready": model in models,
+        "num_ctx": NUM_CTX, "ram_gb": total_ram_gb(),
+    }
     return {
         "ok": True, "running": True, "host": OLLAMA_HOST,
-        "version": ver.get("version", "?"),
-        "installed": models,
-        "model": model,
-        "model_ready": model in models,
-        "num_ctx": NUM_CTX,
-        "ram_gb": total_ram_gb(),
+        "version": ver.get("version", "?"), "installed": models,
+        "model": model, "model_ready": model in models,
+        "num_ctx": NUM_CTX, "ram_gb": total_ram_gb(),
         "cost_usd": 0.0, "local": True,
+        "providers": {"local": local, "claude": claude},
     }
 
 
@@ -560,32 +584,52 @@ def build_messages(question: str, ctx: AssembledContext,
 
 
 def chat(question: str, part_out: Path, *, history: Optional[list[dict]] = None,
-         model: Optional[str] = None) -> Iterator[dict]:
-    """Stream an answer. Yields:
+         model: Optional[str] = None, provider: str = "local") -> Iterator[dict]:
+    """Stream an answer from the chosen provider. Yields:
         {"type":"context", "citations":[...], "used":[...], "skipped":[...]}
-        {"type":"token", "text":"..."}  (many)
-        {"type":"done", "meta":{model, prompt_tokens, eval_tokens, duration_s,
-                                cost_usd:0.0, local:true, citations, used, skipped}}
-    or {"type":"error", "error":"..."} if Ollama is unavailable.
+        {"type":"status", "text":"..."}   (optional — e.g. the model is thinking)
+        {"type":"token", "text":"..."}    (many)
+        {"type":"done", "meta":{provider, model, prompt_tokens, eval_tokens,
+                                duration_s, cost_usd, local, citations, used, skipped}}
+    or {"type":"error", "error":"..."} on failure.
+
+    provider="local"  -> Ollama (qwen) on localhost; zero cost.
+    provider="claude" -> the Anthropic API (paid, external, opt-in) using the
+                         same ANTHROPIC_API_KEY the pipeline uses.
     """
-    model = model or choose_model()
     # A "trace <id>" question gets the dedicated cross-stage assembler.
     m = re.match(r"\s*trace\s+([A-Za-z0-9_\-]+)", question, re.I)
     ctx = trace_field(m.group(1), part_out) if m else assemble_context(question, part_out)
     yield {"type": "context", "citations": ctx.citations, "used": ctx.used, "skipped": ctx.skipped}
 
+    if provider == "claude":
+        yield from _claude_chat(question, part_out, ctx, history, model)
+    else:
+        yield from _local_chat(question, part_out, ctx, history, model)
+
+
+def _local_chat(question, part_out, ctx, history, model) -> Iterator[dict]:
+    model = model or choose_model()
     payload = {
         "model": model,
         "messages": build_messages(question, ctx, history),
         "stream": True,
+        # Disable qwen's chain-of-thought so it streams the ANSWER immediately
+        # instead of emitting (invisible) thinking tokens first — the #1 cause
+        # of "it takes forever / outputs nothing".
+        "think": False,
         "options": {"num_ctx": NUM_CTX, "temperature": 0.2},
     }
     start = time.time()
     prompt_tokens = eval_tokens = 0
     answer_parts: list[str] = []
+    thinking_seen = False
     try:
         for chunk in _post_stream("/api/chat", payload):
             msg = chunk.get("message") or {}
+            if msg.get("thinking") and not thinking_seen:
+                thinking_seen = True
+                yield {"type": "status", "text": "thinking…"}
             piece = msg.get("content", "")
             if piece:
                 answer_parts.append(piece)
@@ -600,31 +644,95 @@ def chat(question: str, part_out: Path, *, history: Optional[list[dict]] = None,
         yield {"type": "error", "error": str(e)}
         return
 
+    answer = "".join(answer_parts)
+    if not answer.strip():
+        yield {"type": "error",
+               "error": ("The local model returned no text. On this machine the installed "
+                         f"model ({model}) may be too large to run interactively — try the "
+                         "Claude provider, or install a smaller qwen (e.g. `ollama pull qwen2.5:7b`).")}
+        return
     duration = round(time.time() - start, 2)
     meta = {
-        "model": model, "prompt_tokens": prompt_tokens, "eval_tokens": eval_tokens,
-        "duration_s": duration, "cost_usd": 0.0, "local": True,
+        "provider": "local", "model": model, "prompt_tokens": prompt_tokens,
+        "eval_tokens": eval_tokens, "duration_s": duration, "cost_usd": 0.0, "local": True,
+        "citations": ctx.citations, "used": ctx.used, "skipped": ctx.skipped, "answer": answer,
+    }
+    log_usage(part_out, provider="local", model=model, prompt_tokens=prompt_tokens,
+              eval_tokens=eval_tokens, duration_s=duration, cost_usd=0.0)
+    yield {"type": "done", "meta": meta}
+
+
+def _claude_cost(model: str, in_tok: int, out_tok: int) -> float:
+    """Estimate USD from the pipeline's own published price table."""
+    try:
+        from pipeline.usage_log import estimate_cost
+        return round(estimate_cost({"input_tokens": in_tok, "output_tokens": out_tok}, model), 4)
+    except Exception:
+        # Fallback list price (Sonnet-class) if the ledger module isn't importable.
+        return round(in_tok / 1e6 * 3.0 + out_tok / 1e6 * 15.0, 4)
+
+
+def _claude_chat(question, part_out, ctx, history, model) -> Iterator[dict]:
+    model = model or CLAUDE_MODEL
+    if not claude_available():
+        yield {"type": "error", "error": "No ANTHROPIC_API_KEY set — the Claude provider is unavailable. "
+               "Set it in the project .env, or use the Local (qwen) provider."}
+        return
+    try:
+        import anthropic
+    except Exception:
+        yield {"type": "error", "error": "The 'anthropic' package is not installed in this environment."}
+        return
+
+    msgs = build_messages(question, ctx, history)
+    system = msgs[0]["content"] if msgs and msgs[0]["role"] == "system" else SYSTEM_PROMPT
+    convo = [{"role": mm["role"], "content": mm["content"]} for mm in msgs if mm["role"] != "system"]
+
+    start = time.time()
+    answer_parts: list[str] = []
+    in_tok = out_tok = 0
+    try:
+        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), max_retries=2)
+        with client.messages.stream(model=model, max_tokens=1500, system=system,
+                                     messages=convo) as stream:
+            for text in stream.text_stream:
+                if text:
+                    answer_parts.append(text)
+                    yield {"type": "token", "text": text}
+            final = stream.get_final_message()
+            in_tok = int(getattr(final.usage, "input_tokens", 0) or 0)
+            out_tok = int(getattr(final.usage, "output_tokens", 0) or 0)
+    except Exception as e:
+        yield {"type": "error", "error": f"Claude API error: {type(e).__name__}: {e}"}
+        return
+
+    duration = round(time.time() - start, 2)
+    cost = _claude_cost(model, in_tok, out_tok)
+    meta = {
+        "provider": "claude", "model": model, "prompt_tokens": in_tok, "eval_tokens": out_tok,
+        "duration_s": duration, "cost_usd": cost, "local": False,
         "citations": ctx.citations, "used": ctx.used, "skipped": ctx.skipped,
         "answer": "".join(answer_parts),
     }
-    log_usage(part_out, model=model, prompt_tokens=prompt_tokens,
-              eval_tokens=eval_tokens, duration_s=duration)
+    log_usage(part_out, provider="claude", model=model, prompt_tokens=in_tok,
+              eval_tokens=out_tok, duration_s=duration, cost_usd=cost)
     yield {"type": "done", "meta": meta}
 
 
 # --------------------------------------------------------------------------- #
 # Usage log + per-part history persistence (both zero-cost)
 # --------------------------------------------------------------------------- #
-def log_usage(part_out: Path, *, model: str, prompt_tokens: int,
-              eval_tokens: int, duration_s: float) -> None:
-    """Append one line to chat_usage_log.jsonl with cost_usd 0.0 — so the
-    unified cost report can PROVE 'Explainer chat: $0.00 (local)'."""
+def log_usage(part_out: Path, *, model: str, prompt_tokens: int, eval_tokens: int,
+              duration_s: float, provider: str = "local", cost_usd: float = 0.0) -> None:
+    """Append one line to chat_usage_log.jsonl. Local answers are cost_usd 0.0
+    (proving 'Explainer chat: $0.00 (local)'); Claude answers carry their
+    estimated cost so the unified ledger stays honest."""
     try:
         part_out.mkdir(parents=True, exist_ok=True)
         rec = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
-               "model": model, "prompt_tokens": prompt_tokens,
+               "provider": provider, "model": model, "prompt_tokens": prompt_tokens,
                "eval_tokens": eval_tokens, "duration_s": duration_s,
-               "cost_usd": 0.0, "local": True}
+               "cost_usd": round(cost_usd, 4), "local": provider == "local"}
         with (part_out / "chat_usage_log.jsonl").open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
     except Exception:
@@ -632,8 +740,11 @@ def log_usage(part_out: Path, *, model: str, prompt_tokens: int,
 
 
 def usage_total(part_out: Path) -> dict:
-    """Sum the chat ledger — always $0.00, plus message/token counts."""
+    """Sum the chat ledger: message/token counts, total cost (0 for the local
+    provider, estimated for Claude), and whether every message was local."""
     msgs = in_tok = out_tok = 0
+    cost = 0.0
+    all_local = True
     log = part_out / "chat_usage_log.jsonl"
     if log.is_file():
         for ln in log.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -644,8 +755,11 @@ def usage_total(part_out: Path) -> dict:
             msgs += 1
             in_tok += int(r.get("prompt_tokens") or 0)
             out_tok += int(r.get("eval_tokens") or 0)
+            cost += float(r.get("cost_usd") or 0.0)
+            if r.get("provider", "local") != "local":
+                all_local = False
     return {"messages": msgs, "prompt_tokens": in_tok, "eval_tokens": out_tok,
-            "cost_usd": 0.0, "local": True}
+            "cost_usd": round(cost, 4), "local": all_local, "all_local": all_local}
 
 
 def _history_path(part_out: Path) -> Path:

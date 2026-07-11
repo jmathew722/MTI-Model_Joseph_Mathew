@@ -1757,6 +1757,9 @@ async def explainer_chat(request: Request):
     session = body.get("session") or ""
     part = body.get("part") or ""
     question = (body.get("question") or "").strip()
+    provider = (body.get("provider") or "local").strip().lower()
+    if provider not in ("local", "claude"):
+        provider = "local"
     if not session or not part:
         raise HTTPException(400, "session and part are required")
     if not question:
@@ -1778,7 +1781,7 @@ async def explainer_chat(request: Request):
 
     def gen():
         answer_meta = {}
-        for ev in explainer.chat(question, out, history=history):
+        for ev in explainer.chat(question, out, history=history, provider=provider):
             yield json.dumps(ev) + "\n"
             if ev.get("type") == "done":
                 answer_meta = ev.get("meta", {})

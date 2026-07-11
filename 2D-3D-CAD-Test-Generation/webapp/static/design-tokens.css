@@ -62,16 +62,17 @@
   --datum:     #00C2FF;
   --datum-dim: rgba(0,194,255,0.12);
 
-  /* ── Explainer orange — the Pipeline Explainer's OWN zone accent. Reserved
-     for exactly one feature (the local, zero-cost chat at the foot of the
-     Pipeline sheet) so it reads as its own distinct band; deliberately unlike
-     both the blueprint cyan and any gold/amber status color. ──────────── */
-  --explain:        #E8710A;
-  --explain-bright: #FF8C2E;
-  --explain-text:   #F5A24E;   /* orange as text on dark surfaces (legible) */
-  --explain-dim:    rgba(232,113,10,0.10);   /* 10% tint for the header strip */
-  --explain-line:   rgba(232,113,10,0.55);   /* zone border */
-  --on-explain:     #1F0E00;   /* text on a solid orange fill */
+  /* ── Explainer accent — the Pipeline Explainer's OWN zone color. A muted
+     periwinkle-violet: unique in this palette (clearly unlike the blueprint
+     cyan, the steel gray-blue, and every status hue) yet desaturated so it
+     sits calmly in the navy theme rather than shouting. Reserved for exactly
+     one feature (the chat at the foot of the Pipeline sheet). ─────────── */
+  --explain:        #8F86C4;
+  --explain-bright: #ABA2DD;   /* hover / emphasis */
+  --explain-text:   #B7AFE8;   /* accent as text on dark surfaces (legible) */
+  --explain-dim:    rgba(143,134,196,0.10);   /* 10% tint for the header strip */
+  --explain-line:   rgba(143,134,196,0.40);   /* zone border (soft) */
+  --on-explain:     #14101F;   /* text on a solid accent fill */
 
   /* ── Severity ladder (functional — flags, never decoration) ──────────── */
   --sev-critical: #F0545C;  --on-sev-critical: #2A0507;

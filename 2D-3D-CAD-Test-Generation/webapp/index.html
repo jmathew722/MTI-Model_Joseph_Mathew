@@ -481,9 +481,17 @@
   .ex-dot.up { background:var(--ok); }
   .ex-dot.down { background:var(--err); }
   .ex-body { display:flex; flex-direction:column; gap:var(--sp-2); padding:var(--sp-3) var(--sp-4); }
-  .ex-toolbar { display:flex; align-items:center; gap:var(--sp-2); }
+  .ex-toolbar { display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; }
   .ex-toolbar #ex-part { min-width:180px; }
   .ex-cost { font:600 var(--fs-caption)/1 var(--mono); color:var(--explain-text); letter-spacing:.02em; }
+  /* Provider toggle — Local qwen ⟷ Claude API */
+  .ex-seg { display:inline-flex; border:1px solid var(--explain-line); border-radius:999px; overflow:hidden; }
+  .ex-pbtn { font:600 var(--fs-caption)/1 var(--sans); color:var(--ink-3); background:transparent;
+             border:0; padding:6px 12px; cursor:pointer; transition:all .12s; letter-spacing:.02em; }
+  .ex-pbtn + .ex-pbtn { border-left:1px solid var(--explain-line); }
+  .ex-pbtn:hover:not(:disabled) { color:var(--explain-text); background:var(--explain-dim); }
+  .ex-pbtn.active { background:var(--explain); color:var(--on-explain); }
+  .ex-pbtn:disabled { opacity:.4; cursor:not-allowed; }
   .ex-chips { display:flex; flex-wrap:wrap; gap:var(--sp-2); }
   .ex-chip { font:500 var(--fs-small)/1 var(--sans); color:var(--explain-text);
              background:transparent; border:1px solid var(--explain-line);
@@ -510,6 +518,8 @@
   .ex-caret { display:inline-block; width:7px; background:var(--explain);
               animation:exblink 1s steps(2) infinite; margin-left:1px; }
   @keyframes exblink { 0%,50%{opacity:1} 51%,100%{opacity:0} }
+  .ex-status { color:var(--ink-3); font-style:italic; }
+  .ex-err { color:var(--err-text); }
   .ex-meta { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap;
              font:500 var(--fs-caption)/1.3 var(--mono); color:var(--ink-4); }
   .ex-meta .chip-cost { color:var(--explain-text); opacity:.8; }
@@ -846,6 +856,10 @@
         <div class="ex-toolbar">
           <label class="hint" for="ex-part" style="text-transform:none;letter-spacing:0">Part</label>
           <select class="sel-input" id="ex-part" title="Which completed run to ask about (defaults to the open part)"></select>
+          <span class="ex-seg" id="ex-provider" role="group" aria-label="Answer provider">
+            <button class="ex-pbtn active" data-provider="local" title="Local Ollama (qwen) — private, $0.00, but limited by this machine's RAM">Local · qwen</button>
+            <button class="ex-pbtn" data-provider="claude" title="Anthropic Claude API — fast, uses your ANTHROPIC_API_KEY (paid; cost shown per answer)">Claude API</button>
+          </span>
           <span class="grow"></span>
           <span class="ex-cost" id="ex-session-footer">Session: 0 msgs · $0.00 · all local</span>
         </div>
@@ -2209,13 +2223,43 @@ const viewer = (() => {
   const footer  = document.getElementById('ex-session-footer');
   if (!panel) return;
 
-  let exModel = null, exReady = false, exBusy = false;
-  let sessionMsgs = 0;
+  let exModel = null, exBusy = false;
+  let sessionMsgs = 0, sessionCost = 0;
   let exCtx = null;                 // {session, part} the explainer is asking about
+  let providers = { local: { available:false }, claude: { available:false } };
+  let exProvider = localStorage.getItem('ex_provider') || 'local';   // 'local' | 'claude'
+  const provBtns = [...document.querySelectorAll('#ex-provider .ex-pbtn')];
 
   const escx = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
 
-  function setFooter() { footer.textContent = `Session: ${sessionMsgs} msgs · $0.00 · all local`; }
+  function fmtCost(c) { return '$' + (Math.round((c||0)*10000)/10000).toFixed(c && c < 1 ? 4 : 2); }
+  function providerReady(p) { return !!(providers[p] && providers[p].available); }
+  function setFooter() {
+    const tail = sessionCost > 0 ? `${fmtCost(sessionCost)} · mixed` : '$0.00 · all local';
+    footer.textContent = `Session: ${sessionMsgs} msgs · ${tail}`;
+  }
+
+  function applyProviderUI() {
+    provBtns.forEach(b => {
+      const p = b.dataset.provider;
+      b.classList.toggle('active', p === exProvider);
+      b.disabled = !providerReady(p);
+    });
+    if (exProvider === 'claude') {
+      exModel = (providers.claude && providers.claude.model) || 'claude';
+      modelEl.textContent = exModel;
+      dot.className = 'ex-dot ' + (providerReady('claude') ? 'up' : 'down');
+      dot.title = providerReady('claude') ? `Claude API · ${exModel}` : 'No ANTHROPIC_API_KEY set';
+    } else {
+      exModel = (providers.local && providers.local.model) || null;
+      modelEl.textContent = exModel || (providerReady('local') ? '—' : 'Ollama offline');
+      dot.className = 'ex-dot ' + (providerReady('local') ? 'up' : 'down');
+      dot.title = providerReady('local')
+        ? `Ollama ${(providers.local.version)||''} · ${exModel} · num_ctx ${providers.local.num_ctx}`
+        : 'Ollama not reachable on localhost:11434';
+    }
+    updateSendEnabled();
+  }
 
   // Populate the part dropdown from the shared run history; default to whatever
   // part is currently open (outputsCtx / selectedPart).
@@ -2247,25 +2291,46 @@ const viewer = (() => {
 
   async function refreshHealth() {
     let h; try { h = await (await fetch('/api/explainer/health')).json(); } catch { h = { ok:false, running:false }; }
-    exReady = !!(h.ok && h.running);
-    exModel = h.model || null;
-    modelEl.textContent = exModel ? exModel : (exReady ? '—' : 'Ollama offline');
-    dot.className = 'ex-dot ' + (exReady ? 'up' : 'down');
-    dot.title = exReady ? `Ollama ${h.version||''} · ${exModel} · num_ctx ${h.num_ctx}` : 'Ollama not reachable on localhost:11434';
-    if (!exReady) { renderSetupCard(); return false; }
-    if (!h.model_ready) { await pullModel(exModel); }
+    const pv = h.providers || {};
+    providers = {
+      local: Object.assign({ available: !!(h.ok && h.running) }, pv.local || {},
+                           { model: (pv.local && pv.local.model) || h.model, version: (pv.local && pv.local.version) || h.version,
+                             num_ctx: (pv.local && pv.local.num_ctx) || h.num_ctx, model_ready: (pv.local ? pv.local.model_ready : h.model_ready) }),
+      claude: Object.assign({ available:false }, pv.claude || {}),
+    };
+    // If the chosen provider isn't available but the other is, switch to it.
+    if (!providerReady(exProvider)) {
+      if (providerReady('local')) exProvider = 'local';
+      else if (providerReady('claude')) exProvider = 'claude';
+    }
+    applyProviderUI();
+    // Only the LOCAL provider has a setup card / auto-pull. Never block Claude.
+    removeSetupCard();
+    if (exProvider === 'local') {
+      if (!providers.local.available) { renderSetupCard(); return false; }
+      if (providers.local.model && !providers.local.model_ready) { await pullModel(providers.local.model); }
+    }
     updateSendEnabled();
-    return exReady;
+    return providerReady(exProvider);
   }
+
+  provBtns.forEach(b => b.addEventListener('click', () => {
+    const p = b.dataset.provider; if (!providerReady(p)) return;
+    exProvider = p; localStorage.setItem('ex_provider', p); applyProviderUI();
+  }));
 
   function renderSetupCard() {
     removeSetupCard();
     const card = document.createElement('div');
     card.className = 'ex-setup'; card.id = 'ex-setup';
+    const claudeHint = providerReady('claude')
+      ? ' Or switch to <b>Claude API</b> above to chat right now (paid, cost shown per answer).'
+      : '';
     card.innerHTML =
-      '<div class="es-title">Ollama not running — the explainer is local-only</div>' +
+      '<div class="es-title">Local model (Ollama) not available</div>' +
       '<div class="es-body">Install <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--explain-text)">Ollama</a>, ' +
-      'then start it: <code>ollama serve</code>. The pipeline runs fine without the explainer.</div>' +
+      'start it (<code>ollama serve</code>), and pull a qwen (<code>ollama pull qwen2.5:7b</code>). ' +
+      'The pipeline runs fine without the explainer.' + claudeHint + '</div>' +
       '<div><button class="btn ex-send sm" id="ex-retry">Retry</button></div>';
     logEl.parentNode.insertBefore(card, logEl);
     document.getElementById('ex-retry').addEventListener('click', () => { removeSetupCard(); refreshHealth(); });
@@ -2301,7 +2366,7 @@ const viewer = (() => {
   }
 
   function updateSendEnabled() {
-    sendBtn.disabled = exBusy || !exReady || !exCtx;
+    sendBtn.disabled = exBusy || !providerReady(exProvider) || !exCtx;
   }
 
   function addMsg(role, html) {
@@ -2336,11 +2401,14 @@ const viewer = (() => {
 
   function addMeta(after, meta) {
     const wrap = document.createElement('div'); wrap.className = 'ex-msg';
-    const localTag = '⏸ local';
+    const isLocal = (meta.provider || (meta.local ? 'local' : 'claude')) === 'local';
+    const tag = isLocal ? '⏸ local' : '☁ claude';
+    const cost = isLocal ? '$0.00' : fmtCost(meta.cost_usd) + ' est.';
+    const dur = (meta.duration_s || 0);
     wrap.innerHTML =
-      `<div class="ex-meta"><span>${localTag} · ${escx(meta.model||exModel||'')}</span>` +
+      `<div class="ex-meta"><span>${tag} · ${escx(meta.model||exModel||'')}</span>` +
       `<span>${meta.prompt_tokens||0} in / ${meta.eval_tokens||0} out tok</span>` +
-      `<span class="chip-cost">$0.00</span><span>${(meta.duration_s||0).toFixed ? meta.duration_s.toFixed(1) : meta.duration_s} s</span></div>` +
+      `<span class="chip-cost">${cost}</span><span>${dur.toFixed ? dur.toFixed(1) : dur} s</span></div>` +
       `<div class="ex-actions"><a class="copy">Copy as note</a><a class="to-corr">Send to corrections</a></div>`;
     after.appendChild(wrap);
     wrap.querySelector('.copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(meta.answer || ''); });
@@ -2353,16 +2421,24 @@ const viewer = (() => {
 
   async function ask(question) {
     if (exBusy || !exCtx) return;
-    if (!exReady) { const ok = await refreshHealth(); if (!ok) return; }
+    if (!providerReady(exProvider)) { const ok = await refreshHealth(); if (!ok) return; }
     exBusy = true; updateSendEnabled();
     addMsg('user', escx(question));
     sessionMsgs++; setFooter();
-    const botMsg = addMsg('assistant', '<span class="ex-caret">&nbsp;</span>');
+    const hint = exProvider === 'local'
+      ? '<span class="ex-status">contacting local model…</span> <span class="ex-caret">&nbsp;</span>'
+      : '<span class="ex-status">asking Claude…</span> <span class="ex-caret">&nbsp;</span>';
+    const botMsg = addMsg('assistant', hint);
     const bubble = botMsg.querySelector('.ex-bubble');
-    let citations = [], answer = '';
+    let citations = [], answer = '', statusTxt = '';
+    const paint = () => {
+      const s = (!answer && statusTxt) ? `<span class="ex-status">${escx(statusTxt)}</span> ` : '';
+      bubble.innerHTML = s + linkifyCitations(answer, citations) + '<span class="ex-caret">&nbsp;</span>';
+      logEl.scrollTop = logEl.scrollHeight;
+    };
     try {
       const resp = await fetch('/api/explainer/chat', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ session: exCtx.session, part: exCtx.part, question }) });
+        body: JSON.stringify({ session: exCtx.session, part: exCtx.part, question, provider: exProvider }) });
       if (!resp.ok) { bubble.textContent = 'Error: ' + (await resp.text()); exBusy = false; updateSendEnabled(); return; }
       const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = '';
       for (;;) {
@@ -2370,14 +2446,15 @@ const viewer = (() => {
         buf += dec.decode(value, { stream:true }); const lines = buf.split('\n'); buf = lines.pop();
         for (const ln of lines) { if (!ln.trim()) continue; let ev; try { ev = JSON.parse(ln); } catch { continue; }
           if (ev.type === 'context') { citations = ev.citations || []; }
-          else if (ev.type === 'token') { answer += ev.text; bubble.innerHTML = linkifyCitations(answer, citations) + '<span class="ex-caret">&nbsp;</span>'; logEl.scrollTop = logEl.scrollHeight; }
-          else if (ev.type === 'error') { bubble.innerHTML = escx(ev.error); }
+          else if (ev.type === 'status') { statusTxt = ev.text || ''; paint(); }
+          else if (ev.type === 'token') { answer += ev.text; paint(); }
+          else if (ev.type === 'error') { bubble.innerHTML = `<span class="ex-err">${escx(ev.error)}</span>`; }
           else if (ev.type === 'done') {
             const meta = ev.meta || {}; citations = meta.citations || citations;
             bubble.innerHTML = linkifyCitations(answer, citations);
             wireBubble(bubble, citations, answer);
             meta.answer = answer; addMeta(botMsg, meta);
-            sessionMsgs++; setFooter();
+            sessionMsgs++; sessionCost += (meta.cost_usd || 0); setFooter();
           }
         }
       }
@@ -2408,7 +2485,7 @@ const viewer = (() => {
       else { const m = addMsg('assistant', linkifyCitations(h.content, (h.meta||{}).citations || []));
              wireBubble(m.querySelector('.ex-bubble'), (h.meta||{}).citations || [], h.content); }
     });
-    const u = d.usage || {}; sessionMsgs = u.messages || 0; setFooter();
+    const u = d.usage || {}; sessionMsgs = u.messages || 0; sessionCost = u.cost_usd || 0; setFooter();
   }
 
   partSel.addEventListener('change', () => { syncCtxFromSelect(); loadHistoryForCtx(); updateSendEnabled(); });

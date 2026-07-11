@@ -1,0 +1,72 @@
+LEARNING LOOP — 158-C
+============================================================
+Run:     2026-07-11 15:59:03
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6f5496077d3f\A001581E\output\158-C
+Fingerprint: 6a47d35214848738
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - 1 reconciliation item(s) unresolved after 1 pass(es) — see 158-C_reconciliation_report.json
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] The front view clearly shows only 6 hole locations (two columns of 3), matching the '6-HLS' callout exactly, so the count itself is not in conflict. However, the edge (side) view only shows 2 holes depicted, which is a reduced/partial representation since it is a thin profile view collapsing the two columns; this is expected but could be misread as only 2 holes existing.
+       -> Confirm that the edge view's 2 visible hole marks are representative end-of-strip references only, not a literal hole count; rely on the front view's 6 clearly drawn circles and the '6-HLS' note as the authoritative count.
+   - [MEDIUM] Dashed (hidden/reference) vertical lines at 1.56 in from left edge and near the right column of holes in the front view suggest a possible symmetric reference or fold/bend line, but no corresponding bend is shown in the edge view, and no bend angle or additional view confirms it.
+       -> Verify whether the dashed lines are simply hole-center reference/construction lines (not bends) by checking if the edge view shows any step or angle; if the part is meant to be flat, treat dashed lines as centerline/reference only.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 4, HIGH 1, MEDIUM 2, LOW 2
+   - [CRITICAL] F005 (feature): POSITION UNRESOLVED for F005: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 4 unassociated linear dim(s) (no leader reached F005's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption — add an X and/or Y location dimension on the drawing and re-run.
+       decision: needs_markup_review
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, ANGULAR DIM ±, SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [6] (total 6). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F004 (build): The .sldprt build SKIPPED feature F004 (fillet): FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       affects: feature F004
+   - [CRITICAL] F005 (reconciliation): Stage 10.5 reconciliation: extrude_cut F005 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: excluded from the build by the completeness gate (missing driving dimension).
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, edge_side): The front view clearly shows only 6 hole locations (two columns of 3), matching the '6-HLS' callout exactly, so the count itself is not in conflict. However, the edge (side) view only shows 2 holes depicted, which is a reduced/partial representation since it is a thin profile view collapsing the two columns; this is expected but could be misread as only 2 holes existing. Recommendation: Confirm that the edge view's 2 visible hole marks are representative end-of-strip references only, not a literal hole count; rely on the front view's 6 clearly drawn circles and the '6-HLS' note as the authoritative count.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, edge_side): Dashed (hidden/reference) vertical lines at 1.56 in from left edge and near the right column of holes in the front view suggest a possible symmetric reference or fold/bend line, but no corresponding bend is shown in the edge view, and no bend angle or additional view confirms it. Recommendation: Verify whether the dashed lines are simply hole-center reference/construction lines (not bends) by checking if the edge view shows any step or angle; if the part is meant to be flat, treat dashed lines as centerline/reference only.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F004 (fillet) skipped: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV004 (overview): Thickness-view value 0.105 is out of plausible range vs the build thickness 1.88 (18x) (overall part) [gauge 12]; treated as a non-thickness number, not a conflict.
+       decision: ignored as an out-of-band capture, build thickness kept
+       why: an edge-view thickness cannot differ from the build by an order of magnitude — the extractor captured an unrelated dimension
+       affects: metadata: rejected thickness candidate
+   - [LOW] OV005 (overview): Surface Finish note: Weather stripping (item 2) - sponge rubber with adhesive back, 12.5 in length, applied along an edge per side view markers (edge of plate, side view).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F004 FAILED: FeatureFillet3 returned None for F004 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '158-C' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\6f5496077d3f\A001581E\output\158-C

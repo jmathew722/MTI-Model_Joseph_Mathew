@@ -72,10 +72,22 @@ class TestLocalOnly:
         ex.assert_local("http://localhost:11434/api/chat")
         ex.assert_local("http://127.0.0.1:11434/api/tags")
 
-    def test_module_never_imports_anthropic_or_reads_key(self):
+    def test_anthropic_import_is_lazy_not_top_level(self):
+        """The module must import cleanly WITHOUT anthropic installed — the
+        Claude provider is opt-in, so `import anthropic` may only appear lazily
+        (indented, inside a function), never at module top level."""
         src = (WEBAPP / "explainer.py").read_text(encoding="utf-8")
-        assert "import anthropic" not in src
-        assert 'getenv("ANTHROPIC' not in src and "getenv('ANTHROPIC" not in src
+        for line in src.splitlines():
+            if line.startswith("import anthropic") or line.startswith("from anthropic"):
+                pytest.fail("anthropic must be imported lazily, not at module top level")
+
+    def test_local_path_never_touches_anthropic_or_key(self):
+        """The LOCAL (zero-cost) chat path must contain no anthropic / API-key
+        reference — that guarantee is unchanged; only the claude path is paid."""
+        import inspect
+        local_src = inspect.getsource(ex._local_chat)
+        assert "anthropic" not in local_src.lower()
+        assert "ANTHROPIC" not in local_src
 
     def test_socket_level_only_localhost_contacted(self, monkeypatch):
         """Every real request must target localhost. We capture the URL handed
@@ -309,15 +321,22 @@ class TestUIContract:
         i_outputs = html.find('id="panel-outputs"')
         assert i_pipeline < i_expl < i_outputs
 
-    def test_orange_accent_defined_and_used(self, tokens, html):
-        assert "#E8710A" in tokens, "orange token must be defined"
-        assert "--explain" in tokens
-        # the explainer zone binds to the orange token
-        assert "var(--explain)" in html
+    def test_explainer_accent_defined_and_used(self, tokens, html):
+        assert "--explain:" in tokens and "--explain-text:" in tokens
+        # the explainer zone binds to its own token
+        assert "var(--explain)" in html and "var(--explain-text)" in html
 
-    def test_gold_not_reused_for_explainer(self, tokens):
-        # the orange must be its own value, distinct from any gold/amber token
-        assert "#E8710A" != "#D39F10"
+    def test_accent_is_muted_and_unique(self, tokens):
+        import re
+        m = re.search(r"--explain:\s*#([0-9A-Fa-f]{6})", tokens)
+        assert m, "--explain must be a hex color"
+        hexv = m.group(1).upper()
+        # not the old bold orange, and distinct from the palette's other accents
+        for taken in ("E8710A", "3FA9D4", "5C7690", "00C2FF", "3EAF7C", "E5484D", "E3A93C"):
+            assert hexv != taken, f"--explain must be unique, not {taken}"
+        r, g, b = (int(hexv[i:i+2], 16) for i in (0, 2, 4))
+        # "not too bold" — low saturation: channel spread stays modest
+        assert (max(r, g, b) - min(r, g, b)) <= 90, f"accent {hexv} is too saturated/bold"
 
     def test_session_footer_is_zero_cost(self, html):
         assert "$0.00 · all local" in html
@@ -333,3 +352,98 @@ class TestUIContract:
 
     def test_local_free_header(self, html):
         assert "Pipeline Explainer" in html and "local &amp; free" in html
+
+    def test_provider_toggle_present(self, html):
+        assert 'id="ex-provider"' in html
+        assert 'data-provider="local"' in html and 'data-provider="claude"' in html
+        assert "Local · qwen" in html and "Claude API" in html
+
+
+# --------------------------------------------------------------------------- #
+# 8. Provider switch — local (Ollama) vs Claude (Anthropic API)
+# --------------------------------------------------------------------------- #
+class TestProviderSwitch:
+    def test_health_reports_both_providers(self, monkeypatch):
+        monkeypatch.setattr(ex, "_get_json", lambda p, **k: {"version": "1.0"} if "version" in p else {})
+        monkeypatch.setattr(ex, "installed_models", lambda: [ex.DEFAULT_MODEL])
+        monkeypatch.setattr(ex, "total_ram_gb", lambda: 32.0)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        h = ex.health()
+        assert "providers" in h
+        assert h["providers"]["local"]["available"] is True
+        assert h["providers"]["claude"]["available"] is True
+        assert h["providers"]["claude"]["model"] == ex.CLAUDE_MODEL
+
+    def test_claude_available_reflects_key(self, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        assert ex.claude_available() is False
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-x")
+        assert ex.claude_available() is True
+
+    def test_local_provider_sends_think_false(self, part_out, monkeypatch):
+        captured = {}
+        def fake_stream(path, payload, **k):
+            captured["payload"] = payload
+            return iter([{"message": {"content": "ok"}},
+                         {"done": True, "prompt_eval_count": 3, "eval_count": 2}])
+        monkeypatch.setattr(ex, "_post_stream", fake_stream)
+        list(ex.chat("hi", part_out, provider="local"))
+        assert captured["payload"]["think"] is False
+
+    def test_local_empty_answer_surfaces_error(self, part_out, monkeypatch):
+        # model streams only thinking, no content -> we must not claim success
+        monkeypatch.setattr(ex, "_post_stream",
+                            lambda p, pl, **k: iter([{"message": {"thinking": "hmm"}},
+                                                     {"done": True, "eval_count": 0}]))
+        events = list(ex.chat("hi", part_out, provider="local"))
+        assert events[-1]["type"] == "error"
+        assert "no text" in events[-1]["error"].lower()
+
+    def test_claude_provider_streams_and_costs(self, part_out, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+
+        class _Usage:
+            input_tokens = 1000
+            output_tokens = 200
+
+        class _Final:
+            usage = _Usage()
+
+        class _Stream:
+            text_stream = iter(["The ", "answer."])
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def get_final_message(self): return _Final()
+
+        class _Messages:
+            def stream(self, **kw): return _Stream()
+
+        class _Client:
+            def __init__(self, **kw): self.messages = _Messages()
+
+        fake_anthropic = type("m", (), {"Anthropic": _Client})
+        monkeypatch.setitem(sys.modules, "anthropic", fake_anthropic)
+
+        events = list(ex.chat("Why was D009 resolved this way?", part_out, provider="claude"))
+        done = events[-1]
+        assert done["type"] == "done"
+        meta = done["meta"]
+        assert meta["provider"] == "claude" and meta["local"] is False
+        assert meta["cost_usd"] > 0.0            # a paid call has a real cost
+        assert meta["prompt_tokens"] == 1000 and meta["eval_tokens"] == 200
+        assert "answer." in meta["answer"]
+
+    def test_claude_without_key_errors(self, part_out, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        events = list(ex.chat("hi", part_out, provider="claude"))
+        assert events[-1]["type"] == "error" and "ANTHROPIC_API_KEY" in events[-1]["error"]
+
+    def test_usage_total_sums_claude_cost(self, part_out):
+        ex.log_usage(part_out, provider="local", model="qwen", prompt_tokens=10,
+                     eval_tokens=5, duration_s=1.0, cost_usd=0.0)
+        ex.log_usage(part_out, provider="claude", model="claude-sonnet-5",
+                     prompt_tokens=1000, eval_tokens=200, duration_s=2.0, cost_usd=0.006)
+        total = ex.usage_total(part_out)
+        assert total["messages"] == 2
+        assert total["cost_usd"] == pytest.approx(0.006)
+        assert total["all_local"] is False
