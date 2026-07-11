@@ -30,3 +30,4 @@ token_usage_log.jsonl
 # OS
 .DS_Store
 Thumbs.db
+third_party/

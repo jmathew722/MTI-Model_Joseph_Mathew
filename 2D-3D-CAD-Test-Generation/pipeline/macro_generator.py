@@ -141,6 +141,9 @@ class BuildStep:
     circular_pattern: dict = field(default_factory=dict)
     # Phase D: verified construction method this feature dispatches to (methods_config).
     construction_method: str = ""
+    # Workstream 3: the reference-geometry handle this feature is positioned from
+    # (coordinates stay above as the audit trail + fallback if the ref fails).
+    positioned_from: str = ""
 
 
 @dataclass
@@ -158,6 +161,8 @@ class MacroPackage:
     # BUILT_WITH_DERIVED_VALUE / EXCLUDED_INCOMPLETE), also written to
     # <part>_build_dispositions.json.
     dispositions: list[dict] = field(default_factory=list)
+    # Workstream 3: the datum skeleton (REF_DATUM_*/REF_SYM_*/REF_AXIS_*/REF_PT_*).
+    reference_geometry: list[dict] = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
@@ -581,6 +586,14 @@ def _enrich_feature_step(step: BuildStep, model: DrawingData, feature: Feature,
     except Exception:
         pass
 
+    # Workstream 3: record the datum handle this feature is positioned from.
+    try:
+        from pipeline.reference_geometry import positioned_from as _pf
+
+        step.positioned_from = _pf(model, feature)
+    except Exception:
+        pass
+
 
 def _step_to_dict(s: BuildStep) -> dict[str, Any]:
     """One build-plan step as a fully self-contained dict.
@@ -621,6 +634,8 @@ def _step_to_dict(s: BuildStep) -> dict[str, Any]:
         **({"circular_pattern": s.circular_pattern} if s.circular_pattern else {}),
         # --- additive: Phase D verified construction method (methods_config) ---
         **({"construction_method": s.construction_method} if s.construction_method else {}),
+        # --- additive: Workstream 3 reference-geometry handle ---
+        **({"positioned_from": s.positioned_from} if s.positioned_from else {}),
     }
 
 
@@ -660,6 +675,8 @@ def _build_plan_dict(model: DrawingData, pkg: MacroPackage, unit_factor: float,
     plan["needs_review"] = [s.feature_id for s in pkg.needs_review]
     # Seven-stage per-feature disposition table (build_sequencer).
     plan["dispositions"] = pkg.dispositions
+    # Workstream 3: the datum skeleton (built by 01a_reference_geometry).
+    plan["reference_geometry"] = pkg.reference_geometry
     # Severity-ranked engineering review (CRITICAL..LOW, most urgent first) —
     # the same items are written per part as <Part>_engineering_review.txt.
     from pipeline.engineering_review import build_review_items
@@ -2098,9 +2115,35 @@ def generate_macro_package(
         BuildStep(0, "00_setup.vba", "-", "setup", "New part, units, save-as", "generated")
     )
 
+    # --- 01a reference geometry (datum skeleton, BEFORE any feature) ---
+    # Named reference planes/axes/points from the drawing's datum scheme, so the
+    # model has human landmarks and the deferred-retry loop has stable selection
+    # handles (Workstream 3). Additive: the proven feature build is unchanged.
+    from pipeline.reference_geometry import (
+        derive_reference_geometry,
+        reference_geometry_macro_body,
+    )
+
+    pkg.reference_geometry = [r.as_dict() for r in derive_reference_geometry(model)]
+    if pkg.reference_geometry:
+        refs_objs = derive_reference_geometry(model)
+        ref_body = reference_geometry_macro_body(refs_objs)
+        ref_header = _vba_header("01a_reference_geometry - datum skeleton (planes/axes/points)",
+                                 model.display_name, unit_factor)
+        (macros_dir / "01a_reference_geometry.vba").write_text(
+            ref_header + ref_body + _vba_footer(), encoding="utf-8")
+        run_all_subs_ref = ("Step01a_ReferenceGeometry", ref_body)
+        pkg.steps.append(BuildStep(
+            0, "01a_reference_geometry.vba", "-", "reference_geometry",
+            f"{len(pkg.reference_geometry)} named datum landmark(s)", "generated"))
+    else:
+        run_all_subs_ref = None
+
     # --- Feature macros in build order; fillets/chamfers deferred to the end ---
     deferred: list[Feature] = []
     run_all_subs: list[tuple[str, str]] = []  # (sub_name, body) for RUN_ALL.vba
+    if run_all_subs_ref is not None:
+        run_all_subs.append(run_all_subs_ref)  # datum skeleton runs first in RUN_ALL
     seq = 0
     for fid in model.build_order:
         feature = model.feature_by_id(fid)

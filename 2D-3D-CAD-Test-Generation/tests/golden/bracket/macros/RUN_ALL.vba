@@ -220,6 +220,26 @@ Sub Step00_Setup()
     End If
 End Sub
 
+Sub Step01a_ReferenceGeometry()
+    ' ---- Reference geometry (datum skeleton) - build BEFORE features.
+    ' Named landmarks the human reviewer and the deferred-retry loop rely on.
+    Dim refFeat As SldWorks.Feature
+
+    ' REF_DATUM_A - coincident with Top Plane (base datum (part origin))
+    swModel.ClearSelection2 True
+    If swModel.Extension.SelectByID2("Top Plane", "PLANE", 0, 0, 0, False, 0, Nothing, 0) Then
+        Set refFeat = swModel.FeatureManager.InsertRefPlane( _
+            swRefPlaneReferenceConstraints_e.swRefPlaneReferenceConstraint_Distance, 0#, _
+            0, 0, 0, 0)
+        If Not refFeat Is Nothing Then refFeat.Name = "REF_DATUM_A"
+    End If
+
+    ' REF_PT_F002 - pattern origin (H001, 4 instances). Pattern-origin reference point (anchor for the seed).
+    ' Positioned relative to REF_DATUM_A when the
+    ' seed sketch is placed; recorded here as a named handle.
+    LogResult "PASS", "01a_reference_geometry", "Built 2 named reference geometry landmark(s)"
+End Sub
+
 Sub Step01_F001()
     ' ---- PLANE SELECTION (Top Plane; name auto-detected) ----
     If Not SelectRefPlane("Top Plane", 2) Then
@@ -460,7 +480,7 @@ Sub StepZZ_FinalVerify()
         Format$((vBox(4) - vBox(1)) / UNIT_FACTOR, "0.000") & " x " & _
         Format$((vBox(5) - vBox(2)) / UNIT_FACTOR, "0.000") & vbCrLf & _
         "Drawing envelope: length=4; width=2; height=0.5" & vbCrLf & _
-        "Expected feature count: 4", vbInformation
+        "Expected feature count: 5", vbInformation
     LogResult "PASS", "ZZ_final_verify", "bbox(drawing units) " & _
         Format$((vBox(3) - vBox(0)) / UNIT_FACTOR, "0.000") & " x " & _
         Format$((vBox(4) - vBox(1)) / UNIT_FACTOR, "0.000") & " x " & _
@@ -493,6 +513,7 @@ Sub main()
     Set swApp = Application.SldWorks
     LogResult "INFO", "RUN_ALL", "Starting full build"
     Step00_Setup
+    Step01a_ReferenceGeometry
     Step01_F001
     Step02_F004_Manual
     Step03_F002

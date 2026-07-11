@@ -1,0 +1,81 @@
+LEARNING LOOP — 127-C
+============================================================
+Run:     2026-07-11 00:09:25
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\116d0fd945fb\A001271E\output\127-C
+Fingerprint: e5123f8e4c87af92
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - 1 reconciliation item(s) unresolved after 1 pass(es) — see 127-C_reconciliation_report.json
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The top view shows a 6-hole grid pattern (2 columns x 3 rows) in the interior of the plate but only a note calling out '.531 DR. THRU (4) HLS' referencing the corner-most 4 of that inner group; it is unclear whether the remaining 2 holes (top-middle two holes in the inner pattern) are dimensioned/covered by the same callout or are a separate undimensioned feature.
+       -> Verify against the full-size drawing or model whether all 6 inner holes are .531 DR THRU, or if only 4 of the 6 shown circles carry that spec and the other 2 are for a different purpose (e.g., locating dowels) - check for a separate leader or dimension not captured in this crop.
+   - [LOW] The edge/profile view at the bottom shows only two sets of hidden lines (implying two hole types), but the top view shows two distinct hole patterns (4 corner counterbored + 6 inner through) - the edge view does not clearly distinguish which hidden lines correspond to which specific holes given the plate width, so exact stack-up alignment between the two views is not fully confirmed.
+       -> Cross-check hidden line horizontal positions in the edge view against the X-dimensions (.844, 15.812, 6.781, 7.000) in the top view to confirm correct hole correspondence.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 4, HIGH 2, MEDIUM 5
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 3 PLACE DIM ±.010, 2 PLACE DIM ±.02, ANGULAR DIM ±, SCALE 1"=2"" states 3 instance(s), but the per-view extraction captured hole group(s) of [4, 4] (total 8). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (hole): FeatureCut4 returned None for F002 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureCut4 returned None for F002 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       affects: feature F002
+   - [CRITICAL] F005 (build): The .sldprt build SKIPPED feature F005 (pattern): com_error: (-2147352561, 'Parameter not optional.', None, None)
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: com_error: (-2147352561, 'Parameter not optional.', None, None)
+       affects: feature F005
+   - [CRITICAL] F001 (reconciliation): Stage 10.5 reconciliation: extrude_boss F001 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: extraction describes 4 instance(s) but only 1 made it into the build plan.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top, front_edge): The edge/profile view at the bottom shows only two sets of hidden lines (implying two hole types), but the top view shows two distinct hole patterns (4 corner counterbored + 6 inner through) - the edge view does not clearly distinguish which hidden lines correspond to which specific holes given the plate width, so exact stack-up alignment between the two views is not fully confirmed. Recommendation: Cross-check hidden line horizontal positions in the edge view against the X-dimensions (.844, 15.812, 6.781, 7.000) in the top view to confirm correct hole correspondence.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F005 (macro): Macro for F005 (pattern) needs manual review: Pattern left for manual application (see macro).
+       decision: macro 05_F005_Rectangular_pattern_of_4_inner_thru_hole.vba generated with manual instructions
+       why: Pattern left for manual application (see macro).
+       affects: feature F005
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top): The top view shows a 6-hole grid pattern (2 columns x 3 rows) in the interior of the plate but only a note calling out '.531 DR. THRU (4) HLS' referencing the corner-most 4 of that inner group; it is unclear whether the remaining 2 holes (top-middle two holes in the inner pattern) are dimensioned/covered by the same callout or are a separate undimensioned feature. Recommendation: Verify against the full-size drawing or model whether all 6 inner holes are .531 DR THRU, or if only 4 of the 6 shown circles carry that spec and the other 2 are for a different purpose (e.g., locating dowels) - check for a separate leader or dimension not captured in this crop. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F002 (hole) skipped: FeatureCut4 returned None for F002 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F005 (pattern) skipped: com_error: (-2147352561, 'Parameter not optional.', None, None)
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV004 (overview): The overview POSSIBLY shows 1x slot (Small notch/step feature visible in side (profile) view near right end, possibly a keyway or slot cut into edge, side view, right portion of 1.00 thick section) with no matching feature in the build.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: slot feature(s) — verify against the drawing
+   - [MEDIUM] OV005 (overview): The overview POSSIBLY shows 1x cutout (Rectangular internal boundary line (dashed) suggesting a possible pocket or step outline inside the plate, not dimensioned, center of plate, inside main outline) with no matching feature in the build.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: cutout feature(s) — verify against the drawing
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F002 FAILED: FeatureCut4 returned None for F002 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+   - feature F005 FAILED: com_error: (-2147352561, 'Parameter not optional.', None, None)
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '127-C' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\116d0fd945fb\A001271E\output\127-C
