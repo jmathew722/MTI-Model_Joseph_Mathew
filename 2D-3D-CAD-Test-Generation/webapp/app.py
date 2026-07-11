@@ -1598,6 +1598,84 @@ def part_outputs(session: str, part: str):
     return payload
 
 
+# ── Human-assist escalation queue (Task 4) ─────────────────────────────────
+def _assist_files(session: str):
+    """Yield (part_output_dir, assist_queue_path) for every part in the session
+    that has an assist queue."""
+    sdir = _session_dir(session)
+    if not sdir.is_dir():
+        return
+    for part_dir in sorted(sdir.iterdir()):
+        if not part_dir.is_dir() or part_dir.name.startswith("."):
+            continue
+        out = part_dir / "output"
+        if not out.is_dir():
+            continue
+        for q in out.rglob("*_assist_queue.json"):
+            yield q.parent, q
+
+
+@app.get("/api/parts/{session}/assist")
+def get_assist(session: str):
+    """The pending/answered human-assist questions across every part in the
+    session — the batched review queue. Never errors on a fresh session."""
+    groups = []
+    total_pending = 0
+    for _adir, qpath in _assist_files(session):
+        try:
+            data = json.loads(qpath.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        pending = [q for q in data.get("questions", []) if q.get("status") == "pending"]
+        total_pending += len(pending)
+        groups.append({"part": data.get("part", qpath.parent.name),
+                       "queue_file": qpath.name,
+                       "questions": data.get("questions", [])})
+    return {"session": _safe_session(session), "pending_total": total_pending,
+            "parts": groups}
+
+
+@app.post("/api/parts/{session}/assist")
+async def post_assist(session: str, request: Request):
+    """Accept a batch of answers ({question_id, answer}), record them, and feed
+    each numeric dimension answer back through re-resolution + the reconciliation
+    splice-back — NO paid extraction. Returns updated status per affected part so
+    the UI can refresh without a full reload."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    answers = body.get("answers") or {}
+    if not isinstance(answers, dict):
+        raise HTTPException(400, "answers must be an object of {question_id: answer}")
+
+    from pipeline.human_assist import rerun_with_answers
+
+    # Map each answered question to its part (by scanning the queues once).
+    per_part: dict[str, dict] = {}
+    for adir, qpath in _assist_files(session):
+        try:
+            data = json.loads(qpath.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        qids = {q.get("question_id") for q in data.get("questions", [])}
+        mine = {qid: ans for qid, ans in answers.items() if qid in qids}
+        if not mine:
+            continue
+        safe = qpath.name[:-len("_assist_queue.json")]
+        summary = rerun_with_answers(adir, safe, mine, output_dir=adir.parent
+                                     if adir.name != "output" else adir)
+        per_part[data.get("part", adir.name)] = {
+            "queue_file": qpath.name,
+            "answered": list(mine.keys()),
+            "reresolved": summary.get("reresolved", False),
+            "recovered": summary.get("recovered", []),
+            "pending_questions": summary.get("pending_questions"),
+            "note": summary.get("note", ""),
+        }
+    return {"session": _safe_session(session), "updated": per_part}
+
+
 @app.get("/api/parts/{session}/{part}/file/{name:path}")
 def part_file(session: str, part: str, name: str):
     """Download any single output file of a part (Files tab links)."""

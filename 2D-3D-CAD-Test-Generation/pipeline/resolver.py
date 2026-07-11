@@ -83,6 +83,7 @@ def worst_tier(*tiers: str) -> str:
 #   tier1_per_view   — per-view extraction (most precise on individual dimensions)
 #   tier2_overview   — Stage 1.5 holistic overview analysis (authoritative on
 #                      cross-view relationships / symmetry / through-vs-blind)
+TIER_HUMAN = "tier_human"  # a human answer to an escalated question — outranks all
 TIER_SPEC = "tier0_spec"
 TIER_PER_VIEW = "tier1_per_view"
 TIER_OVERVIEW = "tier2_overview"
@@ -90,6 +91,8 @@ TIER_OVERVIEW = "tier2_overview"
 
 def tier_for_basis(assumption_basis: str) -> str:
     """The priority tier that produced a resolution, from its basis keyword."""
+    if assumption_basis == "human_provided":
+        return TIER_HUMAN
     if assumption_basis == "spec_driven":
         return TIER_SPEC
     if assumption_basis.startswith("overview"):
@@ -568,10 +571,22 @@ def _decimal_plausibility(dim: dict, model: DrawingData) -> Optional["DimResolut
 
 
 def _resolve_dimension(dim: dict, model: DrawingData,
-                       spec_vals: Optional[list[tuple[float, str]]] = None) -> DimResolution:
+                       spec_vals: Optional[list[tuple[float, str]]] = None,
+                       human_answers: Optional[dict[str, float]] = None) -> DimResolution:
     dim_id = dim.get("id", "?")
     applies = dim.get("applies_to", "") or dim.get("type", "value")
     cands = _candidates(dim)
+
+    # --- STEP -1: a human answer to an escalated question (human_assist) is the
+    # single highest-priority source. A person looking at the actual sheet
+    # outranks every automated tier, including the operator spec — they resolved
+    # exactly this ambiguity. Never fabricated: only present when a question was
+    # answered. (See pipeline/human_assist.py.)
+    if human_answers and dim_id in human_answers:
+        value = float(human_answers[dim_id])
+        note = (f"Resolved {dim_id} to {_fmt(value)} from a human answer to the "
+                f"escalated question (human-provided; outranks all automated tiers).")
+        return DimResolution(dim_id, value, True, "human_provided", [], 0.99, "HIGH", note)
 
     # A clear, unambiguous dimension is confirmed as-is (HIGH); note whether a
     # chain corroborates it so the human_note is meaningful.
@@ -1489,7 +1504,8 @@ def schema_clean(resolved: dict) -> dict:
 # --------------------------------------------------------------------------- #
 def resolve_extraction(raw: dict,
                        requirements: Optional[list[str]] = None,
-                       overview_analysis: Optional[dict] = None) -> ResolutionResult:
+                       overview_analysis: Optional[dict] = None,
+                       human_answers: Optional[dict[str, float]] = None) -> ResolutionResult:
     """Run the Stage 2.5 resolution pass over a raw extraction dict.
 
     ``requirements`` (operator must-meet specification lines) are a first-class
@@ -1527,7 +1543,7 @@ def resolve_extraction(raw: dict,
     # --- Dimensions ---
     dims = resolved.get("dimensions", []) or []
     for dim in dims:
-        res = _resolve_dimension(dim, model, spec_vals)
+        res = _resolve_dimension(dim, model, spec_vals, human_answers)
         result.dim_resolutions[res.dimension_id] = res
         dim.update(res.as_fields())
         # Once resolved, the value becomes the resolved value and the soft-block

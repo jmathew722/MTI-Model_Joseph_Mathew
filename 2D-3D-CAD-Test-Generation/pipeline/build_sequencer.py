@@ -77,6 +77,13 @@ STAGE_NAMES = {
 STATE_BUILT = "BUILT"
 STATE_BUILT_DERIVED = "BUILT_WITH_DERIVED_VALUE"
 STATE_EXCLUDED = "EXCLUDED_INCOMPLETE"
+# Additive (2026-07-10 human-assist layer): a feature whose ambiguity survived
+# the full automated ladder and reconciliation loop and now has an OPEN human
+# question. It STILL ships its best-available (flagged) value — this is just
+# another flavour of flagged assumption, never a stop-the-world state — so it is
+# a metadata overlay on top of the geometric BUILT/EXCLUDED states, not a
+# replacement (existing build_dispositions.json consumers are unaffected).
+STATE_NEEDS_HUMAN_INPUT = "NEEDS_HUMAN_INPUT"
 
 _BASE_TYPES = {FeatureType.EXTRUDE_BOSS, FeatureType.REVOLVE}
 _EDGE_TYPES = {FeatureType.CHAMFER, FeatureType.FILLET}

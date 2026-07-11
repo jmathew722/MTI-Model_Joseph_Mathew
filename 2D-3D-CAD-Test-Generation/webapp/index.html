@@ -457,6 +457,43 @@
   .feedback-bar #feedback-text { flex:1 1 auto; resize:vertical; min-height:40px; }
   .feedback-bar #rerun-feedback-btn { flex:0 0 auto; align-self:stretch; }
 
+  /* Assist Needed — batched human-question review queue (non-blocking). */
+  .assist { flex:0 0 auto; border-top:1px solid var(--line); background:var(--bg-raised); }
+  .assist > summary { display:flex; align-items:center; gap:var(--sp-2); cursor:pointer;
+                      padding:var(--sp-2) var(--sp-4); font:600 var(--fs-caption)/1.4 var(--sans);
+                      letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3);
+                      list-style:none; user-select:none; }
+  .assist > summary::-webkit-details-marker { display:none; }
+  .assist .twist { width:0; height:0; border-left:5px solid var(--ink-4);
+                   border-top:4px solid transparent; border-bottom:4px solid transparent;
+                   transition:transform .12s; flex:0 0 auto; }
+  .assist[open] .twist { transform:rotate(90deg); }
+  .assist-body { max-height:340px; overflow:auto; padding:0 var(--sp-4) var(--sp-2);
+                 display:flex; flex-direction:column; gap:var(--sp-3); }
+  .assist-body .aq-part { font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.06em;
+                          text-transform:uppercase; color:var(--ink-3); margin-top:var(--sp-2); }
+  .aq { border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface);
+        padding:var(--sp-3); display:flex; gap:var(--sp-3); }
+  .aq.answered { border-color:rgba(62,175,124,.5); }
+  .aq .aq-crop { flex:0 0 auto; width:132px; }
+  .aq .aq-crop img { width:100%; border-radius:var(--r-md); outline:1px solid rgba(0,0,0,.1);
+                     outline-offset:-1px; background:#fff; }
+  .aq .aq-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:var(--sp-2); }
+  .aq .aq-q { font-size:var(--fs-body); color:var(--ink); }
+  .aq .aq-opts { display:flex; flex-wrap:wrap; gap:var(--sp-2); align-items:center; }
+  .aq .aq-opt { display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-small);
+                color:var(--ink-2); border:1px solid var(--line); border-radius:var(--r-md);
+                padding:4px var(--sp-2); cursor:pointer; }
+  .aq .aq-opt:has(input:checked) { border-color:var(--blueprint); color:var(--blueprint-text);
+                                   background:var(--blueprint-dim); }
+  .aq .aq-opt .basis { color:var(--ink-4); font-size:var(--fs-caption); }
+  .aq .aq-override { width:120px; font-family:var(--mono); }
+  .aq .aq-default { font-size:var(--fs-caption); color:var(--ink-3); }
+  .aq .aq-default b { color:var(--ink-2); font-family:var(--mono); }
+  .assist-actions { display:flex; align-items:center; gap:var(--sp-2);
+                    padding:var(--sp-2) var(--sp-4) var(--sp-3); }
+  .assist-empty { padding:var(--sp-4); text-align:center; color:var(--ink-3); font-size:var(--fs-small); }
+
   /* Run-outputs dock: sub-tabs hosting every output panel */
   .dock { flex:1 1 auto; min-height:0; border-top:1px solid var(--line); background:var(--bg);
           display:flex; flex-direction:column; }
@@ -684,6 +721,22 @@
 
     <pre id="inline-console" class="console-c" style="display:none"></pre>
 
+    <!-- Assist Needed: batched review queue of the narrow questions the pipeline
+         could not answer automatically. Non-blocking — every part already
+         shipped its best-available value; this is here when convenient. -->
+    <details class="assist" id="assist-panel" style="display:none">
+      <summary><span class="twist"></span>Assist Needed
+        <span class="hint" style="text-transform:none;letter-spacing:0">— sharp questions the pipeline couldn't resolve; answer when convenient</span>
+        <span class="grow"></span><span class="badge-c warn" id="assist-count">0</span></summary>
+      <div class="assist-body" id="assist-body"></div>
+      <div class="assist-actions">
+        <span class="hint" id="assist-hint">Skipped items keep their default value and re-surface on a later run.</span>
+        <span class="grow"></span>
+        <button class="btn secondary sm" id="assist-refresh">↻ Refresh</button>
+        <button class="btn" id="assist-submit" disabled>Submit answers</button>
+      </div>
+    </details>
+
     <!-- Correction feedback: describe what's wrong with the produced model and
          re-run — the feedback becomes an authoritative must-meet correction and
          the pipeline re-extracts + rebuilds the part. -->
@@ -805,7 +858,7 @@ fetch('/api/status').then(r => r.json()).then(s => {
   (s.samples || []).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = 'sample ' + n; sel.appendChild(o); });
   if (!(s.samples || []).length) { document.getElementById('demo-btn').disabled = true; sel.style.display = 'none'; }
 }).catch(() => {});
-fetch('/api/session', { method:'POST' }).then(r => r.json()).then(d => { sessionId = d.session; }).catch(() => {});
+fetch('/api/session', { method:'POST' }).then(r => r.json()).then(d => { sessionId = d.session; loadAssist(); }).catch(() => {});
 // Load the persistent run history at startup: runs from PRIOR sessions appear
 // in both the Sheet-2 model dropdown and Sheet-4 run dropdown immediately.
 window.addEventListener('DOMContentLoaded', () => { refreshRunHistory(); });
@@ -1580,7 +1633,85 @@ function bannerFromRun(d, partName) {
   if (frac || notReady) showRunBanner(frac ? `${frac[1]}/${frac[2]} READY` : 'NOT READY',
     `completed with gating flags — read the Engineering Flags tab ${label}`, 'warn');
   else showRunBanner(`✕ FAILED (exit ${d.exit})`, `see the Console tab ${label}`, 'err');
+  loadAssist();  // refresh the assist queue after any run
 }
+
+// ── Assist Needed: batched review queue (non-blocking) ──────────────────────
+const assistPanel = document.getElementById('assist-panel');
+const assistBody = document.getElementById('assist-body');
+const assistCount = document.getElementById('assist-count');
+const assistSubmit = document.getElementById('assist-submit');
+function assistAnswerValue(q) {
+  const chosen = assistBody.querySelector(`input[name="aq-${q.question_id}"]:checked`);
+  const override = assistBody.querySelector(`.aq-override[data-q="${q.question_id}"]`);
+  if (override && override.value.trim()) return override.value.trim();
+  if (chosen && chosen.value !== '__override__') return chosen.value;
+  return null;
+}
+function assistRefreshSubmitState() {
+  const any = [...assistBody.querySelectorAll('.aq')].some(el => {
+    const qid = el.dataset.q;
+    const chosen = assistBody.querySelector(`input[name="aq-${qid}"]:checked`);
+    const ov = assistBody.querySelector(`.aq-override[data-q="${qid}"]`);
+    return (chosen && chosen.value !== '__override__') || (ov && ov.value.trim());
+  });
+  assistSubmit.disabled = !any;
+}
+async function loadAssist() {
+  if (!sessionId) return;
+  let d;
+  try { d = await (await fetch(`/api/parts/${sessionId}/assist`)).json(); }
+  catch { return; }
+  const parts = (d.parts || []).map(p => ({ ...p, questions: (p.questions || []).filter(q => q.status === 'pending') }))
+                               .filter(p => p.questions.length);
+  const total = parts.reduce((n, p) => n + p.questions.length, 0);
+  assistCount.textContent = total;
+  if (!total) { assistPanel.style.display = 'none'; return; }
+  assistPanel.style.display = '';
+  assistBody.innerHTML = parts.map(p => {
+    const rows = p.questions.map(q => {
+      const opts = (q.candidates || []).map(c =>
+        `<label class="aq-opt"><input type="radio" name="aq-${q.question_id}" value="${c.value}">${c.value}` +
+        (c.basis ? ` <span class="basis">${c.basis}</span>` : '') + `</label>`).join('');
+      const crop = q.region_crop
+        ? `<div class="aq-crop"><img src="/api/parts/${sessionId}/${encodeURIComponent(p.part)}/file/${encodeURIComponent(q.region_crop)}" onerror="this.parentNode.style.display='none'"></div>` : '';
+      return `<div class="aq" data-q="${q.question_id}">${crop}<div class="aq-main">
+        <div class="aq-q">${q.question_text}</div>
+        <div class="aq-opts">${opts}
+          <label class="aq-opt"><input type="radio" name="aq-${q.question_id}" value="__override__">other</label>
+          <input class="input-c mono aq-override" data-q="${q.question_id}" placeholder="value">
+        </div>
+        <div class="aq-default">If skipped, ships: <b>${q.default_if_unanswered}</b></div>
+      </div></div>`;
+    }).join('');
+    return `<div class="aq-part">${p.part}</div>${rows}`;
+  }).join('');
+  assistBody.querySelectorAll('input, .aq-override').forEach(el =>
+    el.addEventListener('input', assistRefreshSubmitState));
+  assistRefreshSubmitState();
+}
+document.getElementById('assist-refresh').addEventListener('click', loadAssist);
+assistSubmit.addEventListener('click', async () => {
+  const answers = {};
+  assistBody.querySelectorAll('.aq').forEach(el => {
+    const qid = el.dataset.q;
+    const chosen = assistBody.querySelector(`input[name="aq-${qid}"]:checked`);
+    const ov = assistBody.querySelector(`.aq-override[data-q="${qid}"]`);
+    if (ov && ov.value.trim()) answers[qid] = ov.value.trim();
+    else if (chosen && chosen.value !== '__override__') answers[qid] = chosen.value;
+  });
+  if (!Object.keys(answers).length) return;
+  assistSubmit.disabled = true; assistSubmit.textContent = 'Submitting…';
+  try {
+    const r = await (await fetch(`/api/parts/${sessionId}/assist`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }) })).json();
+    const rec = Object.values(r.updated || {}).reduce((n, u) => n + (u.recovered || []).length, 0);
+    setStatus(`Answers applied — ${rec} feature(s) recovered. A full rebuild reflects them in the 3D model.`, 'ok');
+  } catch (e) { setStatus('Assist submit failed: ' + e.message, 'err'); }
+  assistSubmit.textContent = 'Submit answers';
+  loadAssist();
+});
 
 // Stage lines look like "[1/2] ..." or "[1-2/4] ..." — turn the fraction into a
 // (non-decreasing) 0-92% progress estimate; the final 100% is reserved for the

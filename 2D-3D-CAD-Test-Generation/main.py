@@ -898,6 +898,24 @@ def main() -> int:
             except Exception as e:
                 lines.append(f"  [yellow]Reconciliation pass failed:[/yellow] {type(e).__name__}: {e}")
 
+            # Human-assist escalation (same guarantee as the --views-folder path):
+            # after the full automated ladder + reconciliation, still-unresolved
+            # items become at most `cap` narrow questions. Non-blocking.
+            try:
+                from pipeline.human_assist import generate_assist_queue, overlay_dispositions
+
+                aq = generate_assist_queue(
+                    resolution=resolution, part=pkg.root.name, part_dir=pkg.root,
+                    safe_name=pkg.root.name, model=model,
+                    reconciliation_result=reconciliation_result,
+                    lessons_path=output_dir / "lessons_learned.jsonl")
+                if aq.pending():
+                    overlay_dispositions(pkg.root, pkg.root.name, aq)
+                    lines.append(f"  [yellow]{len(aq.pending())} question(s) need human input[/yellow] "
+                                 f"({pkg.root.name}_assist_queue.json) — best-available values shipped")
+            except Exception as e:
+                lines.append(f"  [yellow]Human-assist escalation failed:[/yellow] {type(e).__name__}: {e}")
+
         if pkg.skipped:
             lines.append(
                 f"  [yellow]{len(pkg.skipped)} feature(s) skipped (prohibited):[/yellow] "

@@ -216,7 +216,8 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
                          overview_analysis: Optional[dict] = None,
                          requirements_file: Optional[Path] = None,
                          skip_overview_check: bool = False,
-                         skip_requirements_check: bool = False) -> BatchRow:
+                         skip_requirements_check: bool = False,
+                         human_answers: Optional[dict] = None) -> BatchRow:
     """Verify + (unless blocked) generate macros for one already-loaded extraction.
 
     By default the Stage 2.5 resolver runs first, so an ambiguous/under-dimensioned
@@ -309,7 +310,8 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
 
         print("[STAGE] Resolving", flush=True)
         resolution = resolve_extraction(work_extraction, requirements=spec_lines,
-                                        overview_analysis=overview_analysis)
+                                        overview_analysis=overview_analysis,
+                                        human_answers=human_answers)
         drawing_data = resolution.clean_extraction
         n_overview = sum(1 for f in resolution.flags
                          if f.get("source") == "overview_analysis")
@@ -500,6 +502,33 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
                       flush=True)
         except Exception as e:  # the reconciliation pass must never sink an otherwise good run
             log.warning("Reconciliation pass failed (non-fatal) for %s: %s", part, e)
+
+    # ── Human-assist escalation (Task 1/2): AFTER the full automated ladder +
+    # the reconciliation/correction loop, any item still unresolved becomes at
+    # most `cap` narrow, answerable questions in <Part>_assist_queue.json. This
+    # NEVER blocks — a pending question is a flagged assumption whose best-
+    # available value still ships; it does not gate READY. Skipped when
+    # --no-resolve (no resolution to escalate against).
+    assist_queue = None
+    if resolution is not None:
+        try:
+            from pipeline.human_assist import generate_assist_queue, overlay_dispositions
+
+            assist_queue = generate_assist_queue(
+                resolution=resolution, part=part, part_dir=part_dir, safe_name=safe,
+                model=model, reconciliation_result=reconciliation_result,
+                lessons_path=output_dir / "lessons_learned.jsonl",
+            )
+            if assist_queue.pending():
+                print(f"[ASSIST] {len(assist_queue.pending())} question(s) need human input "
+                      f"(part still shipped its best-available values). "
+                      f"See {safe}_assist_queue.json", flush=True)
+                for q in assist_queue.pending():
+                    print(f"[ASSIST] {q.feature_id}: {q.question_text}", flush=True)
+                # Overlay NEEDS_HUMAN_INPUT onto the disposition table (additive).
+                overlay_dispositions(part_dir, safe, assist_queue)
+        except Exception as e:  # the assist layer must never sink a run
+            log.warning("Human-assist escalation failed (non-fatal) for %s: %s", part, e)
 
     # ── Post-build must-meet verification: measure the REAL SolidWorks STL
     # (trimesh) and grade every MM constraint PASS/FAIL with measured values.
