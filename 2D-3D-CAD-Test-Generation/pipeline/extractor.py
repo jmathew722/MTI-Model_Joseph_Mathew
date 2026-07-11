@@ -233,6 +233,26 @@ FILLETS & CHAMFERS — CAPTURE EVERY ONE (these are routinely missed):
 - If you are unsure whether a corner is filleted, prefer creating the fillet feature
   and flagging it over omitting it. Never silently drop a radius/fillet callout.
 
+SLOTS / U-NOTCHES / OPEN CUTOUTS — emit a `slot_cuts` entry (NOT a lone extrude_cut):
+- Recognition signature: a rectangular cutout with rounded interior corners — an open
+  notch broken through one outside edge (U-shape), a closed rectangular slot, or an
+  obround (full-radius ends). Telltales: a width AND a depth dimension bounding a
+  rectangular void, plus a corner-radius leader ("R.25", ".25 R TYP") on the interior
+  corners; often anchored by a single offset from one edge (e.g. "1.56" from the left).
+- For EACH such cutout add an entry to `slot_cuts` with: id (reuse the cut's feature id),
+  slot_kind (open_notch | closed_slot | obround), open_edge (top/bottom/left/right for a
+  notch broken through that edge; omit/empty for a closed slot), anchor_edge + anchor_offset
+  (+ anchor_dimension_id) for the single locating dimension, anchor_semantics
+  (edge_to_near_edge unless the offset clearly goes to the slot CENTERLINE), width +
+  width_dimension_id, depth + depth_dimension_id, corner_radius + corner_radius_dimension_id.
+  Set thru=true when only one view is given or the cut clearly passes fully through
+  (thru_basis="single_view_default" if inferred from a single view).
+- STILL emit the backing `extrude_cut` FEATURE (same id) so it keeps its place in
+  build_order. Do NOT emit a separate arc/fillet feature for the slot's rounded corners —
+  the pipeline decomposes the slot into a rectangle cut plus corner fillets automatically.
+- Do NOT trace the U outline as a single sketch with arcs — always report the rectangle
+  size + the corner radius separately via slot_cuts.
+
 CIRCULAR / CYLINDRICAL PARTS — ALWAYS a sketched CIRCLE + EXTRUDE (shop rule):
 - A round part with a SINGLE outside diameter (a disc, plate, flange, hub, bushing,
   spacer, washer, plain cylinder) is an `extrude_boss` with a CIRCULAR profile: set a
@@ -465,6 +485,13 @@ MULTIVIEW_USER_TEXT = (
     "emit a fillet/chamfer FEATURE with its radius/distance linked in "
     "related_dimensions. A range callout like '.06/.09 R' still becomes a feature "
     "(use the nominal value, flag value_unclear). Never silently drop a fillet.\n"
+    "- SLOTS / U-NOTCHES / open cutouts (a rectangular void with rounded interior "
+    "corners — an open notch broken through one edge, a closed slot, or an obround): "
+    "add a `slot_cuts` entry (id = the cut's feature id; slot_kind, open_edge, "
+    "anchor_edge+anchor_offset, width, depth, corner_radius with their dimension ids) "
+    "AND keep the backing extrude_cut feature. Do NOT trace the U as an arc sketch and "
+    "do NOT emit a separate fillet feature for its corners — the pipeline splits a slot "
+    "into a rectangle cut plus corner fillets automatically.\n"
     "- A CIRCULAR part with ONE outside diameter (disc/plate/flange/hub/bushing/"
     "cylinder): make the base an `extrude_boss` with a `diameter` dimension + a "
     "depth/thickness — circles are ALWAYS circle+extrude, never a revolved rectangle. "

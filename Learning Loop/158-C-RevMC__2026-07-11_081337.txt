@@ -1,0 +1,72 @@
+LEARNING LOOP — 158-C-RevMC
+============================================================
+Run:     2026-07-11 08:13:37
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\d1e0a0905770\A001221E\output\158-C-RevMC
+Fingerprint: 90f7921bc22b64e6
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - 1 reconciliation item(s) unresolved after 1 pass(es) — see 158-C-RevMC_reconciliation_report.json
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side/edge view shows what appears to be small step or bend features at both the left and right ends of the strip, but the front view shows a flat plate with only a notch cut at the top edge (not a bend). It is ambiguous whether the side view represents a true profile bend (making this a formed sheet-metal 'cover' with tabs) or is simply an edge-on line view of the flat notch/tab geometry.
+       -> Verify by checking for any bend/form callouts, bend radius notes, or additional flat-pattern vs formed-part indication; confirm with engineering whether COVER 158-C is a flat stamped/cut plate or has secondary bends at the ends.
+   - [LOW] The notch/tab region in the front view (1.56, 1.62, 1.88, .25R) is dimensioned only in the front view; the side (edge) view does not provide a clear corresponding dimension to confirm whether this notch goes fully through the material thickness or is a partial/formed feature.
+       -> Cross-check against a section view if available elsewhere, or confirm with the model (VERT.90) that this is simply a through-cut notch in the flat plate, consistent with sheet-metal laser/punch cutting.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 4, HIGH 1, MEDIUM 2, LOW 2
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [6] (total 6). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "MCMASTER-CARR #1117A11 OR EQUIV. / SPONGE RUBBER WITH ADHESIVE BACK, 5/32 THK x 1/2 WIDE, QTY 2, 12.5 IN." states 2 instance(s), but the per-view extraction captured hole group(s) of [6] (total 6). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 24 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 24 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       affects: feature F003
+   - [CRITICAL] F002 (reconciliation): Stage 10.5 reconciliation: extrude_cut F002 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: EXCLUDED FROM BUILD — extrude_cut F002 is missing a diameter OR both length+width (has ['depth', 'width']; missing length). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F002 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected near drawing-frame (2.37, 4.37). Add the missing value on the drawing and re-run to include this feature.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (sheet): The notch/tab region in the front view (1.56, 1.62, 1.88, .25R) is dimensioned only in the front view; the side (edge) view does not provide a clear corresponding dimension to confirm whether this notch goes fully through the material thickness or is a partial/formed feature. Recommendation: Cross-check against a section view if available elsewhere, or confirm with the model (VERT.90) that this is simply a through-cut notch in the flat plate, consistent with sheet-metal laser/punch cutting.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (sheet): The side/edge view shows what appears to be small step or bend features at both the left and right ends of the strip, but the front view shows a flat plate with only a notch cut at the top edge (not a bend). It is ambiguous whether the side view represents a true profile bend (making this a formed sheet-metal 'cover' with tabs) or is simply an edge-on line view of the flat notch/tab geometry. Recommendation: Verify by checking for any bend/form callouts, bend radius notes, or additional flat-pattern vs formed-part indication; confirm with engineering whether COVER 158-C is a flat stamped/cut plate or has secondary bends at the ends.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 24 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV004 (overview): Gauge thickness noted but material unknown: Overall flat plate part, 12 GA (.105 in) thick steel, shown in side/edge view (side view at bottom of sheet) [gauge 12]. Cannot convert a gauge number to a decimal without the material — not compared to the build.
+       decision: recorded as the part's gauge reference; not reconciled
+       why: a gauge number is ambiguous across materials (no decimal given)
+       affects: metadata: stock gauge
+   - [LOW] OV005 (overview): Thickness-view value 12.5 is out of plausible range vs the build thickness 1.88 (7x) (along one edge, per side view balloon callout); treated as a non-thickness number, not a conflict.
+       decision: ignored as an out-of-band capture, build thickness kept
+       why: an edge-view thickness cannot differ from the build by an order of magnitude — the extractor captured an unrelated dimension
+       affects: metadata: rejected thickness candidate
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 24 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '158-C-RevMC' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\d1e0a0905770\A001221E\output\158-C-RevMC

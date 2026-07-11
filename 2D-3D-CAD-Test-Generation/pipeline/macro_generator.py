@@ -144,6 +144,13 @@ class BuildStep:
     # Workstream 3: the reference-geometry handle this feature is positioned from
     # (coordinates stay above as the audit trail + fallback if the ref fails).
     positioned_from: str = ""
+    # Canonical slot decomposition: rectangle step is must_complete; fillet step
+    # is defer_on_failure with its expected corner count + the slot schema block.
+    must_complete: bool = False
+    defer_on_failure: bool = False
+    corner_count_expected: int = 0
+    radius_meters: float = 0.0
+    slot: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -636,6 +643,12 @@ def _step_to_dict(s: BuildStep) -> dict[str, Any]:
         **({"construction_method": s.construction_method} if s.construction_method else {}),
         # --- additive: Workstream 3 reference-geometry handle ---
         **({"positioned_from": s.positioned_from} if s.positioned_from else {}),
+        # --- additive: canonical slot decomposition ---
+        **({"must_complete": s.must_complete} if s.must_complete else {}),
+        **({"defer_on_failure": s.defer_on_failure} if s.defer_on_failure else {}),
+        **({"corner_count_expected": s.corner_count_expected} if s.corner_count_expected else {}),
+        **({"radius_meters": s.radius_meters} if s.radius_meters else {}),
+        **({"sketch": s.slot} if s.slot else {}),
     }
 
 
@@ -1658,6 +1671,212 @@ def _macro_circular_pattern(spec: dict, feature: Feature, step: str,
 """
 
 
+def _emit_slot_decomposition(model: DrawingData, feature: Feature, slot,
+                             seq: int, macros_dir: Path, unit_factor: float,
+                             run_all_subs: list, pkg: "MacroPackage", resolution) -> int:
+    """Canonical slot decomposition: a MANDATORY rectangle cut then its corner
+    fillets, as two linked, adjacent numbered steps. The corner array is the ONE
+    source of truth both steps derive from, so the fillet can never target a
+    different location than the rectangle that was cut. Returns the new seq."""
+    from pipeline.slot_cut import corner_array, expected_corner_count, interior_corners
+
+    corners = corner_array(slot, model)
+    corners_m = [[_to_meters(x, model.units), _to_meters(y, model.units)] for x, y in corners]
+    fillet_corners = interior_corners(slot, corners)
+    fillet_corners_m = [[_to_meters(x, model.units), _to_meters(y, model.units)]
+                        for x, y in fillet_corners]
+    step_flags = _collect_step_flags(model, feature, resolution)
+
+    # 1) Rectangle cut (must_complete) ----------------------------------------
+    seq += 1
+    step_name = f"{seq:02d}_{feature.id}"
+    fname = f"{seq:02d}_{feature.id}_slot_rect_cut.vba"
+    desc = (f"Slot {feature.id} rectangle: {slot.width:g} x {slot.depth:g} "
+            f"{'open through ' + slot.open_edge + ' edge' if slot.open_edge else 'closed'}, "
+            f"near edge {slot.anchor_offset:g} from {slot.anchor_edge} edge, "
+            f"{'through-all' if slot.thru else 'blind'}")
+    body = _macro_slot_rect(slot, corners_m, step_name)
+    body = _flag_vba_block(step_name, step_flags) + body
+    header = _vba_header(f"{step_name} - slot_rect_cut: {desc}", model.display_name, unit_factor)
+    (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
+    run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}_SlotRect", body))
+    rect_step = BuildStep(seq, fname, feature.id, "slot_rect_cut", desc, "generated",
+                          dimensions={"width": slot.width, "depth": slot.depth,
+                                      "anchor_offset": slot.anchor_offset},
+                          notes="Mandatory: carries the slot's position + size truth.")
+    _enrich_feature_step(rect_step, model, feature, resolution, step_flags)
+    rect_step.positions_xy = [[round(x, 6), round(y, 6)] for x, y in corners]
+    rect_step.positions_xy_meters = corners_m
+    rect_step.depth_type = "through_all" if slot.thru else "blind"
+    rect_step.must_complete = True
+    rect_step.sketch_plane = "REF_DATUM_A"
+    rect_step.slot = {
+        "slot_kind": slot.slot_kind, "open_edge": slot.open_edge,
+        "corners_drawing_units": corners, "corners_meters": corners_m,
+        "dimension_scheme": [
+            {"dim": slot.anchor_dimension_id or "", "from": f"part_{slot.anchor_edge}_edge",
+             "to": "slot_near_edge", "value": slot.anchor_offset},
+            {"dim": slot.width_dimension_id or "", "across": "slot_width", "value": slot.width},
+            {"dim": slot.depth_dimension_id or "",
+             "from": "open_edge" if slot.open_edge else "anchor", "to": "slot_bottom",
+             "value": slot.depth},
+        ],
+        "end_condition": "through_all" if slot.thru else "blind",
+    }
+    pkg.steps.append(rect_step)
+
+    # 2) Corner fillets (defer_on_failure) — ALWAYS immediately after the rect --
+    seq += 1
+    n = expected_corner_count(slot)
+    r = slot.corner_radius
+    fstep_name = f"{seq:02d}_{feature.id}_fillets"
+    ffname = f"{seq:02d}_{feature.id}_slot_corner_fillet.vba"
+    fdesc = (f"R{r:g} TYP on {n} interior corner(s) of slot {feature.id}"
+             if r > 0 else f"(no corner radius on slot {feature.id})")
+    fbody = _macro_slot_fillet(slot, fillet_corners_m, fstep_name, n)
+    fheader = _vba_header(f"{fstep_name} - slot_corner_fillet: {fdesc}",
+                          model.display_name, unit_factor)
+    (macros_dir / ffname).write_text(fheader + fbody + _vba_footer(), encoding="utf-8")
+    run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}_SlotFillet", fbody))
+    fstep = BuildStep(seq, ffname, f"{feature.id}_fillets", "slot_corner_fillet", fdesc,
+                      "generated" if r > 0 else "needs_review",
+                      dimensions={"radius": r} if r > 0 else {},
+                      notes="Deferred-safe: the slot is already correct from the rectangle cut.")
+    fstep.parent_feature_id = feature.id
+    fstep.must_complete = False
+    fstep.defer_on_failure = True
+    fstep.positions_xy = [[round(x, 6), round(y, 6)] for x, y in fillet_corners]
+    fstep.positions_xy_meters = fillet_corners_m
+    fstep.corner_count_expected = n
+    fstep.auto_select_strategy = "vertex_proximity"
+    fstep.radius_meters = _to_meters(r, model.units) if r > 0 else 0.0
+    pkg.steps.append(fstep)
+    if r <= 0:
+        pkg.needs_review.append(fstep)
+    return seq
+
+
+def _macro_slot_rect(slot, corners_m: list[list[float]], step: str) -> str:
+    """Rectangle-cut macro (4 lines from the corner array, through-all). For an
+    open notch the open side's lines extend 1x thickness PAST the part edge so
+    the cut cleanly breaks the edge (a coincident-with-edge line is a classic
+    silent zero-thickness failure)."""
+    pts = [f"({x:.6f}, {y:.6f})" for x, y in corners_m]
+    lines = "\n".join(
+        f"    swModel.SketchManager.CreateLine {corners_m[i][0]:.6f}, {corners_m[i][1]:.6f}, 0#, "
+        f"{corners_m[(i + 1) % 4][0]:.6f}, {corners_m[(i + 1) % 4][1]:.6f}, 0#"
+        for i in range(4))
+    end = "swEndConditions_e.swEndCondThroughAllBoth" if slot.thru else "swEndConditions_e.swEndCondBlind"
+    return f"""    ' Slot rectangle (MANDATORY, must-complete) — 4 lines from the single
+    ' corner array; position anchored to the datum. Corners (m): {', '.join(pts)}
+    If Not SelectRefPlane("REF_DATUM_A", 1) Then
+        If Not SelectRefPlane("Front Plane", 1) Then
+            MsgBox "Could not select a sketch plane for slot {step}.", vbCritical
+            LogResult "FAIL", "{step}", "no sketch plane"
+            End
+        End If
+    End If
+    swModel.SketchManager.InsertSketch True
+    swModel.SetAddToDB True
+{lines}
+    swModel.SetAddToDB False
+    On Error Resume Next
+    swModel.SketchManager.FullyDefineSketch True, True, 0, True, 1, Nothing, 1, Nothing, 0, 0
+    On Error GoTo 0
+    swModel.ClearSelection2 True
+    If swModel.SketchManager.ActiveSketch Is Nothing Then
+        MsgBox "No active sketch for slot rectangle {step}.", vbCritical
+        LogResult "FAIL", "{step}", "no active sketch"
+        End
+    End If
+    Dim swSlot As SldWorks.Feature
+    Set swSlot = swModel.FeatureManager.FeatureCut4( _
+        True, False, False, {end}, swEndConditions_e.swEndCondBlind, _
+        0.01, 0.01, False, False, False, False, 0#, 0#, _
+        False, False, False, False, False, True, True, True, True, False, _
+        swStartConditions_e.swStartSketchPlane, 0#, False, False)
+    If swSlot Is Nothing Then
+        MsgBox "Slot rectangle cut {step} returned Nothing.", vbCritical
+        LogResult "FAIL", "{step}", "FeatureCut4 returned Nothing (MANDATORY slot rectangle)"
+        WriteMacroResult "{step}", "FAIL", "slot rectangle cut returned Nothing"
+        End
+    End If
+    swSlot.Name = "{step.split('_', 1)[-1] if '_' in step else step}_slot_rect"
+    LogResult "PASS", "{step}", "slot rectangle cut (mandatory) built"
+    WriteMacroResult "{step}", "PASS", "slot rectangle"
+"""
+
+
+def _macro_slot_fillet(slot, corners_m: list[list[float]], step: str, count: int) -> str:
+    """Corner-fillet macro (deferred-safe). Selects target edges by VERTEX
+    PROXIMITY — enumerate the body's edges and pick the vertical edge nearest
+    each interior corner coordinate — never SelectByID2 with screen coordinates.
+    Asserts exactly ``count`` edges selected BEFORE FeatureFillet3; on mismatch,
+    defers (does not fillet the wrong count silently)."""
+    if slot.corner_radius <= 0:
+        return (f'    '  "' No corner radius on this slot — nothing to fillet.\n"
+                f'    LogResult "WARN", "{step}", "no corner radius; slot rectangle stands alone"\n')
+    targets = ", ".join(f"Array({x:.6f}, {y:.6f})" for x, y in corners_m)
+    return f"""    ' Slot corner fillets (DEFERRED-SAFE) — select edges by VERTEX PROXIMITY
+    ' to the {count} interior corner(s); the slot is already correct from the
+    ' rectangle cut, so a failure here defers rather than destroying the slot.
+    Dim swPart As SldWorks.PartDoc
+    Set swPart = swModel
+    Dim vBodies As Variant, swBody As SldWorks.Body2
+    vBodies = swPart.GetBodies2(swBodyType_e.swSolidBody, True)
+    If IsEmpty(vBodies) Then
+        LogResult "WARN", "{step}", "no solid body to fillet — deferred"
+        End
+    End If
+    Set swBody = vBodies(0)
+    Dim vEdges As Variant, swEdge As SldWorks.Edge, swCurve As SldWorks.Curve
+    Dim targets As Variant
+    targets = Array({targets})
+    Dim rMeters As Double
+    rMeters = {slot.corner_radius:.6f} * UNIT_FACTOR
+    swModel.ClearSelection2 True
+    Dim selCount As Integer
+    selCount = 0
+    Dim ti As Integer
+    For ti = LBound(targets) To UBound(targets)
+        Dim tx As Double, ty As Double, bestD As Double, bestEdge As SldWorks.Edge
+        tx = targets(ti)(0): ty = targets(ti)(1)
+        bestD = 1E+30: Set bestEdge = Nothing
+        vEdges = swBody.GetEdges
+        Dim ei As Integer
+        For ei = LBound(vEdges) To UBound(vEdges)
+            Set swEdge = vEdges(ei)
+            Dim vPts As Variant
+            vPts = swEdge.GetCurveParams3(0, 0)   ' start xyz + end xyz
+            Dim mx As Double, my As Double, dd As Double
+            mx = (vPts(0) + vPts(3)) / 2#: my = (vPts(1) + vPts(4)) / 2#
+            dd = (mx - tx) * (mx - tx) + (my - ty) * (my - ty)
+            If dd < bestD Then bestD = dd: Set bestEdge = swEdge
+        Next ei
+        If Not bestEdge Is Nothing Then
+            If bestEdge.Select4(True, Nothing) Then selCount = selCount + 1
+            LogResult "INFO", "{step}", "corner " & CStr(ti) & " matched edge dist " & Format$(Sqr(bestD), "0.0000")
+        End If
+    Next ti
+    If selCount <> {count} Then
+        LogResult "WARN", "{step}", "selected " & CStr(selCount) & " edges, expected {count} — DEFERRED (wrong count not filleted)"
+        swModel.ClearSelection2 True
+        End
+    End If
+    Dim swFil As SldWorks.Feature
+    Set swFil = swModel.FeatureManager.FeatureFillet3( _
+        swFeatureFilletOptions_e.swFeatureFilletPropagate, rMeters, 0#, 0#, 0, 0, 0, _
+        Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing)
+    If swFil Is Nothing Then
+        LogResult "WARN", "{step}", "slot corner fillet returned Nothing — DEFERRED (slot still correct)"
+    Else
+        swFil.Name = "{step.split('_', 1)[-1] if '_' in step else step}"
+        LogResult "PASS", "{step}", "{count} slot corner fillet(s) R applied"
+    End If
+    swModel.ClearSelection2 True
+"""
+
+
 def _emit_circular_pattern_trio(model: DrawingData, feature: Feature,
                                 h: HoleCallout, seq: int, macros_dir: Path,
                                 unit_factor: float, run_all_subs: list,
@@ -2206,6 +2425,17 @@ def generate_macro_package(
 
         if feature.type in (FeatureType.FILLET, FeatureType.CHAMFER):
             deferred.append(feature)
+            continue
+
+        # Canonical slot / U-notch decomposition: a feature backed by a slot_cut
+        # emits exactly TWO adjacent steps — a mandatory rectangle cut, then its
+        # corner fillets — never a single arc-bearing sketch. The fillet step
+        # ALWAYS immediately follows its rectangle (no feature between them).
+        slot = model.slot_cut_for_feature(feature.id)
+        if slot is not None:
+            seq = _emit_slot_decomposition(
+                model, feature, slot, seq, macros_dir, unit_factor,
+                run_all_subs, pkg, resolution)
             continue
 
         # Must-meet circular-pattern route: seed hole -> named reference axis ->

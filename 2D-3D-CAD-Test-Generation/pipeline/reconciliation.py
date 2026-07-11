@@ -222,6 +222,57 @@ def diff_checklist(
     return unresolved
 
 
+def slot_checks(raw_extraction: dict, build_plan: dict) -> list[UnresolvedItem]:
+    """Canonical-slot reconciliation. Every ``slot_cut`` in the raw extraction
+    MUST appear in the build as a ``slot_rect_cut`` step (the mandatory
+    rectangle that carries the slot's position + size truth) — a missing
+    rectangle is CRITICAL (it silently loses the slot), never merely deferred
+    like the cosmetic corner fillet. Also a cheap geometric spot-check: the
+    rectangle's near edge must sit at the dimensioned ``anchor_offset`` (within
+    a small tolerance) — a mis-anchored rectangle is as wrong as a missing one."""
+    slots = raw_extraction.get("slot_cuts", []) or []
+    if not slots:
+        return []
+    rect_steps: dict[str, dict] = {}
+    for step in build_plan.get("steps", []) or []:
+        if step.get("type") == "slot_rect_cut":
+            for fid in str(step.get("feature_id", "")).split(","):
+                rect_steps[fid] = step
+
+    out: list[UnresolvedItem] = []
+    for slot in slots:
+        sid = slot.get("id", "?")
+        step = rect_steps.get(sid)
+        if step is None:
+            out.append(UnresolvedItem(
+                sid, "slot_rect_cut",
+                f"CRITICAL: slot {sid} (a U-notch/slot) has NO mandatory slot_rect_cut "
+                "rectangle in the build plan — the slot's position/size would be lost. "
+                "The rectangle is must_complete; it can never be dropped or deferred.",
+            ))
+            continue
+        # Geometric near-edge spot-check: a horizontal-anchored slot's near edge
+        # X (the minimum corner X, or the anchored corner) should equal anchor.
+        corners = ((step.get("sketch") or {}).get("corners_drawing_units")
+                   or step.get("corners_drawing_units") or [])
+        anchor = slot.get("anchor_offset")
+        edge = (slot.get("open_edge") or "").lower()
+        if corners and anchor is not None and edge in ("top", "bottom", ""):
+            near_x = min(float(c[0]) for c in corners)
+            # edge_to_centerline: near edge is half a width inboard of the anchor.
+            expected = float(anchor)
+            if slot.get("anchor_semantics") == "edge_to_centerline":
+                expected -= float(slot.get("width") or 0) / 2.0
+            if abs(near_x - expected) > 0.01:
+                out.append(UnresolvedItem(
+                    sid, "slot_rect_cut",
+                    f"slot {sid} rectangle near-edge X = {near_x:g} but the drawing anchors it "
+                    f"at {expected:g} from the {slot.get('anchor_edge')} edge "
+                    f"(delta {abs(near_x - expected):g}) — the rectangle is mis-positioned.",
+                ))
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # The reconciliation report
 # --------------------------------------------------------------------------- #
@@ -388,6 +439,7 @@ def reconcile_part(
     """
     checklist = build_checklist(raw_extraction)
     unresolved = diff_checklist(checklist, dispositions, build_plan)
+    unresolved += slot_checks(raw_extraction, build_plan)
     confirmed_built = len(checklist) - len(unresolved)
     passes_used = 0
     splices: list[str] = []
@@ -419,6 +471,7 @@ def reconcile_part(
         new_dispositions = new_seq.disposition_table
         new_build_plan = dict(build_plan)  # instance counts recomputed only via steps below
         new_unresolved = diff_checklist(checklist, new_dispositions, build_plan)
+        new_unresolved += slot_checks(raw_extraction, build_plan)
 
         fixed_ids = {u.feature_id for u in unresolved} - {u.feature_id for u in new_unresolved}
         if not fixed_ids:

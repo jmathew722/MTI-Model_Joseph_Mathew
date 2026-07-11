@@ -518,6 +518,53 @@ class GeometricTolerance(BaseModel):
     datum: str = Field(default="", description="Datum reference, e.g. A, or empty if none")
 
 
+class SlotCut(BaseModel):
+    """A U-shaped cutout / open notch / slot — the CANONICAL rectangle-then-fillet
+    representation (2026-07-11). A slot is NEVER built as a single arc-bearing
+    sketch: it is a rectangular through-cut at the exact dimensioned position
+    (mandatory, must always complete) PLUS constant-radius corner fillets (a
+    separate, deferred-safe refinement). The drawing dimensions constrain the
+    RECTANGLE (sharp theoretical corners); the "R TYP" callout is a corner
+    treatment on it. See CLAUDE.md."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(description="Stable identifier, e.g. F002 (matches its extrude_cut feature)")
+    slot_kind: str = Field(
+        default="open_notch",
+        description="open_notch (breaks one edge, U-shape, 2 interior corners) | "
+        "closed_slot (fully interior rectangle, 4 interior corners) | "
+        "obround (closed slot with full-radius ends, R = width/2)")
+    open_edge: str = Field(
+        default="", description="Which part edge it breaks: top|bottom|left|right ('' if closed)")
+    anchor_edge: str = Field(
+        default="", description="The part edge the position dim references, e.g. 'left'")
+    anchor_offset: float = Field(
+        default=0.0, description="Distance from anchor_edge to the slot's NEAR edge (drawing units)")
+    anchor_dimension_id: str = Field(default="", description="Dimension id giving anchor_offset")
+    anchor_semantics: str = Field(
+        default="edge_to_near_edge",
+        description="edge_to_near_edge | edge_to_centerline (centerline symbol present)")
+    width: float = Field(description="Slot width — dimension across, parallel to anchor direction")
+    width_dimension_id: str = Field(default="")
+    depth: float = Field(
+        description="How far it cuts into the part from the open edge (or slot length if closed)")
+    depth_dimension_id: str = Field(default="")
+    corner_radius: float = Field(default=0.0, description="Interior corner radius, e.g. 0.25")
+    corner_radius_dimension_id: str = Field(default="")
+    thru: bool = Field(default=True, description="Through-all in thickness (default)")
+    thru_basis: str = Field(
+        default="single_view_default",
+        description="explicit | single_view_default | human_confirmed")
+
+    @field_validator("width", "depth")
+    @classmethod
+    def _positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError(f"slot width/depth must be positive, got {v}")
+        return v
+
+
 class DrawingData(BaseModel):
     """Top-level structured representation of one engineering drawing."""
 
@@ -538,6 +585,11 @@ class DrawingData(BaseModel):
     views: list[View] = Field(default_factory=list)
     dimensions: list[Dimension] = Field(default_factory=list)
     hole_callouts: list[HoleCallout] = Field(default_factory=list)
+    slot_cuts: list[SlotCut] = Field(
+        default_factory=list,
+        description="U-notches / open slots / obrounds — canonical rectangle-then-fillet "
+        "cuts (a slot is never a single arc-bearing sketch). Additive; old JSONs load "
+        "with an empty list.")
     features: list[Feature] = Field(default_factory=list)
     geometric_tolerances: list[GeometricTolerance] = Field(default_factory=list)
     relationships: RelationshipMap = Field(default_factory=RelationshipMap)
@@ -568,6 +620,9 @@ class DrawingData(BaseModel):
 
     def hole_callout_for_feature(self, feature_id: str) -> Optional[HoleCallout]:
         return next((h for h in self.hole_callouts if h.feature_ref == feature_id), None)
+
+    def slot_cut_for_feature(self, feature_id: str) -> Optional["SlotCut"]:
+        return next((s for s in self.slot_cuts if s.id == feature_id), None)
 
     @property
     def display_name(self) -> str:

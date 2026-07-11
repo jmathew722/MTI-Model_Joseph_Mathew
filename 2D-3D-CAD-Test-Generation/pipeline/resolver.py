@@ -1328,12 +1328,18 @@ def _completeness_gate(resolved: dict, model: DrawingData,
         if ref:
             holes_by_ref.setdefault(ref, []).append(h)
     flags: list[dict[str, Any]] = []
+    # A canonical slot_cut carries its geometry on the slot record, not on the
+    # feature's related_dimensions — never gate such a feature out for "missing"
+    # dims; its slot decomposition (mandatory rectangle) owns the size/position.
+    slot_feature_ids = {s.get("id") for s in resolved.get("slot_cuts", []) or []}
 
     for feat in resolved.get("features", []) or []:
         ftype = (feat.get("type") or "").lower()
         fid = feat.get("id", "?")
         if fid not in build_order:
             continue  # already dropped (e.g. validator) — nothing to gate
+        if fid in slot_feature_ids:
+            continue  # backed by a slot_cut — geometry lives on the slot record
         toks = _present_tokens(feat, dims_by_id)
         missing: Optional[tuple[str, str]] = None  # (what, source)
 
@@ -1577,6 +1583,27 @@ def resolve_extraction(raw: dict,
     # Guarantee a buildable base: synthesize a thickness for any extrude_boss the
     # drawing never dimensioned, so the part can never produce an empty solid.
     _ensure_buildable_extrudes(resolved, model, result)
+
+    # Canonical slot / U-notch decomposition (2026-07-11): fold the legacy
+    # extrude_cut+fillet pattern into a first-class slot_cut, then validate every
+    # slot (fit / radius / anchor-semantics / through-all). A slot is always a
+    # mandatory rectangle + deferred corner fillets — never an arc-bearing sketch.
+    try:
+        from pipeline.slot_cut import normalize_legacy_slots, validate_slot
+
+        normalize_legacy_slots(resolved, result.flags.append)
+        if resolved.get("slot_cuts"):
+            model = DrawingData.model_validate(schema_clean(resolved))  # re-coerce (schema-clean)
+            for slot in model.slot_cuts:
+                for fl in validate_slot(slot, model):
+                    fl.setdefault("macro_behavior", behavior_for_tier(fl["flag_tier"]))
+                    fl.setdefault("resolved_by_tier", TIER_PER_VIEW)
+                    result.flags.append(fl)
+            # validate_slot may reclassify (obround) / set anchor_semantics —
+            # persist those back into the resolved dict.
+            resolved["slot_cuts"] = [s.model_dump() for s in model.slot_cuts]
+    except Exception as e:
+        log.warning("slot decomposition/validation failed (non-fatal): %s", e)
 
     # --- Surface flags (MEDIUM and worse) for the build plan & stdout ---
     # Every flag records which priority tier resolved it (tier0 spec / tier1
