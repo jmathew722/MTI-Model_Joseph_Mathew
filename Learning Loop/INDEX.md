@@ -63,3 +63,4 @@ One line per pipeline run, newest at the bottom. Hand any run's `.txt` to Claude
 | 2026-07-11 23:29 | M121-B | NOT READY | 12 |  | M121-B__2026-07-11_232921.txt |
 | 2026-07-11 23:37 | 127-C | READY | 8 |  | 127-C__2026-07-11_233757.txt |
 | 2026-07-11 23:48 | 127-C | NOT READY | 9 |  | 127-C__2026-07-11_234807.txt |
+| 2026-07-12 00:51 | SB16247 | READY | 5 |  | SB16247__2026-07-12_005132.txt |
