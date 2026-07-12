@@ -188,6 +188,11 @@ class ResolutionResult:
     summary: ResolutionSummary = field(default_factory=ResolutionSummary)
     # Flags that should surface in the build plan / stdout (MEDIUM and worse).
     flags: list[dict[str, Any]] = field(default_factory=list)
+    # Per hole-feature placement classification + datum-chain provenance
+    # (2026-07-12): {fid: {"placement": "individual"|"pattern",
+    #  "pattern_evidence": str, "position_basis": [{anchor, dim, value, axis}],
+    #  "datum_points": ["DP_F00x"]}}. Consumed by the macro/build-plan layer.
+    hole_placements: dict[str, dict] = field(default_factory=dict)
 
     def dim(self, dim_id: str) -> Optional[DimResolution]:
         return self.dim_resolutions.get(dim_id)
@@ -1532,6 +1537,109 @@ def _commit_missing_dim(resolved: dict, model: DrawingData, result: "ResolutionR
                           f"({tried}). Built and flagged — verify/correct in SolidWorks."))
 
 
+# --------------------------------------------------------------------------- #
+# Hole-group classification + datum-chain provenance (2026-07-12, A001271E)
+# --------------------------------------------------------------------------- #
+_EDGE_WORDS = ("left edge", "right edge", "top edge", "bottom edge", "edge to", "from edge")
+_HOLE_ANCHOR_WORDS = ("between", "spacing", "pair", "stagger", "hole center", "centerline",
+                      "hole to", "column", "adjacent")
+_X_WORDS = ("horizontal", "left", "right", "length", "x ", "across", "column")
+_Y_WORDS = ("vertical", "top", "bottom", "height", "y ", "down", "up ")
+
+
+def _anchor_of(dim: dict) -> tuple[str, str]:
+    """(anchor, axis) inferred from a positional/spacing dimension's notes +
+    applies_to. anchor ∈ {left_edge,right_edge,top_edge,bottom_edge,hole_center,
+    origin}; axis ∈ {x,y,''}."""
+    note = (str(dim.get("notes", "")) + " " + str(dim.get("applies_to", ""))).lower()
+    if "left edge" in note:
+        anchor = "left_edge"
+    elif "right edge" in note:
+        anchor = "right_edge"
+    elif "top edge" in note:
+        anchor = "top_edge"
+    elif "bottom edge" in note:
+        anchor = "bottom_edge"
+    elif any(w in note for w in _HOLE_ANCHOR_WORDS):
+        anchor = "hole_center"
+    elif any(w in note for w in _EDGE_WORDS):
+        anchor = "edge"
+    else:
+        anchor = "origin"
+    axis = "x" if any(w in note for w in _X_WORDS) else ("y" if any(w in note for w in _Y_WORDS) else "")
+    return anchor, axis
+
+
+def _classify_hole_groups(resolved: dict, model: DrawingData, result: "ResolutionResult") -> None:
+    """Task 1/2 — for every hole feature record its placement classification
+    (pattern vs individual, with the evidence used) and its datum-chain
+    ``position_basis`` (each positional/spacing dim → its anchor). A callout is a
+    verified pattern only with uniform pitch or a bolt circle; everything else is
+    individual (each instance owns its coordinate). Hole-to-hole anchors record a
+    ``DP_<fid>`` datum point. Additive: writes only to ``result.hole_placements``,
+    never mutating the schema-clean feature dicts."""
+    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+    hole_feats = [f for f in resolved.get("features", []) or []
+                  if (f.get("type") or "").lower() in ("hole", "thread")]
+    # group by nominal diameter (from the linked diameter dim / callout)
+    def _dia(f):
+        for rid in (f.get("related_dimensions") or []):
+            d = dims_by_id.get(rid) or {}
+            if canonicalize_applies_to(d.get("applies_to", "")) in ("diameter", "hole_diameter") \
+                    and (d.get("value") or 0) > 0:
+                return round(float(d["value"]), 4)
+        h = next((h for h in resolved.get("hole_callouts", []) or []
+                  if h.get("feature_ref") == f.get("id")), None)
+        return round(float(h.get("diameter", 0)), 4) if h else 0.0
+
+    groups: dict[float, list[dict]] = {}
+    for f in hole_feats:
+        groups.setdefault(_dia(f), []).append(f)
+
+    for dia, feats in groups.items():
+        # verified pattern? a callout in the group with uniform pitch / bolt circle
+        evidence = "none->individual"
+        for f in feats:
+            h = next((h for h in resolved.get("hole_callouts", []) or []
+                      if h.get("feature_ref") == f.get("id")), None)
+            if h is None:
+                continue
+            if (h.get("bolt_circle_diameter") or 0) > 0:
+                evidence = f"bolt_circle_{_fmt(h['bolt_circle_diameter'])}"
+            elif (h.get("pattern_spacing") or 0) > 0 and int(h.get("qty") or 1) >= 2 \
+                    and len(feats) <= 1:
+                evidence = f"uniform_pitch_{_fmt(h['pattern_spacing'])}"
+        # A multi-feature group is individual by construction (each feature is one
+        # instance); a single feature may be a verified pattern.
+        placement = "pattern" if (evidence != "none->individual" and len(feats) <= 1) else "individual"
+        for f in feats:
+            basis = []
+            datum_points = []
+            for rid in (f.get("related_dimensions") or []):
+                d = dims_by_id.get(rid) or {}
+                if not (d.get("value") and float(d["value"]) > 0):
+                    continue
+                canon = canonicalize_applies_to(d.get("applies_to", ""))
+                is_pos, _ax = _dim_is_positional(d.get("applies_to", ""))
+                if not (is_pos or canon == "spacing" or "offset" in (d.get("applies_to") or "").lower()
+                        or "spacing" in (d.get("applies_to") or "").lower()):
+                    continue
+                anchor, axis = _anchor_of(d)
+                basis.append({"anchor": anchor, "dim": rid,
+                              "value": round(float(d["value"]), 6), "axis": axis})
+                if anchor == "hole_center":
+                    # Align to the reference-geometry naming contract (REF_PT_<fid>)
+                    # so the build-plan record and the emitted 01a datum point match.
+                    datum_points.append(f"REF_PT_{f.get('id')}")
+            result.hole_placements[f.get("id", "?")] = {
+                "placement": placement,
+                "pattern_evidence": evidence,
+                "diameter": dia,
+                "position_basis": basis,
+                "datum_points": sorted(set(datum_points)),
+            }
+
+
 def _completeness_gate(resolved: dict, model: DrawingData,
                        result: "ResolutionResult",
                        commit_mode: bool = COMMIT_MODE_DEFAULT) -> list[dict[str, Any]]:
@@ -1908,6 +2016,13 @@ def resolve_extraction(raw: dict,
     # (never emitted as a doomed macro/COM step) and surfaced as a Tab-3
     # model-derived assumption. Runs after TYP + buildable-base synthesis.
     result.flags.extend(_completeness_gate(resolved, model, result, commit_mode=commit_mode))
+    # Task 1/2 (2026-07-12): classify each hole group pattern-vs-individual and
+    # record per-instance datum-chain provenance (position_basis) for the build
+    # plan. Never shares placement logic except for a verified regular pattern.
+    try:
+        _classify_hole_groups(resolved, model, result)
+    except Exception as e:  # provenance is additive — never break a run
+        log.warning("hole-group classification failed (non-fatal): %s", e)
     # Revolve->circle+extrude conversions that approximated a stepped/tapered
     # profile as a bounding cylinder surface as MEDIUM review items.
     result.flags.extend(_revolve_flags)

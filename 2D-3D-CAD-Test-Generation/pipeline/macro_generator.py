@@ -137,6 +137,11 @@ class BuildStep:
     # Additive (vector hole extraction): where hole positions came from.
     position_source: str = ""          # dxf_entity | pdf_vector | hough | vision | ""
     position_confidence: float = 0.0   # 0..1; 0.0 when not applicable
+    # Additive (2026-07-12 hole-group classification / datum chaining, A001271E).
+    placement: str = ""                # "individual" | "pattern" | ""
+    pattern_evidence: str = ""         # e.g. "uniform_pitch_4.5" | "none->individual"
+    position_basis: list[dict] = field(default_factory=list)   # datum chain per Task 2
+    datum_points: list[str] = field(default_factory=list)      # DP_<fid> anchors
     # Additive: canonical circular-pattern schema (only on circular_pattern steps).
     circular_pattern: dict = field(default_factory=dict)
     # Phase D: verified construction method this feature dispatches to (methods_config).
@@ -362,6 +367,79 @@ def _hole_positions(model: DrawingData, h: HoleCallout) -> list[tuple[float, flo
     return [(ecx, ecy)]
 
 
+def _hole_diameter_of(model: DrawingData, feature: Feature) -> float:
+    """The nominal diameter of a hole feature (from its callout, else its linked
+    diameter dimension), for grouping same-callout holes."""
+    h = model.hole_callout_for_feature(feature.id)
+    if h is not None and h.diameter > 0:
+        return round(float(h.diameter), 4)
+    for d in model.dimensions:
+        if d.id in (feature.related_dimensions or []) and d.canonical_applies_to in (
+                "diameter", "hole_diameter") and d.value > 0:
+            return round(float(d.value), 4)
+    return 0.0
+
+
+def _hole_group_features(model: DrawingData, feature: Feature) -> list[Feature]:
+    """Every HOLE/THREAD feature sharing this feature's nominal diameter — the
+    'callout group' that placement classification reasons about."""
+    dia = _hole_diameter_of(model, feature)
+    if dia <= 0:
+        return [feature]
+    return [f for f in model.features
+            if f.type in (FeatureType.HOLE, FeatureType.THREAD)
+            and abs(_hole_diameter_of(model, f) - dia) < 1e-4]
+
+
+def is_verified_pattern(model: DrawingData, h: Optional[HoleCallout]) -> tuple[bool, str]:
+    """A hole callout is a VERIFIED REGULAR PATTERN (may share placement logic)
+    only with hard evidence: a bolt-circle diameter, or a linear/generic pattern
+    kind with a real spacing and qty>=2. Returns (is_pattern, evidence). Bias is
+    toward individual — an individual group mis-built as a pattern is wrong
+    geometry, while a pattern built as individuals is merely more lines."""
+    if h is None:
+        return False, "none->individual"
+    if (h.bolt_circle_diameter or 0) > 0:
+        return True, f"bolt_circle_{_v(h.bolt_circle_diameter)}"
+    if h.pattern in (PatternKind.LINEAR, PatternKind.CIRCULAR) and (h.pattern_spacing or 0) > 0 \
+            and int(h.qty or 1) >= 2:
+        return True, f"uniform_pitch_{_v(h.pattern_spacing)}"
+    return False, "none->individual"
+
+
+def _hole_feature_positions(model: DrawingData, feature: Feature) -> list[tuple[float, float]]:
+    """The resolved per-INSTANCE centers this specific hole feature owns, in the
+    drawing (lower-left-origin) frame.
+
+    The critical distinction (A001271E): when a callout with qty>1 is attached to
+    ONE feature while SIBLING features of the same diameter also exist, those
+    siblings ARE the other instances — this feature owns exactly ONE of them
+    (its own resolved position), never the whole multi-instance layout (which
+    would drill duplicates on top of the siblings). Only a VERIFIED regular
+    pattern with a single owning feature lays out multiple instances here."""
+    h = model.hole_callout_for_feature(feature.id)
+    is_pat, _ev = is_verified_pattern(model, h)
+    if h is not None and is_pat:
+        return _hole_positions(model, h)  # genuine pattern -> full layout
+    group = _hole_group_features(model, feature)
+    # Case A: this feature is the SOLE feature for its callout — it owns every
+    # explicitly-dimensioned instance the callout carries.
+    if h is not None and h.instance_positions and len(group) <= 1:
+        return _corner_frame_shift(
+            model, [(p[0], p[1]) for p in h.instance_positions if len(p) == 2])
+    # Case B / individual: this feature is ONE instance. Prefer its own read
+    # position; never copy a sibling's or lay out the shared callout.
+    if feature.position_known:
+        return _corner_frame_shift(model, [(feature.offset_x, feature.offset_y)])
+    if h is not None and h.instance_positions and len(h.instance_positions[0]) == 2:
+        p0 = h.instance_positions[0]
+        return _corner_frame_shift(model, [(p0[0], p0[1])])
+    if h is not None:
+        return _hole_positions(model, h)  # callout-driven fallback (single/centered)
+    length, width = _envelope(model)
+    return [((length or 0.0) / 2.0, (width or 0.0) / 2.0)]
+
+
 def revolve_sketch_points(
     profile: list[list[float]],
 ) -> tuple[list[tuple[float, float]], tuple[float, float]]:
@@ -544,15 +622,27 @@ def _enrich_feature_step(step: BuildStep, model: DrawingData, feature: Feature,
 
     if feature.type in (FeatureType.HOLE, FeatureType.THREAD):
         h = model.hole_callout_for_feature(feature.id)
+        # Per-instance placement (pattern-vs-individual aware) for EVERY hole
+        # feature, callout or not — a no-callout individual hole must still record
+        # its own position (else feature_verify can't check it and the build plan
+        # hides it).
+        pts = _hole_feature_positions(model, feature)
+        step.positions_xy = [[round(x, 6), round(y, 6)] for x, y in pts]
+        step.positions_xy_meters = [
+            [_to_meters(x, model.units), _to_meters(y, model.units)] for x, y in pts
+        ]
         if h is not None:
-            pts = _hole_positions(model, h)
-            step.positions_xy = [[round(x, 6), round(y, 6)] for x, y in pts]
-            step.positions_xy_meters = [
-                [_to_meters(x, model.units), _to_meters(y, model.units)] for x, y in pts
-            ]
-            # Additive provenance from the vector hole-extraction stage.
             step.position_source = h.position_source or ("vision" if h.position_known else "")
             step.position_confidence = h.position_confidence
+        elif feature.position_known:
+            step.position_source = "vision"
+        # Hole-group classification + datum-chain provenance (Task 1/2).
+        hp = getattr(resolution, "hole_placements", {}).get(feature.id) if resolution else None
+        if hp:
+            step.placement = hp.get("placement", "")
+            step.pattern_evidence = hp.get("pattern_evidence", "")
+            step.position_basis = hp.get("position_basis", [])
+            step.datum_points = hp.get("datum_points", [])
     elif feature.type in (FeatureType.EXTRUDE_BOSS, FeatureType.EXTRUDE_CUT):
         # Self-contained sketch anchor (same rules as _macro_extrude): circle =
         # center, rectangle = lower-left corner. Consumers (e.g. the CadQuery
@@ -649,6 +739,11 @@ def _step_to_dict(s: BuildStep) -> dict[str, Any]:
         **({"corner_count_expected": s.corner_count_expected} if s.corner_count_expected else {}),
         **({"radius_meters": s.radius_meters} if s.radius_meters else {}),
         **({"sketch": s.slot} if s.slot else {}),
+        # --- additive: hole-group classification + datum chain (A001271E) ---
+        **({"placement": s.placement} if s.placement else {}),
+        **({"pattern_evidence": s.pattern_evidence} if s.pattern_evidence else {}),
+        **({"position_basis": s.position_basis} if s.position_basis else {}),
+        **({"datum_points": s.datum_points} if s.datum_points else {}),
     }
 
 
@@ -1074,8 +1169,10 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
         return _macro_extrude(model, feature, step, is_cut=True)
 
     plane = _plane_for(feature)
-    positions = _hole_positions(model, h)
-    used: dict[str, float] = {"diameter": h.diameter, "qty": float(h.qty)}
+    # Pattern-vs-individual aware: this feature drills only the instance(s) it
+    # owns — never the whole shared callout when sibling features exist.
+    positions = _hole_feature_positions(model, feature)
+    used: dict[str, float] = {"diameter": h.diameter, "qty": float(len(positions))}
     thru = h.thru or h.type == HoleType.THRU
     depth_expr = "0#"
     if not thru:
@@ -2282,6 +2379,38 @@ def _feature_has_positional_dimension(model: DrawingData, feature_id: str) -> bo
     return False
 
 
+def _assert_no_overlapping_holes(model: DrawingData, steps: list["BuildStep"]) -> None:
+    """Duplicate-position invariant (A001271E). Within a same-diameter hole
+    group, no two drilled instances may resolve within half the hole diameter of
+    each other — that state is the overlapping/collapsed-instance bug. Refuse to
+    generate rather than drill holes on top of each other."""
+    # Collect (diameter, x, y, feature_id) for every hole instance in the plan.
+    inst: list[tuple[float, float, float, str]] = []
+    for s in steps:
+        if s.feature_type not in ("hole", "thread"):
+            continue
+        feat = model.feature_by_id(s.feature_id.split(",")[0]) if s.feature_id else None
+        dia = _hole_diameter_of(model, feat) if feat is not None else 0.0
+        for p in (s.positions_xy or []):
+            if len(p) == 2:
+                inst.append((dia, float(p[0]), float(p[1]), s.feature_id))
+    for i in range(len(inst)):
+        d1, x1, y1, f1 = inst[i]
+        for j in range(i + 1, len(inst)):
+            d2, x2, y2, f2 = inst[j]
+            if abs(d1 - d2) > 1e-4:
+                continue  # different groups may legitimately be close
+            tol = max(min(d1, d2) / 2.0, 1e-3) if d1 > 0 else 1e-3
+            if abs(x1 - x2) < tol and abs(y1 - y2) < tol:
+                raise MacroGenerationError(
+                    f"OVERLAPPING HOLES ({f1} vs {f2}): two instances of the same "
+                    f"diameter group resolve to ~({x1:.4g}, {y1:.4g}) and "
+                    f"({x2:.4g}, {y2:.4g}), within {tol:.4g}. This is the collapsed-"
+                    f"instance bug (a hole group built as if it shared one reference). "
+                    f"Refusing to drill duplicate holes — resolve each instance's "
+                    f"individual position.")
+
+
 def _assert_no_dropped_positions(model: DrawingData, dispositions: list[dict]) -> None:
     """Generation-time invariant (Bug 1). Refuse to emit a build whose
     disposition marks a feature's position UNRESOLVED (needs_markup_review /
@@ -2333,6 +2462,17 @@ def generate_macro_package(
     macros_dir.mkdir(parents=True, exist_ok=True)
     logs_dir.mkdir(parents=True, exist_ok=True)
 
+    # Macro-package deduplication (A001271E: two competing 01_F001_* base macros).
+    # A package is regenerated fresh each run: clear stale *.vba so a description
+    # change between runs (which changes the filename slug) can never leave a
+    # SECOND macro for the same feature id behind. Reconciliation's RECONCILE_*
+    # splice macros are re-added by a full rebuild, so clearing them here is safe.
+    for old in macros_dir.glob("*.vba"):
+        try:
+            old.unlink()
+        except OSError:
+            pass
+
     unit_factor = UNIT_FACTORS[model.units]
     pkg = MacroPackage(
         root=root,
@@ -2368,6 +2508,16 @@ def generate_macro_package(
         if hf not in model.warnings:
             model.warnings.append(hf)
     pkg.dispositions = seq_result.disposition_table
+    # Dedup invariant (A001271E double-F001): a feature id must be built exactly
+    # once — a duplicate in the build order is a generation bug, not last-write-wins.
+    _seen_bo: dict[str, int] = {}
+    for _fid in (model.build_order or []):
+        _seen_bo[_fid] = _seen_bo.get(_fid, 0) + 1
+    _dups = sorted(f for f, n in _seen_bo.items() if n > 1)
+    if _dups:
+        raise MacroGenerationError(
+            f"DUPLICATE FEATURE(S) in build_order {_dups}: each feature id must be "
+            f"built exactly once. Two emissions for one feature is a generation bug.")
     # Bug-1 invariant (commit-to-extraction, 2026-07-11): the combination of an
     # unresolved-position disposition WITH an extracted positional dimension for
     # that feature is a data-flow bug (the position was dropped on the floor).
@@ -2627,6 +2777,11 @@ def generate_macro_package(
             )
             pkg.skipped.append(skip_step)
             log.warning("%s", skip_step.notes)
+
+    # Duplicate-position invariant (A001271E): refuse a plan that drills two
+    # same-group holes on top of each other (the collapsed-instance bug). Runs
+    # after every hole step exists, before COM ever sees the plan.
+    _assert_no_overlapping_holes(model, pkg.steps)
 
     # --- Final verify ---
     n_solid = sum(1 for s in pkg.steps if s.status == "generated" and s.seq > 0)

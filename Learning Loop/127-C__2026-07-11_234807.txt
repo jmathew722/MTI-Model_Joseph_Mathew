@@ -1,0 +1,65 @@
+LEARNING LOOP — 127-C
+============================================================
+Run:     2026-07-11 23:48:07
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\a59c01246755\A001271E\output\127-C
+Fingerprint: 7ac152fa4c7b903b
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - pre-validation error: gp_VectorWithNullMagnitude: 
+
+2. MUST-MEET CONSTRAINT FAILURES  (post-build (measured from the built STL))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side view is drawn very thin/schematic and does not clearly distinguish the counterbore depth from the through-hole depth for all 8 holes; only two hidden-line hole representations are shown, making it ambiguous which corresponds to which of the two hole patterns (counterbore vs. thru-drill) at each of the 8 locations.
+       -> Verify counterbore depth and thru-hole condition against a section view or additional callout; if none exists, confirm with the checker (JWZ) that side view hidden lines represent both hole types correctly.
+   - [LOW] Corner hole pattern dimensions (.844, .750, 15.812, 11.250) and inner hole pattern dimensions (6.781, 7.000, .500, 6.000, 6.500, 6.250, 14.00) are both given in linear X/Y offsets from what appear to be different reference edges/datums, with no explicit common datum flagged; ensure no double-dimensioning conflict exists between the 17.50/15.812 and 14.00/6.250 chains.
+       -> Cross-check that the 15.812 and 17.50 dimensions to the corner holes, and the 14.00/6.250 to the inner holes, reference the same left/bottom edges consistently; confirm no redundant or conflicting datum definition exists.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 1, MEDIUM 2, LOW 2
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 3 PLACE DIM. ±.010, 2 PLACE DIM. ±.02, ANGULAR DIM. ±, SCALE 1"=2"" states 3 instance(s), but the per-view extraction captured hole group(s) of [1, 1, 1, 1, 4] (total 8). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F007 (build): The .sldprt build SKIPPED feature F007 (hole): deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F007 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F007 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       affects: feature F007
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (top): Corner hole pattern dimensions (.844, .750, 15.812, 11.250) and inner hole pattern dimensions (6.781, 7.000, .500, 6.000, 6.500, 6.250, 14.00) are both given in linear X/Y offsets from what appear to be different reference edges/datums, with no explicit common datum flagged; ensure no double-dimensioning conflict exists between the 17.50/15.812 and 14.00/6.250 chains. Recommendation: Cross-check that the 15.812 and 17.50 dimensions to the corner holes, and the 14.00/6.250 to the inner holes, reference the same left/bottom edges consistently; confirm no redundant or conflicting datum definition exists.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (top, side): The side view is drawn very thin/schematic and does not clearly distinguish the counterbore depth from the through-hole depth for all 8 holes; only two hidden-line hole representations are shown, making it ambiguous which corresponds to which of the two hole patterns (counterbore vs. thru-drill) at each of the 8 locations. Recommendation: Verify counterbore depth and thru-hole condition against a section view or additional callout; if none exists, confirm with the checker (JWZ) that side view hidden lines represent both hole types correctly.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F007 (hole) deferred_open after retries: FeatureCut4 returned None for F007 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV004 (overview): Reference/phantom geometry noted: Hidden line features shown in side view (dashed lines) suggesting internal step or counterbore profile (side view, right portion).
+       decision: treated as a reference boundary, not built geometry
+       why: dashed/phantom/reference linework is not a solid feature
+       affects: metadata: reference boundary
+   - [LOW] R001 (requirement): Operator requirement: "CORRECTION (2026-07-11 23:45): THe 4 holes that failed are not symmetircal they need to be featured individually as seperate sketched one at a time in their designated locatiions"
+       decision: status: MET
+       why: hole present in the build; numeric value(s) match extracted dimensions
+       affects: human-specified must-meet requirement (applied during extraction & Stage 2.5 resolution, verified against the build)
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F007 FAILED: FeatureCut4 returned None for F007 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '127-C' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * requirement: requirements_check.py (grading) + extractor.py/resolver.py (specs-first application of the must-meet line)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\a59c01246755\A001271E\output\127-C

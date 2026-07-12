@@ -135,6 +135,26 @@ def derive_reference_geometry(model: DrawingData) -> list[RefGeom]:
             _add(RefGeom(f"REF_PT_{h.feature_ref}", "point", "plane_plane_plane",
                          f"pattern origin ({h.id}, {h.qty} instances)",
                          parents=["REF_DATUM_A"]))
+
+    # 6) Datum points for holes dimensioned FROM another hole's centerline
+    #    (A001271E: the inner group's .500 / 7.000 dims run hole-to-hole). The
+    #    dependent hole's sketch can then dimension off a real, named datum point
+    #    rather than a re-typed absolute coordinate, so a later correction of the
+    #    anchor hole carries to its dependents. Built in 01a, before Stage 4 holes.
+    from pipeline.schema import FeatureType
+    _HOLE_ANCHOR = ("between", "spacing", "pair", "stagger", "centerline",
+                    "hole center", "column", "adjacent")
+    dims_by_id = {d.id: d for d in (model.dimensions or [])}
+    for f in (model.features or []):
+        if f.type not in (FeatureType.HOLE, FeatureType.THREAD):
+            continue
+        for rid in (f.related_dimensions or []):
+            d = dims_by_id.get(rid)
+            if d is not None and any(w in (d.notes or "").lower() for w in _HOLE_ANCHOR):
+                _add(RefGeom(f"REF_PT_{f.id}", "point", "plane_plane_plane",
+                             f"datum-chained hole anchor ({f.id})",
+                             parents=["REF_DATUM_A"]))
+                break
     return refs
 
 
