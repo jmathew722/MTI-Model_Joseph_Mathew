@@ -7,11 +7,11 @@
   "scale": "1\"=1\"",
   "material": "1018 STL. (12GA.)",
   "finish": "",
-  "general_tolerance": "2 PLACE DIM. \u00b1.02; 3 PLACE DIM. \u00b1.010; ANGULAR DIM. \u00b1",
+  "general_tolerance": "2 PLACE DIM. \u00b1.02, 3 PLACE DIM. \u00b1.010, ANGULAR DIM. \u00b1",
   "views": [
     {
       "view_type": "Front",
-      "description": "Main flat plate profile with U-shaped notch cutout at top-left, 6 mounting holes, overall dimensions",
+      "description": "Main plate profile with U-notch cutout at top-left, 6 mounting holes, overall envelope 11.00 x 6.25",
       "dimensions_shown": [
         "D001",
         "D002",
@@ -34,17 +34,25 @@
         "F004"
       ],
       "hidden_features": [],
-      "centerline_notes": "Vertical dashed centerlines mark hole column positions (1.56 and 10.5 from left edge); horizontal centerlines through hole rows"
+      "centerline_notes": "Vertical dashed centerlines mark hole column positions (left column & right column); horizontal dashed line shows hole row alignment"
     },
     {
       "view_type": "Side",
-      "description": "Edge view showing plate thickness (12 GA / .105) and weather stripping detail bracket at right end",
+      "description": "Edge view showing plate thickness 12 GA (.105) and small tab/step at each end",
       "dimensions_shown": [
         "D014"
       ],
       "visible_features": [
         "F001"
       ],
+      "hidden_features": [],
+      "centerline_notes": "none"
+    },
+    {
+      "view_type": "Detail",
+      "description": "Surface finish / callout symbols referencing 6.25 IN dimension and general surface finish flag",
+      "dimensions_shown": [],
+      "visible_features": [],
       "hidden_features": [],
       "centerline_notes": "none"
     }
@@ -60,7 +68,7 @@
       "tolerance_type": "reference",
       "applies_to": "length",
       "feature_ref": "F001",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -68,19 +76,39 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "overall length"
     },
     {
       "id": "D002",
+      "type": "linear",
+      "value": 6.25,
+      "unit": "inch",
+      "tolerance_plus": 0.0,
+      "tolerance_minus": 0.0,
+      "tolerance_type": "reference",
+      "applies_to": "width",
+      "feature_ref": "F001",
+      "view": "Front",
+      "datum_ref": "",
+      "gdt_symbol": "",
+      "is_reference": false,
+      "value_unclear": false,
+      "ambiguity_reason": "",
+      "possible_values": [],
+      "resolution_required": false,
+      "notes": "overall width"
+    },
+    {
+      "id": "D003",
       "type": "linear",
       "value": 1.56,
       "unit": "inch",
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "slot_offset",
+      "applies_to": "position",
       "feature_ref": "F002",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -88,19 +116,19 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "offset from left edge to notch near edge"
     },
     {
-      "id": "D003",
+      "id": "D004",
       "type": "linear",
       "value": 1.62,
       "unit": "inch",
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "slot_width",
+      "applies_to": "width",
       "feature_ref": "F002",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -108,27 +136,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
-    },
-    {
-      "id": "D004",
-      "type": "radial",
-      "value": 0.25,
-      "unit": "inch",
-      "tolerance_plus": 0.0,
-      "tolerance_minus": 0.0,
-      "tolerance_type": "reference",
-      "applies_to": "fillet_radius",
-      "feature_ref": "F002",
-      "view": "front",
-      "datum_ref": "",
-      "gdt_symbol": "",
-      "is_reference": false,
-      "value_unclear": false,
-      "ambiguity_reason": "",
-      "possible_values": [],
-      "resolution_required": false,
-      "notes": "TYP, interior corners of slot"
+      "notes": "notch width"
     },
     {
       "id": "D005",
@@ -138,9 +146,9 @@
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "slot_depth",
+      "applies_to": "depth",
       "feature_ref": "F002",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -148,19 +156,19 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "notch depth from top edge"
     },
     {
       "id": "D006",
-      "type": "linear",
-      "value": 6.25,
+      "type": "radial",
+      "value": 0.25,
       "unit": "inch",
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "width",
-      "feature_ref": "F001",
-      "view": "front",
+      "applies_to": "fillet_radius",
+      "feature_ref": "F005",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -168,7 +176,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "interior corner radius, TYP"
     },
     {
       "id": "D007",
@@ -178,9 +186,9 @@
       "tolerance_plus": 0.005,
       "tolerance_minus": 0.005,
       "tolerance_type": "bilateral",
-      "applies_to": "hole_spacing",
+      "applies_to": "position",
       "feature_ref": "F003",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -188,7 +196,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "vertical spacing between top and bottom hole rows on left column"
     },
     {
       "id": "D008",
@@ -198,9 +206,9 @@
       "tolerance_plus": 0.005,
       "tolerance_minus": 0.005,
       "tolerance_type": "bilateral",
-      "applies_to": "hole_spacing",
+      "applies_to": "position",
       "feature_ref": "F003",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -208,7 +216,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "vertical spacing to middle hole from bottom"
     },
     {
       "id": "D009",
@@ -218,9 +226,9 @@
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "hole_position_y",
+      "applies_to": "position",
       "feature_ref": "F003",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -228,7 +236,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "bottom hole to bottom edge"
     },
     {
       "id": "D010",
@@ -238,9 +246,9 @@
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "hole_position_x",
+      "applies_to": "position",
       "feature_ref": "F003",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -248,7 +256,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "left edge to hole column centerline"
     },
     {
       "id": "D011",
@@ -258,9 +266,9 @@
       "tolerance_plus": 0.005,
       "tolerance_minus": 0.005,
       "tolerance_type": "bilateral",
-      "applies_to": "hole_position_x",
+      "applies_to": "position",
       "feature_ref": "F003",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -268,7 +276,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": ""
+      "notes": "left column to right column hole spacing (horizontal)"
     },
     {
       "id": "D012",
@@ -280,7 +288,7 @@
       "tolerance_type": "reference",
       "applies_to": "hole_diameter",
       "feature_ref": "F003",
-      "view": "front",
+      "view": "Front",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -298,9 +306,9 @@
       "tolerance_plus": 0.0,
       "tolerance_minus": 0.0,
       "tolerance_type": "reference",
-      "applies_to": "overall_check",
+      "applies_to": "reference_callout",
       "feature_ref": "",
-      "view": "front",
+      "view": "Detail",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": true,
@@ -308,7 +316,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "6.25 IN. balloon 2 reference"
+      "notes": "6.25 IN. reference balloon callout"
     },
     {
       "id": "D014",
@@ -320,7 +328,7 @@
       "tolerance_type": "reference",
       "applies_to": "thickness",
       "feature_ref": "F001",
-      "view": "side",
+      "view": "Side",
       "datum_ref": "",
       "gdt_symbol": "",
       "is_reference": false,
@@ -328,7 +336,7 @@
       "ambiguity_reason": "",
       "possible_values": [],
       "resolution_required": false,
-      "notes": "12 GA. (.105)"
+      "notes": "12 GA. (.105) plate thickness"
     }
   ],
   "hole_callouts": [
@@ -347,7 +355,7 @@
       "x_position": 0.0,
       "y_position": 0.0,
       "position_known": true,
-      "pattern": "linear",
+      "pattern": "none",
       "pattern_spacing": 0.0,
       "bolt_circle_diameter": 0.0,
       "bolt_circle_center": [],
@@ -366,20 +374,20 @@
           5.875
         ],
         [
-          10.5,
+          10.75,
           0.375
         ],
         [
-          10.5,
+          10.75,
           3.125
         ],
         [
-          10.5,
+          10.75,
           5.875
         ]
       ],
       "feature_ref": "F003",
-      "view": "front",
+      "view": "Front",
       "notes": ".218 DR. THRU 6-HLS.",
       "position_source": "",
       "position_confidence": 0.0
@@ -392,14 +400,14 @@
       "open_edge": "top",
       "anchor_edge": "left",
       "anchor_offset": 1.56,
-      "anchor_dimension_id": "D002",
+      "anchor_dimension_id": "D003",
       "anchor_semantics": "edge_to_near_edge",
       "width": 1.62,
-      "width_dimension_id": "D003",
+      "width_dimension_id": "D004",
       "depth": 1.88,
       "depth_dimension_id": "D005",
       "corner_radius": 0.25,
-      "corner_radius_dimension_id": "D004",
+      "corner_radius_dimension_id": "D006",
       "thru": true,
       "thru_basis": "single_view_default"
     }
@@ -408,10 +416,10 @@
     {
       "id": "F001",
       "type": "extrude_boss",
-      "description": "Base rectangular plate 11.00 x 6.25, thickness .105 (12 GA)",
+      "description": "Base rectangular plate 11.00 x 6.25 x .105 thick",
       "related_dimensions": [
         "D001",
-        "D006",
+        "D002",
         "D014"
       ],
       "sketch_plane": "front",
@@ -427,19 +435,18 @@
     {
       "id": "F002",
       "type": "extrude_cut",
-      "description": "U-shaped open notch cut into top edge, width 1.62, depth 1.88, offset 1.56 from left edge, with .25 R TYP interior corners",
+      "description": "U-shaped open notch cut into top edge, left side of plate",
       "related_dimensions": [
-        "D002",
         "D003",
         "D004",
         "D005"
       ],
       "sketch_plane": "front",
-      "depth_dimension_id": "D005",
+      "depth_dimension_id": "",
       "parent_feature": "F001",
-      "offset_x": 0.0,
-      "offset_y": 0.0,
-      "position_known": false,
+      "offset_x": 1.56,
+      "offset_y": 4.37,
+      "position_known": true,
       "quantity": 1,
       "revolve_profile": [],
       "mirror_plane": ""
@@ -447,7 +454,7 @@
     {
       "id": "F003",
       "type": "hole",
-      "description": "6x .218 DIA thru holes arranged 2 columns x 3 rows (linear pattern)",
+      "description": "6x .218 DIA THRU holes in 2-column x 3-row grid pattern",
       "related_dimensions": [
         "D007",
         "D008",
@@ -459,6 +466,25 @@
       "sketch_plane": "front",
       "depth_dimension_id": "",
       "parent_feature": "F001",
+      "offset_x": 0.25,
+      "offset_y": 0.375,
+      "position_known": true,
+      "quantity": 6,
+      "revolve_profile": [],
+      "mirror_plane": ""
+    },
+    {
+      "id": "F004",
+      "type": "pattern",
+      "description": "Linear pattern of 6 mounting holes (2 columns x 3 rows) derived from F003 seed hole",
+      "related_dimensions": [
+        "D007",
+        "D008",
+        "D011"
+      ],
+      "sketch_plane": "front",
+      "depth_dimension_id": "",
+      "parent_feature": "F003",
       "offset_x": 0.0,
       "offset_y": 0.0,
       "position_known": false,
@@ -467,11 +493,11 @@
       "mirror_plane": ""
     },
     {
-      "id": "F004",
+      "id": "F005",
       "type": "fillet",
-      "description": "Interior corner fillets of the U-notch, R.25 TYP (both interior corners)",
+      "description": "Interior corner fillets of the U-notch cutout, .25 R TYP (2 interior corners)",
       "related_dimensions": [
-        "D004"
+        "D006"
       ],
       "sketch_plane": "front",
       "depth_dimension_id": "",
@@ -493,26 +519,25 @@
         "feature_ref": "F003",
         "qty": 3,
         "spacing_value": 2.75,
-        "computed_from": "Row spacing: 0.375 to first hole, then 2.750, then 2.750 more matches total 5.875 of the 6.25 height with 0.375 remaining top margin"
+        "computed_from": "5.500/2 = 2.750 equal vertical spacing between the three holes in each column (0.375, 3.125, 5.875)"
       }
     ],
     "dimension_chains": [
+      {
+        "total_dimension_id": "D002",
+        "component_dimension_ids": [
+          "D009",
+          "D007"
+        ],
+        "description": "6.25 overall height should relate to bottom offset .375 + 5.500 top-to-bottom hole spacing + top margin (approx .375) - verify closure"
+      },
       {
         "total_dimension_id": "D001",
         "component_dimension_ids": [
           "D010",
           "D011"
         ],
-        "description": "Overall length 11.00 approx = 0.25 (left edge to hole) + 10.5 (hole to hole) + 0.25 (hole to right edge, mirrored) - checked approximately"
-      },
-      {
-        "total_dimension_id": "D006",
-        "component_dimension_ids": [
-          "D009",
-          "D007",
-          "D008"
-        ],
-        "description": "Overall width 6.25 = 0.375 (bottom offset) + 2.750 + 2.750 approx checking hole vertical spacing chain"
+        "description": "11.00 overall length = .25 left offset + 10.500 hole spacing + .25 right margin (approx, verify)"
       }
     ],
     "derived_dimension_ids": [],
@@ -524,19 +549,21 @@
     "F001",
     "F002",
     "F003",
-    "F004"
+    "F004",
+    "F005"
   ],
   "warnings": [
-    "Hole vertical positions for the right column (at x=10.5) assumed mirrored/matching the left column pattern (0.375, 3.125, 5.875) based on symmetry visible in the drawing view; only left column dimensions were explicitly annotated with witness lines in the front view.",
-    "D013 (6.25 IN balloon item 2) appears to be a reference callout in the balloon/table area, possibly referring to weather stripping length, not a plate dimension - included as reference dimension.",
-    "Overall dimension chain closure for vertical hole spacing (0.375 + 2.750 + 2.750 = 5.875) does not exactly equal plate height 6.25; remaining 0.375 assumed as top margin matching bottom margin by symmetry, but this is not explicitly dimensioned.",
-    "Material spec lists 1018 STL 12GA plate; also BOM lists Item 2 weather stripping (sponge rubber, McMaster-Carr #1117A11 or equiv, 12.5 IN length) - not modeled as a solid feature since it's a separate purchased item.",
-    "Thickness .105 confirmed via 12 GA (.105) callout in side view per gauge-to-decimal note rule.",
+    "D013 (6.25 IN. balloon callout in detail/reference area) appears to be a reference note duplicating the overall width dimension D002 rather than a new dimension; marked as reference.",
+    "Vertical hole spacing: bottom hole at .375 from bottom edge, middle hole at 2.750 from bottom (implies 2.375 spacing to bottom hole), top hole via 5.500 total span from bottom hole - values not perfectly consistent with simple equal spacing; flagged for review.",
+    "Right-column hole horizontal position derived as left column X (0.25) + 10.500 = 10.75; assuming plate width 11.00, this leaves 0.25 margin on right edge, consistent with symmetry.",
+    "No explicit depth given for the U-notch cut in the Z direction (thickness) - assumed through-all since plate is thin (12 GA) and only one view shows the cutout.",
+    "Weather stripping and item list are BOM/accessory info, not part of the machined COVER geometry; excluded from feature extraction.",
+    "Side view is very sparse (edge view only) - thickness read from title-block gauge callout 12 GA (.105) cross-referenced with side view leader.",
     "No FRONT view found \u2014 the base profile cannot be built without it.",
     "[HIGH] hole-position: H001: vector geometry found but the part outline could not be identified to anchor coordinates \u2014 vision estimate retained.",
     "hole-position: RASTER: this PDF page has no usable vector line work (scanned drawing) \u2014 falling back to raster hole detection; positions from this page cannot be vector-exact.",
     "hole-position: RASTER source: hole centers are Hough estimates, not vector-exact \u2014 all positions from this document must carry a flag.",
     "hole-position: No outline matched the part envelope \u2014 could not anchor the part origin; vector positions unusable."
   ],
-  "confidence": 0.85
+  "confidence": 0.87
 }

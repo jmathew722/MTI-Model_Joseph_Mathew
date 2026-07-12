@@ -63,8 +63,8 @@ def bracket_drawing(units="inch") -> dict:
     }
 
 
-def _resolved(data: dict):
-    resolution = resolve_extraction(data)
+def _resolved(data: dict, commit_mode: bool = True):
+    resolution = resolve_extraction(data, commit_mode=commit_mode)
     model, report = run_verification(resolution.clean_extraction)
     assert model is not None, report
     return resolution, model
@@ -111,7 +111,11 @@ class TestBuildChecklist:
 # --------------------------------------------------------------------------- #
 class TestDiffChecklist:
     def test_fully_built_part_has_no_unresolved_items(self, tmp_path):
-        resolution, model = _resolved(bracket_drawing())
+        # commit_mode=False: the legacy comparison path, where a fillet with no
+        # radius anywhere is genuinely EXCLUDED (not committed) — default
+        # commit-mode now builds it (see test_commit_mode.py), so this scenario
+        # only exists in the legacy path.
+        resolution, model = _resolved(bracket_drawing(), commit_mode=False)
         seq = sequence_build_order(model, resolution)
         pkg = generate_macro_package(model, bracket_drawing(),
                                      format_verification_report(model, run_verification(bracket_drawing())[1]),
@@ -210,9 +214,16 @@ class TestReconcilePartCleanCase:
 
 
 class TestReconcilePartUnresolvableCase:
+    """commit_mode=False throughout: the legacy comparison path where a fillet
+    with no radius anywhere is genuinely EXCLUDED and unresolvable. Under the
+    default commit_mode=True this scenario no longer arises (F003 commits and
+    builds — see test_commit_mode.py's coverage sweep); these tests exercise
+    the reconciliation LOOP's no-progress/attribution mechanics against the
+    one scenario that still produces a genuinely-unresolved item."""
+
     def test_genuinely_unresolvable_stops_after_one_pass(self, tmp_path):
         data = bracket_drawing()  # includes F003, the ungrounded fillet
-        resolution, model = _resolved(data)
+        resolution, model = _resolved(data, commit_mode=False)
         verification_text = format_verification_report(model, run_verification(data)[1])
         pkg = generate_macro_package(model, data, verification_text, tmp_path, resolution=resolution)
         seq = sequence_build_order(model, resolution)
@@ -222,6 +233,7 @@ class TestReconcilePartUnresolvableCase:
             raw_extraction=data, resolution=resolution, model=model,
             dispositions=seq.disposition_table, build_plan=plan,
             verification_text=verification_text, part_dir=pkg.root, part="RECON-1",
+            commit_mode=False,
         )
         # Re-running resolve_extraction on the IDENTICAL raw dict with no new
         # signal is deterministic -> the loop must detect zero progress and
@@ -235,7 +247,7 @@ class TestReconcilePartUnresolvableCase:
 
     def test_never_calls_the_extractor(self, tmp_path):
         data = bracket_drawing()
-        resolution, model = _resolved(data)
+        resolution, model = _resolved(data, commit_mode=False)
         verification_text = format_verification_report(model, run_verification(data)[1])
         pkg = generate_macro_package(model, data, verification_text, tmp_path, resolution=resolution)
         seq = sequence_build_order(model, resolution)
@@ -247,14 +259,14 @@ class TestReconcilePartUnresolvableCase:
                 raw_extraction=data, resolution=resolution, model=model,
                 dispositions=seq.disposition_table, build_plan=plan,
                 verification_text=verification_text, part_dir=pkg.root, part="RECON-1",
-                max_passes=3,
+                max_passes=3, commit_mode=False,
             )
         # No exception means extract_drawing_data was never invoked (cost discipline).
         assert result.final_status == "READY_WITH_OPEN_ITEMS"
 
     def test_report_schema(self, tmp_path):
         data = bracket_drawing()
-        resolution, model = _resolved(data)
+        resolution, model = _resolved(data, commit_mode=False)
         verification_text = format_verification_report(model, run_verification(data)[1])
         pkg = generate_macro_package(model, data, verification_text, tmp_path, resolution=resolution)
         seq = sequence_build_order(model, resolution)
@@ -264,12 +276,14 @@ class TestReconcilePartUnresolvableCase:
             raw_extraction=data, resolution=resolution, model=model,
             dispositions=seq.disposition_table, build_plan=plan,
             verification_text=verification_text, part_dir=pkg.root, part="RECON-1",
+            commit_mode=False,
         )
         path = result.write(pkg.root, "RECON-1")
         report = json.loads(path.read_text(encoding="utf-8"))
         assert set(report.keys()) == {
             "part", "checklist_total", "confirmed_built", "loop_passes_used",
-            "unresolved", "splices_applied", "final_status",
+            "unresolved", "splices_applied", "phantom_reclassified",
+            "accounted_total", "final_status",
         }
         assert report["part"] == "RECON-1"
         assert report["final_status"] in ("READY", "READY_WITH_OPEN_ITEMS")

@@ -60,6 +60,7 @@ from pipeline.build_sequencer import (
     STATE_BUILT,
     STATE_BUILT_DERIVED,
     STATE_EXCLUDED,
+    STATE_PHANTOM_RECLASSIFIED,
     sequence_build_order,
 )
 from pipeline.schema import DrawingData, FeatureType
@@ -165,17 +166,30 @@ def diff_checklist(
     checklist: list[ChecklistItem],
     dispositions: list[dict],
     build_plan: dict,
+    phantom_out: Optional[list[dict]] = None,
 ) -> list[UnresolvedItem]:
     """Compare the ground-truth checklist against the disposition table +
     build_plan.json. Returns every item that is NOT (built with the expected
-    instance count) and NOT a justified exclusion/skip — i.e. everything that
-    still needs attention, worded with the SPECIFIC missing parameter."""
+    instance count) and NOT a justified exclusion/skip/phantom-reclassification
+    — i.e. everything that still needs attention, worded with the SPECIFIC
+    missing parameter. When ``phantom_out`` is given, every
+    ``PHANTOM_RECLASSIFIED`` item is appended there (accounted for explicitly,
+    never silently dropped from the checklist, never counted as a miss —
+    2026-07-12 Task 3, 158-C F004)."""
     disp_by_id = {d.get("feature_id"): d for d in dispositions}
     skipped_ids = set(build_plan.get("skipped_prohibited", []) or [])
     unresolved: list[UnresolvedItem] = []
 
     for item in checklist:
         disp = disp_by_id.get(item.feature_id)
+        if disp is not None and disp.get("state") == STATE_PHANTOM_RECLASSIFIED:
+            if phantom_out is not None:
+                flags = disp.get("flags") or []
+                dup_of = next((f.get("duplicate_of") for f in flags if f.get("duplicate_of")), "")
+                why = next((f.get("human_note") for f in flags if f.get("human_note")), "")
+                phantom_out.append({"feature_id": item.feature_id, "feature_type": item.feature_type,
+                                    "duplicate_of": dup_of, "evidence": why})
+            continue  # accounted for — never unresolved, never a checklist miss
         if disp is None:
             # Structurally should not happen (build_sequencer records every
             # model feature) — but the checklist is built from the RAW
@@ -285,6 +299,9 @@ class ReconciliationResult:
     unresolved: list[UnresolvedItem] = field(default_factory=list)
     final_status: str = "READY"
     splices_applied: list[str] = field(default_factory=list)  # feature ids recovered mid-loop
+    # Task 3 (2026-07-12, 158-C F004): features reclassified as a duplicate of an
+    # already-built sibling — accounted for explicitly, never counted as a miss.
+    phantom_reclassified: list[dict] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -294,6 +311,8 @@ class ReconciliationResult:
             "loop_passes_used": self.loop_passes_used,
             "unresolved": [u.as_dict() for u in self.unresolved],
             "splices_applied": self.splices_applied,
+            "phantom_reclassified": self.phantom_reclassified,
+            "accounted_total": self.confirmed_built + len(self.phantom_reclassified),
             "final_status": self.final_status,
         }
 
@@ -415,6 +434,7 @@ def reconcile_part(
     requirements: Optional[list[str]] = None,
     overview_analysis: Optional[dict] = None,
     max_passes: int = 3,
+    commit_mode: bool = True,
 ) -> ReconciliationResult:
     """Stage 10.5: verify the pipeline's own output against the original
     extraction, and try (in bounded fashion) to close any gap found.
@@ -438,9 +458,10 @@ def reconcile_part(
     ``unresolved``, never dropped without a trace.
     """
     checklist = build_checklist(raw_extraction)
-    unresolved = diff_checklist(checklist, dispositions, build_plan)
+    phantom: list[dict] = []
+    unresolved = diff_checklist(checklist, dispositions, build_plan, phantom_out=phantom)
     unresolved += slot_checks(raw_extraction, build_plan)
-    confirmed_built = len(checklist) - len(unresolved)
+    confirmed_built = len(checklist) - len(unresolved) - len(phantom)
     passes_used = 0
     splices: list[str] = []
 
@@ -456,7 +477,8 @@ def reconcile_part(
             from pipeline.validator import run_verification
 
             new_resolution = resolve_extraction(
-                raw_extraction, requirements=fresh_requirements, overview_analysis=fresh_overview)
+                raw_extraction, requirements=fresh_requirements, overview_analysis=fresh_overview,
+                commit_mode=commit_mode)
             new_model, report = run_verification(new_resolution.clean_extraction)
         except Exception as e:  # the loop must never crash a run
             log.warning("reconciliation pass %d: re-resolution failed (%s) — stopping loop.",
@@ -470,8 +492,10 @@ def reconcile_part(
         new_seq = sequence_build_order(new_model, new_resolution)
         new_dispositions = new_seq.disposition_table
         new_build_plan = dict(build_plan)  # instance counts recomputed only via steps below
-        new_unresolved = diff_checklist(checklist, new_dispositions, build_plan)
+        new_phantom: list[dict] = []
+        new_unresolved = diff_checklist(checklist, new_dispositions, build_plan, phantom_out=new_phantom)
         new_unresolved += slot_checks(raw_extraction, build_plan)
+        phantom = new_phantom
 
         fixed_ids = {u.feature_id for u in unresolved} - {u.feature_id for u in new_unresolved}
         if not fixed_ids:
@@ -513,13 +537,13 @@ def reconcile_part(
 
         cur_resolution, cur_model = new_resolution, new_model
         unresolved = new_unresolved
-        confirmed_built = len(checklist) - len(unresolved)
+        confirmed_built = len(checklist) - len(unresolved) - len(phantom)
 
     final_status = "READY" if not unresolved else "READY_WITH_OPEN_ITEMS"
     result = ReconciliationResult(
         part=part, checklist_total=len(checklist), confirmed_built=confirmed_built,
         loop_passes_used=passes_used, unresolved=unresolved, final_status=final_status,
-        splices_applied=splices,
+        splices_applied=splices, phantom_reclassified=phantom,
     )
     return result
 
@@ -685,6 +709,15 @@ def plan_corrections(verification: dict, build_plan: dict) -> tuple[Optional[dic
             corrections.append(Correction(fid, cls, "reresolve_dim",
                                "re-check the driving dimension against the resolver ladder; "
                                "flag if the resolution does not change"))
+        elif cls == "EDGE_NOT_BROKEN":
+            # The enclosed-window defect (2026-07-12 Task 1, 158-C): an open-edge
+            # cut still has material spanning the drawn edge. The plan's corners
+            # already carry the edge-overshoot (see slot_cut.EDGE_OVERSHOOT_EPS) —
+            # re-emit the step so a transient COM/sketch failure gets one retry;
+            # a repeat means the overshoot itself needs a larger margin, flagged.
+            corrections.append(Correction(fid, cls, "reemit_step",
+                               "open-edge cut did not break the edge (enclosed window); "
+                               "re-emit the slot rectangle with its edge-overshoot corners"))
     for e in verification.get("extras") or []:
         corrections.append(Correction(e.get("feature_id", "?"), "EXTRA", "flag",
                            "measured geometry with no planned feature — surfaced for review"))

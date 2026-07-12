@@ -84,6 +84,12 @@ STATE_EXCLUDED = "EXCLUDED_INCOMPLETE"
 # a metadata overlay on top of the geometric BUILT/EXCLUDED states, not a
 # replacement (existing build_dispositions.json consumers are unaffected).
 STATE_NEEDS_HUMAN_INPUT = "NEEDS_HUMAN_INPUT"
+# Additive (2026-07-12, Task 3 — phantom-feature reconciliation, 158-C F004): a
+# feature that corresponds to NOTHING on the drawing beyond an already-built
+# sibling (e.g. a "pattern" duplicating a hole callout's own instance count).
+# Removed from build_order like STATE_EXCLUDED, but for a DIFFERENT reason —
+# never an open item, never counted as a checklist miss.
+STATE_PHANTOM_RECLASSIFIED = "PHANTOM_RECLASSIFIED"
 
 _BASE_TYPES = {FeatureType.EXTRUDE_BOSS, FeatureType.REVOLVE}
 _EDGE_TYPES = {FeatureType.CHAMFER, FeatureType.FILLET}
@@ -94,7 +100,7 @@ _PATTERN_TYPES = {FeatureType.PATTERN, FeatureType.MIRROR}
 # else on a feature's driving dimension marks it BUILT_WITH_DERIVED_VALUE.
 _EXPLICIT_BASES = {
     "", "explicit_callout", "explicit", "as_read", "direct_reading",
-    "direct", "read", "measured",
+    "direct", "read", "measured", "extracted_verbatim",
 }
 # A resolved position that counts as read (not assumed) — everything else marks
 # the feature's placement as derived.
@@ -332,7 +338,11 @@ def _feature_flags(feature_id: str, resolution) -> list[dict[str, Any]]:
 
 
 def disposition_state(feature: Feature, resolution, in_build_order: bool) -> str:
-    """Three-state classification for one feature."""
+    """Four-state classification for one feature."""
+    if resolution is not None and resolution.feature_resolutions:
+        fr = resolution.feature_resolutions.get(feature.id)
+        if fr is not None and getattr(fr, "build_status", "") == "duplicate_reclassified":
+            return STATE_PHANTOM_RECLASSIFIED
     if not in_build_order:
         return STATE_EXCLUDED
     return STATE_BUILT_DERIVED if _derivation_source(feature, resolution) else STATE_BUILT
@@ -394,7 +404,8 @@ def sequence_build_order(model: DrawingData, resolution=None) -> SequenceResult:
 
     # Build the disposition table over ALL features (built + excluded), ordered
     # deterministically by (stage, state-rank, key) so the table itself is stable.
-    _STATE_RANK = {STATE_BUILT: 0, STATE_BUILT_DERIVED: 1, STATE_EXCLUDED: 2}
+    _STATE_RANK = {STATE_BUILT: 0, STATE_BUILT_DERIVED: 1,
+                  STATE_PHANTOM_RECLASSIFIED: 2, STATE_EXCLUDED: 3}
     dispositions: list[Disposition] = []
     for feat in model.features:
         in_order = feat.id in buildable_set

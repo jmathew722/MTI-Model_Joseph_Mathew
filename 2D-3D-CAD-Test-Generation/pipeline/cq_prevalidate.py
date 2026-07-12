@@ -164,6 +164,29 @@ def build_solid_from_plan(plan: dict):
                    .pushPoints(pts).circle(float(dia) * k / 2.0))
             solid = wp2.cutThruAll() if (thru or not depth) else wp2.cutBlind(-float(depth) * k)
 
+        elif stype == "slot_rect_cut":
+            # Canonical slot/notch rectangle (2026-07-12 Task 1): cut the EXACT
+            # polygon macro_generator wrote to the plan (corners_drawing_units),
+            # never re-derive it — this is what proves VBA and CadQuery consume
+            # IDENTICAL per-instance coordinates (the open edge's overshoot is
+            # already baked into these corners, so both backends break the edge
+            # the same way).
+            if solid is None:
+                raise ValueError(f"{step.get('feature_id')}: slot cut before any base solid")
+            corners = ((step.get("sketch") or {}).get("corners_drawing_units")
+                      or step.get("positions_xy") or [])
+            if len(corners) < 3:
+                raise ValueError(f"{step.get('feature_id')}: slot_rect_cut has no polygon corners")
+            pts = [to_workplane_local(float(x), float(y), k) for x, y in corners]
+            wp2 = solid.faces(">Z").workplane(origin=(0, 0, 0)).polyline(pts).close()
+            solid = wp2.cutThruAll() if thru else (
+                wp2.cutBlind(-float(depth) * k) if depth else wp2.cutThruAll())
+
+        elif stype == "slot_corner_fillet":
+            continue  # cosmetic-geometric; the rectangle cut already carries the
+            # slot's position/size truth checked here — corner fillets are not
+            # required for the volume/hole-count constraints CadQuery pre-validates.
+
         elif stype == "circular_pattern":
             if solid is None:
                 raise ValueError(f"{step.get('feature_id')}: pattern before any base solid")

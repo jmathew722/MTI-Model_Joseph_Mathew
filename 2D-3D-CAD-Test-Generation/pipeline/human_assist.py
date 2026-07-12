@@ -204,8 +204,8 @@ def _qid(part: str, feature_id: str, kind: str) -> str:
 
 # A resolution basis meaning the value was read/derived confidently — such a
 # dimension is NOT an open ambiguity worth a human question.
-_CONFIDENT_BASES = {"explicit_callout", "arithmetic_chain", "spec_driven",
-                    "human_provided", "stock_dimension"}
+_CONFIDENT_BASES = {"explicit_callout", "extracted_verbatim", "arithmetic_chain",
+                    "spec_driven", "human_provided", "stock_dimension"}
 
 
 def _fanout_map(model) -> dict[str, int]:

@@ -127,10 +127,13 @@ def _resolve_stage(args, drawing_data: dict, overview_analysis: dict | None = No
     """
     if getattr(args, "no_resolve", False):
         return drawing_data, None
-    from pipeline.resolver import resolve_extraction
+    from pipeline.resolution_cache import CACHE_DIRNAME, resolve_with_cache
 
     console.print("[2.5/4] Resolving ambiguities (chief-engineer pass)...")
-    resolution = resolve_extraction(drawing_data,
+    cache_dir = None
+    if getattr(args, "output", None):
+        cache_dir = Path(args.output) / CACHE_DIRNAME
+    resolution = resolve_with_cache(drawing_data, cache_dir=cache_dir,
                                     requirements=_spec_lines_from_args(args),
                                     overview_analysis=overview_analysis)
     _print_resolution_summary(resolution)

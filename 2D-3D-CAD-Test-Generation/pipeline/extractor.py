@@ -192,6 +192,23 @@ HOLE CALLOUTS:
 FEATURES & BUILD ORDER (F001, F002, ...):
 - Use ONLY these feature `type` values: extrude_boss, extrude_cut, revolve, hole,
   fillet, chamfer, thread, pattern, mirror, shell.
+- BALLOON / BOM CALLOUTS ARE METADATA, NEVER A FEATURE: a circled numeral (a
+  "balloon", e.g. a circled "2" near a table/notes block), a bill-of-materials
+  item reference, or an applied/purchased-item note (e.g. "sponge rubber strip
+  applied per BOM", "weatherstrip, McMaster-Carr #...") describes something
+  bought or assembled onto the part, NOT geometry the pipeline should cut,
+  extrude, or pattern. NEVER emit a feature for one of these — record the
+  callout's own dimension (if any) with `applies_to="reference_callout"` and
+  `is_reference=true`, and put the full note text in `notes`. A pattern/hole/
+  cut feature must correspond to geometry actually visible in a view; if you
+  cannot point to the geometry it cuts, it is metadata, not a feature.
+- DO NOT DUPLICATE A HOLE FEATURE AS A SEPARATE "PATTERN": when a hole feature
+  already carries a callout with a quantity/count (e.g. ".218 DR THRU 6-HLS"
+  with instance positions for all 6), that single hole feature IS the pattern —
+  never additionally emit a second `pattern` feature "derived from" that same
+  hole seed to represent the same instances again. One set of holes is one
+  feature; a duplicate second feature describing the identical instances
+  corresponds to nothing extra on the drawing and only creates a phantom item.
 - build_order: base solid first (largest extrude_boss or revolve), then primary
   cuts/through holes, then counterbores/countersinks/taps, fillets and chamfers
   LAST, patterns after their seed. The FIRST feature MUST be extrude_boss or revolve.
@@ -352,6 +369,12 @@ def _call(client, model: str, messages: list[dict[str, Any]]):
         return client.messages.create(
             model=model,
             max_tokens=MAX_TOKENS,
+            # Deterministic settings (2026-07-12, "extraction is truth" — Task 2):
+            # a re-extraction of the SAME image should read the SAME candidates and
+            # confidences as closely as the model allows. temperature=0 minimizes
+            # run-to-run drift in the readings the (already-deterministic) resolver
+            # then commits to verbatim.
+            temperature=0,
             system=system,
             messages=messages,
             tools=[_drawing_data_tool()],
@@ -492,6 +515,11 @@ MULTIVIEW_USER_TEXT = (
     "AND keep the backing extrude_cut feature. Do NOT trace the U as an arc sketch and "
     "do NOT emit a separate fillet feature for its corners — the pipeline splits a slot "
     "into a rectangle cut plus corner fillets automatically.\n"
+    "- BALLOON/BOM callouts (a circled numeral, a bill-of-materials item, an "
+    "applied/purchased-item note like 'weatherstrip applied per BOM') are "
+    "METADATA, never a feature — record any dimension as `is_reference=true`, "
+    "applies_to='reference_callout', full text in notes. Never emit a second "
+    "'pattern' feature that just duplicates a hole feature's own qty/instances.\n"
     "- A CIRCULAR part with ONE outside diameter (disc/plate/flange/hub/bushing/"
     "cylinder): make the base an `extrude_boss` with a `diameter` dimension + a "
     "depth/thickness — circles are ALWAYS circle+extrude, never a revolved rectangle. "

@@ -102,7 +102,10 @@ class TestGoldenA001581E:
         _, _, _, plan = _build_pkg(_a001581e(), tmp_path)
         rect = next(s for s in plan["steps"] if s["type"] == "slot_rect_cut")
         corners = rect["sketch"]["corners_drawing_units"]
-        assert corners == [[1.56, 4.37], [3.18, 4.37], [3.18, 6.25], [1.56, 6.25]]
+        # The open (top) edge overshoots by EDGE_OVERSHOOT_EPS (0.050) so the cut
+        # cleanly breaks the edge instead of landing exactly coincident with it
+        # (2026-07-12 Task 1 — the enclosed-window defect, 158-C).
+        assert corners == [[1.56, 4.37], [3.18, 4.37], [3.18, 6.30], [1.56, 6.30]]
 
     def test_fillet_targets_two_interior_bottom_corners(self, tmp_path):
         _, _, _, plan = _build_pkg(_a001581e(), tmp_path)
