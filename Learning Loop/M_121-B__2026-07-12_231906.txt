@@ -1,0 +1,108 @@
+LEARNING LOOP — M 121-B
+============================================================
+Run:     2026-07-12 23:19:06
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\cc8e70852565\A001221E\output\M_121-B
+Fingerprint: 259df5a8ec5d3df9
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [HIGH] The tapped hole note reads 'M5X.8 TAP THRU. (2) HL'S. (3) PL'S.' implying 3 total tapped hole locations, but the front view appears to show hole markers (crosshair/circle symbols) at more than 3 X-locations (markers appear near 1.938, 2.750, 2.938, 3.50/2.344 area, and 0.938 offset) - it is ambiguous which markers correspond to the 3 tapped holes versus the 2 dowel holes versus reference/ballon witness marks.
+       -> Cross-reference each hole symbol location against the X dimensions (1.938, 2.250, 2.500, 2.750, 2.875, 2.938, 3.50, 5.375, 6.88) to uniquely map 2 clearance holes + 3 tapped holes; verify with an inspection report or 3D model if available, since the hand-marked leader lines are ambiguous about which specific circle each note governs.
+   - [MEDIUM] Side view shows plate thickness .25 with overall height 5.50, but does not show the stepped top profile or any hidden lines for the .422 or M5x.8 holes, so through-hole depth cannot be independently confirmed by the side view alone.
+       -> Confirm hole-through condition relies solely on the front view leader note text (THRU); recommend checking if an additional profile/section view exists elsewhere or requesting a section cut to verify no counterbore/blind condition, especially at the stepped tab area.
+   - [MEDIUM] Note '(2) HL'S.' appears on both the .422 DIA THRU callout and the M5X.8 TAP THRU callout, suggesting 2 of each type sit on the same hidden-line feature (likely the stepped step edge), but the drawing does not clarify which 2 of the visible circle markers are the shared HL's referenced twice.
+       -> Verify against the physical part or a supplemental view whether the (2) HL's for the dowel holes and (2) HL's for tapped holes are literally the same two physical locations or coincidentally described the same way; clarify with engineering if ambiguous.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 7, HIGH 2, MEDIUM 5, LOW 3
+   - [CRITICAL] D900 (dimension): F004 width=6.88 inch DERIVED from the outer profile (envelope length 6.88 − step anchor 0); no feature-local width callout. Verify.
+       decision: resolved value 6.88
+       why: profile delta
+       affects: dimension D900
+   - [CRITICAL] D901 (dimension): F004 length=5.5 inch DERIVED from the outer profile (envelope height 5.5 − partial 0); no feature-local length callout. Verify.
+       decision: resolved value 5.5
+       why: profile delta
+       affects: dimension D901
+   - [CRITICAL] D902 (dimension): F005 width=6.88 inch DERIVED from the outer profile (envelope length 6.88 − step anchor 0); no feature-local width callout. Verify.
+       decision: resolved value 6.88
+       why: profile delta
+       affects: dimension D902
+   - [CRITICAL] D903 (dimension): F005 length=5.5 inch DERIVED from the outer profile (envelope height 5.5 − partial 0); no feature-local length callout. Verify.
+       decision: resolved value 5.5
+       why: profile delta
+       affects: dimension D903
+   - [CRITICAL] F005 (build): The .sldprt build SKIPPED feature F005 (extrude_cut): deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F005 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F005 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       affects: feature F005
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (hole): deferred_open (zero_thickness_or_geometry): cut F002 positioned OUTSIDE the solid — its profile (0.1059, 0.0693, 0.1166, 0.1197) m does not overlap the body (0.0, 0
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (zero_thickness_or_geometry): cut F002 positioned OUTSIDE the solid — its profile (0.1059, 0.0693, 0.1166, 0.1197) m does not overlap the body (0.0, 0
+       affects: feature F002
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (hole): deferred_open (zero_thickness_or_geometry): cut F003 positioned OUTSIDE the solid — its profile (0.0769, 0.007, 0.1113, 0.0723) m does not overlap the body (0.0, 0.
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (zero_thickness_or_geometry): cut F003 positioned OUTSIDE the solid — its profile (0.0769, 0.007, 0.1113, 0.0723) m does not overlap the body (0.0, 0.
+       affects: feature F003
+   - [HIGH] OV-001 (overview_analysis): INSPECTION-BALLOON REFERENCE (front): The tapped hole note reads 'M5X.8 TAP THRU. (2) HL'S. (3) PL'S.' implying 3 total tapped hole locations, but the front view appears to show hole markers (crosshair/circle symbols) at more than 3 X-locations (markers appear near 1.938, 2.750, 2.938, 3.50/2.344 area, and 0.938 offset) - it is ambiguous which markers correspond to the 3 tapped holes versus the 2 dowel holes versus reference/ballon witness marks. Recognized as an inspection dimension balloon (circled numeral / 'IN.' value), attached to part metadata — NOT a competing geometry dimension, so it is excluded from dimension-conflict reconciliation.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV007 (overview): Count shortfall for thread: the overview's callouts total 6, but the build contains 3.
+       decision: build kept its extracted total of 3
+       why: the summed overview callout counts exceed the built total — a group of this feature may be missing (per-group counts that sum to the build total are treated as consistent and NOT flagged)
+       affects: thread total count
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): Side view shows plate thickness .25 with overall height 5.50, but does not show the stepped top profile or any hidden lines for the .422 or M5x.8 holes, so through-hole depth cannot be independently confirmed by the side view alone. Recommendation: Confirm hole-through condition relies solely on the front view leader note text (THRU); recommend checking if an additional profile/section view exists elsewhere or requesting a section cut to verify no counterbore/blind condition, especially at the stepped tab area.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front): Note '(2) HL'S.' appears on both the .422 DIA THRU callout and the M5X.8 TAP THRU callout, suggesting 2 of each type sit on the same hidden-line feature (likely the stepped step edge), but the drawing does not clarify which 2 of the visible circle markers are the shared HL's referenced twice. Recommendation: Verify against the physical part or a supplemental view whether the (2) HL's for the dowel holes and (2) HL's for tapped holes are literally the same two physical locations or coincidentally described the same way; clarify with engineering if ambiguous.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F005 (extrude_cut) deferred_open after retries: FeatureCut4 returned None for F005 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F002 (hole) deferred_open after retries: cut F002 positioned OUTSIDE the solid — its profile (0.1059, 0.0693, 0.1166, 0.1197) m does not overlap the body (0.0, 0
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F003 (hole) deferred_open after retries: cut F003 positioned OUTSIDE the solid — its profile (0.0769, 0.007, 0.1113, 0.0723) m does not overlap the body (0.0, 0.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV003 (overview): Surface Finish note: Stepped profile / notch cut into top edge of plate (multi-level step feature) (top edge, left-center area).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV004 (overview): Surface Finish note: Stepped profile / notch cut into right portion of plate top edge (lower step) (top edge, right-center area).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV006 (overview): Thickness-view value 0.25 is out of plausible range vs the build thickness 4.5 (18x) (right side view of part); treated as a non-thickness number, not a conflict.
+       decision: ignored as an out-of-band capture, build thickness kept
+       why: an edge-view thickness cannot differ from the build by an order of magnitude — the extractor captured an unrelated dimension
+       affects: metadata: rejected thickness candidate
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F005 FAILED: FeatureCut4 returned None for F005 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+   - feature F002 FAILED: cut F002 positioned OUTSIDE the solid — its profile (0.1059, 0.0693, 0.1166, 0.1197) m does not overlap the body (0.0, 0.0, 0.0478, 0.1143) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part. The Stage 2.5 completeness gate now excludes position-unresolved cuts before the build — add an X/Y location dimension on the drawing and re-run; do not patch the build.
+   - feature F003 FAILED: cut F003 positioned OUTSIDE the solid — its profile (0.0769, 0.007, 0.1113, 0.0723) m does not overlap the body (0.0, 0.0, 0.0478, 0.1143) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part. The Stage 2.5 completeness gate now excludes position-unresolved cuts before the build — add an X/Y location dimension on the drawing and re-run; do not patch the build.
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'M 121-B' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\cc8e70852565\A001221E\output\M_121-B

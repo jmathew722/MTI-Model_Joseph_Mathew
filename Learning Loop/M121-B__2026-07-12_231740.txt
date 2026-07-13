@@ -1,0 +1,59 @@
+LEARNING LOOP — M121-B
+============================================================
+Run:     2026-07-12 23:17:40
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\5d746c46cd10\A001581E\output\M121-B
+Fingerprint: b5b9840e2768006e
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The M5x.8 TAP THRU note states '(2) HL'S. (3) PL'S.' meaning 2 hidden-line/visible representative tap holes are called out but the total count of places is 3. In the front view only 2 or possibly 3 crosshair (tap) symbols are discernible along the stepped edge (at roughly 1.156 and 2.344 offsets, with a third near the lower step), making it ambiguous whether all 3 places are clearly rendered or if one is implied/occluded by the profile step or dimension line clutter.
+       -> Zoom into the front view around the stepped profile near the lower-left step (around 1.938/2.938 dimension lines) to verify a third tap hole symbol exists distinct from the .422 DIA THRU holes; cross-check against the side view hidden lines for a third stacked hole indication through the .25 thickness.
+   - [LOW] The side view shows only a thickness (.25) and overall height (5.50) with hidden lines, but does not clearly distinguish which holes (the .422 DIA THRU vs the M5x.8 TAP THRU) correspond to which hidden lines, since the side view is a thin edge-on view with limited feature differentiation.
+       -> Confirm hole-to-hidden-line correspondence by checking hidden line spacing in the side view against the 2.750/1.938/2.250/2.500 offsets from the front view; if the side view is too compressed to distinguish, note this as a limitation rather than an inferred conflict.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 2, MEDIUM 1, LOW 1
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "M5X.8 TAP THRU. (2) HL'S. (3) PL'S." states 3 instance(s), but the per-view extraction captured hole group(s) of [2, 6] (total 8). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 3 PLACE DIM ±.010, 2 PLACE DIM ±.02, ANGULAR DIM ±, SCALE 1"=2"" states 3 instance(s), but the per-view extraction captured hole group(s) of [2, 6] (total 8). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view shows only a thickness (.25) and overall height (5.50) with hidden lines, but does not clearly distinguish which holes (the .422 DIA THRU vs the M5x.8 TAP THRU) correspond to which hidden lines, since the side view is a thin edge-on view with limited feature differentiation. Recommendation: Confirm hole-to-hidden-line correspondence by checking hidden line spacing in the side view against the 2.750/1.938/2.250/2.500 offsets from the front view; if the side view is too compressed to distinguish, note this as a limitation rather than an inferred conflict.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F003 (macro): Macro for F003 (thread) needs manual review: Cosmetic thread step requires manual verification.
+       decision: macro 03_F003_M5x_8_TAP_THRU_holes_6_total_2_per_locat.vba generated with manual instructions
+       why: Cosmetic thread step requires manual verification.
+       affects: feature F003
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): The M5x.8 TAP THRU note states '(2) HL'S. (3) PL'S.' meaning 2 hidden-line/visible representative tap holes are called out but the total count of places is 3. In the front view only 2 or possibly 3 crosshair (tap) symbols are discernible along the stepped edge (at roughly 1.156 and 2.344 offsets, with a third near the lower step), making it ambiguous whether all 3 places are clearly rendered or if one is implied/occluded by the profile step or dimension line clutter. Recommendation: Zoom into the front view around the stepped profile near the lower-left step (around 1.938/2.938 dimension lines) to verify a third tap hole symbol exists distinct from the .422 DIA THRU holes; cross-check against the side view hidden lines for a third stacked hole indication through the .25 thickness.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV006 (overview): Surface Finish note: Stepped profile / notch cut into top edge of plate (multi-level step) (top center of plate outline).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'M121-B' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\5d746c46cd10\A001581E\output\M121-B

@@ -1,0 +1,64 @@
+LEARNING LOOP — 158-C
+============================================================
+Run:     2026-07-12 21:18:19
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\295fabfea4da\A001581E\output\158-C
+Fingerprint: 10117ffe74734900
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] The front view clearly shows six hole locations (center-cross marks) matching the '.218 DR. THRU 6-HLS.' callout, so hole count is confirmed and consistent — no conflict here. However, the notch feature (1.56/1.62/1.88 dims) shown in the front view has no corresponding representation or cross-check in the edge/side view, making it impossible to confirm the notch's depth relative to plate thickness or verify it is a through-cut versus a partial depth feature from the edge view alone.
+       -> Verify from full-size front view crop that notch is a through-cutout (open to the plate edge) and confirm no additional profile view was omitted that would show the notch depth through the thickness.
+   - [LOW] The edge/side view shows a small tab or step feature at one end of the plate that does not have an obvious corresponding dimension or feature call-out in the front (plan) view.
+       -> Check enlarged crop of edge view to determine if this step is a drafting artifact (fold line, weld line) or an actual formed tab; cross-check against front view edge for any unlabeled break line.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 2, MEDIUM 1, LOW 2
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, ANGULAR DIM ±, SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [6] (total 6). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       affects: feature F003
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, edge_side): The front view clearly shows six hole locations (center-cross marks) matching the '.218 DR. THRU 6-HLS.' callout, so hole count is confirmed and consistent — no conflict here. However, the notch feature (1.56/1.62/1.88 dims) shown in the front view has no corresponding representation or cross-check in the edge/side view, making it impossible to confirm the notch's depth relative to plate thickness or verify it is a through-cut versus a partial depth feature from the edge view alone. Recommendation: Verify from full-size front view crop that notch is a through-cutout (open to the plate edge) and confirm no additional profile view was omitted that would show the notch depth through the thickness. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, edge_side): The edge/side view shows a small tab or step feature at one end of the plate that does not have an obvious corresponding dimension or feature call-out in the front (plan) view. Recommendation: Check enlarged crop of edge view to determine if this step is a drafting artifact (fold line, weld line) or an actual formed tab; cross-check against front view edge for any unlabeled break line. [request-full-sheet: this looks like a cropped/off-sheet region — upload the complete sheet rather than re-running.]
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV004 (overview): Gauge thickness noted but material unknown: Flat plate part, 12 GA (.105 in) thick steel, overall envelope 11.00 x 6.25 x .105, shown in side/edge view at bottom (side view) [gauge 12]. Cannot convert a gauge number to a decimal without the material — not compared to the build.
+       decision: recorded as the part's gauge reference; not reconciled
+       why: a gauge number is ambiguous across materials (no decimal given)
+       affects: metadata: stock gauge
+   - [LOW] OV005 (overview): Thickness-view value 12.5 is out of plausible range vs the build thickness 1.88 (7x) (BOM reference only, not shown in views); treated as a non-thickness number, not a conflict.
+       decision: ignored as an out-of-band capture, build thickness kept
+       why: an edge-view thickness cannot differ from the build by an order of magnitude — the extractor captured an unrelated dimension
+       affects: metadata: rejected thickness candidate
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '158-C' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\295fabfea4da\A001581E\output\158-C
