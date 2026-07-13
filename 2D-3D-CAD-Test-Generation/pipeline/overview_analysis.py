@@ -246,7 +246,6 @@ def analyze_overview(
         return client.messages.create(
             model=model,
             max_tokens=MAX_TOKENS,
-            temperature=0,  # deterministic settings (2026-07-12, "extraction is truth")
             system=[{"type": "text", "text": SYSTEM_PROMPT,
                      "cache_control": {"type": "ephemeral"}}],
             messages=msgs,

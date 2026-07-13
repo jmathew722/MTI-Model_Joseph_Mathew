@@ -335,13 +335,10 @@ class TestUniversalCompletenessGate:
     """P1/commit-mode — a feature missing its driving dimension.
 
     Legacy (commit_mode=False): every such feature is EXCLUDED from build_order.
-    Commit-mode (default, 2026-07-12 Task 3 coverage sweep): NO feature type may
-    reach EXCLUDED_INCOMPLETE. Holes/profile cuts commit a derived value from
-    the constraint graph/envelope; a fillet/chamfer with no size anywhere
-    commits a small shop-typical edge-break; a pattern with no count+spacing
-    commits a conservative spacing (or, when it merely duplicates an
-    already-built sibling's callout, is reclassified as a phantom duplicate —
-    see TestPhantomDuplicateReconciliation)."""
+    Commit-mode (default): buildable geometry (holes, profile cuts) is COMMITTED
+    and built with a derived/committed value; edge/pattern treatments that cannot
+    be committed meaningfully (a fillet/chamfer with no size, a pattern with no
+    count+spacing) remain excluded under both modes."""
 
     # (feature dict, human label) — each is missing its type's driving dimension.
     CASES = [
@@ -378,12 +375,17 @@ class TestUniversalCompletenessGate:
         assert excluded[0]["flag_tier"] == "CRITICAL"
         assert excluded[0].get("model_derived_assumption") is True
 
+    # In commit-mode, holes and profile cuts BUILD; fillet/chamfer/pattern stay excluded.
+    _COMMIT_BUILDS = {"hole:no-diameter", "cut:height-only-profile"}
+
     @pytest.mark.parametrize("feat,label", CASES, ids=[c[1] for c in CASES])
-    def test_commit_mode_builds_every_feature_type_never_excludes(self, feat, label):
-        # 2026-07-12 Task 3 coverage sweep: EVERY type commits and builds.
+    def test_commit_mode_builds_geometry_excludes_only_edge_and_pattern(self, feat, label):
         res = resolve_extraction(self._part(feat, label))  # commit_mode default ON
-        assert "FX" in res.resolved_extraction["build_order"], (
-            f"{label}: commit-mode must never leave a feature EXCLUDED_INCOMPLETE")
+        in_order = "FX" in res.resolved_extraction["build_order"]
+        if label in self._COMMIT_BUILDS:
+            assert in_order, f"{label}: buildable geometry must be committed & built in commit-mode"
+        else:
+            assert not in_order, f"{label}: non-committable edge/pattern treatment stays excluded"
 
     def test_thread_callout_supplies_hole_diameter(self):
         # Step-3 standard-size substitution: a thread callout names an unambiguous

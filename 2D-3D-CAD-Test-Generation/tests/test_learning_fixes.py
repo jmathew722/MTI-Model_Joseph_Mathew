@@ -138,26 +138,15 @@ class TestTypAndMissingDimension:
         assert not [d for d in res.resolved_extraction["dimensions"]
                     if d["id"] in f003["related_dimensions"] and d.get("assumption_basis") == "typ_propagation"]
 
-    def test_dimensionless_chamfer_flagged_for_markup_commit_off(self):
+    def test_dimensionless_chamfer_flagged_for_markup(self):
         d = _two_fillets(second_has_radius=False)
         # Add a chamfer with no distance and no TYP chamfer value anywhere.
         d["features"].append({"id": "F004", "type": "chamfer", "description": "edge chamfer",
                               "related_dimensions": [], "parent_feature": "F001"})
         d["build_order"].append("F004")
-        res = resolve_extraction(d, commit_mode=False)
+        res = resolve_extraction(d)
         miss = [f for f in res.flags if f.get("source") == "missing_dimension" and f["dimension_id"] == "F004"]
         assert miss and miss[0]["flag_tier"] == "CRITICAL" and miss[0].get("route_to_markup") is True
-
-    def test_dimensionless_chamfer_committed_in_commit_mode(self):
-        # Commit-to-extraction (default, 2026-07-12 Task 3 coverage sweep): a
-        # chamfer with no distance anywhere BUILDS at a conservative shop-typical
-        # value rather than being excluded.
-        d = _two_fillets(second_has_radius=False)
-        d["features"].append({"id": "F004", "type": "chamfer", "description": "edge chamfer",
-                              "related_dimensions": [], "parent_feature": "F001"})
-        d["build_order"].append("F004")
-        res = resolve_extraction(d)
-        assert "F004" in res.resolved_extraction["build_order"]
 
 
 # --------------------------------------------------------------------------- #

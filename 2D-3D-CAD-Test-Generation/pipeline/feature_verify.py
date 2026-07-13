@@ -67,11 +67,6 @@ MISPLACED = "MISPLACED"
 WRONG_SIZE = "WRONG_SIZE"
 EXTRA = "EXTRA"
 UNMEASURABLE = "UNMEASURABLE"
-# An open-edge cut (notch/slot open through an outer edge) whose built solid
-# still has material spanning the edge — an enclosed window instead of the
-# drawn open notch (2026-07-12 Task 1, 158-C). Feeds the geometric correction
-# loop like MISPLACED/WRONG_SIZE.
-EDGE_NOT_BROKEN = "EDGE_NOT_BROKEN"
 
 _HOLE_TYPES = {"hole", "thread"}
 _EDGE_TYPES = {"fillet", "chamfer"}
@@ -409,94 +404,6 @@ def _verify_cut(mesh: _Mesh, step: dict, pos_tol: float) -> dict:
     }
 
 
-def _verify_slot_cut(mesh: _Mesh, step: dict, pos_tol: float) -> dict:
-    """Canonical slot/notch rectangle: material-absence at the interior, PLUS —
-    when the slot is open-edged — a cross-section AT the open edge, across the
-    notch's transverse span, that must show ABSENCE of material. A window
-    (material still spans the edge) is EDGE_NOT_BROKEN, never silently OK."""
-    dims = step.get("dimensions_drawing_units") or {}
-    width = dims.get("width")
-    depth = dims.get("depth")
-    anchor = dims.get("anchor_offset")
-    sketch = step.get("sketch") or {}
-    open_edge = (sketch.get("open_edge") or "").lower()
-    if not (width and depth and anchor is not None):
-        return _unmeasurable(step, "slot cut has no width/depth/anchor to probe")
-
-    plate_len, plate_wid = mesh.plane_extents_in()
-
-    # Interior center (the closed end, midway through the depth) — always
-    # available regardless of which edge (if any) is open.
-    if open_edge == "top":
-        cx, cy = anchor + width / 2.0, plate_wid - depth / 2.0
-    elif open_edge == "bottom":
-        cx, cy = anchor + width / 2.0, depth / 2.0
-    elif open_edge == "left":
-        cx, cy = depth / 2.0, anchor + width / 2.0
-    elif open_edge == "right":
-        cx, cy = plate_len - depth / 2.0, anchor + width / 2.0
-    else:  # closed slot — anchor is the near horizontal edge, depth runs vertical
-        cx, cy = anchor + width / 2.0, depth / 2.0
-
-    probe_r = min(width, depth) / 2.0 * 0.5
-    frac = mesh.material_fraction(cx, cy, probe_r)
-    if frac is None:
-        return _unmeasurable(step, "no mid-thickness cross-section available to probe the slot")
-
-    expected = {"x": round(cx, 4), "y": round(cy, 4), "width": width, "depth": depth,
-               "open_edge": open_edge or None}
-    checks = [{"check": "material_absence", "detail": f"material fraction inside probe = {round(frac, 3)}"}]
-
-    if frac >= 0.75:
-        checks[0]["status"] = "FAIL"
-        return {"feature_id": step.get("feature_id"), "type": step.get("type"), "kind": "slot",
-                "expected": expected, "measured": {"material_fraction_inside": round(frac, 3)},
-                "checks": checks, "classification": MISSING}
-    checks[0]["status"] = "PASS"
-
-    if not open_edge:
-        return {"feature_id": step.get("feature_id"), "type": step.get("type"), "kind": "slot",
-                "expected": expected, "measured": {"material_fraction_inside": round(frac, 3)},
-                "checks": checks, "classification": OK}
-
-    # Open-edge check: sample AT the drawn edge, across the notch's transverse
-    # span — material there means the cut never broke through (the window
-    # defect); absence means it correctly opens through the edge.
-    margin = min(width, depth) * 0.15
-    edge_pts: list[tuple[float, float]] = []
-    if open_edge in ("top", "bottom"):
-        y_edge = plate_wid - 1e-3 if open_edge == "top" else 1e-3
-        for x in (anchor + margin, cx, anchor + width - margin):
-            edge_pts.append((x, y_edge))
-    else:
-        x_edge = plate_len - 1e-3 if open_edge == "right" else 1e-3
-        for y in (anchor + margin, cy, anchor + width - margin):
-            edge_pts.append((x_edge, y))
-
-    edge_fracs = [mesh.material_fraction(px, py, probe_r * 0.4) for px, py in edge_pts]
-    edge_fracs = [f for f in edge_fracs if f is not None]
-    if not edge_fracs:
-        checks.append({"check": "edge_broken", "status": UNMEASURABLE,
-                       "detail": "could not sample the open edge"})
-        return {"feature_id": step.get("feature_id"), "type": step.get("type"), "kind": "slot",
-                "expected": expected, "measured": {"material_fraction_inside": round(frac, 3)},
-                "checks": checks, "classification": OK}
-
-    max_edge_frac = max(edge_fracs)
-    edge_broken = max_edge_frac <= 0.35
-    checks.append({
-        "check": "edge_broken", "status": "PASS" if edge_broken else "FAIL",
-        "detail": f"material fraction at the {open_edge} edge across the notch span = "
-                 f"{round(max_edge_frac, 3)} (must be low — the cut should break the edge)",
-    })
-    cls = OK if edge_broken else EDGE_NOT_BROKEN
-    return {"feature_id": step.get("feature_id"), "type": step.get("type"), "kind": "slot",
-            "expected": expected,
-            "measured": {"material_fraction_inside": round(frac, 3),
-                        "material_fraction_at_open_edge": round(max_edge_frac, 3)},
-            "checks": checks, "classification": cls}
-
-
 def _unmeasurable(step: dict, reason: str) -> dict:
     return {"feature_id": step.get("feature_id"), "type": step.get("type"),
             "kind": step.get("type"), "classification": UNMEASURABLE,
@@ -667,11 +574,6 @@ def verify_features(
             t = s.get("type")
             if t == "extrude_cut":
                 report["features"].append(_verify_cut(mesh, s, pos_tol_in))
-            elif t == "slot_rect_cut":
-                report["features"].append(_verify_slot_cut(mesh, s, pos_tol_in))
-            elif t == "slot_corner_fillet":
-                report["features"].append(_unmeasurable(
-                    s, "corner fillet is an edge treatment — not measurable by planar cross-section"))
             elif t in _EDGE_TYPES:
                 report["features"].append(_unmeasurable(
                     s, f"{t} is an edge treatment — not measurable by planar cross-section"))
@@ -685,7 +587,7 @@ def verify_features(
         for f in report["features"]:
             cls_counts[f["classification"]] = cls_counts.get(f["classification"], 0) + 1
         mismatches = [f for f in report["features"]
-                      if f["classification"] in (MISSING, MISPLACED, WRONG_SIZE, EDGE_NOT_BROKEN)]
+                      if f["classification"] in (MISSING, MISPLACED, WRONG_SIZE)]
         report["summary"] = {
             "total_features": len(report["features"]),
             "ok": cls_counts.get(OK, 0),

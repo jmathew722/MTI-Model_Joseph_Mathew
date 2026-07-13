@@ -322,11 +322,10 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
 
     resolution = None
     if resolve:
-        from pipeline.resolution_cache import CACHE_DIRNAME, resolve_with_cache
+        from pipeline.resolver import resolve_extraction
 
         print("[STAGE] Resolving", flush=True)
-        resolution = resolve_with_cache(work_extraction, cache_dir=output_dir / CACHE_DIRNAME,
-                                        requirements=spec_lines,
+        resolution = resolve_extraction(work_extraction, requirements=spec_lines,
                                         overview_analysis=overview_analysis,
                                         human_answers=human_answers)
         drawing_data = resolution.clean_extraction

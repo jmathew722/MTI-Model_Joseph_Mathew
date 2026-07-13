@@ -1809,11 +1809,6 @@ def _emit_slot_decomposition(model: DrawingData, feature: Feature, slot,
     rect_step.sketch_plane = "REF_DATUM_A"
     rect_step.slot = {
         "slot_kind": slot.slot_kind, "open_edge": slot.open_edge,
-        # open_edges (2026-07-12 Task 1): the list form — today always the single
-        # open_edge (or empty for a closed slot) — is the hook for a future
-        # multi-side-open notch (e.g. an L-shaped corner cutout open on two
-        # sides); every open edge here gets the sketch overshoot in corner_array.
-        "open_edges": [slot.open_edge] if slot.open_edge else [],
         "corners_drawing_units": corners, "corners_meters": corners_m,
         "dimension_scheme": [
             {"dim": slot.anchor_dimension_id or "", "from": f"part_{slot.anchor_edge}_edge",

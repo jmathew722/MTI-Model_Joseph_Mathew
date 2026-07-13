@@ -599,24 +599,19 @@ def _resolve_dimension(dim: dict, model: DrawingData,
                 f"escalated question (human-provided; outranks all automated tiers).")
         return DimResolution(dim_id, value, True, "human_provided", [], 0.99, "HIGH", note)
 
-    # Verbatim invariant (2026-07-12, "extraction is truth" — Task 2): a
-    # dimension the extraction did NOT flag as unclear/ambiguous is a single
-    # clean reading — it passes through unchanged at confidence 1.0, basis
-    # extracted_verbatim. Sub-1.0 confidence is reserved for dimensions where
-    # ≥2 genuine candidates actually existed (the branches below); a value
-    # "read straight off the drawing" must never carry a lesser score, or a
-    # future close-candidate reshuffle could silently flip it between runs.
+    # A clear, unambiguous dimension is confirmed as-is (HIGH); note whether a
+    # chain corroborates it so the human_note is meaningful.
     if not _needs_resolution(dim) and cands:
         closing, chain_ids, _ = _closing_candidate(dim_id, cands, model)
         if closing is not None and chain_ids:
             note = (
-                f"{dim_id} ({_fmt(cands[0])}) read verbatim from the drawing callout; "
-                f"also closes chain {'+'.join(chain_ids)} within tolerance — no action needed."
+                f"Confirmed: {dim_id} ({_fmt(cands[0])}) closes chain "
+                f"{'+'.join(chain_ids)} within tolerance — no action needed."
             )
-            return DimResolution(dim_id, cands[0], False, "extracted_verbatim",
-                                 chain_ids, 1.0, "HIGH", note)
-        note = f"{dim_id} ({_fmt(cands[0])}) read verbatim from the drawing callout — no action needed."
-        return DimResolution(dim_id, cands[0], False, "extracted_verbatim", [], 1.0, "HIGH", note)
+            return DimResolution(dim_id, cands[0], False, "arithmetic_chain",
+                                 chain_ids, 0.97, "HIGH", note)
+        note = f"{dim_id} ({_fmt(cands[0])}) read directly from the drawing callout — no action needed."
+        return DimResolution(dim_id, cands[0], False, "explicit_callout", [], 0.92, "HIGH", note)
 
     # --- P10(b): STOCK / (STOCK TOL.) qualifier ---
     # A stock dimension is the finished stock envelope with a loose mill tolerance.
@@ -1518,88 +1513,6 @@ def _derive_profile_delta(resolved: dict, model: DrawingData, result: "Resolutio
     return filled
 
 
-def _pattern_covered_by_parent(feat: dict, resolved: dict, model: DrawingData) -> Optional[tuple[str, int]]:
-    """Task 3 (2026-07-12, 158-C F004) — callout-arithmetic reconciliation
-    BEFORE any feature reaches exclusion. A ``pattern``/``mirror`` feature whose
-    ``parent_feature`` is a hole already carrying a callout with
-    ``qty >= this feature's own quantity`` corresponds to NOTHING on the drawing
-    beyond what the parent already built: the sheet's hole accounting (e.g.
-    "6-HLS") is already satisfied by the parent's instances. Returns
-    ``(parent_id, qty)`` when this feature is such a phantom duplicate, else
-    ``None``. Mirrors ``macro_generator._pattern_covered_by`` (which runs too
-    late — after the gate has already dropped the feature from build_order)."""
-    parent_id = feat.get("parent_feature")
-    if not parent_id:
-        return None
-    parent = model.feature_by_id(parent_id)
-    if parent is None:
-        return None
-    h = next((h for h in resolved.get("hole_callouts", []) or [] if h.get("feature_ref") == parent_id), None)
-    if h is None:
-        return None
-    qty = int(h.get("qty") or 1)
-    want = max(int(feat.get("quantity") or 1), 1)
-    if qty >= want and qty >= 2:
-        return parent_id, qty
-    return None
-
-
-# Defense-in-depth (2026-07-12 Task 3): if extraction guidance is ever missed
-# and a BOM/balloon/applied-item note IS synthesized as a feature anyway, this
-# backstop catches it by its own description text — independent of whether it
-# has a matching parent to be "covered by".
-_METADATA_ONLY_WORDS = ("bom item", "bill of material", "applied per bom",
-                        "purchased item", "balloon callout", "weatherstrip",
-                        "weather stripping", "mcmaster-carr", "sponge rubber")
-
-
-def _is_metadata_only_feature(feat: dict) -> bool:
-    desc = (str(feat.get("description", "")) + " " + str(feat.get("notes", ""))).lower()
-    return any(w in desc for w in _METADATA_ONLY_WORDS)
-
-
-def _reconcile_phantom_duplicate(feat: dict, resolved: dict, model: DrawingData,
-                                 result: "ResolutionResult") -> bool:
-    """If ``feat`` corresponds to nothing beyond an already-built sibling (a
-    duplicate pattern), or is itself a BOM/balloon/applied-item note that was
-    mistakenly synthesized as a feature, reclassify it (never EXCLUDED, never
-    an open item) and return True. The feature is removed from build_order
-    (nothing new to draw) but its disposition is a distinct phantom state, not
-    EXCLUDED_INCOMPLETE — the difference the checklist/reconciliation report
-    must represent explicitly."""
-    fid = feat.get("id", "?")
-    covered = _pattern_covered_by_parent(feat, resolved, model)
-    if covered is not None:
-        parent_id, qty = covered
-        note = (f"{fid} corresponds to nothing on the drawing beyond feature {parent_id}: the "
-                f"sheet's hole accounting ({qty}-place callout) is already fully satisfied by "
-                f"{parent_id}'s built instances. Reclassified as a duplicate — not excluded, "
-                f"not an open item.")
-        duplicate_of = parent_id
-    elif _is_metadata_only_feature(feat):
-        note = (f"{fid} ('{feat.get('description', '')[:80]}') reads as a BOM/balloon/applied-item "
-                f"note, not geometry — reclassified as metadata, not excluded, not an open item.")
-        duplicate_of = ""
-    else:
-        return False
-
-    feat["build_status"] = "duplicate_reclassified"
-    fr = result.feature_resolutions.get(fid)
-    if fr is not None:
-        fr.build_status = "duplicate_reclassified"
-    flag = {
-        "dimension_id": fid, "feature_id": fid, "flag_tier": "LOW",
-        "human_note": note, "macro_behavior": "comment_only", "resolved_by_tier": TIER_PER_VIEW,
-        "source": "phantom_duplicate",
-    }
-    if duplicate_of:
-        flag["duplicate_of"] = duplicate_of
-    result.flags.append(flag)
-    log.info("phantom reconciliation: %s reclassified (%s)", fid,
-             f"duplicate of {duplicate_of}" if duplicate_of else "metadata-only")
-    return True
-
-
 def _commit_missing_dim(resolved: dict, model: DrawingData, result: "ResolutionResult",
                         feat: dict, token: str, tried: str) -> None:
     """Last-resort commit-mode fill for a missing driving dimension: a
@@ -1614,23 +1527,14 @@ def _commit_missing_dim(resolved: dict, model: DrawingData, result: "ResolutionR
         elif a in ("width", "height"):
             width = max(width, float(d.value or 0))
     base = min([v for v in (length, width) if v] or [1.0])
-    if token in ("fillet_radius", "chamfer"):
-        # An edge treatment committed at the same 25% envelope fraction as a
-        # bore/rectangle would be a comically oversized fillet/chamfer — use a
-        # small, shop-typical default instead (a light break, not a feature).
-        value = round(min(0.0625, max(0.01, base * 0.01)), 4)
-    else:
-        value = round(max(0.1, base * 0.25), 4)
+    value = round(max(0.1, base * 0.25), 4)
     units = resolved.get("units") or "inch"
-    dim_type = ("diameter" if token in ("diameter", "hole_diameter")
-               else "radial" if token == "fillet_radius" else "linear")
     _synthesize_dim(resolved, result, feat, value=value, applies_to=token,
                     basis="committed_conservative", tier="CRITICAL", confidence=0.2,
-                    dim_type=dim_type,
+                    dim_type="diameter" if token in ("diameter", "hole_diameter") else "linear",
                     note=(f"{feat.get('id')} {token}={_fmt(value)} {units} COMMITTED (conservative "
-                          f"{'shop-typical edge-break' if token in ('fillet_radius', 'chamfer') else 'envelope fraction'}) "
-                          f"so the feature builds. No value was read or derived ({tried}). Built and "
-                          f"flagged — verify/correct in SolidWorks."))
+                          f"envelope fraction) so the feature builds. No value was read or derived "
+                          f"({tried}). Built and flagged — verify/correct in SolidWorks."))
 
 
 # --------------------------------------------------------------------------- #
@@ -1858,40 +1762,17 @@ def _completeness_gate(resolved: dict, model: DrawingData,
         if missing is None:
             continue
 
-        # Callout-arithmetic reconciliation (Task 3, 2026-07-12, 158-C F004) —
-        # BEFORE any exclusion or commit decision: a feature whose parent already
-        # accounts for it on the sheet (e.g. a "pattern" duplicating a hole
-        # callout's own qty) corresponds to nothing new. Reclassify as a
-        # duplicate, never excluded, never an open item, regardless of commit_mode.
-        if _reconcile_phantom_duplicate(feat, resolved, model, result):
-            build_order = [x for x in build_order if x != fid]
-            continue
-
         what, source = missing
 
-        # Commit-to-extraction: never EXCLUDE buildable geometry — of ANY type.
-        # Fill the missing driving value(s) with a declared-basis conservative
-        # committed value and BUILD it (flagged CRITICAL). Exclusion survives
-        # only when commit_mode is OFF (comparison).
-        if commit_mode:
+        # Commit-to-extraction: never EXCLUDE buildable geometry. Fill the missing
+        # driving dimension with a declared-basis conservative committed value and
+        # BUILD it (flagged CRITICAL). Exclusion survives only when commit_mode is
+        # OFF (comparison) or there is no token to commit (non-geometric type).
+        if commit_mode and ftype in ("hole", "thread") + _PROFILE_CUT_TYPES:
             if ftype in ("hole", "thread"):
                 tokens_to_commit = ["hole_diameter"]
-            elif ftype in _PROFILE_CUT_TYPES:
+            else:
                 tokens_to_commit = [t for t in ("length", "width") if t not in toks] or ["length"]
-            elif ftype == "fillet":
-                tokens_to_commit = ["fillet_radius"]
-            elif ftype == "chamfer":
-                tokens_to_commit = ["chamfer"]
-            elif ftype in _PATTERN_TYPES:
-                # Nothing derivable and no covering parent (else the phantom-
-                # duplicate check above would have handled it): commit a
-                # conservative spacing so the pattern builds at its extracted
-                # quantity rather than being dropped.
-                tokens_to_commit = ["spacing"]
-                if int(feat.get("quantity") or 1) < 2:
-                    feat["quantity"] = 2
-            else:  # pragma: no cover — every gated type is covered above
-                tokens_to_commit = []
             for tok in tokens_to_commit:
                 _commit_missing_dim(resolved, model, result, feat, tok, tried=f"missing {what}")
             log.warning("commit-mode COMMITTED %s (%s): %s via conservative value",

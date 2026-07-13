@@ -29,15 +29,6 @@ log = logging.getLogger(__name__)
 _NOTCH_KEYWORDS = ("notch", "slot", "u-cut", "u cut", "u-shape", "u shape", "cutout",
                    "keyway", "channel")
 
-# Open-edge overshoot (2026-07-12, Task 1 — "extraction is truth"/158-C).
-# A cut that opens through an outer edge must OVERSHOOT that edge by this
-# margin (drawing units) rather than sketch exactly to it: an exactly-coincident
-# sketch edge is numerically fragile for FeatureCut4/CadQuery and produces
-# EXACTLY the enclosed-window defect (material left standing where the drawing
-# shows the notch open through the edge). Closed sides keep exact coordinates —
-# only the side(s) that break through an outer edge are pushed past it.
-EDGE_OVERSHOOT_EPS = 0.050
-
 
 def _envelope(model) -> tuple[float, float]:
     """(horizontal_extent, vertical_extent) of the part in drawing units, from
@@ -72,24 +63,19 @@ def corner_array(slot, model) -> list[list[float]]:
     if slot.anchor_semantics == "edge_to_centerline":
         a = a - w / 2.0
 
-    eps = EDGE_OVERSHOOT_EPS
     if edge == "top":
         top = height or (a + d)      # part top; falls back if height unknown
-        bot = top - d                # closed end (interior) — exact
-        open_y = top + eps           # open end (breaks the top edge) — overshoot
-        return [[a, bot], [a + w, bot], [a + w, open_y], [a, open_y]]
+        bot = top - d
+        return [[a, bot], [a + w, bot], [a + w, top], [a, top]]
     if edge == "bottom":
-        open_y = -eps                # open end (breaks the bottom edge) — overshoot
-        return [[a, d], [a + w, d], [a + w, open_y], [a, open_y]]
+        return [[a, d], [a + w, d], [a + w, 0.0], [a, 0.0]]
     if edge == "left":
-        open_x = -eps                # open end (breaks the left edge) — overshoot
-        return [[d, a], [d, a + w], [open_x, a + w], [open_x, a]]
+        return [[d, a], [d, a + w], [0.0, a + w], [0.0, a]]
     if edge == "right":
         right = length or (a + d)
-        open_x = right + eps         # open end (breaks the right edge) — overshoot
-        return [[right - d, a], [right - d, a + w], [open_x, a + w], [open_x, a]]
+        return [[right - d, a], [right - d, a + w], [right, a + w], [right, a]]
     # Closed slot: a fully-interior rectangle anchored at (anchor_offset) along
-    # the horizontal, depth = slot length vertically. No open edge — no overshoot.
+    # the horizontal, depth = slot length vertically.
     return [[a, 0.0], [a + w, 0.0], [a + w, d], [a, d]]
 
 
