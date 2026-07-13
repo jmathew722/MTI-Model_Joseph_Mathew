@@ -1,0 +1,68 @@
+LEARNING LOOP — 158-C
+============================================================
+Run:     2026-07-13 11:45:05
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\296c8c19d152\A001581E\output\158-C
+Fingerprint: 02aa530973d9e60d
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] The edge/side view at the bottom shows only two through-holes/tab marks (leader lines from balloons 1 and 2) rather than six, but this is expected since it is a thin profile view that would only show holes in cross-section along its length, not the full 2D array; not a true conflict, but the edge view does not clearly confirm hole THRU depth since thickness is only .105 (12 GA) and holes are trivially through given the material is a thin sheet.
+       -> No action needed; thin sheet metal (.105 thick) with .218 DIA holes are inherently through-features; edge view thickness callout is sufficient confirmation, treat as consistent rather than conflicting.
+   - [MEDIUM] Dashed vertical lines in the front view suggest a hidden/reference boundary (possibly indicating the plate's finished/trimmed edge or a mating part outline) that is not explained by any note or second view, creating ambiguity about what the dashed lines represent (centerline vs hidden edge vs mating boundary).
+       -> Verify with engineering whether dashed vertical lines are true hidden lines of an underlying feature or simply dimensioning reference/centerlines; check original CAD model or revision notes for clarification.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 1, MEDIUM 2, LOW 3
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, ANGULAR DIM ±, SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [6] (total 6). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       affects: feature F003
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, edge_side): The edge/side view at the bottom shows only two through-holes/tab marks (leader lines from balloons 1 and 2) rather than six, but this is expected since it is a thin profile view that would only show holes in cross-section along its length, not the full 2D array; not a true conflict, but the edge view does not clearly confirm hole THRU depth since thickness is only .105 (12 GA) and holes are trivially through given the material is a thin sheet. Recommendation: No action needed; thin sheet metal (.105 thick) with .218 DIA holes are inherently through-features; edge view thickness callout is sufficient confirmation, treat as consistent rather than conflicting.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front): Dashed vertical lines in the front view suggest a hidden/reference boundary (possibly indicating the plate's finished/trimmed edge or a mating part outline) that is not explained by any note or second view, creating ambiguity about what the dashed lines represent (centerline vs hidden edge vs mating boundary). Recommendation: Verify with engineering whether dashed vertical lines are true hidden lines of an underlying feature or simply dimensioning reference/centerlines; check original CAD model or revision notes for clarification.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV005 (overview): Surface Finish note: Weather stripping (sponge rubber with adhesive back, 5/32 THK x 1/2 wide, 12.5 IN length) applied along one edge, per BOM item 2 (along bottom edge in side view, likely applied to one long edge of plate).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV006 (overview): Thickness-view value 0.105 is out of plausible range vs the build thickness 1.88 (18x) (bottom of drawing, side view) [gauge 12]; treated as a non-thickness number, not a conflict.
+       decision: ignored as an out-of-band capture, build thickness kept
+       why: an edge-view thickness cannot differ from the build by an order of magnitude — the extractor captured an unrelated dimension
+       affects: metadata: rejected thickness candidate
+   - [LOW] OV007 (overview): The overview shows content the checker cannot auto-match: Section/flag callouts (circled '1' and circled '2/2' with 6.25 IN dimension) referencing views or item numbers (bottom center of drawing near side view)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F003 FAILED: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') — the selected edges likely cannot accept this radius (radius exceeds the adjacent face).
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '158-C' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\296c8c19d152\A001581E\output\158-C
