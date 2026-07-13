@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from pipeline.macro_audit import audit_package, write_audit_report
+from pipeline.macro_template_engine import fill as _tmpl_fill
 from pipeline.schema import (
     Dimension,
     DrawingData,
@@ -906,6 +907,26 @@ Function CreateCircularPatternSafe(axisName As String, seedName As String, _
     CreateCircularPatternSafe = True
 End Function
 
+' --- Report whether the ACTIVE sketch ended fully defined (a GATE, not a fixer) ---
+' Task 3 (2026-07-12): FullyDefineSketch does the constraining; this makes the
+' RESULT observable via the documented ISketch::GetConstrainedStatus. A sketch
+' still under-defined afterwards is a template under-specification defect -
+' logged as WARN, never silently accepted. swSketchFullyDefined = 2.
+Sub ReportSketchStatus(step As String)
+    On Error Resume Next
+    Dim swSk As SldWorks.Sketch
+    Set swSk = swModel.SketchManager.ActiveSketch
+    If swSk Is Nothing Then Exit Sub
+    Dim st As Long
+    st = swSk.GetConstrainedStatus
+    If st = 2 Then
+        LogResult "PASS", step, "sketch fully defined"
+    Else
+        LogResult "WARN", step, "sketch NOT fully defined (status=" & CStr(st) & ") - template under-specified"
+    End If
+    On Error GoTo 0
+End Sub
+
 ' --- Select a reference plane robustly (plane names vary by template / language) ---
 Function SelectRefPlane(planeName As String, planeIndex As Integer) As Boolean
     Dim tries As Variant, i As Integer
@@ -1007,6 +1028,7 @@ def _sketch_close_fully_define(step: str) -> str:
     On Error Resume Next
     swModel.SketchManager.FullyDefineSketch True, True, 0, True, 1, Nothing, 1, Nothing, 0, 0
     On Error GoTo 0
+    ReportSketchStatus "{step}"   ' gate: log fully-defined vs under-defined (Task 3)
     swModel.ClearSelection2 True
     If swModel.SketchManager.ActiveSketch Is Nothing Then
 {_fail_block(step, "No active sketch to build the feature from.", "        ")}    End If
@@ -1027,17 +1049,18 @@ def _profile_vba(dims: dict[str, float], cx: float, cy: float, step: str) -> tup
     width = dims.get("width") or dims.get("length")
     if diameter:
         used["diameter"] = diameter
-        code = f"""    ' ---- SKETCH: circle dia {_v(diameter)} at ({_v(cx)}, {_v(cy)}) drawing units ----
-    swModel.SketchManager.CreateCircleByRadius {_v(cx)} * UNIT_FACTOR, {_v(cy)} * UNIT_FACTOR, 0#, ({_v(diameter)} / 2#) * UNIT_FACTOR
-"""
+        # Single-record template fill: this circle can only carry THIS feature's
+        # center + diameter (Task 2 — structurally no cross-feature leak).
+        code = (f"    ' ---- SKETCH: circle dia {_v(diameter)} at ({_v(cx)}, {_v(cy)}) drawing units ----\n"
+                + _tmpl_fill("sketch_circle.vba.tmpl",
+                             {"CX": _v(cx), "CY": _v(cy), "DIA": _v(diameter)}))
     elif length and width:
         used["length"], used["width"] = length, width
-        code = f"""    ' ---- SKETCH: rectangle {_v(length)} x {_v(width)}, lower-left corner at ({_v(cx)}, {_v(cy)}) ----
-    ' (Corner at the origin keeps sketch coordinates equal to the drawing's
-    '  edge-referenced dimensions, so hole positions land where dimensioned.)
-    swModel.SketchManager.CreateCornerRectangle {_v(cx)} * UNIT_FACTOR, {_v(cy)} * UNIT_FACTOR, 0#, _
-        ({_v(cx)} + {_v(length)}) * UNIT_FACTOR, ({_v(cy)} + {_v(width)}) * UNIT_FACTOR, 0#
-"""
+        code = (f"    ' ---- SKETCH: rectangle {_v(length)} x {_v(width)}, lower-left corner at ({_v(cx)}, {_v(cy)}) ----\n"
+                "    ' (Corner at the origin keeps sketch coordinates equal to the drawing's\n"
+                "    '  edge-referenced dimensions, so hole positions land where dimensioned.)\n"
+                + _tmpl_fill("profile_rect.vba.tmpl",
+                             {"CX": _v(cx), "CY": _v(cy), "LEN": _v(length), "WID": _v(width)}))
     else:
         raise MacroGenerationError(
             f"{step}: profile needs a diameter or length+width; got {sorted(dims)}"
@@ -1190,10 +1213,8 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
     body = _sketch_open(plane, step)
     body += f"    ' ---- SKETCH: {len(positions)} hole(s) dia {_v(h.diameter)} ({h.type.value}) ----\n"
     for x, y in positions:
-        body += (
-            f"    swModel.SketchManager.CreateCircleByRadius {_v(x)} * UNIT_FACTOR, "
-            f"{_v(y)} * UNIT_FACTOR, 0#, ({_v(h.diameter)} / 2#) * UNIT_FACTOR\n"
-        )
+        body += _tmpl_fill("sketch_circle.vba.tmpl",
+                           {"CX": _v(x), "CY": _v(y), "DIA": _v(h.diameter)})
     body += f"    ' NOTE: {position_note}\n"
     body += _sketch_close_fully_define(step)
     body += "\n    ' ---- CUT ----\n"
@@ -1208,10 +1229,8 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
 """
         body += _sketch_open(plane, step + "_cbore")
         for x, y in positions:
-            body += (
-                f"    swModel.SketchManager.CreateCircleByRadius {_v(x)} * UNIT_FACTOR, "
-                f"{_v(y)} * UNIT_FACTOR, 0#, ({_v(h.cbore_diameter)} / 2#) * UNIT_FACTOR\n"
-            )
+            body += _tmpl_fill("sketch_circle.vba.tmpl",
+                               {"CX": _v(x), "CY": _v(y), "DIA": _v(h.cbore_diameter)})
         body += _sketch_close_fully_define(step + "_cbore")
         body += "\n"
         body += _cut4(f"{_v(h.cbore_depth)} * UNIT_FACTOR", thru=False, var="swFeatCb")
@@ -1650,8 +1669,8 @@ def _macro_seed_hole(model: DrawingData, feature: Feature, h: HoleCallout,
         f"    ' ---- SKETCH: SEED hole dia {_v(h.diameter)} at ({_v(sx)}, {_v(sy)}) drawing units ----\n"
         f"    ' {_v(h.diameter)} in dia -> radius {_m(h.diameter / 2.0, unit_factor)} m ; "
         f"seed center -> ({_m(sx, unit_factor)}, {_m(sy, unit_factor)}) m\n"
-        f"    swModel.SketchManager.CreateCircleByRadius {_v(sx)} * UNIT_FACTOR, "
-        f"{_v(sy)} * UNIT_FACTOR, 0#, ({_v(h.diameter)} / 2#) * UNIT_FACTOR\n"
+        + _tmpl_fill("sketch_circle.vba.tmpl",
+                     {"CX": _v(sx), "CY": _v(sy), "DIA": _v(h.diameter)})
     )
     body += _sketch_close_fully_define(step)
     body += "\n    ' ---- SEED CUT ----\n"
@@ -2431,6 +2450,65 @@ def _assert_no_dropped_positions(model: DrawingData, dispositions: list[dict]) -
                 f"the drawing — fix the position-resolution ordering.")
 
 
+def _assert_open_edge_overshoot(pkg: "MacroPackage") -> None:
+    """Emission invariant (Task 4b, 158-C). An open-edge slot cut whose sketch
+    terminates exactly AT the part edge (no overshoot) refuses generation — that
+    coincident-with-edge termination is the numerically fragile state that
+    produced an enclosed WINDOW instead of an open notch. corner_array() adds
+    EDGE_OVERSHOOT_EPS past the open edge, so the open-axis span must exceed the
+    slot depth; a span equal to the depth means the overshoot was lost."""
+    from pipeline.slot_cut import EDGE_OVERSHOOT_EPS
+
+    for s in pkg.steps:
+        if s.feature_type != "slot_rect_cut":
+            continue
+        slot = s.slot or {}
+        open_edge = str(slot.get("open_edge") or "").lower()
+        if not open_edge:
+            continue
+        corners = slot.get("corners_drawing_units") or []
+        depth = (s.dimensions or {}).get("depth")
+        if len(corners) < 3 or not depth:
+            continue
+        axis = 1 if open_edge in ("top", "bottom") else 0
+        coords = [c[axis] for c in corners if len(c) == 2]
+        span = max(coords) - min(coords)
+        if span <= float(depth) + EDGE_OVERSHOOT_EPS * 0.5:
+            raise MacroGenerationError(
+                f"OPEN-EDGE CUT WITHOUT OVERSHOOT ({s.feature_id}): the slot opens "
+                f"through the {open_edge} edge but its sketch span along that axis "
+                f"({span:.4g}) does not exceed the depth ({float(depth):.4g}) — the cut "
+                f"terminates at the edge instead of crossing it, which builds an "
+                f"enclosed window, not an open notch. Refusing to generate.")
+
+
+def _assert_label_payload_agreement(pkg: "MacroPackage") -> None:
+    """Emission invariant (Task 4c). A step's human description must be derived
+    from the SAME feature record as its payload — it may name only its own
+    feature id, its parent, or (for a compound step like ``F002_fillets``) the
+    base feature. A FOREIGN feature id in the description is the label/payload
+    disagreement class evidenced by 158-C. Guards against a description
+    assembled from a different feature's record than the values it carries."""
+    ids = {s.feature_id for s in pkg.steps if s.feature_id and s.feature_id != "-"}
+    for s in pkg.steps:
+        desc = s.description or ""
+        mentioned = set(re.findall(r"\bF\d{3,}\b", desc))
+        if not mentioned:
+            continue
+        base = s.feature_id.split("_")[0] if s.feature_id else ""
+        allowed = {s.feature_id, base, s.parent_feature_id}
+        allowed.discard("")
+        for fid in mentioned:
+            # A foreign id that is a REAL other feature is a cross-feature leak;
+            # an id that isn't even a known feature is a stale/typo label.
+            if fid not in allowed and fid in ids:
+                raise MacroGenerationError(
+                    f"LABEL/PAYLOAD DISAGREEMENT ({s.feature_id}): its description "
+                    f"names foreign feature {fid} — the label was assembled from a "
+                    f"different feature's record than the values this step carries "
+                    f"(158-C class). Refusing to generate.")
+
+
 def generate_macro_package(
     model: DrawingData,
     raw_extraction: dict[str, Any],
@@ -2826,6 +2904,19 @@ def generate_macro_package(
         )
     for w in audit.warnings:
         log.warning("macro audit [%s] %s: %s", w.rule_id, w.file, w.message)
+
+    # --- Emission invariants (Task 4b/4c) + macro echo check (Task 1) ---
+    # Open-edge cuts must overshoot; descriptions must belong to their own
+    # feature; then every emitted geometry literal must round-trip to the build
+    # plan for the SAME feature that emitted it (catches cross-contamination,
+    # orphan literals, and dropped positions at GENERATION time, not build time).
+    _assert_open_edge_overshoot(pkg)
+    _assert_label_payload_agreement(pkg)
+    from pipeline.macro_echo import assert_macro_echo
+
+    echo = assert_macro_echo(pkg, macros_dir)
+    log.info("macro echo check OK: %d literal(s) across %d macro(s) round-trip to the plan",
+             echo.checked_literals, echo.checked_files)
 
     plan = _build_plan_dict(model, pkg, unit_factor, audit, resolution)
     pkg.build_plan_json.write_text(json.dumps(plan, indent=2), encoding="utf-8")

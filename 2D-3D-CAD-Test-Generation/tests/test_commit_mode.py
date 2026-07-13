@@ -23,7 +23,7 @@ from pipeline.macro_generator import (
 )
 from pipeline.resolver import resolve_extraction
 from pipeline.schema import DrawingData
-from pipeline.slot_cut import corner_array
+from pipeline.slot_cut import EDGE_OVERSHOOT_EPS, corner_array
 from pipeline.validator import format_verification_report, run_verification
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "commit_mode"
@@ -113,10 +113,12 @@ class TestYFlip:
         bot_corners = corner_array(bot.slot_cuts[0], bot)
         top_ys = [c[1] for c in top_corners]
         bot_ys = [c[1] for c in bot_corners]
-        # top notch is anchored at the TOP edge (y == part height), bottom at y == 0
-        assert max(top_ys) == pytest.approx(height)
+        # The OPEN side overshoots its edge by EDGE_OVERSHOOT_EPS so the cut
+        # breaks the edge cleanly: the top notch opens PAST the top (height+eps),
+        # the bottom notch opens PAST y=0 (-eps). Closed ends stay exact.
+        assert max(top_ys) == pytest.approx(height + EDGE_OVERSHOOT_EPS)
         assert min(top_ys) == pytest.approx(height - 1.0)
-        assert min(bot_ys) == pytest.approx(0.0)
+        assert min(bot_ys) == pytest.approx(-EDGE_OVERSHOOT_EPS)
         assert max(bot_ys) == pytest.approx(1.0)
         # opposite ends: the top notch's whole span is above the bottom notch's
         assert min(top_ys) > max(bot_ys)
@@ -132,8 +134,9 @@ class TestGolden158C:
         assert f002["state"] in ("BUILT", "BUILT_WITH_DERIVED_VALUE")
         rect = next(s for s in plan["steps"] if s.get("type") == "slot_rect_cut"
                     and "F002" in str(s.get("feature_id")))
+        # open top side overshoots the 6.25 edge by EDGE_OVERSHOOT_EPS -> 6.30
         assert rect["sketch"]["corners_drawing_units"] == [
-            [1.56, 4.37], [3.18, 4.37], [3.18, 6.25], [1.56, 6.25]]
+            [1.56, 4.37], [3.18, 4.37], [3.18, 6.3], [1.56, 6.3]]
 
     def test_no_terminal_excluded_or_review_states(self):
         _res, _model, _pkg, disp, _plan = _build(_load("158-C_extraction.json"))

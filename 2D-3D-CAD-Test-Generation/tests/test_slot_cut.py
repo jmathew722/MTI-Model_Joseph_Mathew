@@ -99,10 +99,14 @@ class TestGoldenA001581E:
         assert fil["corner_count_expected"] == 2
 
     def test_exact_corner_array(self, tmp_path):
+        # The OPEN (top) side overshoots the 6.25 part edge by EDGE_OVERSHOOT_EPS
+        # (0.050 -> 6.30) so the cut cleanly breaks the edge instead of
+        # terminating exactly at it (the 158-C enclosed-window bug). The closed
+        # bottom corners stay exact at 4.37.
         _, _, _, plan = _build_pkg(_a001581e(), tmp_path)
         rect = next(s for s in plan["steps"] if s["type"] == "slot_rect_cut")
         corners = rect["sketch"]["corners_drawing_units"]
-        assert corners == [[1.56, 4.37], [3.18, 4.37], [3.18, 6.25], [1.56, 6.25]]
+        assert corners == [[1.56, 4.37], [3.18, 4.37], [3.18, 6.3], [1.56, 6.3]]
 
     def test_fillet_targets_two_interior_bottom_corners(self, tmp_path):
         _, _, _, plan = _build_pkg(_a001581e(), tmp_path)

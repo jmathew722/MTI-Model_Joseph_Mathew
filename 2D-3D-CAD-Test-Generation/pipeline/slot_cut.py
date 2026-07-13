@@ -29,6 +29,17 @@ log = logging.getLogger(__name__)
 _NOTCH_KEYWORDS = ("notch", "slot", "u-cut", "u cut", "u-shape", "u shape", "cutout",
                    "keyway", "channel")
 
+# Open-edge overshoot (drawing units). A cut that opens through an outer edge
+# must NEVER sketch exactly to that edge — a coincident-with-edge line is
+# numerically fragile and the observed 158-C defect was an enclosed WINDOW
+# (material standing at the drawn-open y=6.25 edge) instead of an open notch.
+# The open side's corners are pushed PAST the edge by this margin; the closed
+# sides stay exact, and interior_corners()/the corner fillets are unaffected
+# because they are always the closed-side pair. Emission refuses to generate an
+# open-edge cut whose sketch terminates within the edge (macro_generator's
+# overshoot invariant), so this constant is the single knob.
+EDGE_OVERSHOOT_EPS = 0.050
+
 
 def _envelope(model) -> tuple[float, float]:
     """(horizontal_extent, vertical_extent) of the part in drawing units, from
@@ -50,13 +61,16 @@ def corner_array(slot, model) -> list[list[float]]:
     than the rectangle that was cut. Order: the two NEAR/interior corners first
     (the ones that get filleted on an open notch), then the two edge corners.
 
-    For an open notch the depth runs inward from the broken edge; for a closed
-    slot the rectangle sits fully interior anchored at (anchor_offset, ...)."""
+    For an open notch the depth runs inward from the broken edge and the OPEN
+    side's corners overshoot the part edge by EDGE_OVERSHOOT_EPS (closed sides
+    stay exact — see the constant's docstring); for a closed slot the rectangle
+    sits fully interior anchored at (anchor_offset, ...)."""
     length, height = _envelope(model)
     a = float(slot.anchor_offset)
     w = float(slot.width)
     d = float(slot.depth)
     edge = (slot.open_edge or "").lower()
+    eps = EDGE_OVERSHOOT_EPS
 
     # anchor_semantics: a centerline-referenced position is to the slot CENTER,
     # so the near edge is half a width inboard.
@@ -65,17 +79,21 @@ def corner_array(slot, model) -> list[list[float]]:
 
     if edge == "top":
         top = height or (a + d)      # part top; falls back if height unknown
-        bot = top - d
-        return [[a, bot], [a + w, bot], [a + w, top], [a, top]]
+        bot = top - d                # closed end (interior) — exact
+        open_y = top + eps           # open end — crosses the top edge
+        return [[a, bot], [a + w, bot], [a + w, open_y], [a, open_y]]
     if edge == "bottom":
-        return [[a, d], [a + w, d], [a + w, 0.0], [a, 0.0]]
+        open_y = -eps
+        return [[a, d], [a + w, d], [a + w, open_y], [a, open_y]]
     if edge == "left":
-        return [[d, a], [d, a + w], [0.0, a + w], [0.0, a]]
+        open_x = -eps
+        return [[d, a], [d, a + w], [open_x, a + w], [open_x, a]]
     if edge == "right":
         right = length or (a + d)
-        return [[right - d, a], [right - d, a + w], [right, a + w], [right, a]]
+        open_x = right + eps
+        return [[right - d, a], [right - d, a + w], [open_x, a + w], [open_x, a]]
     # Closed slot: a fully-interior rectangle anchored at (anchor_offset) along
-    # the horizontal, depth = slot length vertically.
+    # the horizontal, depth = slot length vertically. No overshoot — no open edge.
     return [[a, 0.0], [a + w, 0.0], [a + w, d], [a, d]]
 
 

@@ -122,6 +122,26 @@ Function CreateCircularPatternSafe(axisName As String, seedName As String, _
     CreateCircularPatternSafe = True
 End Function
 
+' --- Report whether the ACTIVE sketch ended fully defined (a GATE, not a fixer) ---
+' Task 3 (2026-07-12): FullyDefineSketch does the constraining; this makes the
+' RESULT observable via the documented ISketch::GetConstrainedStatus. A sketch
+' still under-defined afterwards is a template under-specification defect -
+' logged as WARN, never silently accepted. swSketchFullyDefined = 2.
+Sub ReportSketchStatus(step As String)
+    On Error Resume Next
+    Dim swSk As SldWorks.Sketch
+    Set swSk = swModel.SketchManager.ActiveSketch
+    If swSk Is Nothing Then Exit Sub
+    Dim st As Long
+    st = swSk.GetConstrainedStatus
+    If st = 2 Then
+        LogResult "PASS", step, "sketch fully defined"
+    Else
+        LogResult "WARN", step, "sketch NOT fully defined (status=" & CStr(st) & ") - template under-specified"
+    End If
+    On Error GoTo 0
+End Sub
+
 ' --- Select a reference plane robustly (plane names vary by template / language) ---
 Function SelectRefPlane(planeName As String, planeIndex As Integer) As Boolean
     Dim tries As Variant, i As Integer
@@ -182,6 +202,7 @@ Sub main()
     On Error Resume Next
     swModel.SketchManager.FullyDefineSketch True, True, 0, True, 1, Nothing, 1, Nothing, 0, 0
     On Error GoTo 0
+    ReportSketchStatus "01_F001"   ' gate: log fully-defined vs under-defined (Task 3)
     swModel.ClearSelection2 True
     If swModel.SketchManager.ActiveSketch Is Nothing Then
         MsgBox "No active sketch to build the feature from.", vbCritical

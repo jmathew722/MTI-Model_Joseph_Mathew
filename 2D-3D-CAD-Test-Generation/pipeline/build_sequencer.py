@@ -92,13 +92,18 @@ _PATTERN_TYPES = {FeatureType.PATTERN, FeatureType.MIRROR}
 # A DimResolution basis that means the value was read straight off the drawing
 # (as opposed to derived from a chain / TYP sibling / standard size). Anything
 # else on a feature's driving dimension marks it BUILT_WITH_DERIVED_VALUE.
+# 2026-07-12 (158-C falsy-vs-null sweep): the empty string is NOT an explicit
+# basis — an ASSUMED value whose basis went missing must never read as
+# directly-extracted. An assumption with a blank basis is classified as
+# "unspecified_basis" (derived) in _derivation_source.
 _EXPLICIT_BASES = {
-    "", "explicit_callout", "explicit", "as_read", "direct_reading",
-    "direct", "read", "measured",
+    "explicit_callout", "explicit", "as_read", "direct_reading",
+    "direct", "read", "measured", "extracted_verbatim",
 }
 # A resolved position that counts as read (not assumed) — everything else marks
-# the feature's placement as derived.
-_READ_POSITIONS = {"", "dimensioned", "read", "known", "explicit"}
+# the feature's placement as derived. Same sweep: "" removed; an UNRESOLVED
+# position with a blank assumption note is "position:unspecified" (derived).
+_READ_POSITIONS = {"dimensioned", "read", "known", "explicit"}
 
 
 @dataclass
@@ -314,12 +319,20 @@ def _derivation_source(feature: Feature, resolution) -> str:
         if dr is None:
             continue
         basis = (dr.assumption_basis or "").strip().lower()
-        if dr.assumption_made and basis and basis not in _EXPLICIT_BASES:
-            return basis
+        if dr.assumption_made:
+            # Falsy-vs-null sweep (158-C): an assumption whose basis is blank/
+            # whitespace is still an assumption — it must surface as DERIVED
+            # with a named (if unspecific) source, never slip through as read.
+            if not basis:
+                return "unspecified_basis"
+            if basis not in _EXPLICIT_BASES:
+                return basis
     fr = resolution.feature_resolutions.get(feature.id) if resolution.feature_resolutions else None
     if fr is not None and not fr.position_resolved:
         pa = (fr.position_assumption or "").strip().lower()
-        if pa and pa not in _READ_POSITIONS:
+        if not pa:
+            return "position:unspecified"
+        if pa not in _READ_POSITIONS:
             return f"position:{pa}"
     return ""
 
