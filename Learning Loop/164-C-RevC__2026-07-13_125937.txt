@@ -1,0 +1,109 @@
+LEARNING LOOP — 164-C-RevC
+============================================================
+Run:     2026-07-13 12:59:37
+Status:  NOT READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b47fd1fb7310\A001641E_1\output\164-C-RevC
+Fingerprint: 7f2b21135bb70745
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - 2 reconciliation item(s) unresolved after 1 pass(es) — see 164-C-RevC_reconciliation_report.json
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] Front view appears to show only 6 visible bolt-circle hole markers clearly drawn (at cardinal-ish positions) despite the note calling out '8-HOLES EQ. SPACED' for the drill & counterbore pattern; some holes may be obscured by leader lines/dimension text near top and right.
+       -> Verify actual count of counterbored holes rendered in the front view against the note '8-HOLES EQ. SPACED'; check for holes hidden behind leader lines or dimension crossings, and confirm equal 45° spacing is fully drawn.
+   - [LOW] The side/section view shows hatching and a stepped profile only on the upper portion (near the counterbore/chamfer detail) with the label 'H' repeated at multiple leader points, but it is unclear if the section is a full cross-section or a partial break-out, making it ambiguous whether the 8 or 2 hole patterns are actually cut through in this section.
+       -> Check section view cutting plane indicators (if any) to confirm whether it passes through the 8-hole pattern, the 2-hole pattern, or neither, and clarify with section line callouts.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 6, HIGH 1, MEDIUM 9, LOW 2
+   - [CRITICAL] D900 (dimension): F005 length=0.3593 inch COMMITTED (conservative envelope fraction) so the feature builds. No value was read or derived (missing a diameter OR both length+width (has ['width']; missing length)). Built and flagged — verify/correct in SolidWorks.
+       decision: resolved value 0.3593
+       why: committed conservative
+       affects: dimension D900
+   - [CRITICAL] F005 (feature): POSITION COMMITTED for F005 at a conservative inside-parent placement (1, 0.3593): no location dimension and no symmetry evidence. Tried: extension-line tracing from 0 unassociated linear dim(s) (no leader reached F005's centerline); symmetry inference (no centerline/symmetry relationship names this feature). Built and flagged (never left at a [0,0] placeholder) — verify/correct the location in SolidWorks.
+       decision: committed_conservative
+       why: position not dimensioned on the drawing
+       affects: feature F005
+   - [CRITICAL] F005 (build): The .sldprt build SKIPPED feature F005 (extrude_cut): deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F005 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F005 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       affects: feature F005
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (hole): deferred_open (unknown): ValueError: value must be non-negative for geometry, got -6.626252768920519
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (unknown): ValueError: value must be non-negative for geometry, got -6.626252768920519
+       affects: feature F002
+   - [CRITICAL] F003 (reconciliation): Stage 10.5 reconciliation: hole F003 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: extraction describes 2 instance(s) but only 1 made it into the build plan.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [CRITICAL] F004 (reconciliation): Stage 10.5 reconciliation: hole F004 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: extraction describes 2 instance(s) but only 1 made it into the build plan.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (side_section, front): The side/section view shows hatching and a stepped profile only on the upper portion (near the counterbore/chamfer detail) with the label 'H' repeated at multiple leader points, but it is unclear if the section is a full cross-section or a partial break-out, making it ambiguous whether the 8 or 2 hole patterns are actually cut through in this section. Recommendation: Check section view cutting plane indicators (if any) to confirm whether it passes through the 8-hole pattern, the 2-hole pattern, or neither, and clarify with section line callouts.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] D015 (dimension): Resolved D015 to 0.63 by decimal-plausibility (sheet magnitude/formatting); candidates ['0.63', '6.3'] — verify against the callout.
+       decision: resolved value 0.63
+       why: decimal plausibility
+       affects: dimension D015
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): Front view appears to show only 6 visible bolt-circle hole markers clearly drawn (at cardinal-ish positions) despite the note calling out '8-HOLES EQ. SPACED' for the drill & counterbore pattern; some holes may be obscured by leader lines/dimension text near top and right. Recommendation: Verify actual count of counterbored holes rendered in the front view against the note '8-HOLES EQ. SPACED'; check for holes hidden behind leader lines or dimension crossings, and confirm equal 45° spacing is fully drawn.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F007: chamfer applied to 6 edges (all edges); verify against the drawing (selective chamfers need the interactive macro).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F006: fillet applied to 13 edges (all edges; intended feature); verify against the drawing (selective fillets need the interactive macro).
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F005 (extrude_cut) deferred_open after retries: FeatureCut4 returned None for F005 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F002 (hole) deferred_open after retries: ValueError: value must be non-negative for geometry, got -6.626252768920519
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM] OV008 (overview): Formed/bent profile shown: Datum feature symbol -A- with position tolerance .001 TIR flatness/perpendicularity callout relative to datum A on flange face (Cross-section view, upper right flange).
+       decision: not built — the pipeline models machined prismatic parts, not sheet-metal forming
+       why: a bend/flange is an unsupported feature kind (escalate if the part is truly sheet metal)
+       affects: unsupported feature kind: formed profile
+   - [MEDIUM] OV009 (overview): The overview shows content the checker cannot auto-match: Stamped identification text '164-C 24.28 WK2' .19 high (Top of part, front view)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+   - [MEDIUM] OV013 (overview): The overview shows content the checker cannot auto-match: Stepped bore diameters visible in cross-section: 1.437, .600, 20.001 DIA, 18.500 DIA, 21.719 DIA transitions (Cross-section view, right side)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+   - [LOW] OV007 (overview): Surface Finish note: Surface finish callout (63 microinch) on outer cylindrical face (Cross-section view, outer diameter surface).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV010 (overview): The overview shows content the checker cannot auto-match: Balance callout note - dynamic balancing requirement, no discrete geometry shown (Lower portion of front view)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F005 FAILED: FeatureCut4 returned None for F005 in BOTH directions despite verified preconditions (sketch closed & fully defined, profile overlaps the body, depth in meters) — the cut removes no material (coincident with a face or zero-area profile); check the profile geometry, not the build call.
+   - feature F002 FAILED: ValueError: value must be non-negative for geometry, got -6.626252768920519
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '164-C-RevC' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b47fd1fb7310\A001641E_1\output\164-C-RevC

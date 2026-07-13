@@ -1,0 +1,68 @@
+LEARNING LOOP — 156-C-RevE
+============================================================
+Run:     2026-07-13 12:43:35
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b47fd1fb7310\A001561E_1\output\156-C-RevE
+Fingerprint: 099fad81186c6b3b
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The note calls out '7-HOLES' but only 6 hole locations are clearly marked with a (+) center-cross symbol in the front view (two at top corners, one top-center, two at mid-height on left/right edges, one at bottom-right) — a 7th hole is not unambiguously discernible without recount; verify all seven hole centers are actually drawn distinct from the dashed hidden-line rectangle overlay.
+       -> Recount hole cross-marks directly against the .218 DR THRU 7-HOLES leader; check near the top-right and bottom-left corners and along the dashed inner rectangle for an occluded or overlapping hole mark not clearly resolved in this view.
+   - [LOW] The semicircular notch (3.062 DIA) is shown only in the front view with no corresponding profile shown in the edge/side view to confirm whether the notch is a full thru-cut (open on both faces, as expected for thin sheet) or has any additional feature (e.g., flange) not visible from the front alone.
+       -> Cross-check with the edge view or add a partial section through the notch to confirm it is a simple thru-cutout in the .105 thick sheet with no additional forming.
+   - [HIGH] Dashed hidden-line rectangle inset within the outer plate boundary in the front view is not explained by any callout or note — it is unclear if this represents a bend line, a formed lip, an inner cutout, or a reference/hidden edge from another feature.
+       -> Add or verify a note/leader identifying the dashed inner rectangle (e.g., bend line for a formed flange, or edge of a mating part) since it currently has no dimension or label tying it to a specific feature.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 1, HIGH 2, MEDIUM 3, LOW 2
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.02, 3 PLACE DIM ±.010, ANGULAR DIM ±, SCALE 1"=1"" states 2 instance(s), but the per-view extraction captured hole group(s) of [7] (total 7). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] F003 (feature): F003 centered on the parent: the drawing shows symmetry (centerline / symmetry relationship) and no offset, so the center is the defensible placement — verify in SolidWorks.
+       decision: centered_on_parent
+       why: position not dimensioned on the drawing
+       affects: feature F003
+   - [HIGH] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, edge_side): The semicircular notch (3.062 DIA) is shown only in the front view with no corresponding profile shown in the edge/side view to confirm whether the notch is a full thru-cut (open on both faces, as expected for thin sheet) or has any additional feature (e.g., flange) not visible from the front alone. Recommendation: Cross-check with the edge view or add a partial section through the notch to confirm it is a simple thru-cutout in the .105 thick sheet with no additional forming.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): The note calls out '7-HOLES' but only 6 hole locations are clearly marked with a (+) center-cross symbol in the front view (two at top corners, one top-center, two at mid-height on left/right edges, one at bottom-right) — a 7th hole is not unambiguously discernible without recount; verify all seven hole centers are actually drawn distinct from the dashed hidden-line rectangle overlay. Recommendation: Recount hole cross-marks directly against the .218 DR THRU 7-HOLES leader; check near the top-right and bottom-left corners and along the dashed inner rectangle for an occluded or overlapping hole mark not clearly resolved in this view.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front): Dashed hidden-line rectangle inset within the outer plate boundary in the front view is not explained by any callout or note — it is unclear if this represents a bend line, a formed lip, an inner cutout, or a reference/hidden edge from another feature. Recommendation: Add or verify a note/leader identifying the dashed inner rectangle (e.g., bend line for a formed flange, or edge of a mating part) since it currently has no dimension or label tying it to a specific feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV004 (overview): The overview shows content the checker cannot auto-match: Weather stripping (sponge rubber with adhesive back), 23 in length, applied along an edge per item 2 in BOM (applied along edge, per side view length 10.00 in and 6.50 in call-outs)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+   - [LOW] OV003 (overview): Surface Finish note: Inner dashed rectangle outline suggesting a recessed or reference boundary area (possibly weatherstripping placement or bend line) inset from plate edges (inset from top, left, and right edges by ~.25-.375 in).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+   - [LOW] OV005 (overview): Thickness-view value 0.105 is out of plausible range vs the build thickness 6.5 (62x) (bottom of drawing, edge view of plate) [gauge 12]; treated as a non-thickness number, not a conflict.
+       decision: ignored as an out-of-band capture, build thickness kept
+       why: an edge-view thickness cannot differ from the build by an order of magnitude — the extractor captured an unrelated dimension
+       affects: metadata: rejected thickness candidate
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '156-C-RevE' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI-Model_New\2D-3D-CAD-Test-Generation\webapp\parts\b47fd1fb7310\A001561E_1\output\156-C-RevE
