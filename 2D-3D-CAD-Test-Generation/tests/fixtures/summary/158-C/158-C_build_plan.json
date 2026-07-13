@@ -1,0 +1,699 @@
+{
+  "part": "158-C",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.85,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 13,
+    "assumptions_made": 0,
+    "critical_flags": 1,
+    "low_flags": 2,
+    "medium_flags": 0,
+    "high_flags": 17,
+    "rebuild_confidence": 0.55,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 0,
+      "macro_file": "01a_reference_geometry.vba",
+      "feature_id": "-",
+      "type": "reference_geometry",
+      "description": "2 named datum landmark(s)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_flat_plate_11_00_x_6_25_x_105_thick.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base flat plate 11.00 x 6.25 x .105 thick",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 11.0,
+        "width": 6.25,
+        "depth": 0.105
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.2794,
+        "width": 0.15875,
+        "depth": 0.002667
+      },
+      "positions_xy": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F002_slot_rect_cut.vba",
+      "feature_id": "F002",
+      "type": "slot_rect_cut",
+      "description": "Slot F002 rectangle: 1.62 x 1.88 open through top edge, near edge 1.56 from left edge, through-all",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "width": 1.62,
+        "depth": 1.88,
+        "anchor_offset": 1.56
+      },
+      "notes": "Mandatory: carries the slot's position + size truth.",
+      "dimensions_meters": {
+        "width": 0.041148,
+        "depth": 0.047752,
+        "anchor_offset": 0.039624
+      },
+      "positions_xy": [
+        [
+          1.56,
+          4.37
+        ],
+        [
+          3.18,
+          4.37
+        ],
+        [
+          3.18,
+          6.25
+        ],
+        [
+          1.56,
+          6.25
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.039624,
+          0.110998
+        ],
+        [
+          0.080772,
+          0.110998
+        ],
+        [
+          0.080772,
+          0.15875
+        ],
+        [
+          0.039624,
+          0.15875
+        ]
+      ],
+      "sketch_plane": "REF_DATUM_A",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_rect_cut",
+      "positioned_from": "REF_DATUM_A",
+      "must_complete": true,
+      "sketch": {
+        "slot_kind": "open_notch",
+        "open_edge": "top",
+        "corners_drawing_units": [
+          [
+            1.56,
+            4.37
+          ],
+          [
+            3.18,
+            4.37
+          ],
+          [
+            3.18,
+            6.25
+          ],
+          [
+            1.56,
+            6.25
+          ]
+        ],
+        "corners_meters": [
+          [
+            0.039624,
+            0.110998
+          ],
+          [
+            0.080772,
+            0.110998
+          ],
+          [
+            0.080772,
+            0.15875
+          ],
+          [
+            0.039624,
+            0.15875
+          ]
+        ],
+        "dimension_scheme": [
+          {
+            "dim": "D003",
+            "from": "part_left_edge",
+            "to": "slot_near_edge",
+            "value": 1.56
+          },
+          {
+            "dim": "D004",
+            "across": "slot_width",
+            "value": 1.62
+          },
+          {
+            "dim": "D005",
+            "from": "open_edge",
+            "to": "slot_bottom",
+            "value": 1.88
+          }
+        ],
+        "end_condition": "through_all"
+      }
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F002_slot_corner_fillet.vba",
+      "feature_id": "F002_fillets",
+      "type": "slot_corner_fillet",
+      "description": "R0.25 TYP on 2 interior corner(s) of slot F002",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "radius": 0.25
+      },
+      "notes": "Deferred-safe: the slot is already correct from the rectangle cut.",
+      "dimensions_meters": {},
+      "positions_xy": [
+        [
+          1.56,
+          4.37
+        ],
+        [
+          3.18,
+          4.37
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.039624,
+          0.110998
+        ],
+        [
+          0.080772,
+          0.110998
+        ]
+      ],
+      "sketch_plane": "",
+      "parent_feature_id": "F002",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "vertex_proximity",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "defer_on_failure": true,
+      "corner_count_expected": 2,
+      "radius_meters": 0.00635
+    },
+    {
+      "seq": 4,
+      "macro_file": "04_F004_6x_218_DIA_thru_holes_2_columns_x_3_rows.vba",
+      "feature_id": "F004",
+      "type": "hole",
+      "description": "6x .218 DIA thru holes, 2 columns x 3 rows",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.218,
+        "qty": 6.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0055372,
+        "qty": 6.0
+      },
+      "positions_xy": [
+        [
+          0.25,
+          0.375
+        ],
+        [
+          0.25,
+          3.125
+        ],
+        [
+          0.25,
+          5.875
+        ],
+        [
+          10.75,
+          0.375
+        ],
+        [
+          10.75,
+          3.125
+        ],
+        [
+          10.75,
+          5.875
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.00635,
+          0.009525
+        ],
+        [
+          0.00635,
+          0.079375
+        ],
+        [
+          0.00635,
+          0.149225
+        ],
+        [
+          0.27305,
+          0.009525
+        ],
+        [
+          0.27305,
+          0.079375
+        ],
+        [
+          0.27305,
+          0.149225
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_PT_F004",
+      "placement": "individual",
+      "pattern_evidence": "none->individual",
+      "position_basis": [
+        {
+          "anchor": "hole_center",
+          "dim": "D007",
+          "value": 5.5,
+          "axis": "y"
+        },
+        {
+          "anchor": "hole_center",
+          "dim": "D008",
+          "value": 2.75,
+          "axis": "y"
+        },
+        {
+          "anchor": "origin",
+          "dim": "D009",
+          "value": 0.375,
+          "axis": ""
+        },
+        {
+          "anchor": "origin",
+          "dim": "D010",
+          "value": 0.25,
+          "axis": ""
+        },
+        {
+          "anchor": "hole_center",
+          "dim": "D011",
+          "value": 10.5,
+          "axis": "x"
+        }
+      ],
+      "datum_points": [
+        "REF_PT_F004"
+      ]
+    },
+    {
+      "seq": 5,
+      "macro_file": "05_fillets_chamfers.vba",
+      "feature_id": "F003",
+      "type": "fillet/chamfer",
+      "description": "Interactive: select edges, run, repeat",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "F003_radius": 0.25
+      },
+      "notes": "Run last. Interactive edge selection (values from the drawing are baked in).",
+      "dimensions_meters": {
+        "F003_radius": 0.00635
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "F002",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": true,
+      "auto_select_strategy": "parent_feature_sketch_edges",
+      "expected_edge_count": 0,
+      "edge_selection_note": "Select the edge(s) for each fillet/chamfer in the graphics area, then run. The macro applies the exact radius/chamfer values baked in from the drawing; if no edges are selected it prompts and skips that value.",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1001,
+      "macro_file": "ZZZ_export_stl.vba",
+      "feature_id": "-",
+      "type": "export",
+      "description": "Export the part as an STL beside the .sldprt (same base name)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": [],
+  "dispositions": [
+    {
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "stage": 1,
+      "stage_name": "base_solid",
+      "state": "BUILT",
+      "values_used": {
+        "length": 11.0,
+        "width": 6.25,
+        "thickness": 0.105
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.0,
+        0.0
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F002",
+      "type": "extrude_cut",
+      "stage": 3,
+      "stage_name": "profile_subtractions",
+      "state": "BUILT",
+      "values_used": {
+        "notch_position": 1.56,
+        "width": 1.62,
+        "depth": 1.88
+      },
+      "derivation_source": "",
+      "position_xy": [
+        1.56,
+        4.37
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F004",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "spacing": 10.5,
+        "hole_position_y": 0.375,
+        "hole_position_x": 0.25,
+        "hole_diameter": 0.218
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.25,
+        0.375
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F003",
+      "type": "fillet",
+      "stage": 6,
+      "stage_name": "edge_treatments",
+      "state": "BUILT",
+      "values_used": {
+        "fillet_radius": 0.25
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.0,
+        0.0
+      ],
+      "flags": []
+    }
+  ],
+  "reference_geometry": [
+    {
+      "id": "REF_DATUM_A",
+      "type": "plane",
+      "definition": "coincident",
+      "source": "base datum (part origin)",
+      "parent": "Front Plane"
+    },
+    {
+      "id": "REF_PT_F004",
+      "type": "point",
+      "definition": "plane_plane_plane",
+      "source": "pattern origin (H001, 6 instances)",
+      "parents": [
+        "REF_DATUM_A"
+      ]
+    }
+  ],
+  "engineering_review": [
+    {
+      "severity": "CRITICAL",
+      "source": "overview_analysis",
+      "id": "OV-COUNT",
+      "what": "HOLE-COUNT DISAGREEMENT: the sheet's global callout \"UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM \u00b1.02, 3 PLACE DIM \u00b1.010, ANGULAR DIM \u00b1, SCALE 1\"=1\"\" states 2 instance(s), but the per-view extraction captured hole group(s) of [6] (total 6). A cropped view cannot resolve this alone \u2014 check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.",
+      "decision": "flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)",
+      "why": "raised by the Stage 1.5 holistic overview analysis (tier2_overview) \u2014 cross-view context a single cropped view cannot provide",
+      "affects": "cross-view consistency of the whole part"
+    },
+    {
+      "severity": "CRITICAL",
+      "source": "build",
+      "id": "F003",
+      "what": "The .sldprt build SKIPPED feature F003 (fillet): FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') \u2014 the selected edges likely cannot accept this radius (radius exceeds the adjacent face).",
+      "decision": "feature is absent from the .sldprt; the VBA macros still contain it as a step",
+      "why": "FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') \u2014 the selected edges likely cannot accept this radius (radius exceeds the adjacent face).",
+      "affects": "feature F003"
+    },
+    {
+      "severity": "HIGH",
+      "source": "overview_analysis",
+      "id": "OV-001",
+      "what": "CROSS-VIEW CONFLICT (front, edge_side): The front view clearly shows six hole locations (center-cross marks) matching the '.218 DR. THRU 6-HLS.' callout, so hole count is confirmed and consistent \u2014 no conflict here. However, the notch feature (1.56/1.62/1.88 dims) shown in the front view has no corresponding representation or cross-check in the edge/side view, making it impossible to confirm the notch's depth relative to plate thickness or verify it is a through-cut versus a partial depth feature from the edge view alone. Recommendation: Verify from full-size front view crop that notch is a through-cutout (open to the plate edge) and confirm no additional profile view was omitted that would show the notch depth through the thickness. [request-full-sheet: this looks like a cropped/off-sheet region \u2014 upload the complete sheet rather than re-running.]",
+      "decision": "flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)",
+      "why": "raised by the Stage 1.5 holistic overview analysis (tier2_overview) \u2014 cross-view context a single cropped view cannot provide",
+      "affects": "cross-view consistency of the whole part"
+    },
+    {
+      "severity": "HIGH",
+      "source": "overview_analysis",
+      "id": "OV-002",
+      "what": "CROSS-VIEW CONFLICT (front, edge_side): The edge/side view shows a small tab or step feature at one end of the plate that does not have an obvious corresponding dimension or feature call-out in the front (plan) view. Recommendation: Check enlarged crop of edge view to determine if this step is a drafting artifact (fold line, weld line) or an actual formed tab; cross-check against front view edge for any unlabeled break line. [request-full-sheet: this looks like a cropped/off-sheet region \u2014 upload the complete sheet rather than re-running.]",
+      "decision": "flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)",
+      "why": "raised by the Stage 1.5 holistic overview analysis (tier2_overview) \u2014 cross-view context a single cropped view cannot provide",
+      "affects": "cross-view consistency of the whole part"
+    },
+    {
+      "severity": "MEDIUM",
+      "source": "build",
+      "id": "",
+      "what": "Build caveat: F003 (fillet) skipped: FeatureFillet3 returned None for F003 despite verified preconditions (radius=0.006350 m, 36 edge(s) selected, scope 'all edges') \u2014 the selected edges likely cannot accept this radius (radius exceeds the adjacent face).",
+      "decision": "applied automatically during the .sldprt build",
+      "why": "the 2D drawing carries no per-edge topology, so scope was chosen automatically",
+      "affects": "see caveat text"
+    },
+    {
+      "severity": "LOW",
+      "source": "overview",
+      "id": "OV004",
+      "what": "Gauge thickness noted but material unknown: Flat plate part, 12 GA (.105 in) thick steel, overall envelope 11.00 x 6.25 x .105, shown in side/edge view at bottom (side view) [gauge 12]. Cannot convert a gauge number to a decimal without the material \u2014 not compared to the build.",
+      "decision": "recorded as the part's gauge reference; not reconciled",
+      "why": "a gauge number is ambiguous across materials (no decimal given)",
+      "affects": "metadata: stock gauge"
+    },
+    {
+      "severity": "LOW",
+      "source": "overview",
+      "id": "OV005",
+      "what": "Thickness-view value 12.5 is out of plausible range vs the build thickness 1.88 (7x) (BOM reference only, not shown in views); treated as a non-thickness number, not a conflict.",
+      "decision": "ignored as an out-of-band capture, build thickness kept",
+      "why": "an edge-view thickness cannot differ from the build by an order of magnitude \u2014 the extractor captured an unrelated dimension",
+      "affects": "metadata: rejected thickness candidate"
+    }
+  ],
+  "overview_verification": {
+    "note": "checked 5 overview feature(s): 2 finding(s)",
+    "n_findings": 2
+  },
+  "requirements_compliance": {
+    "note": "skipped: no requirements/notes file for this part",
+    "requirements": []
+  }
+}

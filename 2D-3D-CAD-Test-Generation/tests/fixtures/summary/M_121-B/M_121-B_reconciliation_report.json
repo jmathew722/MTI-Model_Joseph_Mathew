@@ -1,0 +1,31 @@
+{
+  "part": "M 121-B",
+  "checklist_total": 7,
+  "confirmed_built": 4,
+  "loop_passes_used": 1,
+  "unresolved": [
+    {
+      "feature_id": "F002",
+      "feature_type": "extrude_cut",
+      "issue": "EXCLUDED FROM BUILD \u2014 extrude_cut F002 is missing a diameter OR both length+width (has ['height']; missing length+width). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F002 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.",
+      "resolution_attempted": "Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass \u2014 no further information is available to resolve this without fabricating a value, which this pipeline never does.",
+      "status": "unresolved_after_pass_1"
+    },
+    {
+      "feature_id": "F003",
+      "feature_type": "extrude_cut",
+      "issue": "EXCLUDED FROM BUILD \u2014 extrude_cut F003 is missing a diameter OR both length+width (has ['width']; missing length). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F003 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.",
+      "resolution_attempted": "Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass \u2014 no further information is available to resolve this without fabricating a value, which this pipeline never does.",
+      "status": "unresolved_after_pass_1"
+    },
+    {
+      "feature_id": "F005",
+      "feature_type": "hole",
+      "issue": "EXCLUDED FROM BUILD \u2014 hole F005 is missing diameter. No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F005 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected near drawing-frame (4.594, 2.938). Add the missing value on the drawing and re-run to include this feature.",
+      "resolution_attempted": "Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass \u2014 no further information is available to resolve this without fabricating a value, which this pipeline never does.",
+      "status": "unresolved_after_pass_1"
+    }
+  ],
+  "splices_applied": [],
+  "final_status": "READY_WITH_OPEN_ITEMS"
+}

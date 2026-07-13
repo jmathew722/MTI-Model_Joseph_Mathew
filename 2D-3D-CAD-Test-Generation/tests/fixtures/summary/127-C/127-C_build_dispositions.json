@@ -1,0 +1,163 @@
+[
+  {
+    "feature_id": "F001",
+    "type": "extrude_boss",
+    "stage": 1,
+    "stage_name": "base_solid",
+    "state": "BUILT",
+    "values_used": {
+      "length": 17.5,
+      "width": 11.25,
+      "thickness": 1.0
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.0,
+      0.0
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F004",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_diameter": 0.5,
+      "offset": 0.844,
+      "width": 11.25
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.844,
+      4.0
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F002",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_diameter": 0.5,
+      "offset": 0.844
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.844,
+      10.25
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F008",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_diameter": 0.531,
+      "offset": 6.781,
+      "spacing": 6.5
+    },
+    "derivation_source": "",
+    "position_xy": [
+      6.781,
+      4.75
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F006",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_diameter": 0.531,
+      "offset": 6.781,
+      "spacing": 6.0
+    },
+    "derivation_source": "",
+    "position_xy": [
+      6.781,
+      7.25
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F007",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_diameter": 0.531,
+      "spacing": 6.0
+    },
+    "derivation_source": "",
+    "position_xy": [
+      6.781,
+      7.25
+    ],
+    "flags": [],
+    "needs_human_input": true,
+    "question_id": "Q-127-C-F007-deferred",
+    "human_input_state": "NEEDS_HUMAN_INPUT"
+  },
+  {
+    "feature_id": "F009",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_diameter": 0.531,
+      "spacing": 7.0
+    },
+    "derivation_source": "",
+    "position_xy": [
+      13.781,
+      4.75
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F005",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_diameter": 0.5,
+      "spacing": 15.812
+    },
+    "derivation_source": "",
+    "position_xy": [
+      16.656,
+      4.0
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F003",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_diameter": 0.5,
+      "spacing": 15.812,
+      "offset": 0.75
+    },
+    "derivation_source": "",
+    "position_xy": [
+      16.656,
+      10.25
+    ],
+    "flags": []
+  }
+]

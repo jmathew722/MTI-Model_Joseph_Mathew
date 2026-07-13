@@ -1,0 +1,659 @@
+{
+  "part": "M 121-B",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 22,
+    "assumptions_made": 1,
+    "critical_flags": 2,
+    "low_flags": 1,
+    "medium_flags": 2,
+    "high_flags": 26,
+    "rebuild_confidence": 0.55,
+    "plain_english": "F007 diameter inferred as 0.1969 inch from the thread callout (standard major diameter) \u2014 verify against the drawing. 1 of 22 dimension(s) required an engineering assumption (2 critical, 0 low, 1 medium). Model is complete and buildable as-is; verify flagged items in SolidWorks."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 0,
+      "macro_file": "01a_reference_geometry.vba",
+      "feature_id": "-",
+      "type": "reference_geometry",
+      "description": "3 named datum landmark(s)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_plate_stepped_profile_overall_6_88_.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base plate stepped profile, overall 6.88 x 5.50, thickness .25",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 6.88,
+        "width": 6.88,
+        "depth": 0.25
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.174752,
+        "width": 0.174752,
+        "depth": 0.00635
+      },
+      "positions_xy": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F004_422_DIA_THRU_hole_first_of_2_instances.vba",
+      "feature_id": "F004",
+      "type": "hole",
+      "description": ".422 DIA THRU hole, first of 2 instances",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.422,
+        "qty": 2.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0107188,
+        "qty": 2.0
+      },
+      "positions_xy": [
+        [
+          2.25,
+          2.938
+        ],
+        [
+          4.594,
+          2.938
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.05715,
+          0.0746252
+        ],
+        [
+          0.1166876,
+          0.0746252
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_PT_F004"
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F007_M5x_8_TAP_THRU_tapped_hole_third_instanc.vba",
+      "feature_id": "F007",
+      "type": "hole",
+      "description": "M5x.8 TAP THRU tapped hole, third instance in row pattern",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.1969
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.00500126
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "F006",
+      "depth_type": "",
+      "flags": [
+        {
+          "dimension_id": "D900",
+          "flag_tier": "MEDIUM",
+          "human_note": "F007 diameter inferred as 0.1969 inch from the thread callout (standard major diameter) \u2014 verify against the drawing.",
+          "macro_behavior": "msgbox_on_run"
+        }
+      ],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": true,
+      "assumption_confidence": 0.55,
+      "flag_tier": "MEDIUM",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 4,
+      "macro_file": "04_F006_M5x_8_TAP_THRU_tapped_hole_first_of_3_in.vba",
+      "feature_id": "F006",
+      "type": "hole",
+      "description": "M5x.8 TAP THRU tapped hole, first of 3 in row pattern",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.196,
+        "qty": 3.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0049784,
+        "qty": 3.0
+      },
+      "positions_xy": [
+        [
+          2.875,
+          0.375
+        ],
+        [
+          4.031,
+          1.531
+        ],
+        [
+          5.375,
+          2.688
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.073025,
+          0.009525
+        ],
+        [
+          0.1023874,
+          0.0388874
+        ],
+        [
+          0.136525,
+          0.0682752
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_PT_F006"
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1001,
+      "macro_file": "ZZZ_export_stl.vba",
+      "feature_id": "-",
+      "type": "export",
+      "description": "Export the part as an STL beside the .sldprt (same base name)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": [],
+  "dispositions": [
+    {
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "stage": 1,
+      "stage_name": "base_solid",
+      "state": "BUILT",
+      "values_used": {
+        "length": 6.88,
+        "height": 5.5,
+        "thickness": 0.25
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.0,
+        0.0
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F003",
+      "type": "extrude_cut",
+      "stage": 3,
+      "stage_name": "profile_subtractions",
+      "state": "EXCLUDED_INCOMPLETE",
+      "values_used": {
+        "width": 1.88
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.0,
+        0.0
+      ],
+      "flags": [
+        {
+          "dimension_id": "F003",
+          "feature_id": "F003",
+          "flag_tier": "CRITICAL",
+          "human_note": "EXCLUDED FROM BUILD \u2014 extrude_cut F003 is missing a diameter OR both length+width (has ['width']; missing length). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F003 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.",
+          "macro_behavior": "confirm_on_run",
+          "resolved_by_tier": "tier1_per_view",
+          "source": "incomplete_profile",
+          "excluded_from_build": true,
+          "model_derived_assumption": true,
+          "expected_region": {
+            "kind": "on_parent",
+            "parent_feature": "F001"
+          },
+          "route_to_markup": true
+        }
+      ]
+    },
+    {
+      "feature_id": "F002",
+      "type": "extrude_cut",
+      "stage": 3,
+      "stage_name": "profile_subtractions",
+      "state": "EXCLUDED_INCOMPLETE",
+      "values_used": {
+        "hole_position_x": 4.38,
+        "height": 4.5
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.0,
+        0.0
+      ],
+      "flags": [
+        {
+          "dimension_id": "F002",
+          "feature_id": "F002",
+          "flag_tier": "CRITICAL",
+          "human_note": "EXCLUDED FROM BUILD \u2014 extrude_cut F002 is missing a diameter OR both length+width (has ['height']; missing length+width). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F002 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.",
+          "macro_behavior": "confirm_on_run",
+          "resolved_by_tier": "tier1_per_view",
+          "source": "incomplete_profile",
+          "excluded_from_build": true,
+          "model_derived_assumption": true,
+          "expected_region": {
+            "kind": "on_parent",
+            "parent_feature": "F001"
+          },
+          "route_to_markup": true
+        }
+      ]
+    },
+    {
+      "feature_id": "F004",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_position_x": 2.25,
+        "hole_position_y": 2.938,
+        "hole_diameter": 0.422
+      },
+      "derivation_source": "",
+      "position_xy": [
+        2.25,
+        2.938
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F006",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_position_x": 2.875,
+        "hole_position_y": 1.938,
+        "diameter": 5.0,
+        "spacing": 2.344
+      },
+      "derivation_source": "",
+      "position_xy": [
+        2.875,
+        0.375
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F007",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT_WITH_DERIVED_VALUE",
+      "values_used": {
+        "hole_position_x": 5.375,
+        "hole_position_y": 0.938,
+        "hole_diameter": 0.1969
+      },
+      "derivation_source": "standard_thread_size",
+      "position_xy": [
+        5.375,
+        2.688
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F005",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "EXCLUDED_INCOMPLETE",
+      "values_used": {
+        "hole_position_x": 2.5,
+        "hole_position_y": 2.75
+      },
+      "derivation_source": "",
+      "position_xy": [
+        4.594,
+        2.938
+      ],
+      "flags": [
+        {
+          "dimension_id": "F005",
+          "feature_id": "F005",
+          "flag_tier": "CRITICAL",
+          "human_note": "EXCLUDED FROM BUILD \u2014 hole F005 is missing diameter. No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F005 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected near drawing-frame (4.594, 2.938). Add the missing value on the drawing and re-run to include this feature.",
+          "macro_behavior": "confirm_on_run",
+          "resolved_by_tier": "tier1_per_view",
+          "source": "missing_dimension",
+          "excluded_from_build": true,
+          "model_derived_assumption": true,
+          "expected_region": {
+            "kind": "offset",
+            "x": 4.594,
+            "y": 2.938
+          },
+          "route_to_markup": true
+        }
+      ]
+    }
+  ],
+  "reference_geometry": [
+    {
+      "id": "REF_DATUM_A",
+      "type": "plane",
+      "definition": "coincident",
+      "source": "base datum (part origin)",
+      "parent": "Front Plane"
+    },
+    {
+      "id": "REF_PT_F004",
+      "type": "point",
+      "definition": "plane_plane_plane",
+      "source": "pattern origin (H001, 2 instances)",
+      "parents": [
+        "REF_DATUM_A"
+      ]
+    },
+    {
+      "id": "REF_PT_F006",
+      "type": "point",
+      "definition": "plane_plane_plane",
+      "source": "pattern origin (H002, 3 instances)",
+      "parents": [
+        "REF_DATUM_A"
+      ]
+    }
+  ],
+  "engineering_review": [
+    {
+      "severity": "CRITICAL",
+      "source": "feature",
+      "id": "F002",
+      "what": "POSITION UNRESOLVED for F002: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 2 unassociated linear dim(s) (no leader reached F002's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption \u2014 add an X and/or Y location dimension on the drawing and re-run.",
+      "decision": "needs_markup_review",
+      "why": "position not dimensioned on the drawing",
+      "affects": "feature F002"
+    },
+    {
+      "severity": "CRITICAL",
+      "source": "feature",
+      "id": "F003",
+      "what": "POSITION UNRESOLVED for F003: no location dimension and no symmetry evidence on the drawing. Tried: extension-line tracing from 1 unassociated linear dim(s) (no leader reached F003's centerline); symmetry inference (no centerline/symmetry relationship names this feature). It will be EXCLUDED from the model (not placed at a guessed center) and recorded as a Tab-3 model-derived assumption \u2014 add an X and/or Y location dimension on the drawing and re-run.",
+      "decision": "needs_markup_review",
+      "why": "position not dimensioned on the drawing",
+      "affects": "feature F003"
+    },
+    {
+      "severity": "CRITICAL",
+      "source": "reconciliation",
+      "id": "F002",
+      "what": "Stage 10.5 reconciliation: extrude_cut F002 still unresolved after 1 pass(es)",
+      "decision": "unresolved_after_pass_1",
+      "why": "EXCLUDED FROM BUILD \u2014 extrude_cut F002 is missing a diameter OR both length+width (has ['height']; missing length+width). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F002 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.",
+      "affects": "Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass \u2014 no further information is available to resolve this without fabricating a value, which this pipeline never does."
+    },
+    {
+      "severity": "CRITICAL",
+      "source": "reconciliation",
+      "id": "F003",
+      "what": "Stage 10.5 reconciliation: extrude_cut F003 still unresolved after 1 pass(es)",
+      "decision": "unresolved_after_pass_1",
+      "why": "EXCLUDED FROM BUILD \u2014 extrude_cut F003 is missing a diameter OR both length+width (has ['width']; missing length). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F003 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.",
+      "affects": "Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass \u2014 no further information is available to resolve this without fabricating a value, which this pipeline never does."
+    },
+    {
+      "severity": "CRITICAL",
+      "source": "reconciliation",
+      "id": "F005",
+      "what": "Stage 10.5 reconciliation: hole F005 still unresolved after 1 pass(es)",
+      "decision": "unresolved_after_pass_1",
+      "why": "EXCLUDED FROM BUILD \u2014 hole F005 is missing diameter. No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F005 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected near drawing-frame (4.594, 2.938). Add the missing value on the drawing and re-run to include this feature.",
+      "affects": "Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass \u2014 no further information is available to resolve this without fabricating a value, which this pipeline never does."
+    },
+    {
+      "severity": "HIGH",
+      "source": "overview_analysis",
+      "id": "OV-002",
+      "what": "CROSS-VIEW CONFLICT (sheet): No top or plan view is provided showing hole positions in the other axis (depth into the part) -- only one primary front view with X-dimensioning is present, so the Y-axis (vertical) hole spacing is inferred from stacked vertical dimensions (4.50, 2.938, 2.750, 1.938, 2.500, .938 etc.) without a clear secondary confirming view. Recommendation: Request or verify a top/plan view or isometric to confirm vertical hole placement is consistent with the stepped profile edges shown in front view.",
+      "decision": "flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)",
+      "why": "raised by the Stage 1.5 holistic overview analysis (tier2_overview) \u2014 cross-view context a single cropped view cannot provide",
+      "affects": "cross-view consistency of the whole part"
+    },
+    {
+      "severity": "MEDIUM",
+      "source": "dimension",
+      "id": "D900",
+      "what": "F007 diameter inferred as 0.1969 inch from the thread callout (standard major diameter) \u2014 verify against the drawing.",
+      "decision": "resolved value 0.1969",
+      "why": "standard thread size",
+      "affects": "dimension D900"
+    },
+    {
+      "severity": "MEDIUM",
+      "source": "overview_analysis",
+      "id": "OV-001",
+      "what": "CROSS-VIEW CONFLICT (front): Front view shows only 3 hole locations clearly circled/crossed with centerlines in the stepped body (2 at .422 DIA and what appears to be up to 3 M5x.8 TAP positions), but the note calls out '(2) HLS' for the .422 DIA and '(2) HLS. (3) PLS.' for the M5x.8 TAP, implying 2 tapped holes visible plus a 3rd 'PLS' (places) note that could mean 3 total places across the part -- the exact count and location of all 5 combined holes is not unambiguously resolved from the single front view alone since hole markers overlap with dimension leader lines. Recommendation: Verify against the actual hole pattern layout: count physical hole symbols (crossed circles) in the front view and match to 2x .422 DIA + 3x M5x.8 TAP = 5 total holes. Cross-check with an isometric or additional view if available, or confirm with the manufacturer that '3 PLS' means 3 locations for the M5x.8 tap.",
+      "decision": "flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)",
+      "why": "raised by the Stage 1.5 holistic overview analysis (tier2_overview) \u2014 cross-view context a single cropped view cannot provide",
+      "affects": "cross-view consistency of the whole part"
+    },
+    {
+      "severity": "LOW",
+      "source": "overview",
+      "id": "OV006",
+      "what": "Surface Finish note: Stepped profile / notch cut into top edge of plate (multi-level step feature) (top center of plate, spanning 1.88 to 4.38 region).",
+      "decision": "attached to part metadata as a surface finish note",
+      "why": "a note, not part geometry \u2014 no build counterpart expected",
+      "affects": "metadata: surface finish"
+    },
+    {
+      "severity": "LOW",
+      "source": "overview",
+      "id": "OV007",
+      "what": "Thickness-view value 0.25 is out of plausible range vs the build thickness 4.5 (18x) (right side of main view); treated as a non-thickness number, not a conflict.",
+      "decision": "ignored as an out-of-band capture, build thickness kept",
+      "why": "an edge-view thickness cannot differ from the build by an order of magnitude \u2014 the extractor captured an unrelated dimension",
+      "affects": "metadata: rejected thickness candidate"
+    }
+  ],
+  "overview_verification": {
+    "note": "checked 7 overview feature(s): 2 finding(s)",
+    "n_findings": 2
+  },
+  "requirements_compliance": {
+    "note": "skipped: no requirements/notes file for this part",
+    "requirements": []
+  }
+}

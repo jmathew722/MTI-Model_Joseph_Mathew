@@ -1598,6 +1598,20 @@ def part_outputs(session: str, part: str):
     return payload
 
 
+@app.get("/api/parts/{session}/{part}/summary")
+def part_summary(session: str, part: str):
+    """The Tab-3 visual-summary view-model: the part-header strip plus the two
+    linked tables (Extracted Features & Dimensions; Build Plan), assembled from
+    artifacts already on disk. Pure presentation — no pipeline stage runs. Never
+    500s on a part that hasn't been built yet (returns ran=False)."""
+    from pipeline.summary_view import build_summary
+
+    pdir = _session_dir(session) / _sanitize(part)
+    if not pdir.is_dir():
+        raise HTTPException(404, "Unknown part")
+    return build_summary(pdir / "output")
+
+
 # ── Human-assist escalation queue (Task 4) ─────────────────────────────────
 def _assist_files(session: str):
     """Yield (part_output_dir, assist_queue_path) for every part in the session

@@ -653,6 +653,116 @@
   .files-paths { padding:var(--sp-3) var(--sp-4); font-size:var(--fs-small); color:var(--ink-3);
                  border-bottom:1px solid var(--line); }
   .files-paths code { color:var(--ink-2); font-family:var(--mono); }
+
+  /* ── Visual Summary (Tab 3) — header strip + two linked scannable tables ── */
+  .vsum { flex:0 0 auto; border-bottom:1px solid var(--line);
+          background:var(--bg-raised); }
+  .vsum-bar { display:flex; align-items:center; gap:var(--sp-2);
+              padding:var(--sp-2) var(--sp-4); border-bottom:1px solid var(--line-soft); }
+  .vsum-sub, .vsum-hint { text-transform:none; letter-spacing:0; color:var(--ink-3); }
+  .vsum.collapsed .vsum-body { display:none; }
+  .vsum-body { max-height:52vh; overflow:auto; padding:var(--sp-2) var(--sp-4) var(--sp-4); }
+  .vsum-empty { color:var(--ink-3); font-size:var(--fs-small); padding:var(--sp-4) 0; }
+
+  /* header strip — the 5-second read */
+  .vsum-headstrip { display:flex; flex-wrap:wrap; align-items:stretch; gap:var(--sp-2);
+                    margin:var(--sp-2) 0 var(--sp-3); }
+  .vs-stat { display:flex; flex-direction:column; gap:2px; min-width:0;
+             padding:var(--sp-2) var(--sp-3); background:var(--surface);
+             border:1px solid var(--line); border-radius:var(--r-md); }
+  .vs-stat .k { font:600 var(--fs-caption) var(--sans); letter-spacing:.08em;
+                text-transform:uppercase; color:var(--ink-3); }
+  .vs-stat .v { font:600 var(--fs-body)/1.3 var(--mono); color:var(--ink);
+                font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .vs-stat.grow-1 { flex:1 1 160px; }
+  .vs-status { display:flex; align-items:center; }
+  .vs-chips { display:flex; gap:var(--sp-1); flex-wrap:wrap; align-items:center; }
+  .vs-chip { font:700 10px/16px var(--sans); letter-spacing:.06em;
+             padding:1px var(--sp-2); border-radius:var(--r-sm); border:1px solid;
+             font-variant-numeric:tabular-nums; }
+  .vs-chip.critical { color:var(--sev-critical); border-color:var(--sev-critical); background:rgba(240,84,92,.1); }
+  .vs-chip.high     { color:var(--sev-high);     border-color:var(--sev-high);     background:rgba(227,161,60,.1); }
+  .vs-chip.medium   { color:var(--sev-medium);   border-color:var(--sev-medium);   background:rgba(210,195,85,.08); }
+  .vs-chip.low      { color:var(--sev-low);      border-color:var(--sev-low);      background:rgba(141,164,190,.08); }
+  .vs-chip.zero     { color:var(--ink-4); border-color:var(--line); background:transparent; }
+
+  .vsum-block { margin-top:var(--sp-3); }
+  .vsum-block-h { display:flex; align-items:center; gap:var(--sp-2); margin-bottom:var(--sp-1); }
+  .vsum-scroll { overflow-x:auto; border:1px solid var(--line); border-radius:var(--r-md);
+                 background:var(--surface); }
+
+  .sum-table { width:100%; border-collapse:collapse; font-size:var(--fs-small); }
+  .sum-table thead th { position:sticky; top:0; z-index:1; text-align:left;
+      font:600 var(--fs-caption) var(--sans); letter-spacing:.06em; text-transform:uppercase;
+      color:var(--ink-3); background:var(--bg-raised); padding:6px var(--sp-3);
+      border-bottom:1px solid var(--line); white-space:nowrap; }
+  .sum-table th.num, .sum-table td.num { text-align:right; }
+  .sum-table th.srt { cursor:pointer; user-select:none; }
+  .sum-table th.srt:hover { color:var(--ink); }
+  .sum-table th.srt.sorted::after { content:' ▾'; color:var(--blueprint-text); }
+  .sum-table th.srt.sorted.asc::after { content:' ▴'; }
+  .sum-table td { padding:6px var(--sp-3); border-bottom:1px solid var(--line-soft);
+                  color:var(--ink-2); vertical-align:top; }
+  .sum-table tbody tr.sum-row { cursor:pointer; }
+  .sum-table tbody tr.sum-row:hover { background:var(--surface-2); }
+  .sum-table tbody tr.sum-row.xhi { background:var(--datum-dim); }
+  .sum-table td.id, .sum-table td.num, .sum-table td.mono { font-family:var(--mono);
+      font-variant-numeric:tabular-nums; color:var(--ink); white-space:nowrap; }
+  .sum-table td.id { font-weight:600; }
+  .sum-table .twist-r { display:inline-block; width:10px; color:var(--ink-4);
+      transition:transform .12s; }
+  .sum-row.open .twist-r { transform:rotate(90deg); color:var(--blueprint-text); }
+  .sum-qmark { color:var(--sev-high); font-weight:700; margin-left:4px; cursor:pointer; }
+
+  /* per-row disclosure */
+  .sum-detail-row > td { background:var(--well); padding:0; border-bottom:1px solid var(--line); }
+  .sum-detail-row.open > td { padding:var(--sp-3) var(--sp-4); }
+  .sum-detail-row:not(.open) { display:none; }
+  .sum-detail { display:grid; grid-template-columns:auto 1fr; gap:2px var(--sp-3);
+                font-size:var(--fs-small); }
+  .sum-detail .dk { color:var(--ink-3); white-space:nowrap; }
+  .sum-detail .dv { color:var(--ink-2); font-family:var(--mono); }
+  .sum-detail .dv.wrap { font-family:var(--sans); }
+  .sum-detail .subhead { grid-column:1/-1; margin-top:var(--sp-2); font:600 var(--fs-caption) var(--sans);
+      letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+  .sum-detail table.dtl { grid-column:1/-1; width:100%; border-collapse:collapse; }
+  .sum-detail table.dtl td { padding:2px var(--sp-2); border-bottom:1px solid var(--line-soft);
+      font-family:var(--mono); color:var(--ink-2); }
+
+  .vsum-notes { margin-top:var(--sp-2); }
+  .vsum-notes > summary { cursor:pointer; list-style:none; padding:var(--sp-1) 0;
+      font:600 var(--fs-caption) var(--sans); letter-spacing:.08em; text-transform:uppercase;
+      color:var(--ink-3); display:flex; align-items:center; gap:var(--sp-2); }
+  .vsum-notes > summary::-webkit-details-marker { display:none; }
+  .vsum-notes .twist::before { content:'▸'; }
+  .vsum-notes[open] .twist::before { content:'▾'; }
+  .vsum-notes-body { display:grid; grid-template-columns:auto 1fr; gap:2px var(--sp-3);
+      padding:var(--sp-2) 0; font-size:var(--fs-small); }
+  .vsum-notes-body .nk { color:var(--ink-3); white-space:nowrap; }
+  .vsum-notes-body .nv { color:var(--ink-2); }
+
+  /* narrow width: drop to the four essential columns, rest live in expansion */
+  @media (max-width:900px) {
+    #sum-feat th[data-col="pos"], #sum-feat td[data-col="pos"],
+    #sum-feat th[data-col="basis"], #sum-feat td[data-col="basis"],
+    #sum-feat th[data-col="qty"], #sum-feat td[data-col="qty"],
+    #sum-step th[data-col="stage"], #sum-step td[data-col="stage"],
+    #sum-step th[data-col="keys"], #sum-step td[data-col="keys"],
+    #sum-step th[data-col="place"], #sum-step td[data-col="place"] { display:none; }
+  }
+
+  /* print: only the summary, both tables fully expanded, on white */
+  @media print {
+    body * { visibility:hidden; }
+    #vsum-panel, #vsum-panel * { visibility:visible; }
+    #vsum-panel { position:absolute; inset:0; background:#fff; color:#000; border:0; }
+    .vsum-body { max-height:none; overflow:visible; }
+    .vsum-bar .ibtn, #vsum-print { display:none; }
+    .sum-table thead th { position:static; background:#eee; color:#000; }
+    .sum-table td, .vs-stat .v, .sum-detail .dv { color:#000; }
+    .sum-detail-row:not(.open) { display:table-row; }
+    .sum-detail-row > td { padding:var(--sp-2) var(--sp-4); background:#fafafa; }
+  }
 </style>
 </head>
 <body>
@@ -896,6 +1006,72 @@
               title="Delete every stored run output — empties both run/model dropdowns. Saved part inputs and the delivered copies in UI_Output/ and Downloads are kept.">✕ Clear all models</button>
     </div>
 
+    <!-- Visual Summary — the 5-second header read + two linked scannable tables
+         (features/dimensions, build plan), assembled from artifacts already on
+         disk. Sits ABOVE the file-output dock; never replaces it. -->
+    <div class="vsum" id="vsum-panel" style="display:none">
+      <div class="vsum-bar">
+        <span class="grp-title">Visual Summary</span>
+        <span class="hint vsum-sub">features &amp; build plan at a glance</span>
+        <span class="grow"></span>
+        <button class="btn secondary sm" id="vsum-print" title="Open a clean printable view of both tables">⎙ Print</button>
+        <button class="ibtn" id="vsum-toggle" title="Collapse / expand the visual summary">▾</button>
+      </div>
+      <div class="vsum-body" id="vsum-body">
+        <div class="vsum-headstrip" id="vsum-headstrip"></div>
+        <div class="vsum-empty" id="vsum-empty">No summary yet — run this part to populate it.</div>
+
+        <div class="vsum-block" id="vsum-feat-block">
+          <div class="vsum-block-h">
+            <span class="cap-c">Extracted Features &amp; Dimensions</span>
+            <span class="grow"></span>
+            <span class="hint vsum-hint" id="vsum-feat-hint"></span>
+          </div>
+          <div class="vsum-scroll">
+            <table class="sum-table" id="sum-feat">
+              <thead><tr>
+                <th class="srt" data-k="id">ID</th>
+                <th class="srt" data-k="type_label">Type</th>
+                <th data-col="size">Size</th>
+                <th data-col="pos">Position</th>
+                <th class="srt" data-col="basis" data-k="basis">Basis</th>
+                <th class="num" data-col="qty">Qty</th>
+                <th class="srt" data-k="status">Status</th>
+              </tr></thead>
+              <tbody id="sum-feat-body"></tbody>
+            </table>
+          </div>
+          <details class="vsum-notes" id="vsum-notes" style="display:none">
+            <summary><span class="twist"></span>Notes &amp; references</summary>
+            <div class="vsum-notes-body" id="vsum-notes-body"></div>
+          </details>
+        </div>
+
+        <div class="vsum-block" id="vsum-step-block">
+          <div class="vsum-block-h">
+            <span class="cap-c">Build Plan</span>
+            <span class="hint vsum-hint">in build order</span>
+            <span class="grow"></span>
+            <span class="hint vsum-hint" id="vsum-step-hint"></span>
+          </div>
+          <div class="vsum-scroll">
+            <table class="sum-table" id="sum-step">
+              <thead><tr>
+                <th class="num srt" data-k="step">Step</th>
+                <th class="srt" data-k="feature_id">Feature</th>
+                <th data-col="stage" class="srt" data-k="stage">Stage</th>
+                <th data-col="op">Operation</th>
+                <th data-col="keys">Key values</th>
+                <th data-col="place">Placement</th>
+                <th class="srt" data-k="result">Result</th>
+              </tr></thead>
+              <tbody id="sum-step-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="dock" id="dock">
       <div class="stabs" id="stabbar">
         <span class="grp-title dock-label">Run outputs</span>
@@ -970,6 +1146,53 @@ const dock = document.getElementById('dock'), dockToggle = document.getElementBy
 function setDockOpen(open) { dock.classList.toggle('collapsed', !open); dockToggle.textContent = open ? '▾' : '▸'; }
 dockToggle.addEventListener('click', () => setDockOpen(dock.classList.contains('collapsed')));
 
+// ── Visual Summary interactions: collapse, print, sort, row-expand, x-highlight ─
+(function () {
+  const panel = document.getElementById('vsum-panel');
+  const vsumToggle = document.getElementById('vsum-toggle');
+  vsumToggle.addEventListener('click', () => {
+    panel.classList.toggle('collapsed');
+    vsumToggle.textContent = panel.classList.contains('collapsed') ? '▸' : '▾';
+  });
+  document.getElementById('vsum-print').addEventListener('click', () => {
+    // expand every row so the print view is complete, then print.
+    panel.querySelectorAll('.sum-detail-row').forEach(r => r.classList.add('open'));
+    panel.querySelectorAll('.sum-row').forEach(r => r.classList.add('open'));
+    window.print();
+  });
+  // sort on header click (re-render the affected table from vsumData)
+  panel.addEventListener('click', e => {
+    const th = e.target.closest('th.srt'); if (!th || !vsumData) return;
+    const k = th.dataset.k, isFeat = th.closest('#sum-feat');
+    const key = isFeat ? 'feat' : 'step';
+    const cur = vsumSort[key];
+    vsumSort[key] = (cur && cur.k === k) ? { k, asc: !cur.asc } : { k, asc: true };
+    if (isFeat) paintFeatTable(); else paintStepTable();
+  });
+  // row expand + assist "?" affix (delegated over both table bodies)
+  panel.addEventListener('click', e => {
+    const q = e.target.closest('.sum-qmark');
+    if (q) { e.stopPropagation(); gotoAssist(); return; }
+    const row = e.target.closest('tr.sum-row'); if (!row) return;
+    // each row is immediately followed by its own detail row (built as a pair)
+    const target = row.nextElementSibling;
+    if (target && target.classList.contains('sum-detail-row')) {
+      const open = target.classList.toggle('open');
+      row.classList.toggle('open', open);
+    }
+  });
+  // cross-highlight: hovering a feature-id row lights its twin in the other table
+  panel.addEventListener('mouseover', e => {
+    const row = e.target.closest('tr.sum-row'); if (!row) return;
+    const fid = row.dataset.fid; if (!fid) return;
+    panel.querySelectorAll(`tr.sum-row[data-fid="${CSS.escape(fid)}"]`).forEach(r => r.classList.add('xhi'));
+  });
+  panel.addEventListener('mouseout', e => {
+    const row = e.target.closest('tr.sum-row'); if (!row) return;
+    panel.querySelectorAll('tr.sum-row.xhi').forEach(r => r.classList.remove('xhi'));
+  });
+})();
+
 // ── Collapsible live console (slim log under the split view) ────────────────
 document.getElementById('log-toggle').addEventListener('click', () => {
   const c = document.getElementById('inline-console');
@@ -1028,6 +1251,7 @@ function resetOutputs(msg) {
   document.getElementById('files-tbody').innerHTML = '';
   document.getElementById('cost-cards').innerHTML = '';
   setModelTabFilled(false);
+  resetSummary();
 }
 
 // ── Engineering Flags / Token-Cost / Files painters ──────────────────────────
@@ -1216,6 +1440,193 @@ function fillOutputs(payload) {
     const ms = document.getElementById('model-select'), key = `${ctx.session}|${ctx.part}`;
     if (ms && [...ms.options].some(o => o.value === key)) ms.value = key;
   }
+  // Visual Summary follows the same ctx — refreshes on select / run-switch /
+  // rerun-complete uniformly (fillOutputs is the one repaint path).
+  if (payload.has_any && ctx) loadSummary(ctx);
+}
+
+// ── Visual Summary (Tab 3) ────────────────────────────────────────────────────
+let vsumData = null;                 // last-loaded view-model
+let vsumSort = { feat: null, step: null };  // {k, asc} per table
+const FEAT_ORDER = 'id', STEP_ORDER = 'step';
+
+function resetSummary() {
+  vsumData = null; vsumSort = { feat: null, step: null };
+  document.getElementById('vsum-panel').style.display = 'none';
+  document.getElementById('sum-feat-body').innerHTML = '';
+  document.getElementById('sum-step-body').innerHTML = '';
+  document.getElementById('vsum-headstrip').innerHTML = '';
+  document.getElementById('vsum-notes').style.display = 'none';
+}
+
+async function loadSummary(ctx) {
+  let vm;
+  try {
+    vm = await (await fetch(`/api/parts/${ctx.session}/${encodeURIComponent(ctx.part)}/summary`)).json();
+  } catch { return; }
+  if (!vm || !vm.ran) { resetSummary(); return; }
+  vsumData = vm;
+  document.getElementById('vsum-panel').style.display = '';
+  paintSummaryHead(vm.header);
+  paintFeatTable();
+  paintStepTable();
+  paintNotes(vm.notes || []);
+}
+
+function chip(kind, n) {
+  return `<span class="vs-chip ${n ? kind : 'zero'}">${n} ${kind[0].toUpperCase()}</span>`;
+}
+function paintSummaryHead(h) {
+  const env = h.envelope || {};
+  const fc = h.feature_counts || {};
+  const counts = Object.keys(fc).sort().map(k => `${fc[k]}× ${esc(k.replace(/_/g,' '))}`).join(' · ') || '—';
+  const fl = h.flag_counts || {};
+  const st = h.final_status || '—';
+  const stKind = st === 'READY' ? 'ok' : (st && st !== '—' ? 'warn' : '');
+  const qAffix = h.pending_questions
+    ? `<span class="sum-qmark" id="vsum-q" title="${h.pending_questions} open question(s) — go to Assist Needed">?${h.pending_questions}</span>` : '';
+  document.getElementById('vsum-headstrip').innerHTML =
+    `<div class="vs-stat grow-1"><span class="k">Part</span><span class="v">${esc(h.part_name || '—')}${h.revision ? ' · rev ' + esc(h.revision) : ''}</span></div>`
+    + `<div class="vs-stat"><span class="k">Envelope</span><span class="v">${esc(env.display || '—')}</span></div>`
+    + `<div class="vs-stat grow-1"><span class="k">Features</span><span class="v" style="white-space:normal">${counts}</span></div>`
+    + `<div class="vs-stat"><span class="k">Flags</span><span class="v vs-chips">${chip('critical',fl.critical||0)}${chip('high',fl.high||0)}${chip('medium',fl.medium||0)}${chip('low',fl.low||0)}</span></div>`
+    + `<div class="vs-stat"><span class="k">Status</span><span class="v vs-status"><span class="badge-c ${stKind}">${esc(st.replace(/_/g,' '))}</span>${qAffix}</span></div>`;
+  const q = document.getElementById('vsum-q');
+  if (q) q.onclick = gotoAssist;
+}
+
+function statusBadge(label, kind) {
+  return `<span class="badge-c ${kind === 'neutral' ? '' : kind}">${esc(label)}</span>`;
+}
+function detailGrid(pairs, extra) {
+  const rows = pairs.filter(p => p[1] != null && p[1] !== '').map(
+    p => `<span class="dk">${esc(p[0])}</span><span class="dv ${p[2] || ''}">${esc(p[1])}</span>`).join('');
+  return `<div class="sum-detail">${rows}${extra || ''}</div>`;
+}
+
+function featDetail(f) {
+  const d = f.detail || {};
+  let dimTbl = '';
+  if ((d.dimensions || []).length) {
+    const rows = d.dimensions.map(dm => {
+      const cand = dm.candidates ? ` — candidates ${dm.candidates.join(' / ')} @ conf ${dm.confidence}` : '';
+      return `<tr><td>${esc(dm.id)}</td><td>${esc(dm.value)}${dm.tolerance ? ' ' + esc(dm.tolerance) : ''}</td><td>${esc(dm.applies_to)} · ${esc(dm.basis)}${esc(cand)}</td></tr>`;
+    }).join('');
+    dimTbl = `<div class="subhead">Dimensions</div><table class="dtl">${rows}</table>`;
+  }
+  let chain = '';
+  if ((d.position_basis || []).length) {
+    const c = d.position_basis.map(b => `${b.anchor || '?'} ${b.dim || ''}=${b.value != null ? b.value : ''} (${b.axis || ''})`).join('  →  ');
+    chain = `<div class="subhead">Position basis</div><div style="grid-column:1/-1" class="dv">${esc(c)}</div>`;
+  }
+  let flags = '';
+  if ((d.flags || []).length) {
+    flags = `<div class="subhead">Flags</div>` + d.flags.map(fl =>
+      `<span class="dk">${esc(fl.flag_tier || '')}</span><span class="dv wrap">${esc(fl.human_note || fl.source || '')}</span>`).join('');
+  }
+  return detailGrid([
+    ['Description', d.description, 'wrap'],
+    ['Parent', d.parent_feature],
+    ['Region crop', d.region_crop],
+  ], dimTbl + chain + flags);
+}
+
+function stepDetail(s) {
+  const d = s.detail || {};
+  const vals = Object.entries(d.values_used || {}).map(([k,v]) => `${k} ${v}`).join(', ');
+  const pairs = [
+    ['Macro', d.macro_file],
+    ['Method', d.construction_method],
+    ['Values used', vals, 'wrap'],
+    ['Positioned from', d.positioned_from],
+    ['Notes', d.notes, 'wrap'],
+  ];
+  const v = d.verification;
+  let extra = '';
+  if (v) {
+    extra = `<div class="subhead">Verification</div>`
+      + `<span class="dk">Class</span><span class="dv">${esc(v.classification || '')}</span>`
+      + (v.measured != null ? `<span class="dk">Measured</span><span class="dv">${esc(JSON.stringify(v.measured))}</span>` : '')
+      + (v.expected != null ? `<span class="dk">Expected</span><span class="dv">${esc(JSON.stringify(v.expected))}</span>` : '')
+      + (v.reason ? `<span class="dk">Reason</span><span class="dv wrap">${esc(v.reason)}</span>` : '');
+  }
+  return detailGrid(pairs, extra);
+}
+
+function sortRows(rows, sortState, defaultKey) {
+  if (!sortState) {
+    const k = defaultKey;
+    return [...rows].sort((a,b) => cmp(a[k], b[k]));
+  }
+  const { k, asc } = sortState;
+  const out = [...rows].sort((a,b) => cmp(a[k], b[k]));
+  if (!asc) out.reverse();
+  return out;
+}
+function cmp(a,b) {
+  const na = parseFloat(a), nb = parseFloat(b);
+  if (!isNaN(na) && !isNaN(nb) && String(a).trim() !== '' && String(b).trim() !== '') return na - nb;
+  return String(a == null ? '' : a).localeCompare(String(b == null ? '' : b));
+}
+
+function paintFeatTable() {
+  const body = document.getElementById('sum-feat-body');
+  const rows = sortRows(vsumData.features || [], vsumSort.feat, FEAT_ORDER);
+  document.getElementById('vsum-feat-hint').textContent = `${(vsumData.features||[]).length} feature(s)`;
+  body.innerHTML = rows.map(f => {
+    const q = f.has_question ? `<span class="sum-qmark" title="Open question — go to Assist Needed">?</span>` : '';
+    return `<tr class="sum-row" data-tbl="feat" data-fid="${esc(f.id)}">
+      <td class="id"><span class="twist-r">▸</span> ${esc(f.id)}</td>
+      <td>${esc(f.type_label)}</td>
+      <td data-col="size" class="mono">${esc(f.size)}</td>
+      <td data-col="pos" class="mono">${esc(f.position)}</td>
+      <td data-col="basis">${esc(f.basis)}</td>
+      <td data-col="qty" class="num">${esc(f.qty)}</td>
+      <td>${statusBadge(f.status, f.status_kind)}${q}</td></tr>
+    <tr class="sum-detail-row" data-fid="${esc(f.id)}"><td colspan="7">${featDetail(f)}</td></tr>`;
+  }).join('');
+  markSorted('sum-feat', vsumSort.feat);
+}
+
+function paintStepTable() {
+  const body = document.getElementById('sum-step-body');
+  const rows = sortRows(vsumData.build_steps || [], vsumSort.step, STEP_ORDER);
+  document.getElementById('vsum-step-hint').textContent = `${(vsumData.build_steps||[]).length} step(s)`;
+  body.innerHTML = rows.map(s => {
+    const q = s.has_question ? `<span class="sum-qmark" title="Open question — go to Assist Needed">?</span>` : '';
+    return `<tr class="sum-row" data-tbl="step" data-fid="${esc(s.feature_id)}">
+      <td class="num">${esc(s.step)}</td>
+      <td class="id"><span class="twist-r">▸</span> ${esc(s.feature_id)}</td>
+      <td data-col="stage">${esc(s.stage)}</td>
+      <td data-col="op">${esc(s.operation)}</td>
+      <td data-col="keys" class="mono">${esc(s.key_values)}</td>
+      <td data-col="place" class="mono">${esc(s.placement)}</td>
+      <td>${statusBadge(s.result, s.result_kind)}${q}</td></tr>
+    <tr class="sum-detail-row" data-fid="${esc(s.feature_id)}" data-tbl="step"><td colspan="7">${stepDetail(s)}</td></tr>`;
+  }).join('');
+  markSorted('sum-step', vsumSort.step);
+}
+
+function markSorted(tableId, sortState) {
+  document.querySelectorAll(`#${tableId} th.srt`).forEach(th => {
+    th.classList.remove('sorted','asc');
+    if (sortState && th.dataset.k === sortState.k) { th.classList.add('sorted'); if (sortState.asc) th.classList.add('asc'); }
+  });
+}
+
+function paintNotes(notes) {
+  const box = document.getElementById('vsum-notes');
+  const body = document.getElementById('vsum-notes-body');
+  if (!notes.length) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  body.innerHTML = notes.map(n =>
+    `<span class="nk">${esc(n.label)}</span><span class="nv">${esc(n.value)}</span>`).join('');
+}
+
+function gotoAssist() {
+  showTab('pipeline');
+  const panel = document.getElementById('assist-panel');
+  if (panel) { panel.style.display = ''; panel.open = true; panel.scrollIntoView({ behavior:'smooth', block:'center' }); }
 }
 
 // ── Parts model ──────────────────────────────────────────────────────────────

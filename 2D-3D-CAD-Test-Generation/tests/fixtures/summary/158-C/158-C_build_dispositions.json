@@ -1,0 +1,73 @@
+[
+  {
+    "feature_id": "F001",
+    "type": "extrude_boss",
+    "stage": 1,
+    "stage_name": "base_solid",
+    "state": "BUILT",
+    "values_used": {
+      "length": 11.0,
+      "width": 6.25,
+      "thickness": 0.105
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.0,
+      0.0
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F002",
+    "type": "extrude_cut",
+    "stage": 3,
+    "stage_name": "profile_subtractions",
+    "state": "BUILT",
+    "values_used": {
+      "notch_position": 1.56,
+      "width": 1.62,
+      "depth": 1.88
+    },
+    "derivation_source": "",
+    "position_xy": [
+      1.56,
+      4.37
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F004",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "spacing": 10.5,
+      "hole_position_y": 0.375,
+      "hole_position_x": 0.25,
+      "hole_diameter": 0.218
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.25,
+      0.375
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F003",
+    "type": "fillet",
+    "stage": 6,
+    "stage_name": "edge_treatments",
+    "state": "BUILT",
+    "values_used": {
+      "fillet_radius": 0.25
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.0,
+      0.0
+    ],
+    "flags": []
+  }
+]

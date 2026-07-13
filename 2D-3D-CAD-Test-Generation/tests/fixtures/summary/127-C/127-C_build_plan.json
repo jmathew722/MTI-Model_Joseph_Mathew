@@ -1,0 +1,803 @@
+{
+  "part": "127-C",
+  "units": "inch",
+  "unit_factor_to_meters": 0.0254,
+  "coordinate_origin": "lower_left_corner_of_base_solid",
+  "x_direction": "positive_right",
+  "y_direction": "positive_up",
+  "confidence": 0.82,
+  "audit": {
+    "ok": true,
+    "error_count": 0,
+    "warning_count": 0,
+    "findings": []
+  },
+  "resolution_summary": {
+    "total_dimensions": 15,
+    "assumptions_made": 0,
+    "critical_flags": 1,
+    "low_flags": 1,
+    "medium_flags": 1,
+    "high_flags": 24,
+    "rebuild_confidence": 0.55,
+    "plain_english": "All dimensions confirmed by arithmetic chain or explicit callout. Model is complete and buildable as-is."
+  },
+  "steps": [
+    {
+      "seq": 0,
+      "macro_file": "00_setup.vba",
+      "feature_id": "-",
+      "type": "setup",
+      "description": "New part, units, save-as",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 0,
+      "macro_file": "01a_reference_geometry.vba",
+      "feature_id": "-",
+      "type": "reference_geometry",
+      "description": "2 named datum landmark(s)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1,
+      "macro_file": "01_F001_Base_plate_17_50_x_11_250_x_1_00_thick.vba",
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "description": "Base plate 17.50 x 11.250 x 1.00 thick",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "length": 17.5,
+        "width": 11.25,
+        "depth": 1.0
+      },
+      "notes": "POSITION ASSUMED (drawing frame: rect corner at origin / circle at plate center) - verify against the drawing.",
+      "dimensions_meters": {
+        "length": 0.4445,
+        "width": 0.28575,
+        "depth": 0.0254
+      },
+      "positions_xy": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 2,
+      "macro_file": "02_F004_Bottom_left_corner_drill_counterbore_for.vba",
+      "feature_id": "F004",
+      "type": "hole",
+      "description": "Bottom-left corner drill & counterbore for .500 socket head cap screw",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.5,
+        "qty": 1.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0127,
+        "qty": 1.0
+      },
+      "positions_xy": [
+        [
+          0.844,
+          4.0
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0214376,
+          0.1016
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 3,
+      "macro_file": "03_F002_Top_left_corner_drill_counterbore_for_50.vba",
+      "feature_id": "F002",
+      "type": "hole",
+      "description": "Top-left corner drill & counterbore for .500 socket head cap screw",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.5,
+        "qty": 1.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0127,
+        "qty": 1.0
+      },
+      "positions_xy": [
+        [
+          0.844,
+          10.25
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.0214376,
+          0.26035
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 4,
+      "macro_file": "04_F008_531_DR_THRU_hole_instance_3_per_correcti.vba",
+      "feature_id": "F008",
+      "type": "hole",
+      "description": ".531 DR. THRU hole instance #3 (per correction: extracted as individual, non-symmetric sketch feature)",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.531
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0134874
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 5,
+      "macro_file": "05_F006_531_DR_THRU_hole_instance_1_per_correcti.vba",
+      "feature_id": "F006",
+      "type": "hole",
+      "description": ".531 DR. THRU hole instance #1 (per correction: extracted as individual, non-symmetric sketch feature)",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.531
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0134874
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 6,
+      "macro_file": "06_F007_531_DR_THRU_hole_instance_2_per_correcti.vba",
+      "feature_id": "F007",
+      "type": "hole",
+      "description": ".531 DR. THRU hole instance #2 (per correction: extracted as individual, non-symmetric sketch feature)",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.531,
+        "qty": 4.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0134874,
+        "qty": 4.0
+      },
+      "positions_xy": [
+        [
+          6.781,
+          7.25
+        ],
+        [
+          7.281,
+          7.25
+        ],
+        [
+          6.781,
+          4.75
+        ],
+        [
+          13.781,
+          4.75
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.1722374,
+          0.18415
+        ],
+        [
+          0.1849374,
+          0.18415
+        ],
+        [
+          0.1722374,
+          0.12065
+        ],
+        [
+          0.3500374,
+          0.12065
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_PT_F007"
+    },
+    {
+      "seq": 7,
+      "macro_file": "07_F009_531_DR_THRU_hole_instance_4_per_correcti.vba",
+      "feature_id": "F009",
+      "type": "hole",
+      "description": ".531 DR. THRU hole instance #4 (per correction: extracted as individual, non-symmetric sketch feature)",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.531
+      },
+      "notes": "Position read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0134874
+      },
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 8,
+      "macro_file": "08_F005_Bottom_right_corner_drill_counterbore_fo.vba",
+      "feature_id": "F005",
+      "type": "hole",
+      "description": "Bottom-right corner drill & counterbore for .500 socket head cap screw",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.5,
+        "qty": 1.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0127,
+        "qty": 1.0
+      },
+      "positions_xy": [
+        [
+          16.656,
+          4.0
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.4230624,
+          0.1016
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 9,
+      "macro_file": "09_F003_Top_right_corner_drill_counterbore_for_5.vba",
+      "feature_id": "F003",
+      "type": "hole",
+      "description": "Top-right corner drill & counterbore for .500 socket head cap screw",
+      "status": "generated",
+      "dimensions_drawing_units": {
+        "diameter": 0.5,
+        "qty": 1.0
+      },
+      "notes": "Hole positions read from drawing.",
+      "dimensions_meters": {
+        "diameter": 0.0127,
+        "qty": 1.0
+      },
+      "positions_xy": [
+        [
+          16.656,
+          10.25
+        ]
+      ],
+      "positions_xy_meters": [
+        [
+          0.4230624,
+          0.26035
+        ]
+      ],
+      "sketch_plane": "front",
+      "parent_feature_id": "F001",
+      "depth_type": "through_all",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 0.92,
+      "flag_tier": "HIGH",
+      "position_source": "vision",
+      "position_confidence": 0.0,
+      "construction_method": "sketch_circle_cut",
+      "positioned_from": "REF_DATUM_A"
+    },
+    {
+      "seq": 999,
+      "macro_file": "ZZ_final_verify.vba",
+      "feature_id": "-",
+      "type": "verify",
+      "description": "Rebuild, mass properties, bounding box, save",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1001,
+      "macro_file": "ZZZ_export_stl.vba",
+      "feature_id": "-",
+      "type": "export",
+      "description": "Export the part as an STL beside the .sldprt (same base name)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    },
+    {
+      "seq": 1000,
+      "macro_file": "RUN_ALL.vba",
+      "feature_id": "-",
+      "type": "run_all",
+      "description": "One macro that runs every step in order (paste once, F5)",
+      "status": "generated",
+      "dimensions_drawing_units": {},
+      "notes": "Single-run alternative to the numbered macros. Fillets/chamfers still need interactive edge selection.",
+      "dimensions_meters": {},
+      "positions_xy": [],
+      "positions_xy_meters": [],
+      "sketch_plane": "",
+      "parent_feature_id": "",
+      "depth_type": "",
+      "flags": [],
+      "requires_input": false,
+      "auto_select_strategy": "",
+      "expected_edge_count": 0,
+      "edge_selection_note": "",
+      "assumption_made": false,
+      "assumption_confidence": 1.0,
+      "flag_tier": "HIGH",
+      "position_source": "",
+      "position_confidence": 0.0
+    }
+  ],
+  "skipped_prohibited": [],
+  "needs_review": [],
+  "dispositions": [
+    {
+      "feature_id": "F001",
+      "type": "extrude_boss",
+      "stage": 1,
+      "stage_name": "base_solid",
+      "state": "BUILT",
+      "values_used": {
+        "length": 17.5,
+        "width": 11.25,
+        "thickness": 1.0
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.0,
+        0.0
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F004",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_diameter": 0.5,
+        "offset": 0.844,
+        "width": 11.25
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.844,
+        4.0
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F002",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_diameter": 0.5,
+        "offset": 0.844
+      },
+      "derivation_source": "",
+      "position_xy": [
+        0.844,
+        10.25
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F008",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_diameter": 0.531,
+        "offset": 6.781,
+        "spacing": 6.5
+      },
+      "derivation_source": "",
+      "position_xy": [
+        6.781,
+        4.75
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F006",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_diameter": 0.531,
+        "offset": 6.781,
+        "spacing": 6.0
+      },
+      "derivation_source": "",
+      "position_xy": [
+        6.781,
+        7.25
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F007",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_diameter": 0.531,
+        "spacing": 6.0
+      },
+      "derivation_source": "",
+      "position_xy": [
+        6.781,
+        7.25
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F009",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_diameter": 0.531,
+        "spacing": 7.0
+      },
+      "derivation_source": "",
+      "position_xy": [
+        13.781,
+        4.75
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F005",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_diameter": 0.5,
+        "spacing": 15.812
+      },
+      "derivation_source": "",
+      "position_xy": [
+        16.656,
+        4.0
+      ],
+      "flags": []
+    },
+    {
+      "feature_id": "F003",
+      "type": "hole",
+      "stage": 4,
+      "stage_name": "holes",
+      "state": "BUILT",
+      "values_used": {
+        "hole_diameter": 0.5,
+        "spacing": 15.812,
+        "offset": 0.75
+      },
+      "derivation_source": "",
+      "position_xy": [
+        16.656,
+        10.25
+      ],
+      "flags": []
+    }
+  ],
+  "reference_geometry": [
+    {
+      "id": "REF_DATUM_A",
+      "type": "plane",
+      "definition": "coincident",
+      "source": "base datum (part origin)",
+      "parent": "Front Plane"
+    },
+    {
+      "id": "REF_PT_F007",
+      "type": "point",
+      "definition": "plane_plane_plane",
+      "source": "pattern origin (H005, 4 instances)",
+      "parents": [
+        "REF_DATUM_A"
+      ]
+    }
+  ],
+  "engineering_review": [
+    {
+      "severity": "CRITICAL",
+      "source": "overview_analysis",
+      "id": "OV-COUNT",
+      "what": "HOLE-COUNT DISAGREEMENT: the sheet's global callout \"UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 3 PLACE DIM. \u00b1.010, 2 PLACE DIM. \u00b1.02, ANGULAR DIM. \u00b1, SCALE 1\"=2\"\" states 3 instance(s), but the per-view extraction captured hole group(s) of [1, 1, 1, 1, 4] (total 8). A cropped view cannot resolve this alone \u2014 check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.",
+      "decision": "flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)",
+      "why": "raised by the Stage 1.5 holistic overview analysis (tier2_overview) \u2014 cross-view context a single cropped view cannot provide",
+      "affects": "cross-view consistency of the whole part"
+    },
+    {
+      "severity": "CRITICAL",
+      "source": "build",
+      "id": "F007",
+      "what": "The .sldprt build SKIPPED feature F007 (hole): deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F007 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro",
+      "decision": "feature is absent from the .sldprt; the VBA macros still contain it as a step",
+      "why": "deferred_open (zero_thickness_or_geometry): FeatureCut4 returned None for F007 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro",
+      "affects": "feature F007"
+    },
+    {
+      "severity": "HIGH",
+      "source": "overview_analysis",
+      "id": "OV-002",
+      "what": "CROSS-VIEW CONFLICT (top): Corner hole pattern dimensions (.844, .750, 15.812, 11.250) and inner hole pattern dimensions (6.781, 7.000, .500, 6.000, 6.500, 6.250, 14.00) are both given in linear X/Y offsets from what appear to be different reference edges/datums, with no explicit common datum flagged; ensure no double-dimensioning conflict exists between the 17.50/15.812 and 14.00/6.250 chains. Recommendation: Cross-check that the 15.812 and 17.50 dimensions to the corner holes, and the 14.00/6.250 to the inner holes, reference the same left/bottom edges consistently; confirm no redundant or conflicting datum definition exists.",
+      "decision": "flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)",
+      "why": "raised by the Stage 1.5 holistic overview analysis (tier2_overview) \u2014 cross-view context a single cropped view cannot provide",
+      "affects": "cross-view consistency of the whole part"
+    },
+    {
+      "severity": "MEDIUM",
+      "source": "overview_analysis",
+      "id": "OV-001",
+      "what": "CROSS-VIEW CONFLICT (top, side): The side view is drawn very thin/schematic and does not clearly distinguish the counterbore depth from the through-hole depth for all 8 holes; only two hidden-line hole representations are shown, making it ambiguous which corresponds to which of the two hole patterns (counterbore vs. thru-drill) at each of the 8 locations. Recommendation: Verify counterbore depth and thru-hole condition against a section view or additional callout; if none exists, confirm with the checker (JWZ) that side view hidden lines represent both hole types correctly.",
+      "decision": "flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)",
+      "why": "raised by the Stage 1.5 holistic overview analysis (tier2_overview) \u2014 cross-view context a single cropped view cannot provide",
+      "affects": "cross-view consistency of the whole part"
+    },
+    {
+      "severity": "MEDIUM",
+      "source": "build",
+      "id": "",
+      "what": "Build caveat: F007 (hole) deferred_open after retries: FeatureCut4 returned None for F007 in BOTH directions despite verified preconditions (sketch closed & fully defined, pro",
+      "decision": "applied automatically during the .sldprt build",
+      "why": "the 2D drawing carries no per-edge topology, so scope was chosen automatically",
+      "affects": "see caveat text"
+    },
+    {
+      "severity": "LOW",
+      "source": "overview",
+      "id": "OV004",
+      "what": "Reference/phantom geometry noted: Hidden line features shown in side view (dashed lines) suggesting internal step or counterbore profile (side view, right portion).",
+      "decision": "treated as a reference boundary, not built geometry",
+      "why": "dashed/phantom/reference linework is not a solid feature",
+      "affects": "metadata: reference boundary"
+    },
+    {
+      "severity": "LOW",
+      "source": "requirement",
+      "id": "R001",
+      "status": "met",
+      "what": "Operator requirement: \"CORRECTION (2026-07-11 23:45): THe 4 holes that failed are not symmetircal they need to be featured individually as seperate sketched one at a time in their designated locatiions\"",
+      "decision": "status: MET",
+      "why": "hole present in the build; numeric value(s) match extracted dimensions",
+      "affects": "human-specified must-meet requirement (applied during extraction & Stage 2.5 resolution, verified against the build)"
+    }
+  ],
+  "overview_verification": {
+    "note": "checked 4 overview feature(s): 1 finding(s)",
+    "n_findings": 1
+  },
+  "requirements_compliance": {
+    "note": "1 requirement(s) from must_meet_spec.txt: 0 unmet",
+    "requirements": [
+      {
+        "id": "R001",
+        "text": "CORRECTION (2026-07-11 23:45): THe 4 holes that failed are not symmetircal they need to be featured individually as seperate sketched one at a time in their designated locatiions",
+        "status": "met",
+        "note": "hole present in the build; numeric value(s) match extracted dimensions"
+      }
+    ]
+  }
+}

@@ -1,0 +1,186 @@
+[
+  {
+    "feature_id": "F001",
+    "type": "extrude_boss",
+    "stage": 1,
+    "stage_name": "base_solid",
+    "state": "BUILT",
+    "values_used": {
+      "length": 6.88,
+      "height": 5.5,
+      "thickness": 0.25
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.0,
+      0.0
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F003",
+    "type": "extrude_cut",
+    "stage": 3,
+    "stage_name": "profile_subtractions",
+    "state": "EXCLUDED_INCOMPLETE",
+    "values_used": {
+      "width": 1.88
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.0,
+      0.0
+    ],
+    "flags": [
+      {
+        "dimension_id": "F003",
+        "feature_id": "F003",
+        "flag_tier": "CRITICAL",
+        "human_note": "EXCLUDED FROM BUILD \u2014 extrude_cut F003 is missing a diameter OR both length+width (has ['width']; missing length). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F003 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.",
+        "macro_behavior": "confirm_on_run",
+        "resolved_by_tier": "tier1_per_view",
+        "source": "incomplete_profile",
+        "excluded_from_build": true,
+        "model_derived_assumption": true,
+        "expected_region": {
+          "kind": "on_parent",
+          "parent_feature": "F001"
+        },
+        "route_to_markup": true
+      }
+    ],
+    "needs_human_input": true,
+    "question_id": "Q-M-121-B-F003-unclassifiable-callout",
+    "human_input_state": "NEEDS_HUMAN_INPUT"
+  },
+  {
+    "feature_id": "F002",
+    "type": "extrude_cut",
+    "stage": 3,
+    "stage_name": "profile_subtractions",
+    "state": "EXCLUDED_INCOMPLETE",
+    "values_used": {
+      "hole_position_x": 4.38,
+      "height": 4.5
+    },
+    "derivation_source": "",
+    "position_xy": [
+      0.0,
+      0.0
+    ],
+    "flags": [
+      {
+        "dimension_id": "F002",
+        "feature_id": "F002",
+        "flag_tier": "CRITICAL",
+        "human_note": "EXCLUDED FROM BUILD \u2014 extrude_cut F002 is missing a diameter OR both length+width (has ['height']; missing length+width). No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F002 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.",
+        "macro_behavior": "confirm_on_run",
+        "resolved_by_tier": "tier1_per_view",
+        "source": "incomplete_profile",
+        "excluded_from_build": true,
+        "model_derived_assumption": true,
+        "expected_region": {
+          "kind": "on_parent",
+          "parent_feature": "F001"
+        },
+        "route_to_markup": true
+      }
+    ],
+    "needs_human_input": true,
+    "question_id": "Q-M-121-B-F002-unclassifiable-callout",
+    "human_input_state": "NEEDS_HUMAN_INPUT"
+  },
+  {
+    "feature_id": "F004",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_position_x": 2.25,
+      "hole_position_y": 2.938,
+      "hole_diameter": 0.422
+    },
+    "derivation_source": "",
+    "position_xy": [
+      2.25,
+      2.938
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F006",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT",
+    "values_used": {
+      "hole_position_x": 2.875,
+      "hole_position_y": 1.938,
+      "diameter": 5.0,
+      "spacing": 2.344
+    },
+    "derivation_source": "",
+    "position_xy": [
+      2.875,
+      0.375
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F007",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "BUILT_WITH_DERIVED_VALUE",
+    "values_used": {
+      "hole_position_x": 5.375,
+      "hole_position_y": 0.938,
+      "hole_diameter": 0.1969
+    },
+    "derivation_source": "standard_thread_size",
+    "position_xy": [
+      5.375,
+      2.688
+    ],
+    "flags": []
+  },
+  {
+    "feature_id": "F005",
+    "type": "hole",
+    "stage": 4,
+    "stage_name": "holes",
+    "state": "EXCLUDED_INCOMPLETE",
+    "values_used": {
+      "hole_position_x": 2.5,
+      "hole_position_y": 2.75
+    },
+    "derivation_source": "",
+    "position_xy": [
+      4.594,
+      2.938
+    ],
+    "flags": [
+      {
+        "dimension_id": "F005",
+        "feature_id": "F005",
+        "flag_tier": "CRITICAL",
+        "human_note": "EXCLUDED FROM BUILD \u2014 hole F005 is missing diameter. No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F005 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected near drawing-frame (4.594, 2.938). Add the missing value on the drawing and re-run to include this feature.",
+        "macro_behavior": "confirm_on_run",
+        "resolved_by_tier": "tier1_per_view",
+        "source": "missing_dimension",
+        "excluded_from_build": true,
+        "model_derived_assumption": true,
+        "expected_region": {
+          "kind": "offset",
+          "x": 4.594,
+          "y": 2.938
+        },
+        "route_to_markup": true
+      }
+    ],
+    "needs_human_input": true,
+    "question_id": "Q-M-121-B-F005-unclassifiable-callout",
+    "human_input_state": "NEEDS_HUMAN_INPUT"
+  }
+]

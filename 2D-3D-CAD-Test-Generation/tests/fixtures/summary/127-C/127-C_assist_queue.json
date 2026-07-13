@@ -1,0 +1,23 @@
+{
+  "part": "127-C",
+  "cap": 3,
+  "questions": [
+    {
+      "question_id": "Q-127-C-F007-deferred",
+      "part": "127-C",
+      "feature_id": "F007",
+      "kind": "unclassifiable_callout",
+      "question_text": "F007 produced invalid geometry (zero-thickness / no material). Is its size/depth correct, or should it be suppressed?",
+      "region_crop": "",
+      "candidates": [],
+      "automated_attempts": [],
+      "target_dimension_id": "",
+      "default_if_unanswered": "ships without this feature (deferred_open, flagged)",
+      "priority": 40.0,
+      "status": "pending",
+      "created_at": "",
+      "answered_at": null,
+      "answer": null
+    }
+  ]
+}
