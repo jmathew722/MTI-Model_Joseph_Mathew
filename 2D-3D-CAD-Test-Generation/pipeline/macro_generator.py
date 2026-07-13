@@ -2482,6 +2482,42 @@ def _assert_open_edge_overshoot(pkg: "MacroPackage") -> None:
                 f"enclosed window, not an open notch. Refusing to generate.")
 
 
+def _assert_notch_orientation(model: DrawingData, pkg: "MacroPackage") -> None:
+    """Emission invariant (2026-07-13, 158-C orientation bug). Every open-edge
+    slot must have resolved to the CORRECT side of the plate — a TOP-edge notch
+    must sit at y = parent_height - depth .. parent_height, never y = 0 .. depth
+    (the bottom edge). Re-checks the built corners against the semantic anchor
+    through the ONE resolver's guard, using the REAL parent envelope (not the
+    corners), so a regression that reintroduces the y=0 misplacement fails
+    loudly at generation time."""
+    from pipeline.coordinate_normalize import (
+        Bounds, anchor_from_open_edge, assert_edge_orientation, CoordinateError,
+    )
+
+    parent_width, parent_height = _envelope(model)
+    parent_width = parent_width or 0.0
+    parent_height = parent_height or 0.0
+    for s in pkg.steps:
+        if s.feature_type != "slot_rect_cut":
+            continue
+        slot = s.slot or {}
+        anchor = anchor_from_open_edge(str(slot.get("open_edge") or ""))
+        if anchor is None:
+            continue
+        corners = slot.get("corners_drawing_units") or []
+        depth = (s.dimensions or {}).get("depth")
+        if len(corners) < 3 or not depth:
+            continue
+        xs = [c[0] for c in corners if len(c) == 2]
+        ys = [c[1] for c in corners if len(c) == 2]
+        b = Bounds(min(xs), max(xs), min(ys), max(ys))
+        try:
+            assert_edge_orientation(anchor, b, parent_height=parent_height,
+                                    parent_width=parent_width, depth=float(depth))
+        except CoordinateError as e:
+            raise MacroGenerationError(f"NOTCH ORIENTATION ({s.feature_id}): {e}") from e
+
+
 def _assert_label_payload_agreement(pkg: "MacroPackage") -> None:
     """Emission invariant (Task 4c). A step's human description must be derived
     from the SAME feature record as its payload — it may name only its own
@@ -2911,6 +2947,7 @@ def generate_macro_package(
     # plan for the SAME feature that emitted it (catches cross-contamination,
     # orphan literals, and dropped positions at GENERATION time, not build time).
     _assert_open_edge_overshoot(pkg)
+    _assert_notch_orientation(model, pkg)
     _assert_label_payload_agreement(pkg)
     from pipeline.macro_echo import assert_macro_echo
 

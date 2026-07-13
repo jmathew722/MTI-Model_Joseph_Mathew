@@ -64,7 +64,18 @@ def corner_array(slot, model) -> list[list[float]]:
     For an open notch the depth runs inward from the broken edge and the OPEN
     side's corners overshoot the part edge by EDGE_OVERSHOOT_EPS (closed sides
     stay exact — see the constant's docstring); for a closed slot the rectangle
-    sits fully interior anchored at (anchor_offset, ...)."""
+    sits fully interior anchored at (anchor_offset, ...).
+
+    The edge→global math (e.g. a TOP-edge notch's y = parent_height - depth) is
+    delegated to :func:`pipeline.coordinate_normalize.resolve_notch_anchor` — the
+    ONE place semantic edge anchors become global CAD coordinates, so this and
+    the UI/build-plan can never disagree. This function then applies the
+    open-side overshoot and the near/interior-corners-first ordering the fillet
+    step depends on."""
+    from pipeline.coordinate_normalize import (
+        anchor_from_open_edge, resolve_notch_anchor,
+    )
+
     length, height = _envelope(model)
     a = float(slot.anchor_offset)
     w = float(slot.width)
@@ -77,24 +88,34 @@ def corner_array(slot, model) -> list[list[float]]:
     if slot.anchor_semantics == "edge_to_centerline":
         a = a - w / 2.0
 
+    anchor = anchor_from_open_edge(edge)
+    if anchor is None:
+        # Closed slot: fully-interior rectangle anchored at (anchor_offset) along
+        # the horizontal, depth = slot length vertically. No open edge, no overshoot.
+        return [[a, 0.0], [a + w, 0.0], [a + w, d], [a, d]]
+
+    # Resolve the exact (non-overshot) global bounds through the ONE resolver.
+    # Envelope falls back to (anchor + depth) when the part extent is unknown, so
+    # a top/right notch still lands relative to its own near edge.
+    pw = length or (a + d)
+    ph = height or (a + d)
+    b = resolve_notch_anchor(anchor, offset_x=a, offset_y=a, width=w, depth=d,
+                             height=w, parent_width=pw, parent_height=ph)
+
+    # Near/interior corners FIRST (the pair the fillet targets on an open notch),
+    # then the two open-side corners pushed past the edge by eps.
     if edge == "top":
-        top = height or (a + d)      # part top; falls back if height unknown
-        bot = top - d                # closed end (interior) — exact
-        open_y = top + eps           # open end — crosses the top edge
-        return [[a, bot], [a + w, bot], [a + w, open_y], [a, open_y]]
+        return [[b.x_min, b.y_min], [b.x_max, b.y_min],
+                [b.x_max, b.y_max + eps], [b.x_min, b.y_max + eps]]
     if edge == "bottom":
-        open_y = -eps
-        return [[a, d], [a + w, d], [a + w, open_y], [a, open_y]]
+        return [[b.x_min, b.y_max], [b.x_max, b.y_max],
+                [b.x_max, b.y_min - eps], [b.x_min, b.y_min - eps]]
     if edge == "left":
-        open_x = -eps
-        return [[d, a], [d, a + w], [open_x, a + w], [open_x, a]]
-    if edge == "right":
-        right = length or (a + d)
-        open_x = right + eps
-        return [[right - d, a], [right - d, a + w], [open_x, a + w], [open_x, a]]
-    # Closed slot: a fully-interior rectangle anchored at (anchor_offset) along
-    # the horizontal, depth = slot length vertically. No overshoot — no open edge.
-    return [[a, 0.0], [a + w, 0.0], [a + w, d], [a, d]]
+        return [[b.x_max, b.y_min], [b.x_max, b.y_max],
+                [b.x_min - eps, b.y_max], [b.x_min - eps, b.y_min]]
+    # right
+    return [[b.x_min, b.y_min], [b.x_min, b.y_max],
+            [b.x_max + eps, b.y_max], [b.x_max + eps, b.y_min]]
 
 
 def interior_corners(slot, corners: list[list[float]]) -> list[list[float]]:
