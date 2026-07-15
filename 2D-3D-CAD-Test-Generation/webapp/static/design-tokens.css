@@ -3,82 +3,82 @@
    Single source of truth for BOTH documents (index.html and photoapp/).
    Full documentation: webapp/DESIGN.md
 
-   Direction: BLUEPRINT ROOM — the digital drawing office. The product turns
-   2D drawings into parts, so the interface is built from the drawing's own
-   world: deep Prussian-navy surfaces (a cyanotype at night), cool drafting-
-   white ink, ONE blueprint-cyan accent (the line color of a print), hairline
+   Direction: PAPER ROOM — the drafting studio in daylight. Same drawing-office
+   world as before, now lit from a window instead of a desk lamp: warm paper-
+   white surfaces, ink-black text, ONE working-blueprint-blue accent, hairline
    rules, inspection-stamp semantics, and mono numerals everywhere a value is
-   a measurement.
+   a measurement. Viewport wells (drawing canvas, 3D viewer, console) stay a
+   deep graphite — a light table's glass stays dark so the print on it reads.
 
-   Depth strategy: borders only (hairline, cool). Spacing grid: 4px.
-   Radius: 2 / 4 / 6 px — crisp, technical. No drop shadows.
+   Depth strategy: borders only (hairline, warm-neutral). Spacing grid: 4px.
+   Radius: 3 / 5 / 8 px. No drop shadows.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Surfaces (Prussian navy, darkest → lightest) ────────────────────── */
-  --well:      #0A0F16;  /* deepest: viewport wells, console, canvas */
-  --bg:        #0D131C;  /* page background */
-  --bg-raised: #111927;  /* toolbars, strips, tab rails, caps */
-  --surface:   #16202F;  /* cards, panels, chips */
-  --surface-2: #1B2738;  /* hover on cards, active rows */
-  --input-bg:  #090E15;  /* inputs sit BELOW their surroundings (inset) */
+  /* ── Surfaces (paper white → graphite wells) ─────────────────────────── */
+  --well:      #14171c;  /* deepest: viewport wells, console, canvas — stays dark */
+  --bg:        #fafaf7;  /* page background (paper) */
+  --bg-raised: #ffffff;  /* toolbars, strips, tab rails, caps */
+  --surface:   #ffffff;  /* cards, panels, chips */
+  --surface-2: #f3f3ef;  /* hover on cards, active rows */
+  --input-bg:  #fcfcfa;  /* inputs (subtly recessed) */
 
-  /* ── Ink (cool drafting white, 4 tiers) ──────────────────────────────── */
-  --ink:       #E7EDF5;  /* primary */
-  --ink-2:     #AEBACB;  /* secondary */
-  --ink-3:     #7D8A9E;  /* muted / labels */
-  --ink-4:     #4E5A6C;  /* faint / disabled */
-  --console-text: #C2CCDA;  /* console/log body text — slightly cooler than --ink for a terminal feel */
+  /* ── Ink (warm near-black, 4 tiers) ───────────────────────────────────── */
+  --ink:       #111318;  /* primary */
+  --ink-2:     #45484f;  /* secondary */
+  --ink-3:     #666a72;  /* muted / labels */
+  --ink-4:     #9a9da4;  /* faint / disabled */
+  --console-text: #cfd3da;  /* console/log body text — the well stays dark, so this stays light */
 
-  /* ── Rules (cool alpha hairlines; quiet by default) ──────────────────── */
-  --line:        rgba(185,212,240,0.10);
-  --line-soft:   rgba(185,212,240,0.06);
-  --line-strong: rgba(185,212,240,0.20);
-  --ring:        rgba(95,191,228,0.50);   /* focus ring — blueprint cyan */
+  /* ── Rules (warm-neutral alpha hairlines; quiet by default) ──────────── */
+  --line:        rgba(17,19,24,0.10);
+  --line-soft:   rgba(17,19,24,0.06);
+  --line-strong: rgba(17,19,24,0.20);
+  --ring:        rgba(29,91,219,0.35);   /* focus ring — blueprint blue */
 
-  /* ── Blueprint cyan — the ONE interactive accent (the print's line) ──── */
-  --blueprint:        #3FA9D4;
-  --blueprint-bright: #5FBFE4;   /* hover / emphasis */
-  --blueprint-text:   #7ECFEE;   /* accent as text on dark surfaces */
-  --blueprint-dim:    rgba(95,191,228,0.12);  /* tints, selected fills */
-  --on-blueprint:     #04191F;   /* text on cyan fills */
+  /* ── Blueprint blue — the ONE interactive accent (the print's line) ──── */
+  --blueprint:        #1d5bdb;
+  --blueprint-bright: #3f74e5;   /* hover / emphasis */
+  --blueprint-text:   #1d5bdb;   /* accent as text — legible on both paper and well */
+  --blueprint-dim:    rgba(29,91,219,0.10);  /* tints, selected fills */
+  --on-blueprint:     #ffffff;   /* text on a blue fill */
 
   /* ── Steel — secondary, informational (anodized fixture gray-blue) ───── */
-  --steel:      #5C7690;
-  --steel-text: #9FB6CC;
-  --steel-dim:  rgba(122,157,190,0.14);
+  --steel:      #5c6b80;
+  --steel-text: #4a5568;
+  --steel-dim:  rgba(92,107,128,0.10);
 
   /* ── Status (inspection: accept / reject / hold) ─────────────────────── */
-  --ok:        #3EAF7C;
-  --ok-text:   #6FD0A2;
-  --on-ok:     #04160C;  /* text on an --ok fill (filled "done"/"ran" badges) */
-  --err:       #E5484D;
-  --err-text:  #F3797E;
-  --warn:      #E3A93C;
+  --ok:        #177a4c;
+  --ok-text:   #177a4c;
+  --on-ok:     #ffffff;  /* text on an --ok fill (filled "done"/"ran" badges) */
+  --err:       #c0392b;
+  --err-text:  #c0392b;
+  --warn:      #b7791f;
 
   /* ── Datum — the locked (0,0) origin marker. A FUNCTIONAL color (like the
-     severity ladder), not a second interactive accent: a vivid azure that
-     stays legible drawn over white drawing linework. ──────────────────── */
-  --datum:     #00C2FF;
-  --datum-dim: rgba(0,194,255,0.12);
+     severity ladder), not a second interactive accent: a saturated teal-cyan
+     that stays legible drawn over white drawing linework. ─────────────── */
+  --datum:     #0891b2;
+  --datum-dim: rgba(8,145,178,0.10);
 
   /* ── Explainer accent — the Pipeline Explainer's OWN zone color. A muted
      periwinkle-violet: unique in this palette (clearly unlike the blueprint
-     cyan, the steel gray-blue, and every status hue) yet desaturated so it
-     sits calmly in the navy theme rather than shouting. Reserved for exactly
+     blue, the steel gray-blue, and every status hue) yet desaturated so it
+     sits calmly in the paper theme rather than shouting. Reserved for exactly
      one feature (the chat at the foot of the Pipeline sheet). ─────────── */
-  --explain:        #8F86C4;
-  --explain-bright: #ABA2DD;   /* hover / emphasis */
-  --explain-text:   #B7AFE8;   /* accent as text on dark surfaces (legible) */
-  --explain-dim:    rgba(143,134,196,0.10);   /* 10% tint for the header strip */
-  --explain-line:   rgba(143,134,196,0.40);   /* zone border (soft) */
-  --on-explain:     #14101F;   /* text on a solid accent fill */
+  --explain:        #6c5fb0;
+  --explain-bright: #8676c9;   /* hover / emphasis */
+  --explain-text:   #5b4fa0;   /* accent as text (legible on paper) */
+  --explain-dim:    rgba(108,95,176,0.08);   /* tint for the header strip */
+  --explain-line:   rgba(108,95,176,0.35);   /* zone border (soft) */
+  --on-explain:     #ffffff;   /* text on a solid accent fill */
 
   /* ── Severity ladder (functional — flags, never decoration) ──────────── */
-  --sev-critical: #F0545C;  --on-sev-critical: #2A0507;
-  --sev-high:     #E3A13C;  --on-sev-high:     #2A1703;
-  --sev-medium:   #D2C355;  --on-sev-medium:   #242006;
-  --sev-low:      #8DA4BE;  --on-sev-low:      #0F151D;
+  --sev-critical: #c0392b;  --on-sev-critical: #ffffff;
+  --sev-high:     #b7791f;  --on-sev-high:     #ffffff;
+  --sev-medium:   #8a7a1f;  --on-sev-medium:   #ffffff;
+  --sev-low:      #5c6b80;  --on-sev-low:      #ffffff;
 
   /* ── Legacy aliases (photoapp + older recipes bind to these) ─────────── */
   --copper:        var(--blueprint);
@@ -91,10 +91,8 @@
   --teal-dim:      var(--steel-dim);
 
   /* ── Typography ──────────────────────────────────────────────────────── */
-  --sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont,
-          Roboto, "Helvetica Neue", sans-serif;
-  --mono: "Cascadia Mono", "Cascadia Code", ui-monospace, Consolas, "SF Mono",
-          Menlo, monospace;
+  --sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --fs-caption: 11px;   /* uppercase labels, chips */
   --fs-small:   12px;   /* secondary text, dense tables */
   --fs-body:    13px;   /* dense body (tool default) */
@@ -107,9 +105,9 @@
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
 
   /* ── Radius scale (crisp, technical) ─────────────────────────────────── */
-  --r-sm: 2px;   /* chips, stamps */
-  --r-md: 4px;   /* buttons, inputs */
-  --r-lg: 6px;   /* cards, panels */
+  --r-sm: 3px;   /* chips, stamps */
+  --r-md: 5px;   /* buttons, inputs */
+  --r-lg: 8px;   /* cards, panels */
 
   /* ── Signature: drafting centerline (long dash · gap · short dash) ───── */
   --centerline-v: repeating-linear-gradient(180deg,
@@ -120,7 +118,7 @@
       var(--line-strong) 21px 25px, transparent 25px 30px);
   /* Signature: ruler ticks (drafting scale under the title block) */
   --ruler: repeating-linear-gradient(90deg,
-      rgba(185,212,240,0.22) 0 1px, transparent 1px 8px);
+      rgba(17,19,24,0.18) 0 1px, transparent 1px 8px);
 }
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
@@ -129,11 +127,11 @@ html { -webkit-font-smoothing: antialiased; }
 
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: rgba(185,212,240,0.14); border-radius: 5px;
+*::-webkit-scrollbar-thumb { background: rgba(17,19,24,0.14); border-radius: 5px;
                              border: 2px solid transparent; background-clip: content-box; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(185,212,240,0.26);
+*::-webkit-scrollbar-thumb:hover { background: rgba(17,19,24,0.26);
                                    border: 2px solid transparent; background-clip: content-box; }
-* { scrollbar-width: thin; scrollbar-color: rgba(185,212,240,0.18) transparent; }
+* { scrollbar-width: thin; scrollbar-color: rgba(17,19,24,0.18) transparent; }
 
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 
@@ -161,11 +159,11 @@ html { -webkit-font-smoothing: antialiased; }
 .btn.secondary {
   background: var(--surface); color: var(--ink); border-color: var(--line-strong); font-weight: 500;
 }
-.btn.secondary:hover:not(:disabled) { background: var(--surface-2); border-color: rgba(185,212,240,0.3); }
+.btn.secondary:hover:not(:disabled) { background: var(--surface-2); border-color: rgba(17,19,24,0.3); }
 .btn.ghost { background: transparent; color: var(--ink-2); border-color: transparent; }
-.btn.ghost:hover:not(:disabled) { background: var(--surface); color: var(--ink); }
-.btn.danger { background: transparent; color: var(--err-text); border-color: rgba(229,72,77,0.4); }
-.btn.danger:hover:not(:disabled) { background: rgba(229,72,77,0.12); }
+.btn.ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.btn.danger { background: transparent; color: var(--err-text); border-color: rgba(192,57,43,0.4); }
+.btn.danger:hover:not(:disabled) { background: rgba(192,57,43,0.10); }
 .btn.running { background: var(--surface); color: var(--blueprint-text); border-color: var(--line-strong); }
 /* Active state for a secondary/ghost button used as a tool toggle (draw,
    set-origin, mode switches) — reads clearly "pressed" without a new pattern. */
@@ -192,11 +190,11 @@ html { -webkit-font-smoothing: antialiased; }
   border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
   white-space: nowrap;
 }
-.badge-c.copper, .badge-c.blueprint { background: var(--blueprint-dim); color: var(--blueprint-text); border-color: rgba(95,191,228,0.35); }
-.badge-c.teal, .badge-c.steel { background: var(--steel-dim); color: var(--steel-text); border-color: rgba(122,157,190,0.4); }
-.badge-c.ok     { background: rgba(62,175,124,0.13); color: var(--ok-text); border-color: rgba(62,175,124,0.35); }
-.badge-c.err    { background: rgba(229,72,77,0.12); color: var(--err-text); border-color: rgba(229,72,77,0.35); }
-.badge-c.warn   { background: rgba(227,169,60,0.12); color: var(--warn); border-color: rgba(227,169,60,0.35); }
+.badge-c.copper, .badge-c.blueprint { background: var(--blueprint-dim); color: var(--blueprint-text); border-color: rgba(29,91,219,0.35); }
+.badge-c.teal, .badge-c.steel { background: var(--steel-dim); color: var(--steel-text); border-color: rgba(92,107,128,0.4); }
+.badge-c.ok     { background: rgba(23,122,76,0.12); color: var(--ok-text); border-color: rgba(23,122,76,0.35); }
+.badge-c.err    { background: rgba(192,57,43,0.10); color: var(--err-text); border-color: rgba(192,57,43,0.35); }
+.badge-c.warn   { background: rgba(183,121,31,0.12); color: var(--warn); border-color: rgba(183,121,31,0.35); }
 .badge-c.mono   { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* Severity stamps — bordered like an inspection stamp, identical everywhere */
@@ -206,15 +204,15 @@ html { -webkit-font-smoothing: antialiased; }
   font: 700 10px/16px var(--sans); letter-spacing: 0.09em; text-transform: uppercase;
   background: transparent; border: 1px solid; white-space: nowrap;
 }
-.badge-sev.critical { color: var(--sev-critical); border-color: var(--sev-critical); background: rgba(240,84,92,0.10); }
-.badge-sev.high     { color: var(--sev-high);     border-color: var(--sev-high);     background: rgba(227,161,60,0.10); }
-.badge-sev.medium   { color: var(--sev-medium);   border-color: var(--sev-medium);   background: rgba(210,195,85,0.08); }
-.badge-sev.low      { color: var(--sev-low);      border-color: var(--sev-low);      background: rgba(141,164,190,0.08); }
+.badge-sev.critical { color: var(--sev-critical); border-color: var(--sev-critical); background: rgba(192,57,43,0.08); }
+.badge-sev.high     { color: var(--sev-high);     border-color: var(--sev-high);     background: rgba(183,121,31,0.08); }
+.badge-sev.medium   { color: var(--sev-medium);   border-color: var(--sev-medium);   background: rgba(138,122,31,0.08); }
+.badge-sev.low      { color: var(--sev-low);      border-color: var(--sev-low);      background: rgba(92,107,128,0.08); }
 
-/* ── Inputs (inset: darker than surroundings) ──────────────────────────── */
+/* ── Inputs (inset: slightly recessed against surroundings) ────────────── */
 .input-c, textarea.input-c, select.input-c {
   font: 400 var(--fs-body)/1.45 var(--sans); color: var(--ink);
-  background: var(--input-bg); border: 1px solid var(--line);
+  background: var(--input-bg); border: 1px solid var(--line-strong);
   border-radius: var(--r-md); padding: 7px var(--sp-3);
   transition: border-color .12s;
 }

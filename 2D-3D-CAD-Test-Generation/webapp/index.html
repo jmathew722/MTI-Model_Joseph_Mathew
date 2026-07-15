@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/design-tokens.css" />
 <style>
   /* ── Page styles — every value binds to /static/design-tokens.css ─────────
-     Direction: BLUEPRINT ROOM (see webapp/DESIGN.md). Signature elements:
+     Direction: PAPER ROOM (see webapp/DESIGN.md). Signature elements:
      title-block header · sheet tabs · centerline dividers · OP-numbered
      stage chips · inspection-stamp severities. */
   * { box-sizing:border-box; }
@@ -31,7 +31,7 @@
                   pointer-events:none; }
   .brand { display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) 0; }
   .logo { width:34px; height:34px; border-radius:var(--r-sm); flex:0 0 auto;
-          border:1px solid rgba(95,191,228,.5); background:var(--blueprint-dim);
+          border:1px solid rgba(29,91,219,.5); background:var(--blueprint-dim);
           color:var(--blueprint-text); display:grid; place-items:center;
           font:600 15px/1 var(--mono); }
   header h1 { font-size:var(--fs-h2); font-weight:650; letter-spacing:-.01em; margin:0; }
@@ -49,8 +49,24 @@
           font:600 var(--fs-caption)/16px var(--sans); color:var(--ink-2); }
   .pill .dot { width:7px; height:7px; border-radius:50%; background:var(--ink-4);
                box-shadow:0 0 0 3px transparent; }
-  .pill.live .dot { background:var(--ok); box-shadow:0 0 6px rgba(62,175,124,.6); }
-  .pill.demo .dot { background:var(--warn); box-shadow:0 0 6px rgba(227,169,60,.5); }
+  .pill.live .dot { background:var(--ok); box-shadow:0 0 6px rgba(23,122,76,.6); }
+  .pill.demo .dot { background:var(--warn); box-shadow:0 0 6px rgba(183,121,31,.5); }
+
+  /* Header reads as the drawing's TITLE BLOCK printed in dark ink — the
+     dark-topbar-on-light-page pattern. Local overrides only; everything
+     else in the shell stays on the shared paper tokens. */
+  header { background:#111318; border-bottom-color:#2b2e35; }
+  header::after { opacity:.35; }
+  .logo { border-color:rgba(126,207,238,.4); background:rgba(29,91,219,.22); color:#9fc4fb; }
+  header h1 { color:#fff; }
+  header h1 .thin { color:#b7bcc6; }
+  header .sub { color:#9298a3; }
+  .titleblock { border-left-color:rgba(255,255,255,.12); }
+  .tb-cell { border-right-color:rgba(255,255,255,.12); }
+  .tb-k { color:#7d828d; }
+  .tb-v { color:#dfe2e7; }
+  .pill { color:#dfe2e7; }
+  .pill .dot { background:#6b7280; }
 
   /* ── Top-level tabs = SHEETS of the drawing set ────────────────────────── */
   .tabs { display:flex; gap:var(--sp-1); padding:0 var(--sp-4); background:var(--bg-raised);
@@ -59,7 +75,7 @@
                    border:1px solid var(--line); border-radius:var(--r-sm);
                    padding:2px 5px; margin-right:var(--sp-2); vertical-align:1px;
                    transition:color .12s, border-color .12s; }
-  .tab.active .sheet-no { color:var(--blueprint-text); border-color:rgba(95,191,228,.45);
+  .tab.active .sheet-no { color:var(--blueprint-text); border-color:rgba(29,91,219,.45);
                           background:var(--blueprint-dim); }
   .tab .badge, .stab .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px;
                 border-radius:var(--r-sm); font:600 10px/16px var(--mono); text-align:center;
@@ -76,7 +92,7 @@
              font:500 var(--fs-small)/1 var(--sans); background:var(--surface); color:var(--ink);
              border:1px solid var(--line-strong); cursor:pointer;
              transition:background .12s, border-color .12s; }
-  .filebtn:hover { background:var(--surface-2); border-color:rgba(185,212,240,.3); }
+  .filebtn:hover { background:var(--surface-2); border-color:rgba(17,19,24,.3); }
   .filebtn .hint { font-size:var(--fs-caption); }
   .sel-input { font:400 var(--fs-small)/1.4 var(--sans); background:var(--input-bg); color:var(--ink);
                border:1px solid var(--line); border-radius:var(--r-md); padding:6px var(--sp-2); }
@@ -127,7 +143,7 @@
   .orient-gallery:empty { display:none; }
   .ocard { flex:0 0 auto; width:176px; border:1px solid var(--line); border-radius:var(--r-lg);
            background:var(--surface); overflow:hidden; position:relative; }
-  .ocard.assigned { border-color:rgba(62,175,124,.5); }
+  .ocard.assigned { border-color:rgba(23,122,76,.5); }
   .ocard.dup { border-color:var(--warn); }
   .ocard img { width:100%; height:88px; object-fit:contain; background:#fff; display:block;
                outline:1px solid rgba(0,0,0,.1); outline-offset:-1px; }
@@ -161,9 +177,9 @@
   .req-chip { display:inline-block; margin-left:var(--sp-2); padding:1px var(--sp-2); border-radius:var(--r-sm);
               font:700 10px/16px var(--sans); letter-spacing:.07em; text-transform:uppercase;
               background:transparent; border:1px solid transparent; }
-  .req-chip.st-met { color:var(--ok-text); border-color:rgba(62,175,124,.5); background:rgba(62,175,124,.1); }
-  .req-chip.st-partial { color:var(--warn); border-color:rgba(227,169,60,.5); background:rgba(227,169,60,.08); }
-  .req-chip.st-unmet { color:var(--err-text); border-color:rgba(229,72,77,.5); background:rgba(229,72,77,.08); }
+  .req-chip.st-met { color:var(--ok-text); border-color:rgba(23,122,76,.5); background:rgba(23,122,76,.1); }
+  .req-chip.st-partial { color:var(--warn); border-color:rgba(183,121,31,.5); background:rgba(183,121,31,.08); }
+  .req-chip.st-unmet { color:var(--err-text); border-color:rgba(192,57,43,.5); background:rgba(192,57,43,.08); }
   .req-chip.st-not_applicable { color:var(--ink-3); border-color:var(--line-strong); }
   .req-warn { color:var(--warn); font-size:var(--fs-small); max-width:280px; }
   .req-warn.ok { color:var(--ok-text); }
@@ -218,7 +234,7 @@
                 background:var(--well); color:var(--ink-4); border:1px solid var(--line); white-space:nowrap; }
   .stage-chip::before { counter-increment:stage; content:"OP " counter(stage, decimal-leading-zero) " · ";
                         font-family:var(--mono); letter-spacing:0; opacity:.6; }
-  .stage-chip.done { color:var(--steel-text); border-color:rgba(122,157,190,.45); }
+  .stage-chip.done { color:var(--steel-text); border-color:rgba(92,107,128,.45); }
   .stage-chip.done::after { content:" ✓"; color:var(--ok-text); }
   .stage-chip.now { color:var(--blueprint-text); border-color:var(--blueprint); background:var(--blueprint-dim); }
   .logtoggle { font:600 var(--fs-caption)/1 var(--sans); padding:5px var(--sp-3); border-radius:var(--r-sm);
@@ -229,15 +245,15 @@
      an outlined, letterspaced verdict like a rubber stamp on the traveler. */
   #run-banner { flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-4);
                 padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--line);
-                background:linear-gradient(90deg, rgba(62,175,124,.08), transparent 60%); }
+                background:linear-gradient(90deg, rgba(23,122,76,.08), transparent 60%); }
   #run-banner .rb-main { font:700 var(--fs-stat)/1.1 var(--mono); letter-spacing:.14em;
                          text-transform:uppercase; color:var(--ok-text);
                          border:2px solid var(--ok); border-radius:var(--r-sm);
                          padding:var(--sp-1) var(--sp-3); font-variant-numeric:tabular-nums; }
   #run-banner .rb-sub { font:400 var(--fs-small)/1.4 var(--sans); color:var(--ink-2); }
-  #run-banner.warn { background:linear-gradient(90deg, rgba(227,169,60,.09), transparent 60%); }
+  #run-banner.warn { background:linear-gradient(90deg, rgba(183,121,31,.09), transparent 60%); }
   #run-banner.warn .rb-main { color:var(--warn); border-color:var(--warn); }
-  #run-banner.err { background:linear-gradient(90deg, rgba(229,72,77,.08), transparent 60%); }
+  #run-banner.err { background:linear-gradient(90deg, rgba(192,57,43,.08), transparent 60%); }
   #run-banner.err .rb-main { color:var(--err-text); border-color:var(--err); }
 
   /* Split view — the dominant element on Sheet 1: two large panels that fill
@@ -282,7 +298,7 @@
                       color:var(--ink); background:rgba(10,15,22,.88); border:1px solid var(--line-strong);
                       border-radius:50%; cursor:pointer; pointer-events:auto; user-select:none;
                       transition:background .12s, border-color .12s; }
-  .mark-box .mb-del:hover { background:rgba(229,72,77,.9); border-color:var(--err); }
+  .mark-box .mb-del:hover { background:rgba(192,57,43,.9); border-color:var(--err); }
   .mark-box .mb-resize { position:absolute; right:-6px; bottom:-6px; width:11px; height:11px;
                          border:1px solid rgba(255,255,255,.7); background:inherit;
                          border-radius:var(--r-sm); cursor:nwse-resize; pointer-events:auto; }
@@ -371,7 +387,7 @@
   .regions-body .rg-del { cursor:pointer; color:var(--err-text); background:none;
                           border:1px solid var(--line); border-radius:var(--r-sm);
                           font-size:11px; padding:1px 6px; }
-  .regions-body .rg-del:hover { background:rgba(229,72,77,.12); }
+  .regions-body .rg-del:hover { background:rgba(192,57,43,.12); }
   /* Read-only mirror of the groups inside the Overview Analysis panel. */
   .ovan-body .rg-mini { display:flex; align-items:flex-start; gap:var(--sp-2); margin:3px 0; }
   .ovan-body .rg-mini .mark-swatch { width:13px; height:13px; margin-top:2px; }
@@ -556,7 +572,7 @@
                           text-transform:uppercase; color:var(--ink-3); margin-top:var(--sp-2); }
   .aq { border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface);
         padding:var(--sp-3); display:flex; gap:var(--sp-3); }
-  .aq.answered { border-color:rgba(62,175,124,.5); }
+  .aq.answered { border-color:rgba(23,122,76,.5); }
   .aq .aq-crop { flex:0 0 auto; width:132px; }
   .aq .aq-crop img { width:100%; border-radius:var(--r-md); outline:1px solid rgba(0,0,0,.1);
                      outline-offset:-1px; background:#fff; }
@@ -621,13 +637,13 @@
   .flag-item .row b { color:var(--ink-3); font:600 var(--fs-caption)/1.6 var(--sans);
                       letter-spacing:.04em; text-transform:uppercase; display:inline-block; min-width:66px; }
   .flag-item.sev-CRITICAL { border-left-color:var(--sev-critical); }
-  .flag-item.sev-CRITICAL .sev { color:var(--sev-critical); border-color:var(--sev-critical); background:rgba(240,84,92,.1); }
+  .flag-item.sev-CRITICAL .sev { color:var(--sev-critical); border-color:var(--sev-critical); background:rgba(192,57,43,.1); }
   .flag-item.sev-HIGH { border-left-color:var(--sev-high); }
-  .flag-item.sev-HIGH .sev { color:var(--sev-high); border-color:var(--sev-high); background:rgba(227,161,60,.1); }
+  .flag-item.sev-HIGH .sev { color:var(--sev-high); border-color:var(--sev-high); background:rgba(183,121,31,.1); }
   .flag-item.sev-MEDIUM { border-left-color:var(--sev-medium); }
-  .flag-item.sev-MEDIUM .sev { color:var(--sev-medium); border-color:var(--sev-medium); background:rgba(210,195,85,.08); }
+  .flag-item.sev-MEDIUM .sev { color:var(--sev-medium); border-color:var(--sev-medium); background:rgba(138,122,31,.08); }
   .flag-item.sev-LOW { border-left-color:var(--sev-low); }
-  .flag-item.sev-LOW .sev { color:var(--sev-low); border-color:var(--sev-low); background:rgba(141,164,190,.08); }
+  .flag-item.sev-LOW .sev { color:var(--sev-low); border-color:var(--sev-low); background:rgba(92,107,128,.08); }
   .flags-scroll { flex:1 1 auto; overflow:auto; padding-bottom:var(--sp-3); }
   .flags-summary { padding:var(--sp-3) var(--sp-4) 0; font-size:var(--fs-body); color:var(--ink-3); }
 
@@ -639,7 +655,7 @@
                   font-variant-numeric:tabular-nums; }
   .cost-card .k { font:600 var(--fs-caption)/1.4 var(--sans); letter-spacing:.05em;
                   text-transform:uppercase; color:var(--ink-3); margin-top:var(--sp-1); }
-  .cost-cards .cost-card:first-child { border-color:rgba(95,191,228,.45); }
+  .cost-cards .cost-card:first-child { border-color:rgba(29,91,219,.45); }
   .cost-cards .cost-card:first-child .v { color:var(--blueprint-text); }
 
   /* Files */
@@ -680,10 +696,10 @@
   .vs-chip { font:700 10px/16px var(--sans); letter-spacing:.06em;
              padding:1px var(--sp-2); border-radius:var(--r-sm); border:1px solid;
              font-variant-numeric:tabular-nums; }
-  .vs-chip.critical { color:var(--sev-critical); border-color:var(--sev-critical); background:rgba(240,84,92,.1); }
-  .vs-chip.high     { color:var(--sev-high);     border-color:var(--sev-high);     background:rgba(227,161,60,.1); }
-  .vs-chip.medium   { color:var(--sev-medium);   border-color:var(--sev-medium);   background:rgba(210,195,85,.08); }
-  .vs-chip.low      { color:var(--sev-low);      border-color:var(--sev-low);      background:rgba(141,164,190,.08); }
+  .vs-chip.critical { color:var(--sev-critical); border-color:var(--sev-critical); background:rgba(192,57,43,.1); }
+  .vs-chip.high     { color:var(--sev-high);     border-color:var(--sev-high);     background:rgba(183,121,31,.1); }
+  .vs-chip.medium   { color:var(--sev-medium);   border-color:var(--sev-medium);   background:rgba(138,122,31,.08); }
+  .vs-chip.low      { color:var(--sev-low);      border-color:var(--sev-low);      background:rgba(92,107,128,.08); }
   .vs-chip.zero     { color:var(--ink-4); border-color:var(--line); background:transparent; }
 
   .vsum-block { margin-top:var(--sp-3); }
@@ -2574,14 +2590,14 @@ const viewer = (() => {
     wrap = document.getElementById('stl-canvas-wrap');
     // Scene palette mirrors the design tokens: graphite well (--well), warm key
     // light, faint slate-teal rim so machined edges read against the dark bg.
-    scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0f16);
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x14171c);
     camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000); camera.position.set(120, 90, 160);
     renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(window.devicePixelRatio || 1);
     wrap.appendChild(renderer.domElement);
     controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.08;
-    scene.add(new THREE.HemisphereLight(0xd6e4f2, 0x0d131c, 0.9));
+    scene.add(new THREE.HemisphereLight(0xd6e4f2, 0x14171c, 0.9));
     const key = new THREE.DirectionalLight(0xeaf3fc, 0.9); key.position.set(1, 1, 1); scene.add(key);
-    const rim = new THREE.DirectionalLight(0x3fa9d4, 0.35); rim.position.set(-1, 0.4, -0.8); scene.add(rim);
+    const rim = new THREE.DirectionalLight(0x1d5bdb, 0.35); rim.position.set(-1, 0.4, -0.8); scene.add(rim);
     inited = true; resize(); animate();
     new ResizeObserver(() => { needResize = true; }).observe(wrap);
   }
@@ -2594,7 +2610,7 @@ const viewer = (() => {
     camera.position.set(maxDim*1.4,maxDim*1.1,maxDim*1.8); camera.near=maxDim/100; camera.far=maxDim*100; camera.updateProjectionMatrix();
     controls.target.set(0,0,0); controls.update();
     const old=scene.getObjectByName('grid2'); if (old) scene.remove(old);
-    const g=new THREE.GridHelper(maxDim*3,20,0x223140,0x141d29); g.name='grid2'; g.position.y=-size.y/2; scene.add(g);
+    const g=new THREE.GridHelper(maxDim*3,20,0x262b33,0x171a1f); g.name='grid2'; g.position.y=-size.y/2; scene.add(g);
   }
   return {
     onShow() { if (!inited) init(); else needResize = true; },
