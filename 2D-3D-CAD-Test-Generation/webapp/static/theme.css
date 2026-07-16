@@ -27,12 +27,12 @@
 :root {
   /* ── PALETTE · DRAW2PART company primitives (exact reference tokens) ────── */
   --ink:          #0f1115;   /* near-black: primary text + topbar fill        */
-  --paper:        #e7ddc9;   /* page background — deep warm parchment         */
-  --surface:      #f1ead9;   /* cards, panels — rich cream (lifts off page)   */
-  --surface-alt:  #e2d8c2;   /* table headers, quiet chips, inset fills       */
-  --surface-hover:#dbd0b8;   /* row / card hover                              */
-  --line-mid:     #d7ccb3;   /* hairline borders (warm taupe)                 */
-  --line-hard:    #c3b699;   /* stronger borders, input outlines             */
+  --paper:        #dcd0b6;   /* page background — deeper warm parchment/tan    */
+  --surface:      #e9e0c9;   /* cards, panels — rich cream (lifts off page)   */
+  --surface-alt:  #d6cbaf;   /* table headers, quiet chips, inset fills       */
+  --surface-hover:#cec2a4;   /* row / card hover                              */
+  --line-mid:     #c8bd9b;   /* hairline borders (warm taupe)                 */
+  --line-hard:    #b4a77f;   /* stronger borders, input outlines             */
   --muted:        #6b7280;   /* secondary / label text                        */
 
   --blue:         #2563eb;   /* PRIMARY accent                                */
@@ -72,7 +72,7 @@
   --bg:         var(--paper);       /* page background                        */
   --bg-raised:  var(--surface-alt); /* toolbars, strips, caps, tab rails      */
   --surface-2:  var(--surface-hover);
-  --input-bg:   #f7f1e4;            /* inputs — warm cream, lifts off surfaces  */
+  --input-bg:   #efe7d3;            /* inputs — warm cream, lifts off surfaces  */
   --console-bg: var(--viewport);    /* console / build log stays dark          */
   --console-ink:#c2ccda;            /* console text                            */
 
@@ -113,6 +113,13 @@
   --datum:     #0077cc;
   --datum-dim: rgba(0,119,204,0.12);
   --on-datum:  #ffffff;
+
+  /* ── EXPLAINER — the Pipeline Explainer chat's own violet accent zone ───── */
+  --explain:        #6c5fb0;
+  --explain-bright: #8676c9;
+  --explain-text:   #5b4fa0;
+  --explain-dim:    rgba(108,95,176,0.10);
+  --explain-line:   rgba(108,95,176,0.35);
 
   /* ── SEVERITY LADDER — red › orange › yellow › blue, harmonized for light
      surfaces. Outlined "inspection-stamp" chips: text = --sev-*, bg = -soft. ─ */

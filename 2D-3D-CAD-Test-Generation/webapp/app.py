@@ -1618,6 +1618,103 @@ def part_stl(session: str, part: str):
     return FileResponse(str(p), media_type="model/stl", filename=p.name)
 
 
+# ── Pipeline Explainer — LOCAL-ONLY (Ollama) chat over a run's artifacts ──────
+# Zero cost by design: the explainer module never imports the Anthropic client,
+# never reads ANTHROPIC_API_KEY, and contacts nothing but localhost:11434.
+def _part_output_dir(session: str, part: str) -> Path:
+    return _session_dir(session) / _sanitize(part) / "output"
+
+
+@app.get("/api/explainer/health")
+def explainer_health():
+    """Ollama status + the model this explainer will use (for the status dot,
+    model name, and the auto-pull decision). Never raises — a down Ollama is a
+    normal, reported state, not an error."""
+    import explainer
+    return explainer.health()
+
+
+@app.post("/api/explainer/pull")
+async def explainer_pull(request: Request):
+    """Stream a one-time model download as NDJSON progress chunks."""
+    import explainer
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    model = (body.get("model") or "").strip() or explainer.choose_model()
+
+    def gen():
+        try:
+            for chunk in explainer.pull_model(model):
+                yield json.dumps(chunk) + "\n"
+            yield json.dumps({"status": "success", "done": True, "model": model}) + "\n"
+        except explainer.ExternalHostError as e:
+            yield json.dumps({"error": str(e), "done": True}) + "\n"
+        except explainer.OllamaUnavailable as e:
+            yield json.dumps({"error": f"Ollama unavailable: {e}", "done": True}) + "\n"
+
+    return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+
+@app.get("/api/explainer/history")
+def explainer_history(session: str, part: str):
+    """Per-part persisted chat history + the zero-cost session footer."""
+    import explainer
+    out = _part_output_dir(session, part)
+    return {"part": _sanitize(part), "history": explainer.load_history(out),
+            "usage": explainer.usage_total(out)}
+
+
+@app.post("/api/explainer/chat")
+async def explainer_chat(request: Request):
+    """Stream a grounded answer as NDJSON. Body: {session, part, question,
+    history?}. Writes an export manifest on first ask so 'where did my files
+    go?' is answerable, persists the exchange to per-part history."""
+    import explainer
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    session = body.get("session") or ""
+    part = body.get("part") or ""
+    question = (body.get("question") or "").strip()
+    provider = (body.get("provider") or "local").strip().lower()
+    if provider not in ("local", "claude"):
+        provider = "local"
+    if not session or not part:
+        raise HTTPException(400, "session and part are required")
+    if not question:
+        raise HTTPException(400, "question is required")
+    out = _part_output_dir(session, part)
+    if not out.is_dir():
+        raise HTTPException(404, "No completed run for this part yet")
+
+    # Ensure an export manifest exists so delivery questions are citable.
+    try:
+        explainer.write_export_manifest(
+            out, delivered_dirs=[DELIVER_DIR / _sanitize(part),
+                                 DOWNLOADS_DIR / _sanitize(part)])
+    except Exception:
+        pass
+
+    history = explainer.load_history(out)
+    explainer.append_history(out, "user", question)
+
+    def gen():
+        answer_meta = {}
+        for ev in explainer.chat(question, out, history=history, provider=provider):
+            yield json.dumps(ev) + "\n"
+            if ev.get("type") == "done":
+                answer_meta = ev.get("meta", {})
+        # Persist the assistant turn (best-effort; never breaks the stream).
+        if answer_meta:
+            explainer.append_history(out, "assistant", answer_meta.get("answer", ""),
+                                     meta={k: v for k, v in answer_meta.items() if k != "answer"})
+
+    return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+
 # ── Shared run history: ONE persistent inventory of completed runs ─────────────
 # Backs BOTH Sheet 2's "Select Model" dropdown and Sheet 4's "Select Run"
 # dropdown, so the two can never disagree. Sourced from disk (webapp/parts/

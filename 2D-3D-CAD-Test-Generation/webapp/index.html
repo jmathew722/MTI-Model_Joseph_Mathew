@@ -526,6 +526,111 @@
   .files-paths { padding:var(--sp-3) var(--sp-4); font-size:var(--fs-small); color:var(--ink-3);
                  border-bottom:1px solid var(--line); }
   .files-paths code { color:var(--ink-2); font-family:var(--mono); }
+
+  /* ═══ Pipeline Explainer chat (ported from main) ═══ */
+  /* ── Pipeline Explainer — its own ORANGE zone at the foot of the sheet.
+       Orange is the FRAME + controls; message bubbles stay neutral for
+       readability. This accent is used nowhere else in the app. */
+  .explainer { flex:0 0 auto; background:var(--bg-raised);
+               border-top:2px solid var(--explain); box-shadow:inset 0 0 0 1px var(--explain-line); }
+  .explainer > summary.ex-head { display:flex; align-items:center; gap:var(--sp-2);
+               cursor:pointer; padding:var(--sp-2) var(--sp-4);
+               background:var(--explain-dim); list-style:none; user-select:none;
+               border-bottom:1px solid var(--explain-line); }
+  .explainer > summary.ex-head::-webkit-details-marker { display:none; }
+  .explainer .twist { width:0; height:0; border-left:5px solid var(--explain);
+               border-top:4px solid transparent; border-bottom:4px solid transparent;
+               transition:transform .12s; flex:0 0 auto; }
+  .explainer[open] .twist { transform:rotate(90deg); }
+  .ex-title { font:700 var(--fs-control)/1.2 var(--sans); color:var(--explain); letter-spacing:.01em; }
+  .ex-free { font:600 var(--fs-caption)/1 var(--sans); text-transform:uppercase;
+             letter-spacing:.08em; color:var(--explain-text); border:1px solid var(--explain-line);
+             border-radius:var(--r-sm); padding:2px 6px; margin-left:var(--sp-2); }
+  .ex-model { font:500 var(--fs-small)/1 var(--mono); color:var(--ink-3); }
+  .ex-dot { width:9px; height:9px; border-radius:50%; background:var(--ink-4); flex:0 0 auto;
+            box-shadow:0 0 0 3px rgba(0,0,0,.25); }
+  .ex-dot.up { background:var(--ok); }
+  .ex-dot.down { background:var(--err); }
+  .ex-body { display:flex; flex-direction:column; gap:var(--sp-2); padding:var(--sp-3) var(--sp-4); }
+  .ex-toolbar { display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; }
+  .ex-toolbar #ex-part { min-width:180px; }
+  .ex-cost { font:600 var(--fs-caption)/1 var(--mono); color:var(--explain-text); letter-spacing:.02em; }
+  /* Provider dropdown — Local qwen (free) vs Claude API (paid) */
+  .ex-prov-sel { min-width:150px; border-color:var(--explain-line); color:var(--explain-text); font-weight:600; }
+  .ex-prov-sel:focus { border-color:var(--explain); }
+  .ex-chips { display:flex; flex-wrap:wrap; gap:var(--sp-2); }
+  .ex-chip { font:500 var(--fs-small)/1 var(--sans); color:var(--explain-text);
+             background:transparent; border:1px solid var(--explain-line);
+             border-radius:999px; padding:5px 10px; cursor:pointer; transition:all .12s; }
+  .ex-chip:hover { background:var(--explain-dim); color:var(--explain-bright);
+                   border-color:var(--explain); }
+  .ex-log { max-height:360px; overflow:auto; display:flex; flex-direction:column;
+            gap:var(--sp-3); padding:var(--sp-2) 0; }
+  .ex-empty { color:var(--ink-3); font:400 var(--fs-small)/1.5 var(--sans);
+              padding:var(--sp-3); border:1px dashed var(--explain-line);
+              border-radius:var(--r-md); background:var(--explain-dim); }
+  .ex-msg { display:flex; flex-direction:column; gap:4px; }
+  .ex-msg .ex-role { font:600 var(--fs-caption)/1 var(--sans); text-transform:uppercase;
+                     letter-spacing:.06em; color:var(--ink-3); }
+  .ex-msg.user .ex-role { color:var(--explain-text); }
+  .ex-bubble { font:400 var(--fs-body)/1.5 var(--sans); color:var(--ink);
+               background:var(--surface); border:1px solid var(--line);
+               border-radius:var(--r-md); padding:var(--sp-2) var(--sp-3); white-space:pre-wrap;
+               word-break:break-word; }
+  .ex-msg.user .ex-bubble { background:var(--surface-2); }
+  .ex-bubble .cite { color:var(--explain-text); border-bottom:1px dotted var(--explain-line);
+                     cursor:pointer; }
+  .ex-bubble .cite:hover { color:var(--explain-bright); border-bottom-color:var(--explain); }
+  .ex-caret { display:inline-block; width:7px; background:var(--explain);
+              animation:exblink 1s steps(2) infinite; margin-left:1px; }
+  @keyframes exblink { 0%,50%{opacity:1} 51%,100%{opacity:0} }
+  .ex-status { color:var(--ink-3); font-style:italic; }
+  .ex-err { color:var(--err-text); }
+  .ex-meta { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap;
+             font:500 var(--fs-caption)/1.3 var(--mono); color:var(--ink-4); }
+  .ex-meta .chip-cost { color:var(--explain-text); opacity:.8; }
+  .ex-actions { display:flex; gap:var(--sp-3); }
+  .ex-actions a { font:500 var(--fs-caption)/1 var(--sans); color:var(--ink-3);
+                  cursor:pointer; text-decoration:none; }
+  .ex-actions a.to-corr { color:var(--explain-text); }
+  .ex-actions a:hover { color:var(--explain-bright); }
+  .ex-inputrow { display:flex; gap:var(--sp-2); align-items:stretch; }
+  .ex-inputrow #ex-input { flex:1 1 auto; resize:vertical; min-height:38px; }
+  .btn.ex-send { flex:0 0 auto; background:var(--explain); color:var(--on-explain);
+                 border-color:var(--explain); font-weight:700; }
+  .btn.ex-send:hover:not(:disabled) { background:var(--explain-bright); border-color:var(--explain-bright); }
+  .btn.ex-send:disabled { opacity:.5; }
+  .ex-setup { border:1px solid var(--explain-line); border-radius:var(--r-md);
+              background:var(--explain-dim); padding:var(--sp-3); display:flex;
+              flex-direction:column; gap:var(--sp-2); }
+  .ex-setup .es-title { font:600 var(--fs-small)/1.3 var(--sans); color:var(--explain-text); }
+  .ex-setup .es-body { font:400 var(--fs-small)/1.5 var(--sans); color:var(--ink-2); }
+  .ex-setup code { font:500 var(--fs-small)/1 var(--mono); color:var(--ink);
+                   background:var(--well); padding:1px 5px; border-radius:var(--r-sm); }
+  .ex-prog { height:6px; border-radius:3px; background:var(--well); overflow:hidden; }
+  .ex-prog > i { display:block; height:100%; background:var(--explain); width:0; transition:width .2s; }
+
+  /* ── Run-output data table (Extracted Features & Dimensions) ───────────── */
+  .table-wrap { max-height:475px; overflow:auto; border:1px solid var(--line); border-radius:var(--r-md); margin-top:var(--sp-3); }
+  .data-table { width:100%; border-collapse:separate; border-spacing:0; font-size:var(--fs-small); }
+  .data-table thead { position:sticky; top:0; z-index:2; }
+  .data-table th { height:33px; padding:0 var(--sp-3); text-align:left; white-space:nowrap;
+                   color:var(--ink-3); background:var(--surface-alt); border-bottom:1px solid var(--line-strong);
+                   font:700 9px/1 var(--sans); letter-spacing:.06em; text-transform:uppercase; }
+  .data-table th.numeric { text-align:right; }
+  .data-table td { max-width:280px; padding:8px var(--sp-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                   border-bottom:1px solid var(--line-soft); vertical-align:middle; color:var(--ink-2); }
+  .data-table tbody tr:hover { background:var(--surface-2); }
+  .data-table tbody tr:last-child td { border-bottom:0; }
+  .data-table .numeric { text-align:right; font-family:var(--mono); }
+  .data-table td.value { text-align:right; font-family:var(--mono); color:var(--ink); }
+  .data-table .row-id { color:var(--blueprint-text); font:650 10px/1 var(--mono); }
+  .result-chip { display:inline-flex; padding:2px 7px; border-radius:var(--r-sm); font:700 8px/1.4 var(--mono);
+                 letter-spacing:.04em; text-transform:uppercase; border:1px solid var(--line); background:var(--surface-alt); color:var(--ink-3); }
+  .result-chip.pass    { color:var(--ok-text);  background:var(--ok-soft);   border-color:color-mix(in srgb, var(--ok) 35%, transparent); }
+  .result-chip.info    { color:var(--blueprint-text); background:var(--blueprint-dim); border-color:color-mix(in srgb, var(--blue) 35%, transparent); }
+  .result-chip.flagged { color:var(--warn);     background:var(--warn-soft); border-color:color-mix(in srgb, var(--warn) 35%, transparent); }
+  .result-chip.failed  { color:var(--err-text); background:var(--err-soft);  border-color:color-mix(in srgb, var(--err) 35%, transparent); }
 </style>
 </head>
 <body>
@@ -682,6 +787,51 @@
         <button class="btn" id="rerun-feedback-btn" disabled>↻ Re-run with correction</button>
       </div>
     </div>
+    <!-- ── Pipeline Explainer — LOCAL & FREE (Ollama). Its own orange zone at
+         the very bottom of the Pipeline sheet, directly below the corrections
+         box: inspect model -> enter corrections -> ask the explainer why. It
+         is READ-ONLY and never contacts any server but localhost. -->
+    <details class="explainer" id="explainer-panel">
+      <summary class="ex-head">
+        <span class="twist"></span>
+        <span class="ex-title">🧠 Pipeline Explainer <span class="ex-free">local &amp; free</span></span>
+        <span class="grow"></span>
+        <span class="ex-model" id="ex-model">—</span>
+        <span class="ex-dot" id="ex-dot" title="Ollama status"></span>
+      </summary>
+      <div class="ex-body">
+        <div class="ex-toolbar">
+          <label class="hint" for="ex-part" style="text-transform:none;letter-spacing:0">Part</label>
+          <select class="sel-input" id="ex-part" title="Which completed run to ask about (defaults to the open part)"></select>
+          <label class="hint" for="ex-provider" style="text-transform:none;letter-spacing:0">Answer with</label>
+          <select class="sel-input ex-prov-sel" id="ex-provider" title="Choose who answers: local Ollama (qwen, free) or the Claude API (paid, uses your key)">
+            <option value="local">Local · qwen (free)</option>
+            <option value="claude">Claude API (paid)</option>
+          </select>
+          <span class="grow"></span>
+          <span class="ex-cost" id="ex-session-footer">Session: 0 msgs · $0.00 · all local</span>
+        </div>
+
+        <div class="ex-chips" id="ex-chips">
+          <button class="ex-chip" data-q="Why was {dim} resolved this way?">Why was &lt;dim&gt; resolved this way?</button>
+          <button class="ex-chip" data-q="Trace {dim} end to end">Trace &lt;dim&gt; end to end</button>
+          <button class="ex-chip" data-q="What changed since last run?">What changed since last run?</button>
+          <button class="ex-chip" data-q="Explain macro {step}">Explain macro &lt;step&gt;</button>
+          <button class="ex-chip" data-q="What's still deferred?">What's still deferred?</button>
+          <button class="ex-chip" data-q="Where did the export go?">Where did the export go?</button>
+        </div>
+
+        <div class="ex-log" id="ex-log">
+          <div class="ex-empty" id="ex-empty">Ask about this part's run — extraction, resolution, macros, build, reconciliation, or export. Answers cite the exact artifacts and cost $0.00 (local Ollama).</div>
+        </div>
+
+        <div class="ex-inputrow">
+          <textarea id="ex-input" class="input-c" rows="1"
+                    placeholder="Ask why a value was chosen, trace a dimension, explain a macro step, or ask where the files went…"></textarea>
+          <button class="btn ex-send" id="ex-send" title="Ask (local, free)">Ask ▸</button>
+        </div>
+      </div>
+    </details>
   </section>
 
   <!-- ── Sheet 4 · Run Outputs (browse every artifact of any completed run) ── -->
@@ -701,7 +851,8 @@
     <div class="dock" id="dock">
       <div class="stabs" id="stabbar">
         <span class="grp-title dock-label">Run outputs</span>
-        <button class="stab tab-c sm active" data-tab="extraction">Extraction JSON <span class="badge">·</span></button>
+        <button class="stab tab-c sm active" data-tab="table">Features Table <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="extraction">Extraction JSON <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="verification">Verification <span class="badge">·</span></button>
@@ -715,7 +866,8 @@
         <button class="ibtn" id="dock-toggle" title="Collapse / expand run outputs">▾</button>
       </div>
       <div class="dock-body">
-        <section class="subpanel active" id="panel-extraction"><div class="out"><div class="toolbar"><span class="nm">—</span><span class="grow"></span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+        <section class="subpanel active" id="panel-table"><div class="out"><div class="toolbar"><span class="nm">Extracted Features &amp; Dimensions</span><span class="grow"></span><span class="badge-c mono" id="table-count">0</span></div><div class="empty">No part run yet.</div><div class="table-wrap" style="display:none"><table class="data-table"><thead><tr><th>ID</th><th>Type</th><th>Size</th><th>Position</th><th>Basis</th><th class="numeric">Qty</th><th>Status</th></tr></thead><tbody id="ptable-tbody"></tbody></table></div></div></section>
+        <section class="subpanel" id="panel-extraction"><div class="out"><div class="toolbar"><span class="nm">—</span><span class="grow"></span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
         <section class="subpanel" id="panel-resolved"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
         <section class="subpanel" id="panel-buildplan"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
         <section class="subpanel" id="panel-verification"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
@@ -757,6 +909,7 @@ document.getElementById('stabbar').addEventListener('click', e => {
   const b = e.target.closest('.stab'); if (b) showSub(b.dataset.tab);
 });
 function showTab(name) {
+  if (window.__onTab) try { window.__onTab(name); } catch {}
   if (!TOP_TABS.includes(name)) { showTab('outputs'); showSub(name); return; } // legacy names → Sheet 4 sub-tab
   document.querySelectorAll('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('main > .panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
@@ -795,7 +948,7 @@ window.addEventListener('DOMContentLoaded', () => { refreshRunHistory(); });
 
 // ── Output tab plumbing ──────────────────────────────────────────────────────
 if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-const CATS = ['extraction','resolved','buildplan','verification','flags','modelcheck','macros','cost','files'];
+const CATS = ['table','extraction','resolved','buildplan','verification','flags','modelcheck','macros','cost','files'];
 const KEYMAP = { extraction:'extraction', resolved:'resolved', buildplan:'build_plan', verification:'verification', modelcheck:'model_check' };
 function setTabFilled(name, filled) {
   const t = document.querySelector(`.stab[data-tab="${name}"]`); if (!t) return;
@@ -819,8 +972,9 @@ function resetOutputs(msg) {
   document.querySelectorAll('.subpanel .out').forEach(o => {
     const pre = o.querySelector('pre'); if (pre && pre.id !== 'console-pre') { pre.style.display = 'none'; pre.textContent = ''; }
     const empty = o.querySelector('.empty'); if (empty) empty.style.display = '';
-    const scroll = o.querySelector('.flags-scroll, .files-scroll'); if (scroll) scroll.style.display = 'none';
+    const scroll = o.querySelector('.flags-scroll, .files-scroll, .table-wrap'); if (scroll) scroll.style.display = 'none';
   });
+  { const tb = document.getElementById('ptable-tbody'); if (tb) tb.innerHTML = ''; }
   document.querySelectorAll('.subpanel .empty').forEach(e => { if (msg) e.textContent = msg; });
   document.querySelector('#panel-modelcheck .empty').textContent =
     'Model check requires Windows + SolidWorks; not produced on this machine.';
@@ -987,6 +1141,54 @@ function renderOvanPanel() {
   if (conflicts.length || (wasHidden && isRunning)) panel.open = true;
 }
 
+// ── Run-output table: Extracted Features & Dimensions (from the raw JSON) ────
+function buildSourceTruth(c) {
+  const out = { rows: [], count: 0, featureCount: 0 };
+  let data = null;
+  try { data = (c.extraction && c.extraction.text) ? JSON.parse(c.extraction.text) : null; } catch {}
+  if (!data) return out;
+  const disp = {};
+  try { const bp = JSON.parse(c.build_plan.text); (bp.dispositions || []).forEach(d => { disp[d.feature_id || d.id] = d.state || d.disposition; }); } catch {}
+  const units = data.units || 'in';
+  const rows = [];
+  (data.dimensions || []).forEach(d => {
+    const size = d.value != null ? (d.value + ' ' + units) : '—';
+    const tol = (d.tolerance_plus != null || d.tolerance_minus != null) ? (' ±' + (d.tolerance_plus != null ? d.tolerance_plus : d.tolerance_minus)) : '';
+    rows.push({ id: d.id, type: 'dimension / ' + (d.dimension_type || 'linear'), size, pos: d.applies_to || '—',
+                basis: (d.notes || ((d.value != null ? String(d.value) : '') + tol)) || '—', qty: 1,
+                status: disp[d.id] || (d.value_unclear ? 'DISPUTED' : 'EXTRACTED') });
+  });
+  (data.hole_callouts || []).forEach(h => {
+    const size = h.diameter != null ? ('⌀' + h.diameter + ' ' + units) : (h.thread_spec || '—');
+    const pos = (h.x_position != null && h.y_position != null) ? (h.x_position + ', ' + h.y_position) : '—';
+    rows.push({ id: h.id, type: 'hole' + (h.thru ? ' / thru' : (h.depth ? ' / blind' : '')), size, pos,
+                basis: h.notes || h.thread_spec || h.position_source || '—', qty: h.qty || 1, status: disp[h.id] || 'EXTRACTED' });
+  });
+  (data.features || []).forEach(f => {
+    rows.push({ id: f.id, type: 'feature / ' + (f.feature_type || ''), size: '—',
+                pos: (f.offset_x != null ? (f.offset_x + ', ' + f.offset_y) : '—'),
+                basis: f.description || '—', qty: f.quantity || 1, status: disp[f.id] || 'EXTRACTED' });
+  });
+  out.rows = rows; out.count = rows.length;
+  out.featureCount = (data.features || []).length + (data.hole_callouts || []).length;
+  return out;
+}
+function paintTable(payload) {
+  const c = payload.categories || {};
+  const panel = document.getElementById('panel-table'); if (!panel) return;
+  const st = buildSourceTruth(c);
+  const tb = document.getElementById('ptable-tbody'), wrap = panel.querySelector('.table-wrap'), empty = panel.querySelector('.empty');
+  const cnt = document.getElementById('table-count');
+  const chipCls = s => ({ EXTRACTED:'', RESOLVED:'info', BUILT:'pass', BUILT_WITH_DERIVED_VALUE:'flagged', EXCLUDED_INCOMPLETE:'failed', DISPUTED:'flagged', OVERRIDDEN:'info' }[s] || '');
+  if (!st.count) { if (empty) empty.style.display = ''; if (wrap) wrap.style.display = 'none'; return; }
+  tb.innerHTML = st.rows.map(r =>
+    '<tr><td class="row-id">' + esc(r.id || '') + '</td><td>' + esc(r.type) + '</td><td class="value">' + esc(r.size) + '</td>' +
+    '<td>' + esc(r.pos) + '</td><td title="' + esc(r.basis) + '">' + esc(r.basis) + '</td><td class="numeric">' + esc(r.qty) + '</td>' +
+    '<td><span class="result-chip ' + chipCls(r.status) + '">' + esc(String(r.status).replace(/_/g, ' ')) + '</span></td></tr>').join('');
+  if (cnt) cnt.textContent = st.count;
+  if (empty) empty.style.display = 'none'; if (wrap) wrap.style.display = '';
+  setTabFilled('table', true);
+}
 function fillOutputs(payload) {
   const c = payload.categories || {};
   for (const tab of ['extraction','resolved','buildplan','verification','modelcheck']) {
@@ -997,7 +1199,7 @@ function fillOutputs(payload) {
       setTabFilled(tab, true);
     }
   }
-  if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
+  paintTable(payload); if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
   if (c.usage && c.usage.present) { paintUsage(c.usage); setTabFilled('cost', true); }
   if (c.files && c.files.present && (c.files.list || []).length) { paintFiles(c.files, payload); setTabFilled('files', true); }
   if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
@@ -1841,7 +2043,7 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
       const cat = c[KEYMAP[tab]];
       if (cat && cat.present) { const j = tab!=='verification'&&tab!=='modelcheck'; paintText('panel-'+tab, cat.name, j?prettyJSON(cat.text||''):cat.text); setTabFilled(tab, true); }
     }
-    if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
+    paintTable(d); if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
     if (c.usage && c.usage.present) { paintUsage(c.usage); setTabFilled('cost', true); }
     if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
     if (d.done) {
@@ -1925,6 +2127,308 @@ const viewer = (() => {
       }, undefined, err => console.warn('STL load failed', err));
     }
   };
+})();
+
+/* ═══ Pipeline Explainer chat (ported from main) ═══ */
+// ── Pipeline Explainer — LOCAL & FREE (Ollama). Read-only chat over a run's
+// artifacts. Never calls any host but localhost; every exchange is $0.00. ────
+(() => {
+  const panel   = document.getElementById('explainer-panel');
+  const dot     = document.getElementById('ex-dot');
+  const modelEl = document.getElementById('ex-model');
+  const partSel = document.getElementById('ex-part');
+  const logEl   = document.getElementById('ex-log');
+  const emptyEl = document.getElementById('ex-empty');
+  const input   = document.getElementById('ex-input');
+  const sendBtn = document.getElementById('ex-send');
+  const footer  = document.getElementById('ex-session-footer');
+  if (!panel) return;
+
+  let exModel = null, exBusy = false;
+  let sessionMsgs = 0, sessionCost = 0;
+  let exCtx = null;                 // {session, part} the explainer is asking about
+  let providers = { local: { available:false }, claude: { available:false } };
+  let exProvider = localStorage.getItem('ex_provider') || 'local';   // 'local' | 'claude'
+  const provSel = document.getElementById('ex-provider');
+
+  const escx = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+
+  function fmtCost(c) { return '$' + (Math.round((c||0)*10000)/10000).toFixed(c && c < 1 ? 4 : 2); }
+  function providerReady(p) { return !!(providers[p] && providers[p].available); }
+  function setFooter() {
+    const tail = sessionCost > 0 ? `${fmtCost(sessionCost)} · mixed` : '$0.00 · all local';
+    footer.textContent = `Session: ${sessionMsgs} msgs · ${tail}`;
+  }
+
+  function applyProviderUI() {
+    // Reflect availability in the dropdown labels, and keep it in sync.
+    [...provSel.options].forEach(o => {
+      const p = o.value, ready = providerReady(p);
+      o.disabled = !ready;
+      const base = p === 'local' ? 'Local · qwen (free)' : 'Claude API (paid)';
+      o.textContent = ready ? base : base + ' — unavailable';
+    });
+    provSel.value = exProvider;
+    if (exProvider === 'claude') {
+      exModel = (providers.claude && providers.claude.model) || 'claude';
+      modelEl.textContent = exModel;
+      dot.className = 'ex-dot ' + (providerReady('claude') ? 'up' : 'down');
+      dot.title = providerReady('claude') ? `Claude API · ${exModel}` : 'No ANTHROPIC_API_KEY set';
+    } else {
+      exModel = (providers.local && providers.local.model) || null;
+      modelEl.textContent = exModel || (providerReady('local') ? '—' : 'Ollama offline');
+      dot.className = 'ex-dot ' + (providerReady('local') ? 'up' : 'down');
+      dot.title = providerReady('local')
+        ? `Ollama ${(providers.local.version)||''} · ${exModel} · num_ctx ${providers.local.num_ctx}`
+        : 'Ollama not reachable on localhost:11434';
+    }
+    updateSendEnabled();
+  }
+
+  // Populate the part dropdown from the shared run history; default to whatever
+  // part is currently open (outputsCtx / selectedPart).
+  function populateParts() {
+    const runs = (runHistory || []);
+    const prev = partSel.value;
+    partSel.innerHTML = '';
+    if (!runs.length) {
+      const o = document.createElement('option'); o.value = ''; o.textContent = 'no completed runs yet';
+      partSel.appendChild(o); partSel.disabled = true; return;
+    }
+    partSel.disabled = false;
+    runs.forEach(r => {
+      const o = document.createElement('option');
+      o.value = `${r.session}|${r.part}`; o.textContent = r.label || r.part;
+      partSel.appendChild(o);
+    });
+    let want = prev;
+    const cur = (typeof outputsCtx === 'object' && outputsCtx) ? outputsCtx
+              : (selectedPart ? { session: sessionId, part: selectedPart } : null);
+    if (cur) { const k = `${cur.session}|${cur.part}`; if ([...partSel.options].some(o => o.value === k)) want = k; }
+    if (want && [...partSel.options].some(o => o.value === want)) partSel.value = want;
+    syncCtxFromSelect();
+  }
+  function syncCtxFromSelect() {
+    const v = partSel.value; if (!v) { exCtx = null; return; }
+    const [session, ...rest] = v.split('|'); exCtx = { session, part: rest.join('|') };
+  }
+
+  async function refreshHealth() {
+    let h; try { h = await (await fetch('/api/explainer/health')).json(); } catch { h = { ok:false, running:false }; }
+    const pv = h.providers || {};
+    providers = {
+      local: Object.assign({ available: !!(h.ok && h.running) }, pv.local || {},
+                           { model: (pv.local && pv.local.model) || h.model, version: (pv.local && pv.local.version) || h.version,
+                             num_ctx: (pv.local && pv.local.num_ctx) || h.num_ctx, model_ready: (pv.local ? pv.local.model_ready : h.model_ready) }),
+      claude: Object.assign({ available:false }, pv.claude || {}),
+    };
+    // If the chosen provider isn't available but the other is, switch to it.
+    if (!providerReady(exProvider)) {
+      if (providerReady('local')) exProvider = 'local';
+      else if (providerReady('claude')) exProvider = 'claude';
+    }
+    applyProviderUI();
+    // Only the LOCAL provider has a setup card / auto-pull. Never block Claude.
+    removeSetupCard();
+    if (exProvider === 'local') {
+      if (!providers.local.available) { renderSetupCard(); return false; }
+      if (providers.local.model && !providers.local.model_ready) { await pullModel(providers.local.model); }
+    }
+    updateSendEnabled();
+    return providerReady(exProvider);
+  }
+
+  provSel.addEventListener('change', () => {
+    const p = provSel.value;
+    if (!providerReady(p)) { applyProviderUI(); return; }  // revert to a ready one
+    exProvider = p; localStorage.setItem('ex_provider', p); applyProviderUI();
+  });
+
+  function renderSetupCard() {
+    removeSetupCard();
+    const card = document.createElement('div');
+    card.className = 'ex-setup'; card.id = 'ex-setup';
+    const claudeHint = providerReady('claude')
+      ? ' Or switch to <b>Claude API</b> above to chat right now (paid, cost shown per answer).'
+      : '';
+    card.innerHTML =
+      '<div class="es-title">Local model (Ollama) not available</div>' +
+      '<div class="es-body">Install <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--explain-text)">Ollama</a>, ' +
+      'start it (<code>ollama serve</code>), and pull a qwen (<code>ollama pull qwen2.5:7b</code>). ' +
+      'The pipeline runs fine without the explainer.' + claudeHint + '</div>' +
+      '<div><button class="btn ex-send sm" id="ex-retry">Retry</button></div>';
+    logEl.parentNode.insertBefore(card, logEl);
+    document.getElementById('ex-retry').addEventListener('click', () => { removeSetupCard(); refreshHealth(); });
+    updateSendEnabled();
+  }
+  function removeSetupCard() { const c = document.getElementById('ex-setup'); if (c) c.remove(); }
+
+  async function pullModel(model) {
+    removeSetupCard();
+    const bubble = document.createElement('div');
+    bubble.className = 'ex-setup'; bubble.id = 'ex-pull';
+    bubble.innerHTML = `<div class="es-title">First-time setup — downloading ${escx(model)} (one time, local)</div>` +
+      '<div class="es-body" id="ex-pull-status">Starting…</div>' +
+      '<div class="ex-prog"><i id="ex-pull-bar"></i></div>';
+    logEl.parentNode.insertBefore(bubble, logEl);
+    const statusEl = document.getElementById('ex-pull-status'), bar = document.getElementById('ex-pull-bar');
+    try {
+      const resp = await fetch('/api/explainer/pull', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model }) });
+      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream:true }); const lines = buf.split('\n'); buf = lines.pop();
+        for (const ln of lines) { if (!ln.trim()) continue; let c; try { c = JSON.parse(ln); } catch { continue; }
+          if (c.error) { statusEl.textContent = c.error; continue; }
+          if (c.total && c.completed) { const pct = Math.min(100, Math.round(c.completed / c.total * 100)); bar.style.width = pct + '%'; statusEl.textContent = `${c.status || 'downloading'} — ${pct}%`; }
+          else if (c.status) statusEl.textContent = c.status;
+        }
+      }
+      bar.style.width = '100%'; statusEl.textContent = 'Model ready.';
+      setTimeout(() => bubble.remove(), 900);
+    } catch (e) { statusEl.textContent = 'Download failed: ' + e.message; }
+    await refreshHealth();
+  }
+
+  function updateSendEnabled() {
+    sendBtn.disabled = exBusy || !providerReady(exProvider) || !exCtx;
+  }
+
+  function addMsg(role, html) {
+    if (emptyEl) emptyEl.style.display = 'none';
+    const m = document.createElement('div'); m.className = 'ex-msg ' + role;
+    m.innerHTML = `<div class="ex-role">${role === 'user' ? 'You' : '🧠 Explainer'}</div><div class="ex-bubble"></div>`;
+    m.querySelector('.ex-bubble').innerHTML = html;
+    logEl.appendChild(m); logEl.scrollTop = logEl.scrollHeight; return m;
+  }
+
+  // Turn [cited ..._resolved_extraction.json] style refs into clickable spans
+  // that open the artifact. Uses the citation list to map filename -> rel path.
+  function linkifyCitations(text, citations) {
+    let html = escx(text);
+    (citations || []).forEach(c => {
+      const nm = c.name; if (!nm) return;
+      const re = new RegExp('(' + nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'g');
+      html = html.replace(re, `<span class="cite" data-rel="${escx(c.rel)}" title="Open ${escx(c.rel)}">$1</span>`);
+    });
+    return html;
+  }
+
+  function wireBubble(bubble, citations, answerText) {
+    bubble.querySelectorAll('.cite').forEach(sp => {
+      sp.addEventListener('click', () => {
+        if (!exCtx) return;
+        const rel = sp.dataset.rel;
+        window.open(`/api/parts/${exCtx.session}/${encodeURIComponent(exCtx.part)}/file/${rel.split('/').map(encodeURIComponent).join('/')}`, '_blank');
+      });
+    });
+  }
+
+  function addMeta(after, meta) {
+    const wrap = document.createElement('div'); wrap.className = 'ex-msg';
+    const isLocal = (meta.provider || (meta.local ? 'local' : 'claude')) === 'local';
+    const tag = isLocal ? '⏸ local' : '☁ claude';
+    const cost = isLocal ? '$0.00' : fmtCost(meta.cost_usd) + ' est.';
+    const dur = (meta.duration_s || 0);
+    wrap.innerHTML =
+      `<div class="ex-meta"><span>${tag} · ${escx(meta.model||exModel||'')}</span>` +
+      `<span>${meta.prompt_tokens||0} in / ${meta.eval_tokens||0} out tok</span>` +
+      `<span class="chip-cost">${cost}</span><span>${dur.toFixed ? dur.toFixed(1) : dur} s</span></div>` +
+      `<div class="ex-actions"><a class="copy">Copy as note</a><a class="to-corr">Send to corrections</a></div>`;
+    after.appendChild(wrap);
+    wrap.querySelector('.copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(meta.answer || ''); });
+    wrap.querySelector('.to-corr').addEventListener('click', () => {
+      const fb = document.getElementById('feedback-text');
+      if (fb) { const one = (meta.answer || '').split('\n').find(l => l.trim()) || (meta.answer || '');
+                fb.value = (fb.value ? fb.value + '\n' : '') + one.trim(); fb.focus(); }
+    });
+  }
+
+  async function ask(question) {
+    if (exBusy || !exCtx) return;
+    if (!providerReady(exProvider)) { const ok = await refreshHealth(); if (!ok) return; }
+    exBusy = true; updateSendEnabled();
+    addMsg('user', escx(question));
+    sessionMsgs++; setFooter();
+    const hint = exProvider === 'local'
+      ? '<span class="ex-status">contacting local model…</span> <span class="ex-caret">&nbsp;</span>'
+      : '<span class="ex-status">asking Claude…</span> <span class="ex-caret">&nbsp;</span>';
+    const botMsg = addMsg('assistant', hint);
+    const bubble = botMsg.querySelector('.ex-bubble');
+    let citations = [], answer = '', statusTxt = '';
+    const paint = () => {
+      const s = (!answer && statusTxt) ? `<span class="ex-status">${escx(statusTxt)}</span> ` : '';
+      bubble.innerHTML = s + linkifyCitations(answer, citations) + '<span class="ex-caret">&nbsp;</span>';
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+    try {
+      const resp = await fetch('/api/explainer/chat', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ session: exCtx.session, part: exCtx.part, question, provider: exProvider }) });
+      if (!resp.ok) { bubble.textContent = 'Error: ' + (await resp.text()); exBusy = false; updateSendEnabled(); return; }
+      const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream:true }); const lines = buf.split('\n'); buf = lines.pop();
+        for (const ln of lines) { if (!ln.trim()) continue; let ev; try { ev = JSON.parse(ln); } catch { continue; }
+          if (ev.type === 'context') { citations = ev.citations || []; }
+          else if (ev.type === 'status') { statusTxt = ev.text || ''; paint(); }
+          else if (ev.type === 'token') { answer += ev.text; paint(); }
+          else if (ev.type === 'error') { bubble.innerHTML = `<span class="ex-err">${escx(ev.error)}</span>`; }
+          else if (ev.type === 'done') {
+            const meta = ev.meta || {}; citations = meta.citations || citations;
+            bubble.innerHTML = linkifyCitations(answer, citations);
+            wireBubble(bubble, citations, answer);
+            meta.answer = answer; addMeta(botMsg, meta);
+            sessionMsgs++; sessionCost += (meta.cost_usd || 0); setFooter();
+          }
+        }
+      }
+    } catch (e) { bubble.textContent = 'Chat failed: ' + e.message; }
+    exBusy = false; updateSendEnabled();
+  }
+
+  // Chips: those with a {placeholder} pre-fill the input for the user to fill in;
+  // the rest send immediately.
+  document.getElementById('ex-chips').addEventListener('click', e => {
+    const b = e.target.closest('.ex-chip'); if (!b) return;
+    const q = b.dataset.q;
+    if (/\{(dim|step)\}/.test(q)) { input.value = q; input.focus();
+      const i = q.indexOf('{'); input.setSelectionRange(i, q.indexOf('}') + 1); }
+    else ask(q);
+  });
+
+  sendBtn.addEventListener('click', () => { const q = input.value.trim(); if (!q) return; input.value = ''; ask(q); });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
+
+  async function loadHistoryForCtx() {
+    logEl.querySelectorAll('.ex-msg').forEach(n => n.remove());
+    if (emptyEl) { logEl.appendChild(emptyEl); emptyEl.style.display = ''; }
+    if (!exCtx) return;
+    let d; try { d = await (await fetch(`/api/explainer/history?session=${exCtx.session}&part=${encodeURIComponent(exCtx.part)}`)).json(); } catch { return; }
+    (d.history || []).forEach(h => {
+      if (h.role === 'user') addMsg('user', escx(h.content));
+      else { const m = addMsg('assistant', linkifyCitations(h.content, (h.meta||{}).citations || []));
+             wireBubble(m.querySelector('.ex-bubble'), (h.meta||{}).citations || [], h.content); }
+    });
+    const u = d.usage || {}; sessionMsgs = u.messages || 0; sessionCost = u.cost_usd || 0; setFooter();
+  }
+
+  partSel.addEventListener('change', () => { syncCtxFromSelect(); loadHistoryForCtx(); updateSendEnabled(); });
+
+  // Refresh when the Pipeline sheet is shown (defaults to the open part) and on
+  // first open of the panel.
+  window.__onTab = (name) => { if (name === 'pipeline') { populateParts(); refreshHealth(); } };
+  panel.addEventListener('toggle', () => { if (panel.open) { populateParts(); loadHistoryForCtx(); refreshHealth(); } });
+
+  // Keep the explainer's part list in step with the shared run history.
+  const _origRefresh = (typeof refreshRunHistory === 'function') ? refreshRunHistory : null;
+  if (_origRefresh) {
+    refreshRunHistory = async function(...a) { const r = await _origRefresh.apply(this, a); try { populateParts(); } catch {} return r; };
+  }
+
+  setFooter();
+  // Expand by default once a run exists; collapsed on an empty workspace.
+  setTimeout(() => { if ((runHistory || []).length) { panel.open = true; populateParts(); loadHistoryForCtx(); } refreshHealth(); }, 600);
 })();
 </script>
 </body>
