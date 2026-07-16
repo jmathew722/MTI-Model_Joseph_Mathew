@@ -73,16 +73,18 @@ macro from it, following the conventions EXACTLY.
 === MUST-MEET SPECIFICATIONS (tier-0, already enforced upstream — honor them) ===
 {bundle['must_meet_specifications'][:2000]}
 
-Write each macro file under ./macros/ (00_setup.vba first, ZZZ_export_stl.vba
-last), plus RUN_ALL.vba. Then write ./result.json with this manifest schema:
+Return ONLY a single JSON object (no prose, no markdown fences, do NOT write any
+files) with this schema — the FULL VBA source goes in each file's "content":
 {{
-  "files": [ {{"name": str, "feature_ids": [str], "purpose": str}} ],
+  "files": [ {{"name": "00_setup.vba", "content": "<complete VBA source>",
+              "feature_ids": [str], "purpose": str}} ],
   "feature_coverage": {{ "<feature_id>": "BUILT"|"MANUAL"|"SKIPPED" }},
   "assumptions": [str],
   "notes": [str]
 }}
-Every build-plan step must be covered by exactly one macro or explicitly listed
-as MANUAL/SKIPPED with a reason. Output JSON only in result.json (no fences)."""
+Include EVERY macro (00_setup.vba first, ZZZ_export_stl.vba last, plus
+RUN_ALL.vba). Every build-plan step must be covered by exactly one macro or
+explicitly listed as MANUAL/SKIPPED with a reason. Output the JSON object only."""
 
 
 def _fallback_manifest(pkg) -> dict:
@@ -102,6 +104,32 @@ def _fallback_manifest(pkg) -> dict:
             "notes": []}
 
 
+def _write_files_from_result(pkg, result) -> list[dict]:
+    """Validate + write Codex's returned macro files, replacing the deterministic
+    set. Returns the descriptors actually written (name sanitised — no traversal)."""
+    if not isinstance(result, dict):
+        return []
+    good = []
+    for f in (result.get("files") or []):
+        if not isinstance(f, dict):
+            continue
+        name, content = f.get("name"), f.get("content")
+        if not name or content is None:
+            continue
+        name = Path(str(name)).name
+        if not name.lower().endswith(".vba"):
+            name += ".vba"
+        good.append({"name": name, "content": str(content),
+                     "feature_ids": f.get("feature_ids", []), "purpose": f.get("purpose", "")})
+    if not good:
+        return []
+    for old in pkg.macros_dir.glob("*.vba"):
+        old.unlink()
+    for f in good:
+        (pkg.macros_dir / f["name"]).write_text(f["content"], encoding="utf-8")
+    return good
+
+
 def write_macros(pkg, *, resolved: dict, must_meet_text: str = "",
                  part_dir: Path, output_dir: Optional[Path] = None) -> dict:
     """Run Stage B. Returns a result dict {engine, manifest, n_macros, assumptions}.
@@ -117,26 +145,19 @@ def write_macros(pkg, *, resolved: dict, must_meet_text: str = "",
         assumptions = manifest["assumptions"]
     else:
         try:
-            workdir = part_dir / ".codex_macrogen"
-            (workdir / "macros").mkdir(parents=True, exist_ok=True)
-            result, engine_used = codex_client.run_json(
-                _prompt(_bundle(pkg, resolved, must_meet_text)),
-                workdir=workdir)
-            written = sorted((workdir / "macros").glob("*.vba"))
+            # Codex RETURNS the macros as JSON (no sandboxed file writing); we
+            # write the .vba files ourselves. The default sandbox handles a JSON
+            # response fine, and it avoids Windows sandbox-helper issues.
+            result, _ = codex_client.run_json(
+                _prompt(_bundle(pkg, resolved, must_meet_text)))
+            written = _write_files_from_result(pkg, result)
             if not written:
-                raise codex_client.CodexError("Codex produced no .vba files")
-            # Replace the deterministic macros with Codex's set.
-            for old in pkg.macros_dir.glob("*.vba"):
-                old.unlink()
-            for vba in written:
-                (pkg.macros_dir / vba.name).write_text(vba.read_text(encoding="utf-8"),
-                                                       encoding="utf-8")
-            manifest = result if isinstance(result, dict) else {"files": [], "notes": []}
-            manifest.setdefault("files", [{"name": v.name} for v in written])
+                raise codex_client.CodexError("Codex returned no macro file contents")
+            manifest = {k: v for k, v in (result or {}).items() if k != "files"}
+            manifest["files"] = [{"name": f["name"], "feature_ids": f.get("feature_ids", []),
+                                  "purpose": f.get("purpose", "")} for f in written]
             assumptions = list(manifest.get("assumptions") or [])
             engine = "codex"
-            import shutil
-            shutil.rmtree(workdir, ignore_errors=True)
         except Exception as e:
             manifest = _fallback_manifest(pkg)
             manifest["notes"] = list(manifest.get("notes", [])) + \
@@ -263,16 +284,10 @@ def repair_macros(pkg, *, failure: dict, resolved: dict, must_meet_text: str = "
     try:
         prompt = _prompt(_bundle(pkg, resolved, must_meet_text)) + \
             f"\n\n=== CADQUERY PRE-VALIDATION FAILED — REPAIR ===\n{detail}\n" \
-            "Fix the macros so the built geometry satisfies the checks. Rewrite the " \
-            "affected .vba files under ./macros and update ./result.json."
-        workdir = part_dir / ".codex_repair"
-        (workdir / "macros").mkdir(parents=True, exist_ok=True)
-        result, _ = codex_client.run_json(prompt, workdir=workdir)
-        written = sorted((workdir / "macros").glob("*.vba"))
-        for vba in written:
-            (pkg.macros_dir / vba.name).write_text(vba.read_text(encoding="utf-8"), encoding="utf-8")
-        import shutil
-        shutil.rmtree(workdir, ignore_errors=True)
+            "Fix the macros so the built geometry satisfies the checks. Return the " \
+            "SAME JSON object with the corrected file contents."
+        result, _ = codex_client.run_json(prompt)
+        written = _write_files_from_result(pkg, result)
         note = f"Codex repair rewrote {len(written)} macro(s) after CadQuery failure: {detail}"
         if output_dir is not None:
             _log_lessons(Path(output_dir), part_dir.name, "codex", [note], event="repair")

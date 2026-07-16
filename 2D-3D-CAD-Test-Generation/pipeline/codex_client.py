@@ -52,7 +52,10 @@ def _env_flag(name: str, default: Optional[bool] = None) -> Optional[bool]:
 
 
 CODEX_MODEL = os.getenv("CODEX_MODEL", "gpt-5.6-sol").strip()
-CODEX_TIMEOUT_S = int(os.getenv("CODEX_TIMEOUT_S", "180") or "180")
+# Writing a full VBA macro set is a large generation (~2-3 min of output), so the
+# per-call timeout is generous; a malformed-JSON retry is cheap, a timeout retry
+# is not, so default to a single retry.
+CODEX_TIMEOUT_S = int(os.getenv("CODEX_TIMEOUT_S", "300") or "300")
 CODEX_RETRIES = int(os.getenv("CODEX_RETRIES", "1") or "1")
 CODEX_AUTH = (os.getenv("CODEX_AUTH", "chatgpt") or "chatgpt").strip().lower()
 # `codex exec` is agentic + GPT-5 reasons hard by default (minutes/call). Low
