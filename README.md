@@ -8,7 +8,7 @@ engineering review per part, and all deliverables copied to your Downloads folde
 This page is the **operator run guide**. The deep technical docs live in
 [`2D-3D-CAD-Test-Generation/README.md`](2D-3D-CAD-Test-Generation/README.md).
 To have an agent run + verify a batch for you, use
-[`RUN_PROMPT.md`](RUN_PROMPT.md).
+[`RUN_PROMPT.md`](docs/RUN_PROMPT.md).
 
 ---
 
@@ -151,7 +151,7 @@ That single command resolves, verifies, writes macros + `.sldprt`, logs tokens,
 and copies everything to `~/Downloads/SolidWorksModel_Parts`. It prints a summary
 table and ends with `N/N READY`.
 
-> Example used in this repo: `python main.py --views-folder ..\Test2 --output ..\Test2\output`
+> Example used in this repo: `python main.py --views-folder ..\test_drawings\Test2 --output ..\test_drawings\Test2\output`
 
 ### Optional final step — one zip to grab/share
 

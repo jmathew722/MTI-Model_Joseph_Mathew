@@ -1,7 +1,7 @@
 """Stage 10.5 — Reconciliation Pass (2026-07-10 audit + self-correcting loop).
 
 Closes the one gap the full-repository audit found to be genuinely missing
-(see ``AUDIT_REPORT.md``): nothing previously re-checked the pipeline's own
+(see ``docs/AUDIT_REPORT.md``): nothing previously re-checked the pipeline's own
 output against the ORIGINAL extraction before reporting a part done. Every
 other check in the pipeline (``overview_check.py``, ``requirements_check.py``,
 ``constraint_verify.py``) grades the build against the drawing or the

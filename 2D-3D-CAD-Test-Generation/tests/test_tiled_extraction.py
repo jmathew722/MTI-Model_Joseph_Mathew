@@ -192,7 +192,12 @@ class TestTiledExtractInjected:
 # Real rasterization against a golden PDF (no API), if available
 # --------------------------------------------------------------------------- #
 def _find_pdf():
-    for base in ("../Test2", "../DrawingPDFs", "../NewVerifiedDrawings", ".."):
+    for base in (
+        "../test_drawings/Test2",
+        "../test_drawings/DrawingPDFs",
+        "../test_drawings/NewVerifiedDrawings",
+        "..",
+    ):
         p = Path(base)
         if p.exists():
             for pdf in p.rglob("*.pdf"):

@@ -4,7 +4,7 @@ description: Run the MTI 2D→3D pipeline end-to-end on a test folder and report
 
 Run the MTI 2D→3D SolidWorks pipeline end-to-end on the test folder: $ARGUMENTS
 
-If $ARGUMENTS is empty, ask me which folder (e.g. `Test2`) before proceeding.
+If $ARGUMENTS is empty, ask me which folder (e.g. `test_drawings/Test2`) before proceeding.
 
 Do exactly this, in order, and report faithfully (state failures plainly):
 

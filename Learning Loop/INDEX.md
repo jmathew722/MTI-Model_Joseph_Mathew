@@ -74,3 +74,4 @@ One line per pipeline run, newest at the bottom. Hand any run's `.txt` to Claude
 | 2026-07-13 12:38 | SB16247 | READY | 5 |  | SB16247__2026-07-13_123836.txt |
 | 2026-07-13 12:43 | 156-C-RevE | READY | 8 |  | 156-C-RevE__2026-07-13_124335.txt |
 | 2026-07-13 12:59 | 164-C-RevC | NOT READY | 21 |  | 164-C-RevC__2026-07-13_125937.txt |
+| 2026-07-16 12:50 | 129-B | READY | 7 |  | 129-B__2026-07-16_125053.txt |
