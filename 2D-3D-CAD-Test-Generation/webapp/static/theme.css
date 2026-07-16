@@ -25,27 +25,27 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── PALETTE · company primitives (verbatim from the reference) ─────────── */
-  --ink:          #111318;   /* near-black: primary text + topbar fill        */
-  --paper:        #fafaf7;   /* page background (warm off-white)              */
-  --surface:      #ffffff;   /* cards, panels                                 */
-  --surface-alt:  #f3f3ef;   /* table headers, quiet chips, inset fills       */
-  --surface-hover:#eef0ec;   /* row / card hover                              */
-  --line-mid:     #d9d9d2;   /* hairline borders                             */
-  --line-hard:    #b8b9b4;   /* stronger borders, input outlines             */
-  --muted:        #666a72;   /* secondary / label text                        */
+  /* ── PALETTE · DRAW2PART company primitives (exact reference tokens) ────── */
+  --ink:          #0f1115;   /* near-black: primary text + topbar fill        */
+  --paper:        #e7ddc9;   /* page background — deep warm parchment         */
+  --surface:      #f1ead9;   /* cards, panels — rich cream (lifts off page)   */
+  --surface-alt:  #e2d8c2;   /* table headers, quiet chips, inset fills       */
+  --surface-hover:#dbd0b8;   /* row / card hover                              */
+  --line-mid:     #d7ccb3;   /* hairline borders (warm taupe)                 */
+  --line-hard:    #c3b699;   /* stronger borders, input outlines             */
+  --muted:        #6b7280;   /* secondary / label text                        */
 
-  --blue:         #1d5bdb;   /* PRIMARY accent                                */
-  --blue-dark:    #1548af;   /* primary hover                                 */
-  --blue-soft:    #e9effd;   /* selected fills, accent tints                  */
-  --green:        #177a4c;   --green-soft: #e9f5ef;
-  --amber:        #b7791f;   --amber-soft: #fbf3e4;
-  --red:          #c0392b;   --red-soft:   #fbecea;
+  --blue:         #2563eb;   /* PRIMARY accent                                */
+  --blue-dark:    #1d4ed8;   /* primary hover                                 */
+  --blue-soft:    #eff4ff;   /* selected fills, accent tints                  */
+  --green:        #15803d;   --green-soft: #ecfdf3;
+  --amber:        #b45309;   --amber-soft: #fdf4e7;
+  --red:          #dc2626;   --red-soft:   #fef2f2;
 
   /* Dark viewer chrome (the light app's dark panels) */
-  --viewer-panel: #171a20;   /* STL / drawing viewer body                     */
-  --viewer-bar:   #1c1f25;   /* viewer header / caption bars                  */
-  --viewport:     #15181e;   /* the viewport well itself + grid base          */
+  --viewer-panel: #17181c;   /* STL / drawing viewer body                     */
+  --viewer-bar:   #1c1d22;   /* viewer header / caption bars                  */
+  --viewport:     #131417;   /* the viewport well itself + grid base          */
   --viewer-line:  #30343d;   /* borders inside dark chrome                    */
   --viewer-ink:   #f4f5f7;   /* primary text on dark chrome                   */
   --viewer-ink-2: #a7abb5;   /* secondary text on dark chrome                 */
@@ -72,7 +72,7 @@
   --bg:         var(--paper);       /* page background                        */
   --bg-raised:  var(--surface-alt); /* toolbars, strips, caps, tab rails      */
   --surface-2:  var(--surface-hover);
-  --input-bg:   #ffffff;            /* inputs sit ON white in a light theme    */
+  --input-bg:   #f7f1e4;            /* inputs — warm cream, lifts off surfaces  */
   --console-bg: var(--viewport);    /* console / build log stays dark          */
   --console-ink:#c2ccda;            /* console text                            */
 
@@ -87,7 +87,7 @@
   --line:        var(--line-mid);
   --line-soft:   #e7e7e0;
   --line-strong: var(--line-hard);
-  --ring:        rgba(29,91,219,0.35);   /* focus ring — accent blue          */
+  --ring:        rgba(37,99,235,0.35);   /* focus ring — accent blue          */
 
   /* ── ACCENT · app aliases (blueprint→company blue) ─────────────────────── */
   --blueprint:        var(--blue);
@@ -116,10 +116,10 @@
 
   /* ── SEVERITY LADDER — red › orange › yellow › blue, harmonized for light
      surfaces. Outlined "inspection-stamp" chips: text = --sev-*, bg = -soft. ─ */
-  --sev-critical: #c0392b;  --sev-critical-soft: #fbecea;  --on-sev-critical: #ffffff;
-  --sev-high:     #c2410c;  --sev-high-soft:     #fdeee6;  --on-sev-high:     #ffffff;
-  --sev-medium:   #a16207;  --sev-medium-soft:   #fbf3e0;  --on-sev-medium:   #ffffff;
-  --sev-low:      #3f5bb0;  --sev-low-soft:      #eaeef8;  --on-sev-low:      #ffffff;
+  --sev-critical: #dc2626;  --sev-critical-soft: #fef2f2;  --on-sev-critical: #ffffff;
+  --sev-high:     #ea580c;  --sev-high-soft:     #fff3ec;  --on-sev-high:     #ffffff;
+  --sev-medium:   #ca8a04;  --sev-medium-soft:   #fdf6e3;  --on-sev-medium:   #ffffff;
+  --sev-low:      #2563eb;  --sev-low-soft:      #eff4ff;  --on-sev-low:      #ffffff;
 
   /* ── Legacy aliases (photoapp + older recipes bind to these) ───────────── */
   --copper:        var(--blueprint);
