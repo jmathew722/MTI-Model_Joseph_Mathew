@@ -305,6 +305,22 @@ def status():
     return {"live": _has_api_key(), "samples": _samples()}
 
 
+@app.get("/api/codex/health")
+def codex_health():
+    """Codex CLI install/auth status + resolved mode (for the startup warning).
+    Never raises — a down Codex is a normal reported state, not an error."""
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(PROJECT_DIR))
+        from pipeline import codex_client
+        return codex_client.health().as_dict()
+    except Exception as e:
+        return {"enabled": False, "installed": False, "authenticated": False,
+                "mode": "stub", "model": "gpt-5.6-sol",
+                "message": f"Codex health probe failed: {type(e).__name__}: {e}",
+                "instructions": ["npm i -g @openai/codex", "codex login"]}
+
+
 @app.get("/api/samples")
 def samples():
     return {"samples": _samples()}
@@ -740,6 +756,27 @@ def _overview_analysis_summary(out: Path) -> dict:
     return {"present": True, "name": p.name, "data": data}
 
 
+def _codex_summary(out: Path) -> dict:
+    """Codex Stage A verdict + Stage B manifest + overall-shape-check for the UI."""
+    def _load(name):
+        p = out / name
+        try:
+            return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+        except Exception:
+            return None
+    verdict = _load("codex_validation.json")
+    shape = _load("codex_shape_check.json")
+    manifest = None
+    for m in out.rglob("codex_manifest.json"):
+        try:
+            manifest = json.loads(m.read_text(encoding="utf-8"))
+        except Exception:
+            manifest = None
+        break
+    return {"present": bool(verdict or shape or manifest),
+            "verdict": verdict, "shape_check": shape, "manifest": manifest}
+
+
 def _categorize_output(out: Path) -> dict:
     """Categorise a pipeline output dir into the shape the output tabs consume.
     Shared by run-id-scoped and per-part outputs so both render identically —
@@ -780,6 +817,7 @@ def _categorize_output(out: Path) -> dict:
                     "source": stl_source},
             "must_meet": _mm_summary(out),
             "overview_analysis": _overview_analysis_summary(out),
+            "codex": _codex_summary(out),
             "console": _cat(_first(out, ["ui_console.log"])),
             "files": {"present": out.exists(), "list": _file_listing(out)},
         },

@@ -405,6 +405,47 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     if model is None or (not report.ok and strict_gate):
         return BatchRow(source, part, "BLOCKED", **scores, n_macros=0, n_needs_review=0,
                         n_skipped=0, detail="; ".join(report.errors)[:300])
+
+    # ── Stage A: Codex independent extraction validation (before macros) ──────
+    # Codex re-reads the drawing and compares field-by-field with Claude's
+    # resolved extraction. REJECTED halts before any macro is written; Must-Meet
+    # Specifications stay tier-0 and cannot be overruled by either model.
+    from pipeline import codex_client
+    codex_verdict = None
+    if codex_client.active():
+        try:
+            from pipeline import codex_validation
+
+            print("[STAGE] Codex validation", flush=True)
+            _val_imgs = [p for p in ([overview_image] if overview_image else []) if p]
+            codex_verdict = codex_validation.validate_extraction(
+                resolution.resolved_extraction if resolution is not None else drawing_data,
+                images=_val_imgs, must_meet_text=spec_text or "",
+                overview_analysis=overview_analysis, output_dir=part_dir, drawing_id=part)
+            _st = codex_verdict.get("overall_status")
+            _nd = len(codex_verdict.get("discrepancies") or [])
+            print(f"[CODEX] Validation: {_st} ({_nd} discrepancy/ies) via "
+                  f"{codex_verdict.get('engine')}.", flush=True)
+            for _d in codex_verdict.get("discrepancies", []):
+                print(f"[CODEX] {_d.get('severity')}: {_d.get('field')} — "
+                      f"Claude={_d.get('claude_value')!r} vs Codex={_d.get('codex_value')!r}",
+                      flush=True)
+            if _st == "REJECTED":
+                print("[CODEX] REJECTED — halting before macro writing. Re-run Claude "
+                      "extraction with the discrepancies as hints to proceed.", flush=True)
+                try:
+                    (part_dir / "codex_rejection_hints.txt").write_text(
+                        codex_validation.build_hints(codex_verdict), encoding="utf-8")
+                except OSError:
+                    pass
+                _top = (codex_verdict.get("discrepancies") or [{}])[0]
+                _detail = (f"Codex REJECTED extraction: {_top.get('field')} "
+                           f"Claude={_top.get('claude_value')} vs Codex={_top.get('codex_value')}")
+                return BatchRow(source, part, "BLOCKED", **scores, n_macros=0,
+                                n_needs_review=_nd, n_skipped=0, detail=_detail[:300])
+        except Exception as e:  # validation must never crash a run
+            log.warning("Codex validation stage failed (non-fatal): %s", e)
+
     try:
         print("[STAGE] Building macros", flush=True)
         pkg = generate_macro_package(model, raw_extraction, verification_text, output_dir,
@@ -413,6 +454,28 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
         return BatchRow(source, part, "ERROR", **scores, n_macros=0, n_needs_review=0,
                         n_skipped=0, detail=str(e)[:300])
     n_macros = sum(1 for s in pkg.steps if s.macro_file.endswith(".vba"))
+
+    # ── Stage B: Codex writes ALL VBA macros from the validated build JSON ────
+    # The deterministic build_plan.json (still the geometry source of truth for
+    # CadQuery) is produced above; Codex re-authors the .vba from it. When Codex
+    # is offline the proven deterministic macros are kept as the fallback writer.
+    codex_macro_result = None
+    if codex_client.active():
+        try:
+            from pipeline import codex_macros
+
+            print("[STAGE] Codex macro writing", flush=True)
+            codex_macro_result = codex_macros.write_macros(
+                pkg,
+                resolved=(resolution.resolved_extraction if resolution is not None else raw_extraction),
+                must_meet_text=spec_text or "", verdict=codex_verdict,
+                part_dir=part_dir, output_dir=output_dir)
+            n_macros = codex_macro_result.get("n_macros", n_macros)
+            print(f"[CODEX] Macros written by {codex_macro_result['engine']} "
+                  f"({n_macros} files); {len(codex_macro_result.get('assumptions') or [])} "
+                  "assumption(s) recorded.", flush=True)
+        except Exception as e:  # keep the deterministic macros on any failure
+            log.warning("Codex macro stage failed (non-fatal, kept deterministic macros): %s", e)
 
     # ── CadQuery pre-validation: build the SAME geometry headlessly from
     # build_plan.json and check it against the MM constraints BEFORE SolidWorks
@@ -444,6 +507,48 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     except Exception as e:  # the optional pre-check must never sink a run
         log.warning("Pre-validation crashed (non-fatal): %s", e)
 
+    # ── Codex: OVERALL SHAPE CHECK on the macro-built geometry + one repair ──────
+    # The macros are validated against the drawing's overall shape (envelope, hole
+    # count, feature coverage). If CadQuery pre-validation failed, feed the failure
+    # to Codex for ONE automatic repair, then re-validate; still-failing HALTS the
+    # SolidWorks build with a report (preval_ok stays False).
+    codex_shape_check = None
+    if codex_client.active():
+        try:
+            from pipeline import codex_macros
+            from pipeline.cq_prevalidate import run_prevalidation as _rerun_preval
+
+            _resolved_for_codex = (resolution.resolved_extraction
+                                   if resolution is not None else raw_extraction)
+            if (not preval_ok) and (not preval.get("skipped")):
+                _rep = codex_macros.repair_macros(
+                    pkg, failure=preval, resolved=_resolved_for_codex,
+                    must_meet_text=spec_text or "", verdict=codex_verdict,
+                    part_dir=part_dir, output_dir=output_dir)
+                print(f"[CODEX] Repair: {_rep['note']}", flush=True)
+                if _rep.get("repaired"):
+                    preval = _rerun_preval(pkg.build_plan_json, mm_constraints, part_dir)
+                    preval_ok = bool(preval.get("ok"))
+                    print(f"[CODEX] Re-validation after repair: "
+                          f"{'PASS' if preval_ok else 'STILL FAILING — halting with report'}.",
+                          flush=True)
+            _bp = json.loads(pkg.build_plan_json.read_text(encoding="utf-8"))
+            _manifest = (codex_macro_result or {}).get("manifest") if codex_macro_result else None
+            codex_shape_check = codex_macros.overall_shape_check(
+                _bp, preval, _resolved_for_codex, overview_analysis, manifest=_manifest)
+            (part_dir / "codex_shape_check.json").write_text(
+                json.dumps(codex_shape_check, indent=2), encoding="utf-8")
+            _np = sum(1 for c in codex_shape_check["checks"] if c.get("ok"))
+            print(f"[CODEX] Overall shape check: "
+                  f"{'PASS' if codex_shape_check['passed'] else 'FAIL'} "
+                  f"({_np}/{len(codex_shape_check['checks'])} checks).", flush=True)
+            if not codex_shape_check["passed"]:
+                preval_ok = False
+                preval_detail = ((preval_detail + "; ") if preval_detail else "") \
+                    + "Codex overall-shape check FAILED"
+        except Exception as e:  # shape check/repair must never sink a run
+            log.warning("Codex shape check/repair failed (non-fatal): %s", e)
+
     # Build the real .sldprt into the part folder whenever SolidWorks is available,
     # so the 3D model is a required output of every run alongside the text files.
     # A failed pre-validation NEVER blocks the model output ("a complete
@@ -452,11 +557,24 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
     detail = ""
     build_skipped: list = []
     build_caveats: list = []
-    if sw_app is not None and not preval_ok:
+    import os as _os
+    _dry_run = bool(_os.getenv("MTI_DRY_RUN"))
+    # When Codex is active, a failed pre-validation (after the one repair attempt)
+    # HALTS the SolidWorks build with a report — per the Codex integration spec.
+    _codex_halt = codex_client.active() and (not preval_ok) and not preval.get("skipped")
+    if _codex_halt:
+        print("[CODEX] CadQuery pre-validation FAILED and the repair did not resolve it — "
+              "HALTING before the SolidWorks build. Report written. "
+              + (preval_detail or ""), flush=True)
+    if _dry_run:
+        print("[DRY-RUN] Stopping before SolidWorks COM (Mac-safe): prevalidation.stl, "
+              "macros, Codex validation/manifest/shape-check and reports are produced.",
+              flush=True)
+    if sw_app is not None and not preval_ok and not _codex_halt and not _dry_run:
         print("[PREVAL] Pre-validation flagged issue(s) — the model is still "
               "built and the flags are recorded in the verification report / "
               "Must-Meet checklist for human review.", flush=True)
-    if sw_app is not None:
+    if sw_app is not None and not _dry_run and not _codex_halt:
         print("[STAGE] Building .sldprt", flush=True)
         try:
             sldprt = build_sldprt_for_part(sw_app, model, part_dir, part_dir.name, template_path,

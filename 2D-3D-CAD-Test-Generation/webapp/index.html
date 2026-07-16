@@ -656,6 +656,10 @@
   <button class="tab tab-c" data-tab="outputs"><span class="sheet-no">SHEET 3</span>Run Outputs</button>
 </nav>
 
+<div id="codex-warn" style="display:none;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);
+     background:var(--warn-soft, #fdf4e7);border-bottom:1px solid var(--warn);
+     color:var(--ink-2);font-size:var(--fs-small)"></div>
+
 <main>
   <!-- ── Sheet 1 · Upload & 3D Model (the pipeline's front door) ───────────
        Full overview drawings are uploaded here; the model reads every view
@@ -856,6 +860,7 @@
         <button class="stab tab-c sm" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="verification">Verification <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="codex">Codex Validation <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="flags">Engineering Flags <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="modelcheck">Model Check <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="macros">VBA Macros <span class="badge">·</span></button>
@@ -877,7 +882,8 @@
           <div class="flags-scroll" style="display:none"><div class="flags-summary" id="flags-summary"></div><div id="flags-list"></div></div>
         </div></section>
         <section class="subpanel" id="panel-modelcheck"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">Model check requires Windows + SolidWorks; not produced on this machine.</div><pre style="display:none"></pre></div></section>
-        <section class="subpanel" id="panel-macros"><div class="out"><div class="toolbar"><div class="macro-tabs" id="macro-tabs"></div><span class="grow"></span><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
+        <section class="subpanel" id="panel-codex"><div class="out"><div class="toolbar"><span class="nm">Codex extraction validation &amp; macro manifest</span><span class="grow"></span><span id="codex-engine" class="badge-c mono"></span></div><div class="empty">No Codex validation for this run. Codex validation + macro writing run on the pipeline when the Codex CLI is enabled (or in dry-run stub).</div><div id="codex-body" class="files-scroll" style="display:none;padding:0 var(--sp-4) var(--sp-4)"></div></div></section>
+        <section class="subpanel" id="panel-macros"><div class="out"><div class="toolbar"><div class="macro-tabs" id="macro-tabs"></div><span class="grow"></span><span id="macros-engine" class="badge-c mono"></span><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
         <section class="subpanel" id="panel-cost"><div class="out">
           <div class="toolbar"><span class="nm">API token usage &amp; cost (from token_usage_log)</span></div>
           <div class="empty">No part run yet.</div>
@@ -948,7 +954,7 @@ window.addEventListener('DOMContentLoaded', () => { refreshRunHistory(); });
 
 // ── Output tab plumbing ──────────────────────────────────────────────────────
 if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-const CATS = ['table','extraction','resolved','buildplan','verification','flags','modelcheck','macros','cost','files'];
+const CATS = ['table','extraction','resolved','buildplan','verification','codex','flags','modelcheck','macros','cost','files'];
 const KEYMAP = { extraction:'extraction', resolved:'resolved', buildplan:'build_plan', verification:'verification', modelcheck:'model_check' };
 function setTabFilled(name, filled) {
   const t = document.querySelector(`.stab[data-tab="${name}"]`); if (!t) return;
@@ -1189,6 +1195,70 @@ function paintTable(payload) {
   if (empty) empty.style.display = 'none'; if (wrap) wrap.style.display = '';
   setTabFilled('table', true);
 }
+// ── Codex Validation tab: verdict + agreement + discrepancies + shape check ──
+function _jstr(v){ try { return typeof v==='string'?v:JSON.stringify(v); } catch { return String(v); } }
+function paintCodex(codex){
+  const panel=document.getElementById('panel-codex');
+  const empty=panel.querySelector('.empty'), body=document.getElementById('codex-body');
+  const engEl=document.getElementById('codex-engine');
+  const v=codex.verdict, sc=codex.shape_check, mf=codex.manifest;
+  if(!v && !sc && !mf) return;
+  const engine=(v&&v.engine)||(mf&&mf.engine)||'—';
+  if(engEl) engEl.textContent='engine: '+engine+((v&&v.model)?(' · '+v.model):'');
+  let h='';
+  if(v){
+    const st=v.overall_status||'—';
+    const cls=st==='APPROVED'?'ok':(st==='REJECTED'?'err':'warn');
+    h+=`<div style="margin:14px 0 10px"><span class="badge-c ${cls}">${esc(st)}</span> <span class="hint">${esc(v.summary||'')}</span></div>`;
+    const disc=v.discrepancies||[];
+    if(disc.length){
+      h+=`<div class="grp-title" style="margin:12px 0 6px">Discrepancies (${disc.length}) — Claude vs Codex</div>`;
+      h+=disc.map(d=>`<div class="flag-item sev-${esc(String(d.severity||'LOW').toUpperCase())}"><span class="sev">${esc(d.severity)}</span> <b>${esc(d.field)}</b>`+
+        `<div class="row"><b>Claude</b> <code style="font-family:var(--mono)">${esc(_jstr(d.claude_value))}</code> &nbsp;·&nbsp; <b>Codex</b> <code style="font-family:var(--mono)">${esc(_jstr(d.codex_value))}</code></div>`+
+        `<div class="row hint">${esc(d.reasoning||'')}</div></div>`).join('');
+    } else {
+      h+=`<div class="hint" style="margin:8px 0">No discrepancies — Codex agrees with Claude's extraction field-by-field.</div>`;
+    }
+    const ag=v.per_field_agreement||[];
+    if(ag.length){
+      h+=`<div class="grp-title" style="margin:16px 0 6px">Per-field agreement</div>`+
+        `<div class="table-wrap"><table class="data-table"><thead><tr><th>Field</th><th>Claude</th><th>Codex</th><th>Agree</th></tr></thead><tbody>`+
+        ag.map(a=>`<tr><td class="row-id">${esc(a.field)}</td><td>${esc(_jstr(a.claude_value))}</td><td>${esc(_jstr(a.codex_value))}</td>`+
+          `<td>${a.agree?'<span class="result-chip pass">YES</span>':'<span class="result-chip failed">NO</span>'}</td></tr>`).join('')+
+        `</tbody></table></div>`;
+    }
+  }
+  if(sc){
+    h+=`<div class="grp-title" style="margin:18px 0 6px">Overall shape check <span class="result-chip ${sc.passed?'pass':'failed'}">${sc.passed?'PASS':'FAIL'}</span></div>`+
+      `<div class="table-wrap"><table class="data-table"><thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead><tbody>`+
+      (sc.checks||[]).map(c=>{
+        const r=c.ok?'<span class="result-chip pass">OK</span>':(c.skipped?'<span class="result-chip">SKIP</span>':'<span class="result-chip failed">FAIL</span>');
+        const det=c.detail||_jstr({expected:c.expected_in,measured:c.measured_in,missing:c.missing,plan:c.plan,measured_holes:c.measured});
+        return `<tr><td class="row-id">${esc(c.check)}</td><td>${r}</td><td class="hint">${esc(det)}</td></tr>`;
+      }).join('')+`</tbody></table></div>`;
+  }
+  if(mf){
+    const files=mf.files||[];
+    h+=`<div class="grp-title" style="margin:18px 0 6px">Macro manifest — written by ${esc(mf.engine||'—')} (${files.length} file(s))</div>`;
+    const asum=mf.assumptions||[];
+    if(asum.length) h+=`<div class="grp-title" style="margin:8px 0 4px">Assumptions</div><ul style="margin:0 0 8px 18px;font-size:12px">`+asum.map(a=>`<li>${esc(a)}</li>`).join('')+`</ul>`;
+    const notes=mf.notes||[];
+    if(notes.length) h+=`<div class="hint" style="font-size:12px">${notes.map(esc).join('<br>')}</div>`;
+  }
+  body.innerHTML=h; if(empty) empty.style.display='none'; body.style.display='';
+}
+
+// ── Codex CLI health warning (startup) ───────────────────────────────────────
+fetch('/api/codex/health').then(r=>r.json()).then(h=>{
+  const el=document.getElementById('codex-warn'); if(!el) return;
+  if(h.mode==='cli' || h.mode==='api'){ el.style.display='none'; return; }
+  const steps=(h.instructions||[]).map(s=>`<code>${s.replace(/</g,'&lt;')}</code>`).join(' → ');
+  el.innerHTML=`<b>Codex:</b> ${(h.message||'not ready').replace(/</g,'&lt;')} `+
+    (steps?`<span class="hint">Setup: ${steps}</span>`:'')+
+    ` <button id="codex-warn-x" class="ibtn" style="margin-left:auto">×</button>`;
+  el.style.display='flex';
+  const x=document.getElementById('codex-warn-x'); if(x) x.onclick=()=>{el.style.display='none';};
+}).catch(()=>{});
 function fillOutputs(payload) {
   const c = payload.categories || {};
   for (const tab of ['extraction','resolved','buildplan','verification','modelcheck']) {
@@ -1199,7 +1269,8 @@ function fillOutputs(payload) {
       setTabFilled(tab, true);
     }
   }
-  paintTable(payload); if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
+  paintTable(payload); if (c.codex && c.codex.present) { paintCodex(c.codex); setTabFilled('codex', true); const _me=document.getElementById('macros-engine'); if(_me && c.codex.manifest) _me.textContent = (c.codex.manifest.engine==='codex'?'Codex-generated':'fallback'); }
+  if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
   if (c.usage && c.usage.present) { paintUsage(c.usage); setTabFilled('cost', true); }
   if (c.files && c.files.present && (c.files.list || []).length) { paintFiles(c.files, payload); setTabFilled('files', true); }
   if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
@@ -1792,8 +1863,9 @@ function stopElapsed() { if (elapsedTimer) { clearInterval(elapsedTimer); elapse
 
 // ── Per-stage progress strip (parses "[STAGE] ..." lines from the pipeline) ──
 const STAGE_LIST = ['Overview analysis', 'Extracting', 'Spec reconciliation', 'Resolving',
-                    'Verifying', 'Building macros', 'Pre-validating', 'Building .sldprt',
-                    'Verifying must-meet', 'Final checks', 'Exporting', 'Done'];
+                    'Verifying', 'Codex validation', 'Building macros', 'Codex macro writing',
+                    'Pre-validating', 'Building .sldprt', 'Verifying must-meet',
+                    'Final checks', 'Exporting', 'Done'];
 const stageStrip = document.getElementById('stage-strip');
 let stageIdx = -1;
 function resetStages() {
@@ -2043,7 +2115,8 @@ document.getElementById('demo-btn').addEventListener('click', async () => {
       const cat = c[KEYMAP[tab]];
       if (cat && cat.present) { const j = tab!=='verification'&&tab!=='modelcheck'; paintText('panel-'+tab, cat.name, j?prettyJSON(cat.text||''):cat.text); setTabFilled(tab, true); }
     }
-    paintTable(d); if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
+    paintTable(d); if (c.codex && c.codex.present) { paintCodex(c.codex); setTabFilled('codex', true); const _me=document.getElementById('macros-engine'); if(_me && c.codex.manifest) _me.textContent = (c.codex.manifest.engine==='codex'?'Codex-generated':'fallback'); }
+  if (c.review && c.review.present) { paintReview(c.review); setTabFilled('flags', true); }
     if (c.usage && c.usage.present) { paintUsage(c.usage); setTabFilled('cost', true); }
     if (c.macros && c.macros.present) { paintMacros(c.macros.files); setTabFilled('macros', true); }
     if (d.done) {

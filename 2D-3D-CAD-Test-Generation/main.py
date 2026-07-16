@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -701,7 +702,29 @@ def main() -> int:
         help="Do NOT copy the outputs to ~/Downloads/SolidWorksModel_Parts. By "
         "default the final step gathers all part outputs there.",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Exercise the FULL pipeline (incl. both Codex stages) but STOP before "
+        "the SolidWorks COM build — Mac-safe. Produces prevalidation.stl, macros, "
+        "Codex validation/manifest/shape-check and reports. If Codex is not enabled, "
+        "the Codex stages run in the deterministic offline stub so they are still "
+        "tested end to end.",
+    )
     args = parser.parse_args()
+
+    # --dry-run: never touch SolidWorks; guarantee both Codex stages run (stub if
+    # the Codex CLI is not enabled). A single settings surface — env is the bridge
+    # into pipeline/batch.py so no signature has to grow a dry_run parameter.
+    if getattr(args, "dry_run", False):
+        os.environ["MTI_DRY_RUN"] = "1"
+        args.no_sldprt = True
+        try:
+            from pipeline import codex_client
+            if not codex_client.enabled():
+                os.environ["MTI_CODEX_STUB"] = "1"
+        except Exception:
+            os.environ["MTI_CODEX_STUB"] = "1"
 
     console.print(Panel("2D -> 3D SolidWorks Pipeline", style="bold blue"))
 

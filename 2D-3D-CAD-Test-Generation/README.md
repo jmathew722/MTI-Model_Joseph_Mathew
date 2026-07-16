@@ -91,6 +91,90 @@ get the model and STL.
 
 ---
 
+## Codex integration (extraction validation + macro writing)
+
+OpenAI **Codex** (model `gpt-5.6-sol`) takes over two roles. Claude still does
+vision extraction + Stage 2.5 resolution and produces the validated **build
+JSON**; Codex independently validates that extraction and then writes **all** the
+VBA macros from the build JSON.
+
+```
+Claude Extraction ─► Stage 2.5 Resolution ─► Codex Validation ─► Build JSON
+        ─► Codex Macro Writing ─► CadQuery Pre-Validation (+ overall shape check)
+        ─► SolidWorks Build
+```
+
+- **Stage A — validation** (`pipeline/codex_validation.py`): Codex re-reads the
+  drawing image(s) and compares field-by-field against Claude's resolved
+  extraction, returning a verdict — `APPROVED` / `APPROVED_WITH_NOTES` /
+  `REJECTED` — with a per-field agreement table and severity-ranked discrepancies
+  (hole-count/pattern disagreements are always ≥ HIGH). `REJECTED` **halts before
+  any macro is written** and offers a Claude re-extraction with the discrepancies
+  as hints. **Must-Meet Specifications stay tier-0** — Codex may flag them, never
+  overrule them. Every verdict is logged to `lessons_learned.jsonl`.
+- **Stage B — macro writing** (`pipeline/codex_macros.py`): Codex writes every
+  `.vba` from the build JSON following [`docs/vba-conventions.md`](docs/vba-conventions.md)
+  exactly, emitting `macros/codex_manifest.json` (files, feature coverage,
+  assumptions). The macros are then validated with an **overall shape check**
+  (built envelope, hole count and feature coverage vs the drawing's overall
+  shape) on top of the existing CadQuery pre-validation. If CadQuery fails, the
+  failure is fed back to Codex for **one** automatic repair, then the run **halts
+  with a report** if it still fails.
+- **UI:** a **Codex Validation** output tab (verdict, agreement table,
+  discrepancies with severity colours, overall-shape check, macro manifest); the
+  **VBA Macros** tab shows the writer engine; the pipeline stepper reads
+  *Claude Extraction → Stage 2.5 → Codex Validation → Build JSON → Codex Macro
+  Writing → CadQuery Pre-Validation → SolidWorks Build*; a startup banner warns
+  when Codex is not installed/authenticated, with setup steps.
+
+### Codex CLI setup — ChatGPT sign-in, no API key
+
+The default free path drives the Codex CLI as a subprocess, authenticated via
+ChatGPT sign-in (no API key):
+
+```bash
+npm i -g @openai/codex          # one-time install (Node.js required)
+codex login                     # choose "Sign in with ChatGPT"
+export CODEX_ENABLED=1           # turn the integration on (auto-on once the CLI is found)
+```
+
+**Fallback (headless / no ChatGPT sign-in):** set `CODEX_AUTH=api` and
+`OPENAI_API_KEY=...`. The API key is *only* a fallback — the default is ChatGPT
+sign-in.
+
+When Codex is **absent**, the pipeline is unchanged: the deterministic macro
+generator stays the writer and the Codex stages run only in `--dry-run`/stub.
+
+### Config (single location: `pipeline/codex_client.py`, env-driven)
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `CODEX_ENABLED` | auto (on iff CLI found) | master on/off for both stages |
+| `CODEX_MODEL` | `gpt-5.6-sol` | model pinned for `codex exec -m` |
+| `CODEX_TIMEOUT_S` | `240` | per-call subprocess timeout |
+| `CODEX_RETRIES` | `2` | retries on failure / malformed JSON |
+| `CODEX_AUTH` | `chatgpt` | `chatgpt` (default) or `api` fallback |
+| `OPENAI_API_KEY` | — | only used when `CODEX_AUTH=api` |
+| `MTI_CODEX_STUB` | — | `1` forces the offline deterministic stub |
+
+### Dry-run (Mac-safe) + tests
+
+```bash
+python main.py --views-folder ..\Test2 --output ..\Test2\output --dry-run
+```
+
+`--dry-run` runs the FULL pipeline including both Codex stages but **stops before
+the SolidWorks COM build**, producing `prevalidation.stl`, macros,
+`codex_validation.json`, `macros/codex_manifest.json`, `codex_shape_check.json`
+and reports. If Codex isn't enabled, the stages run in the deterministic stub so
+they are still exercised end to end. Tests (offline, no network):
+
+```bash
+python -m pytest tests/test_codex.py -q   # incl. forced REJECTED + forced CadQuery-failure halts
+```
+
+---
+
 ## Requirements
 
 - **Python 3.10+** (developed/tested on 3.12).

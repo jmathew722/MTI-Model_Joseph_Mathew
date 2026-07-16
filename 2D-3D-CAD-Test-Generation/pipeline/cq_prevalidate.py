@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -253,6 +254,18 @@ def run_prevalidation(build_plan_path: Path,
     (a missing optional tool must not block a build)."""
     out_dir = Path(out_dir)
     report: dict[str, Any] = {"ok": True, "checks": [], "constraints": []}
+    # Test hook: force a pre-validation failure to exercise the Codex repair +
+    # halt-and-report path (dry-run test). Never set in normal operation.
+    if os.getenv("MTI_FORCE_PREVAL_FAIL"):
+        report["ok"] = False
+        report["failed_constraints"] = [
+            "MTI_FORCE_PREVAL_FAIL: forced pre-validation failure (test path)"]
+        try:
+            (out_dir / PREVALIDATION_REPORT).write_text(json.dumps(report, indent=2),
+                                                        encoding="utf-8")
+        except OSError:
+            pass
+        return report
     try:
         import cadquery as cq  # noqa: F401
     except ImportError:
