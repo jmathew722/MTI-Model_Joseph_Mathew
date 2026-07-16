@@ -707,7 +707,7 @@ def main() -> int:
         action="store_true",
         help="Exercise the FULL pipeline (incl. both Codex stages) but STOP before "
         "the SolidWorks COM build — Mac-safe. Produces prevalidation.stl, macros, "
-        "Codex validation/manifest/shape-check and reports. If Codex is not enabled, "
+        "the Codex macro manifest/shape-check and reports. If Codex is not enabled, "
         "the Codex stages run in the deterministic offline stub so they are still "
         "tested end to end.",
     )

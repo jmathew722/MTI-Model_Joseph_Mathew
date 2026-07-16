@@ -1,8 +1,8 @@
 """OpenAI Codex CLI client — the single integration + settings surface.
 
-Codex takes over two pipeline roles (see docs/codex-integration.md):
-  A) independent validation of Claude's extraction (pipeline/codex_validation.py)
-  B) writing ALL VBA macros from the validated build JSON (pipeline/codex_macros.py)
+Codex writes ALL SolidWorks VBA macros from the build JSON
+(pipeline/codex_macros.py). There is NO independent Codex validation/OCR stage —
+Codex is used only for macro writing.
 
 INTEGRATION METHOD — **no API key required by default**. We drive the Codex CLI
 (`codex exec`) as a subprocess, authenticated via ChatGPT sign-in:
@@ -14,19 +14,21 @@ An OpenAI API key is only a *fallback* for headless environments where the
 ChatGPT sign-in is unavailable (set OPENAI_API_KEY + CODEX_AUTH=api).
 
 Every knob lives here (the single settings location):
-    CODEX_ENABLED   truthy to turn the integration on (default: auto — on iff the
-                    codex CLI is found on PATH).  Force with 1/0/true/false.
-    CODEX_MODEL     model pinned for `codex exec -m` (default gpt-5.6-sol).
-    CODEX_TIMEOUT_S per-call subprocess timeout in seconds (default 240).
-    CODEX_RETRIES   retries on failure / malformed JSON (default 2).
-    CODEX_AUTH      "chatgpt" (default) or "api" (OPENAI_API_KEY fallback).
-    OPENAI_API_KEY  only used when CODEX_AUTH=api.
-    MTI_CODEX_STUB  1 to force the deterministic offline STUB (dry-run/CI on Mac).
+    CODEX_ENABLED    truthy to turn the integration on (default: auto — on iff the
+                     codex CLI is found on PATH).  Force with 1/0/true/false.
+    CODEX_MODEL      model pinned for `codex exec -m` (default gpt-5.6-sol).
+    CODEX_REASONING  reasoning effort minimal|low|medium|high (default low — much
+                     faster; `codex exec` is agentic and reasons hard by default).
+    CODEX_TIMEOUT_S  per-call subprocess timeout in seconds (default 180).
+    CODEX_RETRIES    retries on failure / malformed JSON (default 1).
+    CODEX_AUTH       "chatgpt" (default) or "api" (OPENAI_API_KEY fallback).
+    OPENAI_API_KEY   only used when CODEX_AUTH=api.
+    MTI_CODEX_STUB   1 to force the deterministic offline STUB (dry-run/CI on Mac).
 
 When the CLI is absent/unauthenticated and no API fallback is configured, calls
-run in **stub mode**: each caller supplies a deterministic ``stub_fn`` so the
-whole pipeline (including the REJECTED and CadQuery-failure halt paths) is
-testable end-to-end with no network — this is what --dry-run exercises.
+run in **stub mode**: the macro caller keeps the deterministic macro generator as
+the fallback writer so the pipeline still produces a working macro set with no
+network — this is what --dry-run exercises.
 """
 from __future__ import annotations
 
@@ -50,9 +52,13 @@ def _env_flag(name: str, default: Optional[bool] = None) -> Optional[bool]:
 
 
 CODEX_MODEL = os.getenv("CODEX_MODEL", "gpt-5.6-sol").strip()
-CODEX_TIMEOUT_S = int(os.getenv("CODEX_TIMEOUT_S", "240") or "240")
-CODEX_RETRIES = int(os.getenv("CODEX_RETRIES", "2") or "2")
+CODEX_TIMEOUT_S = int(os.getenv("CODEX_TIMEOUT_S", "180") or "180")
+CODEX_RETRIES = int(os.getenv("CODEX_RETRIES", "1") or "1")
 CODEX_AUTH = (os.getenv("CODEX_AUTH", "chatgpt") or "chatgpt").strip().lower()
+# `codex exec` is agentic + GPT-5 reasons hard by default (minutes/call). Low
+# effort is plenty for structured read-and-emit-JSON tasks and is dramatically
+# faster; override with CODEX_REASONING=minimal|low|medium|high.
+CODEX_REASONING = (os.getenv("CODEX_REASONING", "low") or "low").strip().lower()
 _FORCE_STUB = _env_flag("MTI_CODEX_STUB", False)
 
 
@@ -88,12 +94,29 @@ def version() -> Optional[str]:
         return None
 
 
+def codex_home() -> Path:
+    """Codex CLI config/auth home (CODEX_HOME, else ~/.codex — os.homedir())."""
+    return Path(os.getenv("CODEX_HOME") or (Path.home() / ".codex"))
+
+
 def is_authenticated() -> bool:
-    """Best-effort ChatGPT/API auth check. Never raises."""
+    """Best-effort ChatGPT/API auth check. Never raises.
+
+    Fast path: the presence of a non-trivial ``auth.json`` in the Codex home is
+    the reliable signal (the ``codex login status`` subcommand is flaky when run
+    through the .CMD shim from a Python subprocess on Windows)."""
     if CODEX_AUTH == "api":
         return bool(os.getenv("OPENAI_API_KEY"))
     if not is_installed():
         return False
+    try:
+        auth = codex_home() / "auth.json"
+        if auth.is_file() and auth.stat().st_size > 2:
+            txt = auth.read_text(encoding="utf-8", errors="ignore")
+            if any(k in txt for k in ("access_token", "OPENAI_API_KEY", "id_token", "tokens")):
+                return True
+    except Exception:
+        pass
     for probe in (["login", "status"], ["auth", "status"], ["whoami"]):
         try:
             r = _run([codex_path(), *probe], timeout=20)
@@ -163,7 +186,7 @@ def health() -> CodexHealth:
     elif m == "api":
         msg = f"Codex via OpenAI API fallback, model {CODEX_MODEL}."
     elif not inst:
-        msg = "Codex CLI not installed — validation + macro writing run in the offline STUB (dry-run safe)."
+        msg = "Codex CLI not installed — macro writing runs in the offline STUB (dry-run safe)."
         steps = ["npm i -g @openai/codex",
                  "codex login   (choose 'Sign in with ChatGPT')",
                  "set CODEX_ENABLED=1 and restart the app"]
@@ -220,7 +243,7 @@ def try_install() -> tuple[bool, str]:
         return False, f"{type(e).__name__}: {e}"
 
 
-# ── The one call surface used by validation + macro modules ───────────────────
+# ── The one call surface used by the macro module ────────────────────────────
 def run_json(prompt: str, *,
              images: Optional[list[Path]] = None,
              stub_fn: Optional[Callable[[], Any]] = None,
@@ -256,6 +279,7 @@ def run_json(prompt: str, *,
             prompt_file = workdir / "prompt.txt"
             prompt_file.write_text(prompt, encoding="utf-8")
             args = [codex_path(), "exec", "-m", model,
+                    "-c", f'model_reasoning_effort="{CODEX_REASONING}"',
                     "--cd", str(workdir), "--skip-git-repo-check"]
             for img in images:
                 args += ["-i", str(img)]

@@ -757,15 +757,14 @@ def _overview_analysis_summary(out: Path) -> dict:
 
 
 def _codex_summary(out: Path) -> dict:
-    """Codex Stage A verdict + Stage B manifest + overall-shape-check for the UI."""
-    def _load(name):
-        p = out / name
-        try:
-            return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
-        except Exception:
-            return None
-    verdict = _load("codex_validation.json")
-    shape = _load("codex_shape_check.json")
+    """Codex macro manifest + overall-shape-check for the UI (macro writing only;
+    there is no independent Codex validation stage)."""
+    shape = None
+    p = out / "codex_shape_check.json"
+    try:
+        shape = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+    except Exception:
+        shape = None
     manifest = None
     for m in out.rglob("codex_manifest.json"):
         try:
@@ -773,8 +772,7 @@ def _codex_summary(out: Path) -> dict:
         except Exception:
             manifest = None
         break
-    return {"present": bool(verdict or shape or manifest),
-            "verdict": verdict, "shape_check": shape, "manifest": manifest}
+    return {"present": bool(shape or manifest), "shape_check": shape, "manifest": manifest}
 
 
 def _categorize_output(out: Path) -> dict:

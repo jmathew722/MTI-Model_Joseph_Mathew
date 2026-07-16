@@ -45,7 +45,7 @@ def _conventions_text() -> str:
     return "(docs/vba-conventions.md not found — follow standard SolidWorks 2024 VBA idioms.)"
 
 
-def _bundle(pkg, resolved: dict, must_meet_text: str, verdict: Optional[dict]) -> dict:
+def _bundle(pkg, resolved: dict, must_meet_text: str) -> dict:
     def _read(p):
         try:
             return Path(p).read_text(encoding="utf-8")
@@ -55,7 +55,6 @@ def _bundle(pkg, resolved: dict, must_meet_text: str, verdict: Optional[dict]) -
         "build_plan_json": _read(pkg.build_plan_json),
         "resolved_extraction": json.dumps(resolved)[:20000],
         "must_meet_specifications": must_meet_text or "(none)",
-        "codex_validation_verdict": json.dumps(verdict or {}, indent=2)[:6000],
         "dispositions": pkg.dispositions,
     }
 
@@ -73,9 +72,6 @@ macro from it, following the conventions EXACTLY.
 
 === MUST-MEET SPECIFICATIONS (tier-0, already enforced upstream — honor them) ===
 {bundle['must_meet_specifications'][:2000]}
-
-=== CODEX VALIDATION VERDICT (your own earlier read) ===
-{bundle['codex_validation_verdict'][:2000]}
 
 Write each macro file under ./macros/ (00_setup.vba first, ZZZ_export_stl.vba
 last), plus RUN_ALL.vba. Then write ./result.json with this manifest schema:
@@ -107,8 +103,7 @@ def _fallback_manifest(pkg) -> dict:
 
 
 def write_macros(pkg, *, resolved: dict, must_meet_text: str = "",
-                 verdict: Optional[dict] = None, part_dir: Path,
-                 output_dir: Optional[Path] = None) -> dict:
+                 part_dir: Path, output_dir: Optional[Path] = None) -> dict:
     """Run Stage B. Returns a result dict {engine, manifest, n_macros, assumptions}.
     Never raises — Codex failure falls back to the deterministic macros."""
     part_dir = Path(part_dir)
@@ -125,7 +120,7 @@ def write_macros(pkg, *, resolved: dict, must_meet_text: str = "",
             workdir = part_dir / ".codex_macrogen"
             (workdir / "macros").mkdir(parents=True, exist_ok=True)
             result, engine_used = codex_client.run_json(
-                _prompt(_bundle(pkg, resolved, must_meet_text, verdict)),
+                _prompt(_bundle(pkg, resolved, must_meet_text)),
                 workdir=workdir)
             written = sorted((workdir / "macros").glob("*.vba"))
             if not written:
@@ -252,8 +247,7 @@ def overall_shape_check(build_plan: dict, prevalidation_report: Optional[dict],
 
 # ── CadQuery-failure repair (one attempt) ─────────────────────────────────────
 def repair_macros(pkg, *, failure: dict, resolved: dict, must_meet_text: str = "",
-                  verdict: Optional[dict] = None, part_dir: Path,
-                  output_dir: Optional[Path] = None) -> dict:
+                  part_dir: Path, output_dir: Optional[Path] = None) -> dict:
     """One automatic Codex repair attempt after a CadQuery pre-validation failure.
     Returns {attempted, repaired, engine, note}. In stub/fallback mode no repair
     is possible (deterministic macros) → the caller halts with a report."""
@@ -267,7 +261,7 @@ def repair_macros(pkg, *, failure: dict, resolved: dict, must_meet_text: str = "
             _log_lessons(Path(output_dir), part_dir.name, "fallback", [note], event="repair_skipped")
         return {"attempted": False, "repaired": False, "engine": "fallback", "note": note}
     try:
-        prompt = _prompt(_bundle(pkg, resolved, must_meet_text, verdict)) + \
+        prompt = _prompt(_bundle(pkg, resolved, must_meet_text)) + \
             f"\n\n=== CADQUERY PRE-VALIDATION FAILED — REPAIR ===\n{detail}\n" \
             "Fix the macros so the built geometry satisfies the checks. Rewrite the " \
             "affected .vba files under ./macros and update ./result.json."

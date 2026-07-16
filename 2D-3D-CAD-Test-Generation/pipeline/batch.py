@@ -406,45 +406,10 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
         return BatchRow(source, part, "BLOCKED", **scores, n_macros=0, n_needs_review=0,
                         n_skipped=0, detail="; ".join(report.errors)[:300])
 
-    # ── Stage A: Codex independent extraction validation (before macros) ──────
-    # Codex re-reads the drawing and compares field-by-field with Claude's
-    # resolved extraction. REJECTED halts before any macro is written; Must-Meet
-    # Specifications stay tier-0 and cannot be overruled by either model.
+    # Codex is used ONLY to write the SolidWorks macros (Stage B, below), after
+    # Claude has produced the extraction / resolved / build JSONs. There is no
+    # independent Codex OCR/validation stage — it was removed as too slow.
     from pipeline import codex_client
-    codex_verdict = None
-    if codex_client.active():
-        try:
-            from pipeline import codex_validation
-
-            print("[STAGE] Codex validation", flush=True)
-            _val_imgs = [p for p in ([overview_image] if overview_image else []) if p]
-            codex_verdict = codex_validation.validate_extraction(
-                resolution.resolved_extraction if resolution is not None else drawing_data,
-                images=_val_imgs, must_meet_text=spec_text or "",
-                overview_analysis=overview_analysis, output_dir=part_dir, drawing_id=part)
-            _st = codex_verdict.get("overall_status")
-            _nd = len(codex_verdict.get("discrepancies") or [])
-            print(f"[CODEX] Validation: {_st} ({_nd} discrepancy/ies) via "
-                  f"{codex_verdict.get('engine')}.", flush=True)
-            for _d in codex_verdict.get("discrepancies", []):
-                print(f"[CODEX] {_d.get('severity')}: {_d.get('field')} — "
-                      f"Claude={_d.get('claude_value')!r} vs Codex={_d.get('codex_value')!r}",
-                      flush=True)
-            if _st == "REJECTED":
-                print("[CODEX] REJECTED — halting before macro writing. Re-run Claude "
-                      "extraction with the discrepancies as hints to proceed.", flush=True)
-                try:
-                    (part_dir / "codex_rejection_hints.txt").write_text(
-                        codex_validation.build_hints(codex_verdict), encoding="utf-8")
-                except OSError:
-                    pass
-                _top = (codex_verdict.get("discrepancies") or [{}])[0]
-                _detail = (f"Codex REJECTED extraction: {_top.get('field')} "
-                           f"Claude={_top.get('claude_value')} vs Codex={_top.get('codex_value')}")
-                return BatchRow(source, part, "BLOCKED", **scores, n_macros=0,
-                                n_needs_review=_nd, n_skipped=0, detail=_detail[:300])
-        except Exception as e:  # validation must never crash a run
-            log.warning("Codex validation stage failed (non-fatal): %s", e)
 
     try:
         print("[STAGE] Building macros", flush=True)
@@ -468,8 +433,7 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
             codex_macro_result = codex_macros.write_macros(
                 pkg,
                 resolved=(resolution.resolved_extraction if resolution is not None else raw_extraction),
-                must_meet_text=spec_text or "", verdict=codex_verdict,
-                part_dir=part_dir, output_dir=output_dir)
+                must_meet_text=spec_text or "", part_dir=part_dir, output_dir=output_dir)
             n_macros = codex_macro_result.get("n_macros", n_macros)
             print(f"[CODEX] Macros written by {codex_macro_result['engine']} "
                   f"({n_macros} files); {len(codex_macro_result.get('assumptions') or [])} "
@@ -523,8 +487,7 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
             if (not preval_ok) and (not preval.get("skipped")):
                 _rep = codex_macros.repair_macros(
                     pkg, failure=preval, resolved=_resolved_for_codex,
-                    must_meet_text=spec_text or "", verdict=codex_verdict,
-                    part_dir=part_dir, output_dir=output_dir)
+                    must_meet_text=spec_text or "", part_dir=part_dir, output_dir=output_dir)
                 print(f"[CODEX] Repair: {_rep['note']}", flush=True)
                 if _rep.get("repaired"):
                     preval = _rerun_preval(pkg.build_plan_json, mm_constraints, part_dir)
@@ -568,7 +531,7 @@ def process_drawing_data(drawing_data: dict, source: str, output_dir: Path,
               + (preval_detail or ""), flush=True)
     if _dry_run:
         print("[DRY-RUN] Stopping before SolidWorks COM (Mac-safe): prevalidation.stl, "
-              "macros, Codex validation/manifest/shape-check and reports are produced.",
+              "macros, Codex macro manifest/shape-check and reports are produced.",
               flush=True)
     if sw_app is not None and not preval_ok and not _codex_halt and not _dry_run:
         print("[PREVAL] Pre-validation flagged issue(s) — the model is still "

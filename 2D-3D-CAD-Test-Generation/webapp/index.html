@@ -860,7 +860,7 @@
         <button class="stab tab-c sm" data-tab="resolved">Resolved Extraction <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="buildplan">Build Plan <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="verification">Verification <span class="badge">·</span></button>
-        <button class="stab tab-c sm" data-tab="codex">Codex Validation <span class="badge">·</span></button>
+        <button class="stab tab-c sm" data-tab="codex">Codex Macros <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="flags">Engineering Flags <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="modelcheck">Model Check <span class="badge">·</span></button>
         <button class="stab tab-c sm" data-tab="macros">VBA Macros <span class="badge">·</span></button>
@@ -882,7 +882,7 @@
           <div class="flags-scroll" style="display:none"><div class="flags-summary" id="flags-summary"></div><div id="flags-list"></div></div>
         </div></section>
         <section class="subpanel" id="panel-modelcheck"><div class="out"><div class="toolbar"><span class="nm">—</span></div><div class="empty">Model check requires Windows + SolidWorks; not produced on this machine.</div><pre style="display:none"></pre></div></section>
-        <section class="subpanel" id="panel-codex"><div class="out"><div class="toolbar"><span class="nm">Codex extraction validation &amp; macro manifest</span><span class="grow"></span><span id="codex-engine" class="badge-c mono"></span></div><div class="empty">No Codex validation for this run. Codex validation + macro writing run on the pipeline when the Codex CLI is enabled (or in dry-run stub).</div><div id="codex-body" class="files-scroll" style="display:none;padding:0 var(--sp-4) var(--sp-4)"></div></div></section>
+        <section class="subpanel" id="panel-codex"><div class="out"><div class="toolbar"><span class="nm">Codex-written macros — manifest &amp; overall shape check</span><span class="grow"></span><span id="codex-engine" class="badge-c mono"></span></div><div class="empty">No Codex macro run for this part. Once Claude produces the extraction / resolved / build JSONs, Codex writes the SolidWorks macros here (or the deterministic fallback when the Codex CLI is offline).</div><div id="codex-body" class="files-scroll" style="display:none;padding:0 var(--sp-4) var(--sp-4)"></div></div></section>
         <section class="subpanel" id="panel-macros"><div class="out"><div class="toolbar"><div class="macro-tabs" id="macro-tabs"></div><span class="grow"></span><span id="macros-engine" class="badge-c mono"></span><span class="nm">—</span></div><div class="empty">No part run yet.</div><pre style="display:none"></pre></div></section>
         <section class="subpanel" id="panel-cost"><div class="out">
           <div class="toolbar"><span class="nm">API token usage &amp; cost (from token_usage_log)</span></div>
@@ -1201,33 +1201,12 @@ function paintCodex(codex){
   const panel=document.getElementById('panel-codex');
   const empty=panel.querySelector('.empty'), body=document.getElementById('codex-body');
   const engEl=document.getElementById('codex-engine');
-  const v=codex.verdict, sc=codex.shape_check, mf=codex.manifest;
-  if(!v && !sc && !mf) return;
-  const engine=(v&&v.engine)||(mf&&mf.engine)||'—';
-  if(engEl) engEl.textContent='engine: '+engine+((v&&v.model)?(' · '+v.model):'');
+  const sc=codex.shape_check, mf=codex.manifest;
+  if(!sc && !mf) return;
+  const engine=(mf&&mf.engine)||(sc?'codex':'—');
+  if(engEl) engEl.textContent='engine: '+engine+((mf&&mf.model)?(' · '+mf.model):'');
   let h='';
-  if(v){
-    const st=v.overall_status||'—';
-    const cls=st==='APPROVED'?'ok':(st==='REJECTED'?'err':'warn');
-    h+=`<div style="margin:14px 0 10px"><span class="badge-c ${cls}">${esc(st)}</span> <span class="hint">${esc(v.summary||'')}</span></div>`;
-    const disc=v.discrepancies||[];
-    if(disc.length){
-      h+=`<div class="grp-title" style="margin:12px 0 6px">Discrepancies (${disc.length}) — Claude vs Codex</div>`;
-      h+=disc.map(d=>`<div class="flag-item sev-${esc(String(d.severity||'LOW').toUpperCase())}"><span class="sev">${esc(d.severity)}</span> <b>${esc(d.field)}</b>`+
-        `<div class="row"><b>Claude</b> <code style="font-family:var(--mono)">${esc(_jstr(d.claude_value))}</code> &nbsp;·&nbsp; <b>Codex</b> <code style="font-family:var(--mono)">${esc(_jstr(d.codex_value))}</code></div>`+
-        `<div class="row hint">${esc(d.reasoning||'')}</div></div>`).join('');
-    } else {
-      h+=`<div class="hint" style="margin:8px 0">No discrepancies — Codex agrees with Claude's extraction field-by-field.</div>`;
-    }
-    const ag=v.per_field_agreement||[];
-    if(ag.length){
-      h+=`<div class="grp-title" style="margin:16px 0 6px">Per-field agreement</div>`+
-        `<div class="table-wrap"><table class="data-table"><thead><tr><th>Field</th><th>Claude</th><th>Codex</th><th>Agree</th></tr></thead><tbody>`+
-        ag.map(a=>`<tr><td class="row-id">${esc(a.field)}</td><td>${esc(_jstr(a.claude_value))}</td><td>${esc(_jstr(a.codex_value))}</td>`+
-          `<td>${a.agree?'<span class="result-chip pass">YES</span>':'<span class="result-chip failed">NO</span>'}</td></tr>`).join('')+
-        `</tbody></table></div>`;
-    }
-  }
+  h+=`<div class="hint" style="margin:14px 0 6px">Claude produced the extraction / resolved / build JSONs; Codex wrote the SolidWorks macros from the build plan.</div>`;
   if(sc){
     h+=`<div class="grp-title" style="margin:18px 0 6px">Overall shape check <span class="result-chip ${sc.passed?'pass':'failed'}">${sc.passed?'PASS':'FAIL'}</span></div>`+
       `<div class="table-wrap"><table class="data-table"><thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead><tbody>`+
@@ -1863,7 +1842,7 @@ function stopElapsed() { if (elapsedTimer) { clearInterval(elapsedTimer); elapse
 
 // ── Per-stage progress strip (parses "[STAGE] ..." lines from the pipeline) ──
 const STAGE_LIST = ['Overview analysis', 'Extracting', 'Spec reconciliation', 'Resolving',
-                    'Verifying', 'Codex validation', 'Building macros', 'Codex macro writing',
+                    'Verifying', 'Building macros', 'Codex macro writing',
                     'Pre-validating', 'Building .sldprt', 'Verifying must-meet',
                     'Final checks', 'Exporting', 'Done'];
 const stageStrip = document.getElementById('stage-strip');
