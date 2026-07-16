@@ -1,0 +1,184 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MTI 2D→3D Pipeline — THEME (single source of truth for design tokens)
+
+   Company visual identity, ported from the reference repo MTI_ModelCodex
+   (branch agent/implement-draw2part-pipeline, ui/styles.css). Full derivation
+   and the mapping rationale live in docs/company-theme-analysis.md.
+
+   Identity: a light "engineering paper" theme — warm off-white sheet, white
+   cards, one strong blue accent, muted green/amber/red status, a DARK topbar
+   and DARK viewer panels. Depth is borders-only. Fonts are Inter / JetBrains
+   Mono via system stacks (no web-font files, no CDN).
+
+   HOW THEMING WORKS
+   -----------------
+   Every color, font, radius and spacing value in the app resolves to a token
+   defined here. Tokens are exposed under TWO naming schemes that point at the
+   same values:
+     • the company's semantic names  (--paper, --surface, --blue, --green …)
+     • this app's historical names   (--bg, --bg-raised, --blueprint, --ok …)
+       kept as aliases so existing markup renders in the company theme with no
+       churn.
+   To retune the product, edit the values in the PALETTE block below — nothing
+   else needs to change. This file is loaded BEFORE static/design-tokens.css
+   (which now holds only the shared component recipes).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── PALETTE · company primitives (verbatim from the reference) ─────────── */
+  --ink:          #111318;   /* near-black: primary text + topbar fill        */
+  --paper:        #fafaf7;   /* page background (warm off-white)              */
+  --surface:      #ffffff;   /* cards, panels                                 */
+  --surface-alt:  #f3f3ef;   /* table headers, quiet chips, inset fills       */
+  --surface-hover:#eef0ec;   /* row / card hover                              */
+  --line-mid:     #d9d9d2;   /* hairline borders                             */
+  --line-hard:    #b8b9b4;   /* stronger borders, input outlines             */
+  --muted:        #666a72;   /* secondary / label text                        */
+
+  --blue:         #1d5bdb;   /* PRIMARY accent                                */
+  --blue-dark:    #1548af;   /* primary hover                                 */
+  --blue-soft:    #e9effd;   /* selected fills, accent tints                  */
+  --green:        #177a4c;   --green-soft: #e9f5ef;
+  --amber:        #b7791f;   --amber-soft: #fbf3e4;
+  --red:          #c0392b;   --red-soft:   #fbecea;
+
+  /* Dark viewer chrome (the light app's dark panels) */
+  --viewer-panel: #171a20;   /* STL / drawing viewer body                     */
+  --viewer-bar:   #1c1f25;   /* viewer header / caption bars                  */
+  --viewport:     #15181e;   /* the viewport well itself + grid base          */
+  --viewer-line:  #30343d;   /* borders inside dark chrome                    */
+  --viewer-ink:   #f4f5f7;   /* primary text on dark chrome                   */
+  --viewer-ink-2: #a7abb5;   /* secondary text on dark chrome                 */
+  --viewer-ctl:   #252930;   /* dark control fill (tool buttons)              */
+  --viewer-ctl-line:#454a55; /* dark control border                          */
+
+  /* Topbar (dark) */
+  --topbar-bg:    var(--ink);
+  --topbar-line:  #2b2e35;
+  --topbar-ink:   #ffffff;
+  --topbar-ink-2: #aeb1b9;
+  --topbar-ink-3: #969ba7;
+  --topbar-accent:#a9c2fb;   /* accent glyph/brand-mark on the dark topbar     */
+
+  /* Scrims drawn OVER the (light) drawing image — stay dark for white text */
+  --scrim:        rgb(17 19 24 / 82%);
+  --scrim-strong: rgb(17 19 24 / 90%);
+  --on-solid:     #ffffff;              /* text/glyphs on solid status/datum fills */
+  --hairline-light: rgba(255,255,255,0.55); /* outline of a swatch over any fill  */
+  --hairline-dark:  rgba(0,0,0,0.35);       /* inner shadow of a swatch over any fill */
+
+  /* ── SURFACES · app aliases (dark→light re-point) ──────────────────────── */
+  --well:       var(--surface-alt); /* light inset: chips, tracks, thumbs     */
+  --bg:         var(--paper);       /* page background                        */
+  --bg-raised:  var(--surface-alt); /* toolbars, strips, caps, tab rails      */
+  --surface-2:  var(--surface-hover);
+  --input-bg:   #ffffff;            /* inputs sit ON white in a light theme    */
+  --console-bg: var(--viewport);    /* console / build log stays dark          */
+  --console-ink:#c2ccda;            /* console text                            */
+
+  /* ── INK · app aliases (now DARK text tiers) ───────────────────────────── */
+  --ink-1:  #000000;
+  /* NOTE: --ink itself (primary text) is defined in the palette block above. */
+  --ink-2:  #3f434b;   /* secondary                                           */
+  --ink-3:  var(--muted); /* muted / labels                                   */
+  --ink-4:  #9095a0;   /* faint / disabled                                    */
+
+  /* ── RULES · app aliases ───────────────────────────────────────────────── */
+  --line:        var(--line-mid);
+  --line-soft:   #e7e7e0;
+  --line-strong: var(--line-hard);
+  --ring:        rgba(29,91,219,0.35);   /* focus ring — accent blue          */
+
+  /* ── ACCENT · app aliases (blueprint→company blue) ─────────────────────── */
+  --blueprint:        var(--blue);
+  --blueprint-bright: var(--blue-dark);   /* hover = DARKER on a light theme   */
+  --blueprint-text:   var(--blue);        /* accent as text on white           */
+  --blueprint-dim:    var(--blue-soft);   /* tints, selected fills             */
+  --on-blueprint:     #ffffff;            /* text on the accent fill           */
+
+  /* ── STEEL · secondary informational (slate) ───────────────────────────── */
+  --steel:      #64748b;
+  --steel-text: #475569;
+  --steel-dim:  #eef1f5;
+
+  /* ── STATUS (inspection: accept / hold / reject) ───────────────────────── */
+  --ok:        var(--green);   --ok-text:  var(--green);
+  --err:       var(--red);     --err-text: var(--red);
+  --warn:      var(--amber);
+  --ok-soft:   var(--green-soft);
+  --err-soft:  var(--red-soft);
+  --warn-soft: var(--amber-soft);
+
+  /* ── DATUM — locked (0,0) origin marker (functional, drawn over linework) ─ */
+  --datum:     #0077cc;
+  --datum-dim: rgba(0,119,204,0.12);
+  --on-datum:  #ffffff;
+
+  /* ── SEVERITY LADDER — red › orange › yellow › blue, harmonized for light
+     surfaces. Outlined "inspection-stamp" chips: text = --sev-*, bg = -soft. ─ */
+  --sev-critical: #c0392b;  --sev-critical-soft: #fbecea;  --on-sev-critical: #ffffff;
+  --sev-high:     #c2410c;  --sev-high-soft:     #fdeee6;  --on-sev-high:     #ffffff;
+  --sev-medium:   #a16207;  --sev-medium-soft:   #fbf3e0;  --on-sev-medium:   #ffffff;
+  --sev-low:      #3f5bb0;  --sev-low-soft:      #eaeef8;  --on-sev-low:      #ffffff;
+
+  /* ── Legacy aliases (photoapp + older recipes bind to these) ───────────── */
+  --copper:        var(--blueprint);
+  --copper-bright: var(--blueprint-bright);
+  --copper-text:   var(--blueprint-text);
+  --copper-dim:    var(--blueprint-dim);
+  --on-copper:     var(--on-blueprint);
+  --teal:          var(--steel);
+  --teal-text:     var(--steel-text);
+  --teal-dim:      var(--steel-dim);
+
+  /* ── Provider marks (informational avatar chips only) ──────────────────── */
+  --provider-claude: #a65f3e;
+  --provider-openai: #13785c;
+
+  /* ── Cropper canvas — colors painted into the 2D <canvas> context by
+     photoapp/index.html JS (read at draw time via getComputedStyle). The
+     canvas backdrop is dark, so accents use on-dark values. ──────────────── */
+  --crop-backdrop:    var(--viewport);
+  --crop-accent:      #4d86ff;                 /* selection rect + handles      */
+  --crop-hint:        rgba(167,171,181,0.75);  /* placeholder hint text         */
+  --crop-hint-faint:  rgba(167,171,181,0.50);  /* secondary hint text           */
+  --crop-grid:        rgba(77,134,255,0.06);   /* backdrop grid                 */
+  --crop-grid-center: rgba(77,134,255,0.14);   /* centerlines                   */
+  --crop-mask:        rgba(0,0,0,0.55);         /* dim mask outside selection    */
+  --crop-dim-label:   rgba(223,233,247,0.95);  /* selection W×H readout         */
+
+  /* ── TYPOGRAPHY (company stacks — system fallbacks, no font files) ──────── */
+  --sans: Inter, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "JetBrains Mono", "SFMono-Regular", "Cascadia Mono", Consolas,
+          "Liberation Mono", Menlo, monospace;
+  --fs-caption: 11px;   /* uppercase labels, chips                            */
+  --fs-small:   12px;   /* secondary text, dense tables                       */
+  --fs-body:    13px;   /* dense body (tool default)                          */
+  --fs-control: 14px;   /* buttons, inputs, tab labels                        */
+  --fs-h2:      16px;   /* panel/app titles                                   */
+  --fs-stat:    20px;   /* stat values                                        */
+  --fs-display: 30px;   /* hero numbers, READY stamp                          */
+
+  /* ── SPACING (4px grid) ────────────────────────────────────────────────── */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+
+  /* ── RADIUS ────────────────────────────────────────────────────────────── */
+  --r-sm: 3px;   /* chips, stamps        (company uses 3–4px on small items)  */
+  --r-md: 5px;   /* buttons, inputs                                           */
+  --r-lg: 8px;   /* cards, panels        (company --radius)                   */
+
+  /* ── Layout metrics (company) ──────────────────────────────────────────── */
+  --header-height: 64px;
+  --tabs-height:   48px;
+
+  /* ── Signature drafting motifs (recomputed for the light theme) ────────── */
+  --centerline-v: repeating-linear-gradient(180deg,
+      var(--line-strong) 0 16px, transparent 16px 21px,
+      var(--line-strong) 21px 25px, transparent 25px 30px);
+  --centerline-h: repeating-linear-gradient(90deg,
+      var(--line-strong) 0 16px, transparent 16px 21px,
+      var(--line-strong) 21px 25px, transparent 25px 30px);
+  /* Ruler ticks sit UNDER the dark topbar → light ticks. */
+  --ruler: repeating-linear-gradient(90deg,
+      rgba(255,255,255,0.20) 0 1px, transparent 1px 8px);
+}

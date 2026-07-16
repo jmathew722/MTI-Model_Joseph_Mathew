@@ -228,6 +228,29 @@ extraction (no API call).
    spend and the session total; *Files* links every output file plus the
    delivered folder paths.
 
+### Theming
+
+The UI ships the company **engineering-paper** visual identity — a light sheet,
+white cards, a blue accent, muted green/amber/red status, a dark topbar, and dark
+viewer panels. **Every color, font, spacing, radius and severity value is a
+design token in one file: [`webapp/static/theme.css`](webapp/static/theme.css).**
+
+- `webapp/static/theme.css` — **the single source of truth.** Edit the values in
+  its `PALETTE` block (`--ink`, `--paper`, `--surface`, `--blue`, `--green`,
+  `--amber`, `--red`, …) and the whole app re-themes; the app's historical
+  aliases (`--bg`, `--blueprint`, `--ok`, `--sev-*`, …) point at those primitives.
+- `webapp/static/design-tokens.css` — base resets + shared component recipes
+  (buttons, badges, inputs, tabs, cards), each resolving its colors through the
+  tokens above. Loaded **after** `theme.css`.
+- Severity colors are `--sev-critical|high|medium|low` (+ `-soft` tints), keeping
+  the **red › orange › yellow › blue** ordering. Fonts are `--sans` / `--mono`
+  (Inter / JetBrains Mono with system fallbacks — no font files, no CDN).
+
+Rule: never hardcode a hex/rgba in a page style — add or reuse a token in
+`theme.css` and reference it with `var()`. Reload the page; there is no build
+step. Full derivation: [`docs/company-theme-analysis.md`](../docs/company-theme-analysis.md).
+Design-system notes: [`webapp/DESIGN.md`](webapp/DESIGN.md).
+
 ### Run a part (upload → orient → name → run)
 
 1. **Get images in** — two equal paths:

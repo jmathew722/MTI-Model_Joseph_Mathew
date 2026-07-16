@@ -1,113 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   MTI 2D→3D Pipeline — Design tokens & shared components
-   Single source of truth for BOTH documents (index.html and photoapp/).
-   Full documentation: webapp/DESIGN.md
+   MTI 2D→3D Pipeline — Shared components
+   Single component vocabulary for BOTH documents (index.html and photoapp/).
 
-   Direction: BLUEPRINT ROOM — the digital drawing office. The product turns
-   2D drawings into parts, so the interface is built from the drawing's own
-   world: deep Prussian-navy surfaces (a cyanotype at night), cool drafting-
-   white ink, ONE blueprint-cyan accent (the line color of a print), hairline
-   rules, inspection-stamp semantics, and mono numerals everywhere a value is
-   a measurement.
+   Design TOKENS (colors, fonts, spacing, radius, severity) now live in
+   static/theme.css — the single source of truth for the company visual
+   identity. This file must be loaded AFTER theme.css and holds only base
+   resets and the shared component recipes, every one of which resolves its
+   colours through var() tokens (no hardcoded hex).
 
-   Depth strategy: borders only (hairline, cool). Spacing grid: 4px.
-   Radius: 2 / 4 / 6 px — crisp, technical. No drop shadows.
+   Full documentation: webapp/DESIGN.md · docs/company-theme-analysis.md
    ═══════════════════════════════════════════════════════════════════════════ */
-
-:root {
-  /* ── Surfaces (Prussian navy, darkest → lightest) ────────────────────── */
-  --well:      #0A0F16;  /* deepest: viewport wells, console, canvas */
-  --bg:        #0D131C;  /* page background */
-  --bg-raised: #111927;  /* toolbars, strips, tab rails, caps */
-  --surface:   #16202F;  /* cards, panels, chips */
-  --surface-2: #1B2738;  /* hover on cards, active rows */
-  --input-bg:  #090E15;  /* inputs sit BELOW their surroundings (inset) */
-
-  /* ── Ink (cool drafting white, 4 tiers) ──────────────────────────────── */
-  --ink:       #E7EDF5;  /* primary */
-  --ink-2:     #AEBACB;  /* secondary */
-  --ink-3:     #7D8A9E;  /* muted / labels */
-  --ink-4:     #4E5A6C;  /* faint / disabled */
-
-  /* ── Rules (cool alpha hairlines; quiet by default) ──────────────────── */
-  --line:        rgba(185,212,240,0.10);
-  --line-soft:   rgba(185,212,240,0.06);
-  --line-strong: rgba(185,212,240,0.20);
-  --ring:        rgba(95,191,228,0.50);   /* focus ring — blueprint cyan */
-
-  /* ── Blueprint cyan — the ONE interactive accent (the print's line) ──── */
-  --blueprint:        #3FA9D4;
-  --blueprint-bright: #5FBFE4;   /* hover / emphasis */
-  --blueprint-text:   #7ECFEE;   /* accent as text on dark surfaces */
-  --blueprint-dim:    rgba(95,191,228,0.12);  /* tints, selected fills */
-  --on-blueprint:     #04191F;   /* text on cyan fills */
-
-  /* ── Steel — secondary, informational (anodized fixture gray-blue) ───── */
-  --steel:      #5C7690;
-  --steel-text: #9FB6CC;
-  --steel-dim:  rgba(122,157,190,0.14);
-
-  /* ── Status (inspection: accept / reject / hold) ─────────────────────── */
-  --ok:        #3EAF7C;
-  --ok-text:   #6FD0A2;
-  --err:       #E5484D;
-  --err-text:  #F3797E;
-  --warn:      #E3A93C;
-
-  /* ── Datum — the locked (0,0) origin marker. A FUNCTIONAL color (like the
-     severity ladder), not a second interactive accent: a vivid azure that
-     stays legible drawn over white drawing linework. ──────────────────── */
-  --datum:     #00C2FF;
-  --datum-dim: rgba(0,194,255,0.12);
-
-  /* ── Severity ladder (functional — flags, never decoration) ──────────── */
-  --sev-critical: #F0545C;  --on-sev-critical: #2A0507;
-  --sev-high:     #E3A13C;  --on-sev-high:     #2A1703;
-  --sev-medium:   #D2C355;  --on-sev-medium:   #242006;
-  --sev-low:      #8DA4BE;  --on-sev-low:      #0F151D;
-
-  /* ── Legacy aliases (photoapp + older recipes bind to these) ─────────── */
-  --copper:        var(--blueprint);
-  --copper-bright: var(--blueprint-bright);
-  --copper-text:   var(--blueprint-text);
-  --copper-dim:    var(--blueprint-dim);
-  --on-copper:     var(--on-blueprint);
-  --teal:          var(--steel);
-  --teal-text:     var(--steel-text);
-  --teal-dim:      var(--steel-dim);
-
-  /* ── Typography ──────────────────────────────────────────────────────── */
-  --sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont,
-          Roboto, "Helvetica Neue", sans-serif;
-  --mono: "Cascadia Mono", "Cascadia Code", ui-monospace, Consolas, "SF Mono",
-          Menlo, monospace;
-  --fs-caption: 11px;   /* uppercase labels, chips */
-  --fs-small:   12px;   /* secondary text, dense tables */
-  --fs-body:    13px;   /* dense body (tool default) */
-  --fs-control: 14px;   /* buttons, inputs, tab labels */
-  --fs-h2:      16px;   /* panel/app titles */
-  --fs-stat:    20px;   /* stat values */
-  --fs-display: 30px;   /* hero numbers, READY stamp */
-
-  /* ── Spacing (4px grid) ──────────────────────────────────────────────── */
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
-
-  /* ── Radius scale (crisp, technical) ─────────────────────────────────── */
-  --r-sm: 2px;   /* chips, stamps */
-  --r-md: 4px;   /* buttons, inputs */
-  --r-lg: 6px;   /* cards, panels */
-
-  /* ── Signature: drafting centerline (long dash · gap · short dash) ───── */
-  --centerline-v: repeating-linear-gradient(180deg,
-      var(--line-strong) 0 16px, transparent 16px 21px,
-      var(--line-strong) 21px 25px, transparent 25px 30px);
-  --centerline-h: repeating-linear-gradient(90deg,
-      var(--line-strong) 0 16px, transparent 16px 21px,
-      var(--line-strong) 21px 25px, transparent 25px 30px);
-  /* Signature: ruler ticks (drafting scale under the title block) */
-  --ruler: repeating-linear-gradient(90deg,
-      rgba(185,212,240,0.22) 0 1px, transparent 1px 8px);
-}
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
 html { -webkit-font-smoothing: antialiased; }
@@ -115,11 +17,13 @@ html { -webkit-font-smoothing: antialiased; }
 
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: rgba(185,212,240,0.14); border-radius: 5px;
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 22%, transparent);
+                             border-radius: 5px;
                              border: 2px solid transparent; background-clip: content-box; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(185,212,240,0.26);
+*::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ink) 38%, transparent);
                                    border: 2px solid transparent; background-clip: content-box; }
-* { scrollbar-width: thin; scrollbar-color: rgba(185,212,240,0.18) transparent; }
+* { scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent; }
 
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 
@@ -145,14 +49,16 @@ html { -webkit-font-smoothing: antialiased; }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.secondary {
-  background: var(--surface); color: var(--ink); border-color: var(--line-strong); font-weight: 500;
+  background: var(--surface); color: var(--blueprint-text);
+  border-color: color-mix(in srgb, var(--blue) 40%, var(--line-strong)); font-weight: 600;
 }
-.btn.secondary:hover:not(:disabled) { background: var(--surface-2); border-color: rgba(185,212,240,0.3); }
+.btn.secondary:hover:not(:disabled) { background: var(--blueprint-dim); border-color: var(--blueprint); }
 .btn.ghost { background: transparent; color: var(--ink-2); border-color: transparent; }
-.btn.ghost:hover:not(:disabled) { background: var(--surface); color: var(--ink); }
-.btn.danger { background: transparent; color: var(--err-text); border-color: rgba(229,72,77,0.4); }
-.btn.danger:hover:not(:disabled) { background: rgba(229,72,77,0.12); }
-.btn.running { background: var(--surface); color: var(--blueprint-text); border-color: var(--line-strong); }
+.btn.ghost:hover:not(:disabled) { background: var(--surface-alt); color: var(--ink); }
+.btn.danger { background: transparent; color: var(--err-text);
+              border-color: color-mix(in srgb, var(--err) 40%, transparent); }
+.btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--err) 12%, transparent); }
+.btn.running { background: var(--surface-alt); color: var(--blueprint-text); border-color: var(--line-strong); }
 /* Active state for a secondary/ghost button used as a tool toggle (draw,
    set-origin, mode switches) — reads clearly "pressed" without a new pattern. */
 .btn.secondary.on, .btn.ghost.on { background: var(--blueprint-dim);
@@ -168,21 +74,26 @@ html { -webkit-font-smoothing: antialiased; }
   cursor: pointer; font: 500 var(--fs-small)/1 var(--sans);
   transition: color .12s, border-color .12s, background .12s;
 }
-.ibtn:hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface-2); }
+.ibtn:hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface-alt); }
 
 /* ── Badge (quiet bordered tag) ────────────────────────────────────────── */
 .badge-c {
   display: inline-flex; align-items: center; gap: var(--sp-1); width: fit-content;
   padding: 2px var(--sp-2); border-radius: var(--r-sm);
   font: 600 var(--fs-caption)/16px var(--sans); letter-spacing: 0.02em;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--line); background: var(--surface-alt); color: var(--ink-2);
   white-space: nowrap;
 }
-.badge-c.copper, .badge-c.blueprint { background: var(--blueprint-dim); color: var(--blueprint-text); border-color: rgba(95,191,228,0.35); }
-.badge-c.teal, .badge-c.steel { background: var(--steel-dim); color: var(--steel-text); border-color: rgba(122,157,190,0.4); }
-.badge-c.ok     { background: rgba(62,175,124,0.13); color: var(--ok-text); border-color: rgba(62,175,124,0.35); }
-.badge-c.err    { background: rgba(229,72,77,0.12); color: var(--err-text); border-color: rgba(229,72,77,0.35); }
-.badge-c.warn   { background: rgba(227,169,60,0.12); color: var(--warn); border-color: rgba(227,169,60,0.35); }
+.badge-c.copper, .badge-c.blueprint { background: var(--blueprint-dim); color: var(--blueprint-text);
+  border-color: color-mix(in srgb, var(--blue) 35%, transparent); }
+.badge-c.teal, .badge-c.steel { background: var(--steel-dim); color: var(--steel-text);
+  border-color: color-mix(in srgb, var(--steel) 40%, transparent); }
+.badge-c.ok     { background: var(--ok-soft);   color: var(--ok-text);
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+.badge-c.err    { background: var(--err-soft);  color: var(--err-text);
+  border-color: color-mix(in srgb, var(--err) 35%, transparent); }
+.badge-c.warn   { background: var(--warn-soft); color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
 .badge-c.mono   { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* Severity stamps — bordered like an inspection stamp, identical everywhere */
@@ -192,15 +103,15 @@ html { -webkit-font-smoothing: antialiased; }
   font: 700 10px/16px var(--sans); letter-spacing: 0.09em; text-transform: uppercase;
   background: transparent; border: 1px solid; white-space: nowrap;
 }
-.badge-sev.critical { color: var(--sev-critical); border-color: var(--sev-critical); background: rgba(240,84,92,0.10); }
-.badge-sev.high     { color: var(--sev-high);     border-color: var(--sev-high);     background: rgba(227,161,60,0.10); }
-.badge-sev.medium   { color: var(--sev-medium);   border-color: var(--sev-medium);   background: rgba(210,195,85,0.08); }
-.badge-sev.low      { color: var(--sev-low);      border-color: var(--sev-low);      background: rgba(141,164,190,0.08); }
+.badge-sev.critical { color: var(--sev-critical); border-color: var(--sev-critical); background: var(--sev-critical-soft); }
+.badge-sev.high     { color: var(--sev-high);     border-color: var(--sev-high);     background: var(--sev-high-soft); }
+.badge-sev.medium   { color: var(--sev-medium);   border-color: var(--sev-medium);   background: var(--sev-medium-soft); }
+.badge-sev.low      { color: var(--sev-low);      border-color: var(--sev-low);      background: var(--sev-low-soft); }
 
-/* ── Inputs (inset: darker than surroundings) ──────────────────────────── */
+/* ── Inputs ────────────────────────────────────────────────────────────── */
 .input-c, textarea.input-c, select.input-c {
   font: 400 var(--fs-body)/1.45 var(--sans); color: var(--ink);
-  background: var(--input-bg); border: 1px solid var(--line);
+  background: var(--input-bg); border: 1px solid var(--line-strong);
   border-radius: var(--r-md); padding: 7px var(--sp-3);
   transition: border-color .12s;
 }
@@ -216,8 +127,8 @@ html { -webkit-font-smoothing: antialiased; }
   border-bottom: 2px solid transparent;
   transition: color .12s, border-color .12s;
 }
-.tab-c:hover { color: var(--ink-2); }
-.tab-c.active { color: var(--ink); border-bottom-color: var(--blueprint); }
+.tab-c:hover { color: var(--ink); }
+.tab-c.active { color: var(--blueprint-text); border-bottom-color: var(--blueprint); }
 .tab-c.sm { padding: 10px var(--sp-3); font-size: var(--fs-small); }
 
 /* ── Panel caption (uppercase micro-label used on every panel) ─────────── */
@@ -232,9 +143,9 @@ html { -webkit-font-smoothing: antialiased; }
 .progress-c > .fill { height: 100%; width: 0%; background: var(--blueprint);
                       transition: width .35s ease; }
 
-/* ── Console / build log ───────────────────────────────────────────────── */
+/* ── Console / build log (stays dark on the light theme) ───────────────── */
 .console-c {
-  background: var(--well); color: #C2CCDA;
+  background: var(--console-bg); color: var(--console-ink);
   font: 12px/1.6 var(--mono); white-space: pre-wrap;
 }
 
@@ -242,7 +153,7 @@ html { -webkit-font-smoothing: antialiased; }
 .card-c { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
 
 /* ── Segmented control (orientation picker etc.) ───────────────────────── */
-.seg-c { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-md);
+.seg-c { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r-md);
          background: var(--input-bg); padding: 2px; gap: 2px; }
 .seg-c > button {
   appearance: none; border: none; background: transparent; cursor: pointer;

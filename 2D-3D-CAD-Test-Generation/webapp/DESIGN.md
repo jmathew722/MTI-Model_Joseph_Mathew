@@ -1,29 +1,54 @@
 # MTI Pipeline UI — Design System
 
-Single source of truth: **`webapp/static/design-tokens.css`** (served at
-`/static/design-tokens.css`, linked by **both** documents — `index.html` and
-`photoapp/index.html` — so Tab 1's cropper and the host app share the exact
-same tokens and component recipes). This file documents the decisions; the CSS
-file implements them. If you change a value, change it in the tokens file, not
-in a page style.
+**Single source of truth for design tokens: `webapp/static/theme.css`** (served
+at `/static/theme.css`). It holds every color, font, spacing, radius and
+severity token — under both the company's semantic names and this app's
+historical names as aliases. **`webapp/static/design-tokens.css`** now holds
+only the base resets and shared component recipes (buttons, badges, inputs,
+tabs, cards…), each resolving its colors through `theme.css` tokens. Both files
+are linked — `theme.css` first — by **both** documents (`index.html` and
+`photoapp/index.html`), so Tab 1's cropper and the host app share the exact same
+theme. **To retune the product, edit the values in `theme.css` — nothing else.**
+See `docs/company-theme-analysis.md` for how the palette was derived.
+
+## Theming — how to change the look
+
+1. Open `webapp/static/theme.css`. Edit the values in the **PALETTE** block
+   (`--ink`, `--paper`, `--surface`, `--blue`, `--green`, `--amber`, `--red`, …).
+2. The app aliases (`--bg`, `--bg-raised`, `--blueprint`, `--ok`, `--sev-*`, …)
+   point at those primitives, so every surface updates from that one edit.
+3. Severity colors are the `--sev-critical|high|medium|low` (+ `-soft` tint)
+   tokens — keep the red › orange › yellow › blue ordering.
+4. Dark viewer/console surfaces are `--viewer-*` / `--console-*`; scrims over the
+   drawing are `--scrim` / `--scrim-strong`; the dark topbar is `--topbar-*`.
+5. Fonts are `--sans` / `--mono` (Inter / JetBrains Mono with system fallbacks —
+   no font files, no CDN). Reload the page; no build step.
+
+Rule: never hardcode a hex/rgba in a page style or component — add or reuse a
+token in `theme.css` and reference it with `var()`.
 
 ---
 
-## Direction — BLUEPRINT ROOM
+## Direction — ENGINEERING PAPER (company identity)
 
-The product converts 2D engineering drawings into SolidWorks parts, so the
-interface is built from the drawing's own world: **the drawing office**. Deep
-Prussian-navy surfaces (a cyanotype print at night), cool drafting-white ink,
-ONE blueprint-cyan accent (the line color of a print), hairline rules,
-inspection-stamp semantics, and monospace numerals wherever a value is a
-measurement. The reference points are a cyanotype blueprint and a CAD
-viewport — not SaaS dashboards.
+Ported from the company reference repo (MTI_ModelCodex,
+`agent/implement-draw2part-pipeline`). A light **engineering-paper** theme: a
+warm off-white sheet (`--paper`), white cards, one strong **blue** accent, muted
+green/amber/red status, a **dark topbar**, and **dark viewer panels** for
+contrast with linework and the STL. Monospace numerals wherever a value is a
+measurement; mono "eyebrow" micro-labels above every section.
 
-Depth is **borders only** — no drop shadows. Dark is the only theme (the demo
-environment); a light variant was deliberately skipped to keep one surface
-system exact. The app is dependency-free vanilla HTML/CSS/JS with a strict
-no-CDN/vendored-assets rule, so patterns are shared CSS classes, not
-components.
+Depth is **borders only** — no drop shadows. The app is dependency-free vanilla
+HTML/CSS/JS with a strict no-CDN/vendored-assets rule, so patterns are shared CSS
+classes, not components. The drafting motifs this app added on top of the
+reference — the title-block topbar cells, sheet-numbered tabs, centerline
+dividers, OP-numbered stage chips, inspection-stamp severities — are preserved
+and re-chromed to the company palette.
+
+> **Note:** the color/spacing tables below document the *previous* dark
+> "Blueprint Room" direction and are kept for historical component reference.
+> The live values now live in `theme.css` (company light theme); treat that file
+> as authoritative wherever it disagrees with the tables here.
 
 ## Color
 

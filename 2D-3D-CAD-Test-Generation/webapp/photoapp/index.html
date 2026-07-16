@@ -4,13 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DrawingCrop</title>
+  <meta name="color-scheme" content="light">
+  <!-- theme.css: design tokens (company identity). Load BEFORE design-tokens.css. -->
+  <link rel="stylesheet" href="/static/theme.css">
   <link rel="stylesheet" href="/static/design-tokens.css">
   <style>
     /* DrawingCrop — page styles. All values bind to /static/design-tokens.css
        (shared with the host app; see webapp/DESIGN.md). */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html, body { height: 100%; background: var(--well); color: var(--ink);
+    html, body { height: 100%; background: var(--bg); color: var(--ink);
       font: var(--fs-small)/1.5 var(--sans); overflow: hidden;
       -webkit-font-smoothing: antialiased; }
 
@@ -34,7 +37,7 @@
     #main { display: flex; flex: 1; overflow: hidden; }
 
     /* Canvas */
-    #canvasWrap { flex: 1; position: relative; overflow: hidden; }
+    #canvasWrap { flex: 1; position: relative; overflow: hidden; background: var(--viewport); }
     #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
     /* Sidebar — same ground as the canvas, separated by a quiet border */
@@ -67,7 +70,9 @@
       border: 1px solid var(--line); border-radius: var(--r-md);
       padding: 6px var(--sp-2); font: 400 var(--fs-small)/1.4 var(--sans);
       outline: none; -webkit-appearance: none; appearance: none; }
-    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238A867E'/%3E%3C/svg%3E");
+    /* Chevron color mirrors --muted (#666a72); inline in the data URI as SVG
+       cannot read CSS vars. Keep in sync with theme.css --muted. */
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23666a72'/%3E%3C/svg%3E");
       background-repeat: no-repeat; background-position: right 8px center;
       padding-right: 22px; cursor: pointer; }
     select:focus, input:focus { border-color: var(--copper); }
@@ -88,7 +93,7 @@
     .badge { display: inline-block; background: var(--well); color: var(--copper-text);
       border-radius: 8px; font: 700 10px/16px var(--mono); font-variant-numeric: tabular-nums;
       padding: 0 5px; margin-left: 6px; min-width: 18px; text-align: center; }
-    #dlZipBtn.ready .badge { background: rgba(0,0,0,0.25); color: var(--on-copper); }
+    #dlZipBtn.ready .badge { background: color-mix(in srgb, var(--ink) 25%, transparent); color: var(--on-copper); }
 
     /* Lists — technical content, mono */
     .list-box { background: var(--well); border: 1px solid var(--line);
@@ -308,6 +313,22 @@ let savedNames   = []; // [string] for display dedup
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const canvas      = document.getElementById('canvas');
 const gctx        = canvas.getContext('2d');
+
+/* Canvas paint colors come from the design tokens in /static/theme.css so the
+   cropper stays in step with the app theme (read once; no hardcoded colors). */
+const _rootStyle = getComputedStyle(document.documentElement);
+const themeColor = (name, fallback) =>
+  (_rootStyle.getPropertyValue(name).trim() || fallback);
+const PAL = {
+  backdrop:   themeColor('--crop-backdrop',    '#15181e'),
+  accent:     themeColor('--crop-accent',      '#4d86ff'),
+  hint:       themeColor('--crop-hint',        'rgba(167,171,181,0.75)'),
+  hintFaint:  themeColor('--crop-hint-faint',  'rgba(167,171,181,0.50)'),
+  grid:       themeColor('--crop-grid',        'rgba(77,134,255,0.06)'),
+  gridCenter: themeColor('--crop-grid-center', 'rgba(77,134,255,0.14)'),
+  mask:       themeColor('--crop-mask',        'rgba(0,0,0,0.55)'),
+  dimLabel:   themeColor('--crop-dim-label',   'rgba(223,233,247,0.95)'),
+};
 const fileInput   = document.getElementById('fileInput');
 const presetSel   = document.getElementById('presetSel');
 const featSelEl   = document.getElementById('featSel');
@@ -389,11 +410,11 @@ function draw() {
   const cw=canvas.clientWidth, ch=canvas.clientHeight;
   canvas.width=cw*dpr; canvas.height=ch*dpr;
   gctx.scale(dpr, dpr);
-  gctx.fillStyle='#0A0F16'; gctx.fillRect(0,0,cw,ch);
+  gctx.fillStyle=PAL.backdrop; gctx.fillRect(0,0,cw,ch);
 
   if (!img) {
     drawGrid(cw,ch);
-    gctx.fillStyle='rgba(138,134,126,0.65)';
+    gctx.fillStyle=PAL.hint;
     gctx.font='12px ui-monospace,monospace';
     gctx.textAlign='center'; gctx.textBaseline='middle';
     gctx.fillText('Open an engineering drawing to begin', cw/2, ch/2);
@@ -403,7 +424,7 @@ function draw() {
   gctx.imageSmoothingEnabled=true; gctx.imageSmoothingQuality='high';
   gctx.drawImage(img, ox, oy, img.naturalWidth*scale, img.naturalHeight*scale);
   if (sel && validSel()) drawSel(cw,ch);
-  gctx.fillStyle='rgba(138,134,126,0.45)';
+  gctx.fillStyle=PAL.hintFaint;
   gctx.font='10px ui-monospace,monospace';
   gctx.textAlign='left'; gctx.textBaseline='bottom';
   gctx.fillText('drag to select  ·  drag corners to resize  ·  Esc to clear', 10, ch-8);
@@ -411,10 +432,10 @@ function draw() {
 
 function drawGrid(cw,ch) {
   const step=40;
-  gctx.strokeStyle='rgba(217,139,63,0.05)'; gctx.lineWidth=1;
+  gctx.strokeStyle=PAL.grid; gctx.lineWidth=1;
   for (let x=0;x<=cw;x+=step) { gctx.beginPath();gctx.moveTo(x+.5,0);gctx.lineTo(x+.5,ch);gctx.stroke(); }
   for (let y=0;y<=ch;y+=step) { gctx.beginPath();gctx.moveTo(0,y+.5);gctx.lineTo(cw,y+.5);gctx.stroke(); }
-  gctx.strokeStyle='rgba(217,139,63,0.12)'; gctx.setLineDash([4,6]);
+  gctx.strokeStyle=PAL.gridCenter; gctx.setLineDash([4,6]);
   gctx.beginPath();gctx.moveTo(Math.round(cw/2)+.5,0);gctx.lineTo(Math.round(cw/2)+.5,ch);gctx.stroke();
   gctx.beginPath();gctx.moveTo(0,Math.round(ch/2)+.5);gctx.lineTo(cw,Math.round(ch/2)+.5);gctx.stroke();
   gctx.setLineDash([]);
@@ -427,21 +448,21 @@ function drawSel(cw,ch) {
   const dw=dr-dl, dh=db-dt;
   const iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
 
-  gctx.fillStyle='rgba(0,0,0,0.55)';
+  gctx.fillStyle=PAL.mask;
   gctx.fillRect(ox,oy,iw,Math.max(0,dt-oy));
   gctx.fillRect(ox,db,iw,Math.max(0,oy+ih-db));
   gctx.fillRect(ox,dt,Math.max(0,dl-ox),dh);
   gctx.fillRect(dr,dt,Math.max(0,ox+iw-dr),dh);
 
-  gctx.strokeStyle='#5FBFE4'; gctx.lineWidth=1.5; gctx.setLineDash([6,4]);
+  gctx.strokeStyle=PAL.accent; gctx.lineWidth=1.5; gctx.setLineDash([6,4]);
   gctx.strokeRect(dl+.5,dt+.5,dw,dh); gctx.setLineDash([]);
 
-  gctx.fillStyle='#5FBFE4';
+  gctx.fillStyle=PAL.accent;
   [[dl,dt],[dr,dt],[dl,db],[dr,db]].forEach(([hx,hy]) => {
     gctx.fillRect(hx-HANDLE_H, hy-HANDLE_H, HANDLE, HANDLE);
   });
 
-  gctx.fillStyle='rgba(232,164,92,0.95)';
+  gctx.fillStyle=PAL.dimLabel;
   gctx.font='11px ui-monospace,monospace';
   gctx.textAlign='center'; gctx.textBaseline='middle';
   gctx.fillText(`${n.w} × ${n.h}`, dl+dw/2, dt+dh/2);
