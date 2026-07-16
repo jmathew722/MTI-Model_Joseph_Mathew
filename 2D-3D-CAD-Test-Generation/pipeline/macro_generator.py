@@ -2955,7 +2955,34 @@ def generate_macro_package(
     log.info("macro echo check OK: %d literal(s) across %d macro(s) round-trip to the plan",
              echo.checked_literals, echo.checked_files)
 
+    # --- Overview-analysis cross-validation (2026-07-16, advisory) ---
+    # Where the echo check proves the literals, this proves the PACKAGE agrees
+    # with the Stage 1.5 overview words: note counts vs drilled instances,
+    # cross-view feature coverage, through-vs-blind agreement. Never blocks —
+    # findings land in <Part>_macro_overview_validation.json, the build plan,
+    # and the engineering review. Skipped silently when no overview exists.
+    overview_report = None
+    try:
+        from pipeline.overview_macro_validate import run_overview_macro_validation
+
+        overview_report = run_overview_macro_validation(model, pkg)
+    except Exception as e:  # advisory stage: never sink a generated package
+        log.warning("overview macro validation failed (stage skipped): %s", e)
+
+    # --- C# companion package (additive; VBA stays the canonical build path) ---
+    # macros_csharp/ next to macros/: a late-bound COM console program generated
+    # from the SAME BuildStep data, self-echo-checked at emission time.
+    try:
+        from pipeline.csharp_macro import generate_csharp_package
+
+        generate_csharp_package(model, pkg, unit_factor)
+    except Exception as e:  # additive output: never sink the VBA package
+        log.warning("C# macro emission failed (VBA package unaffected): %s", e)
+
     plan = _build_plan_dict(model, pkg, unit_factor, audit, resolution)
+    if overview_report is not None:
+        plan["overview_macro_validation"] = overview_report.to_dict()
+        plan["engineering_review"].extend(overview_report.review_items())
     pkg.build_plan_json.write_text(json.dumps(plan, indent=2), encoding="utf-8")
 
     # --- Severity-ranked engineering review (first-class human-facing output) ---
