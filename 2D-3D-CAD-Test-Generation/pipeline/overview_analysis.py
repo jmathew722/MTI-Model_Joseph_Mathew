@@ -55,7 +55,8 @@ TOOL_NAME = "report_overview_analysis"
 MAX_TOKENS = 8000
 
 # Mixed into the cache key — bump on any meaningful prompt change.
-PROMPT_VERSION = "1"
+# v2 (2026-07-17): + question 7 / dimension_locations field.
+PROMPT_VERSION = "2"
 
 OVERVIEW_ANALYSIS_FILENAME = "overview_analysis.json"
 
@@ -113,6 +114,15 @@ class OverviewAnalysis(BaseModel):
         default="",
         description="The overall 3D shape implied by combining ALL views, one or two sentences.",
     )
+    dimension_locations: str = Field(
+        default="",
+        description=(
+            "One or two sentences on WHERE the governing dimensions are placed: "
+            "which view carries each dimension group (overall envelope, hole "
+            "positions, depths/thickness) and which part edges or datums they "
+            "are measured from."
+        ),
+    )
     global_notes: list[GlobalNote] = Field(default_factory=list)
     cross_view_conflicts: list[CrossViewConflict] = Field(default_factory=list)
     symmetry: SymmetryInfo = Field(default_factory=SymmetryInfo)
@@ -150,6 +160,13 @@ Answer these questions:
    ("FINISH ALL OVER", "(6) HLS", "BREAK ALL SHARP EDGES") rather than to one
    view — state which views/features each note actually governs, and when a
    note states a count, report it as resolved_count.
+7. DIMENSION LOCATIONS: in one or two sentences, WHERE the governing
+   dimensions live on the sheet — which view carries the overall envelope
+   dimensions, which view carries hole positions and depths/thickness, and
+   which part edges or datums those dimensions are measured from (e.g.
+   "envelope and hole positions are dimensioned in the front view from the
+   lower-left corner; thickness and hole depths are in the side view").
+   Report it as dimension_locations.
 
 INSPECTION BALLOONS: circled numerals with an optional sheet-reference subscript
 ("1/1", "2/1", "2/2"), leader-attached, often with values suffixed "IN."

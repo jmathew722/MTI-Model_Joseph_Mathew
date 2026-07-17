@@ -1381,6 +1381,7 @@ function renderOvanPanel() {
     html += `<p class="shape" style="color:var(--ink-3);font-style:italic">` +
             `The model interprets the drawing itself — view roles, origin, and datums below are its own read of the sheet, not human markup. Ambiguities are resolved and flagged, never blocked.</p>`;
     if (d.overall_shape_summary) html += `<p class="shape"><b>Overall shape:</b> ${esc(d.overall_shape_summary)}</p>`;
+    if (d.dimension_locations) html += `<p class="shape"><b>Dimension locations:</b> ${esc(d.dimension_locations)}</p>`;
     if ((d.views_detected || []).length)
       html += `<div class="sec-t">Views detected</div>` + d.views_detected.map(v =>
         `<span class="vchip" title="${esc(v.description || '')}">${esc(v.view_id)}</span>`).join('');

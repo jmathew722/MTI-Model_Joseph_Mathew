@@ -2038,6 +2038,7 @@ def resolve_extraction(raw: dict,
         result.flags.extend(ov_flags)
         resolved["overview_analysis"] = {
             "overall_shape_summary": overview_analysis.get("overall_shape_summary", ""),
+            "dimension_locations": overview_analysis.get("dimension_locations", ""),
             "views_detected": overview_analysis.get("views_detected", []),
             "symmetry": overview_analysis.get("symmetry", {}),
             "n_conflicts": len(overview_analysis.get("cross_view_conflicts", []) or []),
