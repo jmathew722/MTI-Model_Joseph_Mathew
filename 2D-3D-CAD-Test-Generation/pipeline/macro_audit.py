@@ -152,3 +152,48 @@ def write_audit_report(report: AuditReport, out_path: Path | str) -> Path:
     out_path = Path(out_path)
     out_path.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
     return out_path
+
+
+# --------------------------------------------------------------------------- #
+# Dimensioning-architecture check (2026-07-17): anchor annotations must ship
+# --------------------------------------------------------------------------- #
+# Feature types emitted through the generic feature-macro loop (the paths that
+# receive the DIMENSION ANCHORS block). Slot decompositions and the circular-
+# pattern trio carry their anchoring in their own canonical schema blocks.
+_ANCHOR_CHECKED_TYPES = frozenset({
+    "extrude_boss", "extrude_cut", "hole", "thread", "revolve", "mirror", "pattern",
+})
+
+
+def check_anchor_annotations(model, pkg, macros_dir: Path | str) -> list[str]:
+    """Every generated macro for a feature with EXPLICIT PositionAnchor records
+    must contain its anchor annotations — each anchor's dimension ids and value
+    — so the drawing's dimensioning scheme demonstrably survived to the macro.
+    Returns error strings; the generator raises on any (fails loudly)."""
+    macros_dir = Path(macros_dir)
+    errors: list[str] = []
+    feats = {f.id: f for f in model.features}
+    for step in pkg.steps:
+        feat = feats.get(step.feature_id)
+        if (feat is None or not feat.anchors or step.status != "generated"
+                or step.feature_type not in _ANCHOR_CHECKED_TYPES
+                or not str(step.macro_file).endswith(".vba")):
+            continue
+        path = macros_dir / step.macro_file
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "DIMENSION ANCHORS" not in text:
+            errors.append(f"{step.macro_file}: feature {feat.id} has explicit "
+                          f"anchors but no DIMENSION ANCHORS block was emitted")
+            continue
+        for a in feat.anchors:
+            val = f"{float(a.value):.6g}"
+            if val not in text:
+                errors.append(f"{step.macro_file}: anchor value {val} "
+                              f"({a.axis} from {a.anchor_ref}) missing from macro")
+            for did in a.dimension_ids:
+                if did not in text:
+                    errors.append(f"{step.macro_file}: anchor dimension {did} "
+                                  f"missing from macro")
+    return errors

@@ -55,7 +55,7 @@ TOOL_NAME = "report_drawing_data"
 #     datums + datum holes) that anchor position/orientation.
 # v8: explicit witness/extension-line tracing to associate location dimensions
 #     to features (bottom-left origin), so holes/cuts are positioned not guessed.
-PROMPT_VERSION = "8"
+PROMPT_VERSION = "9"  # v9 (2026-07-17): dimension origin / datum holes / PositionAnchor scheme
 
 # Token usage fields summed across the (possibly several) calls of one extraction.
 _USAGE_FIELDS = (
@@ -171,6 +171,26 @@ DIMENSIONS:
   fill ambiguity_reason and possible_values (best guess first), and set
   resolution_required=true if a human MUST resolve it before building. NEVER silently skip.
 - Set feature_ref to the feature (F###) each dimension controls when determinable.
+
+DIMENSION ORIGIN & ANCHORING (what each dimension is measured FROM):
+- Identify the drawing's dimension ORIGIN when one is declared: ordinate
+  (arrowless) zero edges, a dimension-origin symbol (small circle at the origin
+  end of a dimension line), or GD&T datum letters on edges/faces — describe it
+  in dimension_origin (e.g. "ordinate zero at lower-left corner"); leave empty
+  when the drawing has no explicit origin.
+- DATUM HOLES: when two or more precision holes carry datum letters, or all
+  position dimensions chain to hole centers instead of part edges (typical on
+  fixture/plate drawings), set is_datum_hole=true on those hole callouts.
+- For each POSITIONED feature, record its anchors[] — one per axis — stating
+  WHAT the position is measured from: scheme "baseline"/"ordinate" from a part
+  edge (anchor_ref "part_edge_left" etc.), "chain" from the PREVIOUS feature
+  (anchor_ref its F###), "polar_bsc" radius+angle from a center (anchor_ref
+  "F###_center" or "part_center"), "datum_frame" for true-position dims
+  (anchor_ref "DRF_A|B|C"), or "coordinate" from the origin. List the
+  dimension_ids that define each anchor and whether the value lands
+  to_near_edge / to_center / to_far_edge. This preserves the drawing's own
+  dimensioning scheme — a hole "1.56 from the left edge" and a hole "2.75 from
+  the previous hole" must not both become bare coordinates.
 
 HOLE CALLOUTS:
 - Extract every hole callout into hole_callouts (H001, ...): type

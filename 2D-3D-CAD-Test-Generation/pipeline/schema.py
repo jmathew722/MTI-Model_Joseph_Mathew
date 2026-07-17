@@ -21,7 +21,7 @@ produces a rich human-readable report instead of a raw ValidationError.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -232,6 +232,14 @@ class HoleCallout(BaseModel):
     position_known: bool = Field(
         default=False, description="True only if x/y positions were read from the drawing"
     )
+    is_datum_hole: bool = Field(
+        default=False,
+        description=(
+            "True when this hole IS a datum feature: it carries a GD&T datum letter, "
+            "or the drawing's position dimensions chain to its center (fixture-plate "
+            "datum-hole pair). Positions then ground at the hole center, not part edges."
+        ),
+    )
     pattern: PatternKind = Field(default=PatternKind.NONE)
     pattern_spacing: float = Field(default=0.0, description="Pattern spacing in drawing units; 0.0 if no pattern")
     bolt_circle_diameter: float = Field(
@@ -436,6 +444,42 @@ class Dimension(BaseModel):
         return is_envelope_label(self.applies_to) and not self.is_reference
 
 
+class PositionAnchor(BaseModel):
+    """WHAT a feature's position is measured FROM — the drawing's own
+    dimensioning scheme, preserved instead of flattened into bare floats
+    (2026-07-17 dimensioning-architecture overhaul; see
+    docs/research/DIMENSIONING_ARCHITECTURE_NOTES.md §1.1).
+
+    Absolute coordinates in the build plan are DERIVED from these records by
+    pipeline/position_solver.py — the single coordinate authority. A feature
+    with no anchors is the degenerate ``coordinate`` case (today's behavior).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    scheme: Literal["chain", "baseline", "ordinate", "coordinate",
+                    "polar_bsc", "datum_frame"] = Field(
+        description="Dimensioning scheme this axis of the position uses")
+    anchor_ref: str = Field(
+        description=(
+            'What the value is measured FROM: "part_edge_left|right|top|bottom", '
+            '"origin", "part_center", "F00x" (chain: the previous feature), '
+            '"F00x_center" (polar center), "DATUM_HOLE_1", or "DRF_A|B|C"'
+        ))
+    dimension_ids: list[str] = Field(
+        default_factory=list,
+        description="The drawing dimensions that define this position component")
+    axis: Literal["x", "y", "radial", "angular"] = Field(
+        description="Which axis of the position this anchor constrains")
+    value: float = Field(
+        description="Resolved value along that axis from that anchor "
+                    "(drawing units; degrees for angular)")
+    semantics: Literal["to_near_edge", "to_center", "to_far_edge",
+                       "true_position"] = Field(
+        default="to_center",
+        description="What point of the feature the dimension lands on")
+
+
 class Feature(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -463,6 +507,14 @@ class Feature(BaseModel):
     )
     position_known: bool = Field(
         default=False, description="True only if the offsets were read from the drawing"
+    )
+    anchors: list[PositionAnchor] = Field(
+        default_factory=list,
+        description=(
+            "How this feature's position is ANCHORED by the drawing (typically one "
+            "record per axis). Additive: old JSONs load with an empty list, which is "
+            "the degenerate coordinate scheme (offset_x/offset_y from the origin)."
+        ),
     )
     quantity: int = Field(default=1, description="Instance count (for patterns)")
     revolve_profile: list[list[float]] = Field(
@@ -581,6 +633,25 @@ class DrawingData(BaseModel):
     general_tolerance: str = Field(
         default="",
         description="General tolerance block text (e.g. '.XX ±0.01, .XXX ±0.005'); empty if not given",
+    )
+    coordinate_frame: dict = Field(
+        default_factory=dict,
+        description=(
+            "Stage 2.5's canonical-frame record: which ground the part's "
+            "coordinates use (datum_hole_pair | declared_origin | "
+            "lower_left_corner) with the chosen ground and a note. Written by "
+            "the resolver via position_solver.canonical_frame; empty on raw "
+            "extractions."
+        ),
+    )
+    dimension_origin: str = Field(
+        default="",
+        description=(
+            "The drawing's declared dimension ORIGIN, when identifiable: ordinate "
+            "zero edges, a dimension-origin symbol, or GD&T datum letters on "
+            "edges/holes (e.g. 'ordinate zero at lower-left corner', 'datum holes "
+            "H001/H002'). Empty when the drawing has no explicit origin."
+        ),
     )
     views: list[View] = Field(default_factory=list)
     dimensions: list[Dimension] = Field(default_factory=list)

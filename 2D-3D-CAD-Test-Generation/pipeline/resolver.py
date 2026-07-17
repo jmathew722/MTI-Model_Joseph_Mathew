@@ -2047,6 +2047,31 @@ def resolve_extraction(raw: dict,
         for f in ov_flags:
             log.info("overview flag [%s]: %s", f["flag_tier"], f["human_note"])
 
+    # --- Canonical coordinate frame + anchor validation (2026-07-17) ---
+    # The dimensioning-architecture overhaul: record WHICH ground the part's
+    # coordinates use (datum-hole pair > declared dimension origin > default
+    # lower-left corner) and validate that every explicit PositionAnchor
+    # resolves to a real entity. An unresolvable anchor goes through the
+    # standard ladder (flagged, stored offsets used) — never a block.
+    try:
+        from pipeline.position_solver import canonical_frame, solve_positions
+
+        resolved["coordinate_frame"] = canonical_frame(model)
+        for fid, sol in solve_positions(model).items():
+            if not sol.grounded:
+                result.flags.append({
+                    "dimension_id": fid,
+                    "flag_tier": "MEDIUM",
+                    "human_note": (f"{fid}: position anchor could not be resolved to a "
+                                   f"detected entity — built from stored offsets instead "
+                                   f"({'; '.join(sol.trace)})"),
+                    "macro_behavior": behavior_for_tier("MEDIUM"),
+                    "resolved_by_tier": TIER_PER_VIEW,
+                    "source": "position_solver",
+                })
+    except Exception as e:
+        log.warning("coordinate-frame/anchor validation failed (non-fatal): %s", e)
+
     _summarize(result)
     # Overview-contributed flags count toward the summary tiers (they are not
     # dimension resolutions, so _summarize alone would miss them).
