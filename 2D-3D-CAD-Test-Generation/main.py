@@ -843,7 +843,31 @@ def main() -> int:
         sw_app = _connect_solidworks_optional(args)
         build_skipped: list = []
         build_caveats: list = []
-        if sw_app is not None:
+        # Feature-flag A/B: BUILD_EXECUTOR_MODE=pywin32 routes the .sldprt COM build
+        # through automation.build_executor (the experimental pywin32 path) instead
+        # of the default build_sldprt_for_part. VBA macros are generated either way;
+        # only the COM-build envelope changes. Default (vba) is fully unchanged.
+        from automation.config import is_pywin32_mode
+
+        if sw_app is not None and is_pywin32_mode():
+            from automation.build_executor import run as _pywin32_run
+
+            try:
+                _report = _pywin32_run(
+                    model, pkg.root, part_name=pkg.root.name,
+                    template_path=_os.getenv("SOLIDWORKS_TEMPLATE_PATH"),
+                    strict=False,
+                )
+                if _report.sldprt_path:
+                    lines.append(f"  [green]Model built (pywin32):[/green] {_report.sldprt_path}")
+                else:
+                    lines.append("  [yellow].sldprt build (pywin32) produced no part;[/yellow] "
+                                 "see *_pywin32_build_report.json")
+                for _err in _report.errors:
+                    build_caveats.append(_err.get("message", "pywin32 build error"))
+            except Exception as e:
+                lines.append(f"  [yellow].sldprt build (pywin32) failed:[/yellow] {type(e).__name__}: {e}")
+        elif sw_app is not None:
             from pipeline.batch import build_sldprt_for_part
 
             try:

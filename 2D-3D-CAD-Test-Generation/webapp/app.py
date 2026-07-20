@@ -1613,6 +1613,44 @@ def part_summary(session: str, part: str):
     return build_summary(pdir / "output")
 
 
+@app.post("/debug/compare-build/{session}/{part}")
+def debug_compare_build(session: str, part: str):
+    """A/B parity check: build a part BOTH ways (baseline COM vs pywin32 executor)
+    against two separate SolidWorks documents and diff feature-tree counts + STL
+    bounding boxes. Windows + SolidWorks required. Debug-only: not wired into the
+    normal run flow. See automation/compare.py.
+
+    Reads the part's saved ``*_resolved_extraction.json`` as the model to build.
+    """
+    pdir = _session_dir(session) / _sanitize(part)
+    if not pdir.is_dir():
+        raise HTTPException(404, "Unknown part")
+    out_root = pdir / "output"
+    resolved = None
+    if out_root.is_dir():
+        matches = sorted(out_root.rglob("*_resolved_extraction.json"))
+        resolved = matches[0] if matches else None
+    if resolved is None:
+        raise HTTPException(400, "No *_resolved_extraction.json found — run the part first.")
+    try:
+        model = json.loads(resolved.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(400, f"Could not parse {resolved.name}: {e}")
+
+    try:
+        from automation.compare import compare_build
+
+        report = compare_build(
+            model, resolved.parent, template_path=os.getenv("SOLIDWORKS_TEMPLATE_PATH"),
+            part_name=resolved.parent.name,
+        )
+        return JSONResponse(report)
+    except Exception as e:
+        # A debug endpoint must never crash the server; surface the failure.
+        return JSONResponse(
+            {"ok": False, "error": f"{type(e).__name__}: {e}"}, status_code=500)
+
+
 # ── Human-assist escalation queue (Task 4) ─────────────────────────────────
 def _assist_files(session: str):
     """Yield (part_output_dir, assist_queue_path) for every part in the session
