@@ -82,17 +82,17 @@ def _constants():
 
 
 def _null_dispatch():
-    """A VT_DISPATCH NULL VARIANT.
+    """A VT_DISPATCH NULL VARIANT (the value SolidWorks wants for a null Object arg).
 
-    Late-bound (non-gencache) COM calls can't pass plain Python ``None`` for an
-    ``Object``-typed parameter — dynamic dispatch sends VT_EMPTY, and SolidWorks'
-    IDispatch::Invoke rejects that with "Type mismatch". Wrapping it as an
-    explicit VT_DISPATCH NULL VARIANT is accepted.
+    Thin re-exporting wrapper: the construction now lives in
+    :func:`pipeline.com_marshal.null_dispatch` (the single place VARIANTs are
+    built), and this name is kept so every existing call site keeps working. See
+    that module for why a plain ``None`` is rejected by SolidWorks' late-bound
+    Invoke ("Type mismatch") and a VT_DISPATCH NULL VARIANT is required.
     """
-    import pythoncom  # type: ignore
-    from win32com.client import VARIANT  # type: ignore
+    from pipeline.com_marshal import null_dispatch
 
-    return VARIANT(pythoncom.VT_DISPATCH, None)
+    return null_dispatch()
 
 
 def _const(name: str, default: Optional[int] = None) -> int:
@@ -226,6 +226,37 @@ def connect_to_solidworks():
     return sw_app
 
 
+def _discover_part_template() -> Optional[str]:
+    """Filesystem-discovery fallback for a ``Part*.prtdot`` (COM builder E012).
+
+    Mirrors the VBA generator's E001 fix: when neither ``SOLIDWORKS_TEMPLATE_PATH``
+    nor the user-preference default resolves a template, glob the standard
+    SOLIDWORKS install/data ``templates/`` directories (all installed years,
+    newest first) for a stock part template so a clean machine can still build.
+    Returns the first match, or ``None``.
+    """
+    import glob
+    import os
+
+    roots: list[str] = []
+    for base in (os.getenv("ProgramData"), os.getenv("ProgramFiles"),
+                 os.getenv("ProgramFiles(x86)")):
+        if base:
+            roots.append(os.path.join(base, "SOLIDWORKS Corp"))
+            roots.append(os.path.join(base, "SolidWorks Corp"))
+            roots.append(os.path.join(base, "SOLIDWORKS"))
+    candidates: list[str] = []
+    for root in roots:
+        # e.g. C:\ProgramData\SOLIDWORKS\SOLIDWORKS 2024\templates\Part.prtdot
+        candidates += glob.glob(os.path.join(root, "**", "templates", "Part*.prtdot"),
+                                recursive=True)
+    if not candidates:
+        return None
+    # Prefer the newest-year install (lexical sort puts "2024" after "2022").
+    candidates.sort(reverse=True)
+    return candidates[0]
+
+
 def create_new_part(sw_app, template_path: Optional[str] = None):
     """Create a new part document.
 
@@ -238,6 +269,16 @@ def create_new_part(sw_app, template_path: Optional[str] = None):
             template_path = sw_app.GetUserPreferenceStringValue(_const("swDefaultTemplatePart", 8))
         except Exception as e:
             raise SolidWorksError(f"Could not resolve default part template: {e}") from e
+
+    # E012 (COM parity with the VBA path's E001): filesystem-discovery fallback so a
+    # machine with neither the env var nor a configured user-preference default can
+    # still build from a stock Part.prtdot on disk.
+    if not template_path or not Path(template_path).exists():
+        discovered = _discover_part_template()
+        if discovered:
+            log.info("Default template unresolved; discovered part template on disk: %s",
+                     discovered)
+            template_path = discovered
 
     if not template_path or not Path(template_path).exists():
         raise SolidWorksError(
@@ -362,14 +403,56 @@ def _rect_sides(dims: dict[str, float]) -> tuple[Optional[float], Optional[float
     return None, None
 
 
+# Order of the three standard reference planes in the feature tree (Front, Top,
+# Right) — used by the E013 index fallback when the localized plane NAME lookup
+# fails on a non-English SOLIDWORKS install.
+_PLANE_TREE_INDEX = {"Front Plane": 0, "Top Plane": 1, "Right Plane": 2}
+
+
+def _select_plane_by_index(sw_doc, canonical_name: str) -> bool:
+    """E013 fallback: select a standard reference plane by its position in the tree.
+
+    The three default planes are always the first RefPlane features in creation
+    order (Front, Top, Right) regardless of UI language, so when SelectByID2 by
+    (localized) name fails we enumerate ``RefPlane`` features and select the Nth.
+    Returns True on success.
+    """
+    idx = _PLANE_TREE_INDEX.get(canonical_name)
+    if idx is None:
+        return False
+    planes = []
+    feat = sw_doc.FirstFeature
+    while feat is not None:
+        try:
+            if feat.GetTypeName2 == "RefPlane":
+                planes.append(feat)
+        except Exception:
+            pass
+        feat = feat.GetNextFeature
+    if idx >= len(planes):
+        return False
+    try:
+        sw_doc.ClearSelection2(True)
+        return bool(planes[idx].Select2(False, 0))
+    except Exception:
+        return False
+
+
 def _select_plane(sw_doc, sketch_plane: Optional[str]) -> None:
-    """Select the named reference plane for the next sketch."""
+    """Select the named reference plane for the next sketch.
+
+    E013 (COM parity with the VBA path's E002): the localized-name SelectByID2 is
+    tried first, then an index-in-tree fallback (Front=1, Top=2, Right=3) so a
+    non-English SOLIDWORKS install (where the planes are localized) still resolves.
+    """
     name = _PLANE_NAMES.get((sketch_plane or "front").lower().strip(), "Front Plane")
     selected = sw_doc.Extension.SelectByID2(
         name, "PLANE", 0.0, 0.0, 0.0, False, 0, _null_dispatch(), 0
     )
     if not selected:
-        raise SolidWorksError(f"Could not select sketch plane {name!r}.")
+        selected = _select_plane_by_index(sw_doc, name)
+    if not selected:
+        raise SolidWorksError(f"Could not select sketch plane {name!r} (by name or tree index).")
 
 
 def _begin_sketch(sw_doc, sketch_plane: Optional[str], context: str) -> None:
@@ -853,14 +936,74 @@ def build_extrude_boss(sw_doc, model, feature: Feature, dims: dict[str, float]):
     return feat
 
 
+def build_slot_cut(sw_doc, model, feature: Feature, slot):
+    """E014 — build a canonical slot / open-edge notch at the NORMALIZED position.
+
+    The slot's rectangle geometry lives on the ``SlotCut`` record (width/depth),
+    not on ``related_dimensions``, and its global placement (e.g. a TOP-edge
+    notch's ``y = parent_height − depth``) is owned by
+    ``pipeline.slot_cut.corner_array`` → ``pipeline.coordinate_normalize.resolve_notch_anchor``
+    — the SAME single source of truth the VBA macro path uses. This builds the
+    rectangle through-cut from those exact corners so ``--engine com`` places
+    notches identically to ``--engine vba`` (previously the COM path had no slot
+    handling at all: the backing extrude_cut found no in-plane sides and either
+    failed or mis-placed the cut — the 158-C class E003 bug on the COM side).
+
+    Corner fillets are the slot's separate, deferred-safe refinement (see the
+    SlotCut docstring); the mandatory, position-carrying rectangle is built here
+    and the fillet is left to the interactive/macro path — a fillet failure must
+    never destroy the already-correct slot.
+    """
+    from pipeline.slot_cut import corner_array
+
+    if not _solid_body_exists(sw_doc):
+        raise SolidWorksError(f"slot {feature.id} requires an existing solid body.")
+
+    corners = corner_array(slot, model)  # 4× [x, y] drawing units, lower-left frame
+    if len(corners) < 3:
+        raise SolidWorksError(f"slot {feature.id}: corner_array returned < 3 corners.")
+
+    # Convert drawing units → meters via a FACTOR (coords may be negative from the
+    # open-side overshoot; to_meters() forbids negatives, so multiply by the unit
+    # factor instead).
+    factor = to_meters(1.0, model.units.value)
+    pts_m = [(c[0] * factor, c[1] * factor) for c in corners]
+
+    _begin_sketch(sw_doc, feature.sketch_plane, f"slot {feature.id}")
+    for (x1, y1), (x2, y2) in zip(pts_m, pts_m[1:] + pts_m[:1]):
+        if sw_doc.SketchManager.CreateLine(x1, y1, 0.0, x2, y2, 0.0) is None:
+            raise SolidWorksError(f"slot {feature.id}: CreateLine returned None.")
+    _verify_sketch_fully_defined(sw_doc)
+    sw_doc.SketchManager.InsertSketch(True)  # close the sketch
+
+    through_all = bool(getattr(slot, "thru", True))
+    xs = [p[0] for p in pts_m]
+    ys = [p[1] for p in pts_m]
+    _assert_cut_intersects_body(sw_doc, feature, (min(xs), min(ys), max(xs), max(ys)))
+    feat = _do_cut(sw_doc, feature, through_all, None if through_all else factor * float(slot.depth))
+    if getattr(slot, "corner_radius", 0.0):
+        _note_warning(model, f"{feature.id}: slot built as a rectangular through-cut at the "
+                             f"normalized position; its R{slot.corner_radius:g} interior corner "
+                             f"fillet is a deferred refinement (interactive/macro path).")
+    return feat
+
+
 def build_extrude_cut(sw_doc, model, feature: Feature, dims: dict[str, float]):
     """Cut material from the existing solid. Requires a base body first.
 
     The cut profile is placed in the drawing frame: a circular cut centres on the
     feature offset (or the part centre when not dimensioned), a rectangular cut
-    anchors its lower-left corner at the offset (or the origin)."""
+    anchors its lower-left corner at the offset (or the origin). A feature backed by
+    a canonical ``SlotCut`` record is routed to :func:`build_slot_cut` (E014), which
+    places it through ``coordinate_normalize`` — the geometry lives on the slot
+    record, not this feature's related dimensions."""
     if not _solid_body_exists(sw_doc):
         raise SolidWorksError(f"extrude_cut {feature.id} requires an existing solid body.")
+
+    # E014: a canonical slot / open-edge notch is placed through coordinate_normalize.
+    slot = model.slot_cut_for_feature(feature.id)
+    if slot is not None:
+        return build_slot_cut(sw_doc, model, feature, slot)
 
     diameter = dims.get("diameter") or dims.get("hole_diameter")
     side_u, side_v = _rect_sides(dims)
