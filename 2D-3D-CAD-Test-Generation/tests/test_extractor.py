@@ -173,9 +173,19 @@ class TestRefusalAndErrors:
 
 class TestMissingApiKey:
     def test_missing_key_raises_environment_error(self, monkeypatch):
+        # Pin the provider: this test is specifically the Anthropic branch's
+        # missing-key error, so it must not silently become the OpenAI branch
+        # on a machine whose ambient .env sets AI_PROVIDER=openai (MTI_Codex).
+        monkeypatch.setenv("AI_PROVIDER", "anthropic")
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         # _build_client checks the env var before importing anthropic, so this
         # works even if the anthropic package is not installed.
+        with pytest.raises(EnvironmentError):
+            extractor._build_client(3)
+
+    def test_missing_openai_key_raises_environment_error(self, monkeypatch):
+        monkeypatch.setenv("AI_PROVIDER", "openai")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         with pytest.raises(EnvironmentError):
             extractor._build_client(3)
 

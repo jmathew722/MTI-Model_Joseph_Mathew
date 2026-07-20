@@ -2,6 +2,9 @@
 # pipeline were verified with, so every clone runs with the same behavior.
 # (Verified 2026-07: full test suite + browser e2e on this exact set.)
 anthropic==0.116.0
+# MTI_Codex branch: OpenAI provider (AI_PROVIDER=openai). Not imported unless
+# that env var is set, so this stays an optional, always-installed dependency.
+openai==2.46.0
 pywin32==312; platform_system == "Windows"
 pillow==12.3.0
 pdf2image==1.17.0

@@ -1,15 +1,27 @@
-"""Token-usage and Claude API cost ledger.
+"""Token-usage and API cost ledger (Claude or, on MTI_Codex, GPT-5.6).
 
 Appends one row per extraction run to a human-readable ``token_usage_log.txt``
 (and a machine-readable ``token_usage_log.jsonl`` used to recompute the running
 total) at the output root, so the cost of every API call is tracked over time.
+The row's ``model`` field names whichever model actually ran that stage, so a
+mixed history (e.g. re-running the same output dir under both providers) still
+prices each row correctly rather than assuming one provider for the whole file.
 
-Prices are USD per MILLION tokens, from the Anthropic pricing reference
-(claude-api skill, cached 2026-07-03). Prompt-caching multipliers:
+Prices are USD per MILLION tokens.
+
+Anthropic (claude-api skill, cached 2026-07-03). Prompt-caching multipliers:
 cache WRITE (5-min TTL) = 1.25x input, cache READ = 0.10x input.
 claude-sonnet-5 is listed at $3/$15 (an introductory $2/$10 applies through
 2026-08-31 — the ledger uses the list price, so logged costs are an upper bound
 during the intro window). Update PRICING if Anthropic changes published prices.
+
+OpenAI GPT-5.6 (pricing checked live 2026-07-20 against developers.openai.com/
+api/docs/pricing — verify again if it drifts). Automatic prompt caching gives
+the same 90% discount convention as Anthropic's cache read (0.10x input); there
+is no separate cache-WRITE charge exposed in the API, so ``cache_write`` is set
+equal to ``input`` (a cache write costs the same as an ordinary input token) and
+:mod:`pipeline.ai_provider` always reports 0 cache-write tokens for OpenAI, so
+that column is inert unless the pricing model changes.
 """
 from __future__ import annotations
 
@@ -22,6 +34,12 @@ PRICING: dict[str, dict[str, float]] = {
     "claude-sonnet-5": {"input": 3.00, "output": 15.00, "cache_write": 3.75, "cache_read": 0.30},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cache_write": 3.75, "cache_read": 0.30},
     "claude-opus-4-8": {"input": 5.00, "output": 25.00, "cache_write": 6.25, "cache_read": 0.50},
+    # MTI_Codex (OpenAI provider). "gpt-5.6" is the alias for the Sol (frontier)
+    # tier — used for every stage on this branch (vision + reasoning).
+    "gpt-5.6": {"input": 5.00, "output": 30.00, "cache_write": 5.00, "cache_read": 0.50},
+    "gpt-5.6-sol": {"input": 5.00, "output": 30.00, "cache_write": 5.00, "cache_read": 0.50},
+    "gpt-5.6-terra": {"input": 2.50, "output": 15.00, "cache_write": 2.50, "cache_read": 0.25},
+    "gpt-5.6-luna": {"input": 1.00, "output": 6.00, "cache_write": 1.00, "cache_read": 0.10},
 }
 # Used when the model isn't in PRICING (keeps the ledger working, flags unknown).
 _FALLBACK = {"input": 3.00, "output": 15.00, "cache_write": 3.75, "cache_read": 0.30}
@@ -91,10 +109,12 @@ def record_run(output_dir: Path | str, part: str, model: str, usage: dict[str, i
     total_cread = sum(r.get("cache_read_tokens", 0) for r in rows)
 
     lines = [
-        "CLAUDE API TOKEN & COST LEDGER",
-        "==============================",
-        "Prices USD per 1M tokens (sonnet-5 $3/$15, sonnet-4-6 $3/$15, opus-4-8 $5/$25; "
-        "cache write 1.25x input, cache read 0.10x input).",
+        "API TOKEN & COST LEDGER",
+        "========================",
+        "Prices USD per 1M tokens (sonnet-5 $3/$15, sonnet-4-6 $3/$15, opus-4-8 $5/$25, "
+        "gpt-5.6 $5/$30, gpt-5.6-terra $2.50/$15, gpt-5.6-luna $1/$6; see PRICING in "
+        "this module for cache-write/cache-read multipliers per model).",
+        "Each row's MODEL column names whichever model/provider actually ran that stage.",
         "Only extraction runs hit the API; --from-json and cache hits cost $0.",
         "",
         f"{'TIMESTAMP':<20}  {'PART':<16}  {'STAGE':<28}  {'MODEL':<18}  "

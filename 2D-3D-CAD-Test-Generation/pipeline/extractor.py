@@ -1,16 +1,22 @@
-"""Dimension extraction via the Claude Vision API.
+"""Dimension extraction via the Claude Vision API (or GPT-5.6 Vision — see below).
 
 Uses ``claude-sonnet-5`` (override with ``EXTRACTION_MODEL``) with a **forced
-tool call** — Claude must respond by calling the ``report_drawing_data`` tool,
-whose ``input_schema`` is generated from :class:`pipeline.schema.DrawingData`.
+tool call** — the model must respond by calling the ``report_drawing_data``
+tool, whose ``input_schema`` is generated from :class:`pipeline.schema.DrawingData`.
 The tool's JSON input is then validated against the same Pydantic model.
 
-Note: this intentionally avoids Anthropic's *strict* structured outputs
-(``output_format=``), whose server-side grammar compiler cannot handle
-``DrawingData``'s nested arrays of objects ("Schema is too complex" /
-"Grammar compilation timed out"). Non-strict tool use has no such compiler
-step, at the cost of needing a Pydantic-validation repair retry instead of a
-server-side guarantee.
+Note: this intentionally avoids strict/grammar-compiled structured outputs,
+whose server-side compiler cannot handle ``DrawingData``'s nested arrays of
+objects ("Schema is too complex" / "Grammar compilation timed out"). Non-strict
+forced tool use has no such compiler step, at the cost of needing a
+Pydantic-validation repair retry instead of a server-side guarantee.
+
+**MTI_Codex branch (2026-07-20):** ``AI_PROVIDER=openai`` in ``.env`` swaps the
+model to GPT-5.6 via :mod:`pipeline.ai_provider`, whose adapter preserves this
+exact ``client.messages.create(...)`` contract — nothing below this line, in
+this file or in ``overview_analysis.py``/``must_meet.py``/``overview_check.py``,
+needs to know which provider is active. Unset (default) keeps Claude, so
+``main`` is completely unaffected.
 
 Public entry point: :func:`extract_drawing_data`.
 """
@@ -31,7 +37,16 @@ from utils.logger import get_logger
 log = get_logger()
 load_dotenv()
 
-DEFAULT_MODEL = "claude-sonnet-5"
+def _default_model() -> str:
+    """MTI_Codex: ``AI_PROVIDER=openai`` swaps the default to GPT-5.6; unset
+    (or any other value) keeps the original Claude default. See
+    pipeline/ai_provider.py."""
+    from pipeline.ai_provider import default_model
+
+    return default_model()
+
+
+DEFAULT_MODEL = _default_model()
 MAX_TOKENS = 16000
 CONFIDENCE_THRESHOLD = 0.7  # below this, re-query once for a closer look
 SDK_MAX_RETRIES = 3  # SDK-level retries for transient API errors
@@ -324,15 +339,15 @@ class ExtractionError(Exception):
 
 
 def _build_client(max_retries: int):
-    """Construct the Anthropic client, failing clearly if the key is absent."""
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise EnvironmentError(
-            "ANTHROPIC_API_KEY not found. Copy .env.template to .env and set your key."
-        )
-    import anthropic  # imported here so the module imports without the package present
+    """The provider-appropriate client (MTI_Codex: gated by ``AI_PROVIDER``).
 
-    return anthropic.Anthropic(api_key=api_key, max_retries=max_retries)
+    Default (unset/anything but ``openai``) is the original Anthropic client,
+    unchanged. See pipeline/ai_provider.py for the OpenAI adapter — it exposes
+    the identical ``.messages.create(...)`` contract used everywhere below.
+    """
+    from pipeline.ai_provider import build_client
+
+    return build_client(max_retries)
 
 
 def _image_block(image_b64: str, media_type: str, cache: bool = False) -> dict[str, Any]:
@@ -380,17 +395,17 @@ def _call(client, model: str, messages: list[dict[str, Any]]):
 
     import time
 
-    import anthropic
+    from pipeline.ai_provider import is_nonretryable_status, is_transient_error
 
     attempts = 1 + EXTRA_RETRY_ROUNDS
     for attempt in range(attempts):
         try:
             return _once()
-        except anthropic.APIConnectionError as e:
-            last = e
-        except anthropic.APIStatusError as e:
-            if e.status_code not in (429, 500, 502, 503, 529):
+        except Exception as e:
+            if is_nonretryable_status(e):
                 raise  # non-transient (auth, bad request, ...) — fail immediately
+            if not is_transient_error(e):
+                raise  # a genuine bug, not an API-layer failure — never swallow it
             last = e
         if attempt < attempts - 1:
             delay = EXTRA_RETRY_BACKOFF_S * (2 ** attempt)
