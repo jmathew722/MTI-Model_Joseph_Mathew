@@ -1,0 +1,62 @@
+LEARNING LOOP — 129-B
+============================================================
+Run:     2026-07-16 12:50:53
+Status:  READY
+Model:   claude-sonnet-5
+Outputs: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\d5cccbe1d0c8\A001291E_1\output\129-B
+Fingerprint: b59c860bf7a9c39f
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — READY
+   - No gate failures (run reached READY).
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [LOW] The front view shows the 4.375 BC and 4 mounting holes as a nominal/reference dimension (BC. REF.) while the 2.188 dimension (with ±.005 TYP.) appears to locate holes from center rather than confirming true bolt-circle radius — dimensioning mixes a reference BC with a toleranced linear offset, creating minor ambiguity about which dimension is authoritative for hole location.
+       -> Verify with the actual part or a more legible copy whether 2.188 is a radius or diameter offset and confirm it is consistent with 4.375 BC REF (half of 4.375 ≈ 2.1875, which matches — likely just rounding); treat 4.375 as reference only, not a toleranced control dimension.
+   - [MEDIUM] The side section view shows a stepped diameter (3.765 DIA, .094 wide) whose exact axial position (which face, how deep) relative to the .250 overall thickness is not fully clear from the sketch quality; the counterbore callout arrow also is somewhat ambiguous as to whether it points to all 4 holes or just the nearest one.
+       -> Cross-check with a clearer print or the actual part to confirm the rabbet is on the same face as the counterbore for the socket head screws, and confirm the counterbore note '(4) HLS' applies uniformly to all 4 holes shown in the front view.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 3, HIGH 1, MEDIUM 1, LOW 2
+   - [CRITICAL] D004 (dimension): D004 decimal placement AMBIGUOUS among ['0.25', '0.257']; plausibility could not separate them. Kept 0.257 as a best guess and the dependent feature is excluded from the build (Tab-3 assumption) — confirm the value and re-run.
+       decision: resolved value 0.257
+       why: ambiguous multi candidate
+       affects: dimension D004
+   - [CRITICAL] F002 (feature): POSITION COMMITTED for F002 at a conservative inside-parent placement (1, 1): no location dimension and no symmetry evidence. Tried: extension-line tracing from 0 unassociated linear dim(s) (no leader reached F002's centerline); symmetry inference (no centerline/symmetry relationship names this feature). Built and flagged (never left at a [0,0] placeholder) — verify/correct the location in SolidWorks.
+       decision: committed_conservative
+       why: position not dimensioned on the drawing
+       affects: feature F002
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "UNLESS OTHERWISE SPECIFIED: THIRD ANGLE PROJECTION, DIMENSIONS IN INCHES, 2 PLACE DIM ±.03, 3 PLACE DIM ±.010, ANGULAR DIM ±1°, SCALE 1=1" states 2 instance(s), but the per-view extraction captured hole group(s) of [4] (total 4). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [HIGH] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front): The front view shows the 4.375 BC and 4 mounting holes as a nominal/reference dimension (BC. REF.) while the 2.188 dimension (with ±.005 TYP.) appears to locate holes from center rather than confirming true bolt-circle radius — dimensioning mixes a reference BC with a toleranced linear offset, creating minor ambiguity about which dimension is authoritative for hole location. Recommendation: Verify with the actual part or a more legible copy whether 2.188 is a radius or diameter offset and confirm it is consistent with 4.375 BC REF (half of 4.375 ≈ 2.1875, which matches — likely just rounding); treat 4.375 as reference only, not a toleranced control dimension.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side_section): The side section view shows a stepped diameter (3.765 DIA, .094 wide) whose exact axial position (which face, how deep) relative to the .250 overall thickness is not fully clear from the sketch quality; the counterbore callout arrow also is somewhat ambiguous as to whether it points to all 4 holes or just the nearest one. Recommendation: Cross-check with a clearer print or the actual part to confirm the rabbet is on the same face as the counterbore for the socket head screws, and confirm the counterbore note '(4) HLS' applies uniformly to all 4 holes shown in the front view.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [LOW] OV004 (overview): Formed/bent profile shown: Thin outer rim/step feature, .094 wide flange or lip visible in side view (outer edge, side profile).
+       decision: not built — the pipeline models machined prismatic parts, not sheet-metal forming
+       why: a bend/flange is an unsupported feature kind (escalate if the part is truly sheet metal)
+       affects: unsupported feature kind: formed profile
+   - [LOW] OV005 (overview): Reference/phantom geometry noted: Inner step/counterbore relief shown as dashed line in side view corresponding to 3.765 DIA (side view, internal diameter step).
+       decision: treated as a reference boundary, not built geometry
+       why: dashed/phantom/reference linework is not a solid feature
+       affects: metadata: reference boundary
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '129-B' finished READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\d5cccbe1d0c8\A001291E_1\output\129-B

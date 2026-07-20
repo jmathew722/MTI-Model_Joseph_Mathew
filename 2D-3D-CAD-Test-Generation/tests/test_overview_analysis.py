@@ -90,6 +90,9 @@ def _a050211e_overview_analysis() -> dict:
         "overall_shape_summary": "flat circular flange, .50 thick, with a through bore, "
                                  "a 6-hole bolt pattern, and a bottom tab with an "
                                  "additional through-hole",
+        "dimension_locations": "bore and bolt-circle diameters plus hole positions are "
+                               "dimensioned in the front view from the flange center; "
+                               "the .50 thickness is dimensioned in the side view",
         "global_notes": [
             {"note": "FINISH ALL OVER", "applies_to": "all_exterior_faces"},
             {"note": "(6) HLS", "applies_to": "bolt_hole_pattern", "resolved_count": 6},
@@ -124,11 +127,15 @@ class TestSchema:
         data = OverviewAnalysis.model_validate({})
         assert data.views_detected == []
         assert data.symmetry.type == "none_detected"
+        # Additive field: old overview_analysis.json files (no
+        # dimension_locations) must keep loading.
+        assert data.dimension_locations == ""
 
     def test_round_trips_through_json(self):
         raw = _a050211e_overview_analysis()
         dumped = OverviewAnalysis.model_validate(raw).model_dump(mode="json")
         assert dumped["overall_shape_summary"] == raw["overall_shape_summary"]
+        assert dumped["dimension_locations"] == raw["dimension_locations"]
         assert dumped["cross_view_conflicts"][0]["recommendation"]
 
     def test_save_writes_overview_analysis_json(self, tmp_path):

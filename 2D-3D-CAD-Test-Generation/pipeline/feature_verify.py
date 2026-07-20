@@ -604,6 +604,34 @@ def verify_features(
              "expected": f.get("expected"), "measured": f.get("measured")}
             for f in mismatches
         ]
+
+        # --- Anchor fidelity (2026-07-17 dimensioning overhaul) ---
+        # Re-measure each anchored feature RELATIVE TO ITS ANCHOR (edge / chain
+        # target / polar center) and compare to the drawing's value. Catches
+        # "right hole, right size, measured-from-the-wrong-edge" — a
+        # compensating-error class the absolute checks above can miss.
+        if resolved_extraction and any((f.get("anchors") or [])
+                                       for f in resolved_extraction.get("features", [])):
+            try:
+                from pipeline.position_solver import verify_anchor_fidelity
+                from pipeline.resolver import schema_clean
+                from pipeline.schema import DrawingData
+
+                measured_xy: dict[str, tuple[float, float]] = {}
+                for f in report["features"]:
+                    meas = f.get("measured")
+                    if (isinstance(meas, dict) and "x" in meas and "y" in meas
+                            and f.get("feature_id")):
+                        measured_xy[f["feature_id"]] = (float(meas["x"]), float(meas["y"]))
+                if measured_xy:
+                    dd = DrawingData.model_validate(schema_clean(resolved_extraction))
+                    findings = verify_anchor_fidelity(dd, measured_xy,
+                                                      tol=pos_tol_in)
+                    report["anchor_fidelity"] = findings
+                    if any(x["status"] == "ANCHOR_MISMATCH" for x in findings):
+                        report["ok"] = False
+            except Exception as e:  # additive check — never sink verification
+                log.warning("anchor-fidelity check failed (skipped): %s", e)
     except Exception as e:  # never sink a run over the measurer
         report["ok"] = False
         report["error"] = f"{type(e).__name__}: {e}"

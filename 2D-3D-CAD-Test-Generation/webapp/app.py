@@ -28,7 +28,8 @@ from fastapi.responses import FileResponse, StreamingResponse, Response, JSONRes
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# webapp/ lives inside the project dir; the CLI + samples live one level up.
+# webapp/ lives inside the project dir; the CLI lives one level up and the
+# demo extractions in samples/ next to it.
 WEBAPP_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = WEBAPP_DIR.parent
 # The webapp normally reaches the pipeline only by launching main.py as a
@@ -100,7 +101,7 @@ def _has_api_key() -> bool:
 def _samples() -> list[str]:
     """Saved extractions usable for a no-API demo run (e.g. '117C')."""
     names = []
-    for p in sorted(PROJECT_DIR.glob("extraction_*.json")):
+    for p in sorted((PROJECT_DIR / "samples").glob("extraction_*.json")):
         stem = p.stem  # extraction_117C
         names.append(stem.replace("extraction_", "", 1))
     return names
@@ -348,7 +349,7 @@ def demo(req: DemoReq):
     if sample not in samples:
         raise HTTPException(404, f"Sample '{sample}' not found. Available: {samples}")
 
-    json_path = PROJECT_DIR / f"extraction_{sample}.json"
+    json_path = PROJECT_DIR / "samples" / f"extraction_{sample}.json"
     run_id = uuid.uuid4().hex[:12]
     out_dir = RUNS_DIR / run_id / "output"
     cmd = [sys.executable, "main.py", "--from-json", str(json_path), "--output", str(out_dir), "--no-export"]

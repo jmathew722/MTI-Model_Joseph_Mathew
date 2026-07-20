@@ -295,10 +295,10 @@ python main.py --drawing path/to/drawing.pdf --output ./output
 python main.py --from-json debug_extraction.json --output ./output
 
 # Batch a whole folder (drawings are extracted; *_extraction.json are free):
-python main.py --batch ./DrawingPDFs --output ./output       # → output/batch_summary.csv
+python main.py --batch ../test_drawings/DrawingPDFs --output ./output       # → output/batch_summary.csv
 
 # Multi-view: each part is a folder of SEPARATE per-view images, built per plane:
-python main.py --views-folder ./Test2 --output ./Test2/output   # → output/multiview_summary.csv
+python main.py --views-folder ../test_drawings/Test2 --output ../test_drawings/Test2/output   # → output/multiview_summary.csv
 
 # Direct COM build (Windows + SolidWorks 2024):
 python main.py --drawing path/to/drawing.pdf --engine com
@@ -393,7 +393,7 @@ Each **part** is a subfolder of **separate per-view images**; each view is sketc
 on its own SolidWorks plane. This is exactly what the web UI's per-part Run uses.
 
 ```
-Test2/
+test_drawings/Test2/
 ├── A001271E/                       ← one part = one folder
 │   ├── A001271E.png                full drawing   → whole-part CONTEXT (see below)
 │   ├── A001271E_front_view.png     front          → Front Plane (base profile + depth)
@@ -516,7 +516,7 @@ units → `positions_xy_meters` in the build plan) plus two additive fields on
 each hole callout and build-plan step: `position_source`
 (`dxf_entity | pdf_vector | hough | vision`) and `position_confidence` (0..1).
 Old extraction JSONs load unchanged. Vector-derived centers are bit-exact
-across runs (regression-tested). See `HOLE_EXTRACTION_REPORT.md` for the
+across runs (regression-tested). See `docs/HOLE_EXTRACTION_REPORT.md` for the
 before/after verification on real and synthetic parts.
 
 > Positioned-OCR note: eDOCr was evaluated for positioned dimension/GD&T text

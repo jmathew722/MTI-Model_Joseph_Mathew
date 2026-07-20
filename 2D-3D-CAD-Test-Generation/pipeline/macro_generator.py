@@ -150,6 +150,12 @@ class BuildStep:
     # Workstream 3: the reference-geometry handle this feature is positioned from
     # (coordinates stay above as the audit trail + fallback if the ref fails).
     positioned_from: str = ""
+    # Dimensioning-architecture overhaul (2026-07-17): the feature's anchors
+    # (WHAT its position is measured from) + the position solver's derivation
+    # trace. Absolute coordinates above stay as the executable truth; these
+    # record where they CAME from, so corrections move the right features.
+    anchors: list[dict] = field(default_factory=list)
+    position_derivation: list[str] = field(default_factory=list)
     # Canonical slot decomposition: rectangle step is must_complete; fillet step
     # is defer_on_failure with its expected corner count + the slot schema block.
     must_complete: bool = False
@@ -745,6 +751,9 @@ def _step_to_dict(s: BuildStep) -> dict[str, Any]:
         **({"pattern_evidence": s.pattern_evidence} if s.pattern_evidence else {}),
         **({"position_basis": s.position_basis} if s.position_basis else {}),
         **({"datum_points": s.datum_points} if s.datum_points else {}),
+        # --- additive: dimensioning-architecture anchors + derivation trace ---
+        **({"anchors": s.anchors} if s.anchors else {}),
+        **({"position_derivation": s.position_derivation} if s.position_derivation else {}),
     }
 
 
@@ -757,10 +766,16 @@ def _build_plan_dict(model: DrawingData, pkg: MacroPackage, unit_factor: float,
     present, a ``resolution_summary`` block is included; otherwise the plan is the
     backward-compatible v2 shape with the extra per-step fields defaulted.
     """
+    from pipeline.position_solver import canonical_frame
+
     plan: dict[str, Any] = {
         "part": model.display_name,
         "units": model.units.value,
         "unit_factor_to_meters": unit_factor,
+        # Dimensioning-architecture overhaul (2026-07-17): WHICH ground this
+        # part's coordinates use (datum-hole pair > declared dimension origin >
+        # default lower-left corner). Stated once, never inferred downstream.
+        "coordinate_frame": canonical_frame(model),
         "coordinate_origin": "lower_left_corner_of_base_solid",
         "x_direction": "positive_right",
         "y_direction": "positive_up",
@@ -1128,6 +1143,51 @@ def _cut4(depth_expr: str, thru: bool, var: str = "swFeat") -> str:
         + call("        ", "True", retry_end)
         + "    End If\n"
     )
+
+
+def _attach_anchor_provenance(step: "BuildStep", feature: Feature, solved: dict) -> None:
+    """Attach the feature's anchors + the position solver's derivation trace to
+    the build step (dimensioning-architecture overhaul, 2026-07-17). Absolute
+    coordinates stay the executable truth; this records where they came from.
+    A solver/executable disagreement on an explicitly-anchored feature is
+    logged — the solver is the authority for anchored features going forward."""
+    from pipeline.position_solver import anchors_for
+
+    step.anchors = [a.model_dump() for a in anchors_for(feature)]
+    sol = solved.get(feature.id)
+    if sol is None:
+        return
+    step.position_derivation = list(sol.trace)
+    if feature.anchors and step.positions_xy:
+        px, py = step.positions_xy[0][0], step.positions_xy[0][1]
+        if abs(px - sol.x) > 1e-3 or abs(py - sol.y) > 1e-3:
+            note = (f"anchor-solved position ({sol.x:.6g}, {sol.y:.6g}) differs from "
+                    f"executable position ({px:.6g}, {py:.6g})")
+            step.position_derivation.append(f"NOTE: {note}")
+            log.warning("%s: %s", feature.id, note)
+
+
+def _anchor_vba_block(feature: Feature, solved: dict) -> str:
+    """Sketch-dimensioning annotation mirroring the drawing's anchor scheme.
+
+    Emitted ONLY for features with EXPLICIT extraction-provided anchors (the
+    degenerate coordinate wrap stays plan-only, keeping legacy macro text
+    byte-identical). Live ``AddDimension2`` sketch dimensioning remains
+    opt-in-future per the Stage-7 standing decision (unverified on a live
+    SolidWorks); these audited annotation lines carry the same information —
+    a human opening the macro sees the drawing's dimensioning intent."""
+    if not feature.anchors:
+        return ""
+    lines = [f"    ' ---- DIMENSION ANCHORS ({feature.id}): the drawing's own scheme ----\n"]
+    for a in feature.anchors:
+        dims = ",".join(a.dimension_ids) or "-"
+        lines.append(f"    ' ANCHOR {a.axis}: {dims} = {_v(a.value)} from "
+                     f"{a.anchor_ref} [{a.scheme}/{a.semantics}]\n")
+    sol = solved.get(feature.id)
+    if sol is not None:
+        for t in sol.trace:
+            lines.append(f"    ' DERIVED {t}\n")
+    return "".join(lines)
 
 
 def _feature_check_and_name(feature_name: str, step: str) -> str:
@@ -2642,6 +2702,18 @@ def generate_macro_package(
         json.dumps(seq_result.disposition_table, indent=2), encoding="utf-8"
     )
 
+    # --- Position solver: the single coordinate authority (2026-07-17) ---
+    # Solve every feature's position from its anchors (explicit ones from the
+    # drawing; the degenerate coordinate wrap otherwise) so each build step can
+    # carry its anchors + derivation trace into the plan and the macro.
+    from pipeline.position_solver import solve_positions
+
+    try:
+        solved_positions = solve_positions(model)
+    except Exception as e:  # solver must never sink a build — fall back empty
+        log.warning("position solver failed (anchors omitted from plan): %s", e)
+        solved_positions = {}
+
     # --- 00 setup ---
     (macros_dir / "00_setup.vba").write_text(_setup_macro(model, unit_factor), encoding="utf-8")
     pkg.steps.append(
@@ -2832,15 +2904,19 @@ def generate_macro_package(
 """
 
         # Stage 2.5: emit assumption-flag behavior (NOTE/MsgBox/confirmation) at
-        # the top of the macro body, then the feature body itself.
+        # the top of the macro body, then the feature body itself. Explicitly
+        # anchored features additionally carry their DIMENSION ANCHORS block —
+        # the drawing's own dimensioning scheme, audited below.
         step_flags = _collect_step_flags(model, feature, resolution)
-        body = _flag_vba_block(step_name, step_flags) + body
+        body = _anchor_vba_block(feature, solved_positions) \
+            + _flag_vba_block(step_name, step_flags) + body
 
         (macros_dir / fname).write_text(header + body + _vba_footer(), encoding="utf-8")
         run_all_subs.append((f"Step{seq:02d}_{_vba_identifier(feature.id)}", body))
         step = BuildStep(seq, fname, feature.id, feature.type.value, feature.description,
                          status, dimensions=used, notes=notes)
         _enrich_feature_step(step, model, feature, resolution, step_flags)
+        _attach_anchor_provenance(step, feature, solved_positions)
         pkg.steps.append(step)
         if status == "needs_review":
             pkg.needs_review.append(step)
@@ -2949,13 +3025,49 @@ def generate_macro_package(
     _assert_open_edge_overshoot(pkg)
     _assert_notch_orientation(model, pkg)
     _assert_label_payload_agreement(pkg)
+    # Dimensioning-architecture invariant (2026-07-17): a feature with explicit
+    # PositionAnchor records must ship its anchor annotations (dimension ids +
+    # values) in its macro — the drawing's scheme demonstrably survives.
+    from pipeline.macro_audit import check_anchor_annotations
+
+    anchor_errors = check_anchor_annotations(model, pkg, macros_dir)
+    if anchor_errors:
+        raise MacroGenerationError(
+            "Anchor-annotation check failed: " + "; ".join(anchor_errors[:10]))
     from pipeline.macro_echo import assert_macro_echo
 
     echo = assert_macro_echo(pkg, macros_dir)
     log.info("macro echo check OK: %d literal(s) across %d macro(s) round-trip to the plan",
              echo.checked_literals, echo.checked_files)
 
+    # --- Overview-analysis cross-validation (2026-07-16, advisory) ---
+    # Where the echo check proves the literals, this proves the PACKAGE agrees
+    # with the Stage 1.5 overview words: note counts vs drilled instances,
+    # cross-view feature coverage, through-vs-blind agreement. Never blocks —
+    # findings land in <Part>_macro_overview_validation.json, the build plan,
+    # and the engineering review. Skipped silently when no overview exists.
+    overview_report = None
+    try:
+        from pipeline.overview_macro_validate import run_overview_macro_validation
+
+        overview_report = run_overview_macro_validation(model, pkg)
+    except Exception as e:  # advisory stage: never sink a generated package
+        log.warning("overview macro validation failed (stage skipped): %s", e)
+
+    # --- C# companion package (additive; VBA stays the canonical build path) ---
+    # macros_csharp/ next to macros/: a late-bound COM console program generated
+    # from the SAME BuildStep data, self-echo-checked at emission time.
+    try:
+        from pipeline.csharp_macro import generate_csharp_package
+
+        generate_csharp_package(model, pkg, unit_factor)
+    except Exception as e:  # additive output: never sink the VBA package
+        log.warning("C# macro emission failed (VBA package unaffected): %s", e)
+
     plan = _build_plan_dict(model, pkg, unit_factor, audit, resolution)
+    if overview_report is not None:
+        plan["overview_macro_validation"] = overview_report.to_dict()
+        plan["engineering_review"].extend(overview_report.review_items())
     pkg.build_plan_json.write_text(json.dumps(plan, indent=2), encoding="utf-8")
 
     # --- Severity-ranked engineering review (first-class human-facing output) ---

@@ -202,6 +202,8 @@ def _prepare_and_extract(args) -> tuple[dict | None, dict | None]:
             f"{len(overview_analysis.get('cross_view_conflicts', []) or [])} conflict(s); "
             f"shape: {overview_analysis.get('overall_shape_summary', '')[:100]}"
         )
+        if overview_analysis.get("dimension_locations"):
+            console.print(f"  Dimensions: {overview_analysis['dimension_locations'][:160]}")
     else:
         console.print("  [yellow]Overview analysis unavailable — proceeding with "
                       "per-view extraction only.[/yellow]")
@@ -534,6 +536,9 @@ def _run_views_folder(args) -> int:
                     f"view(s) detected, {n_conf} cross-view conflict(s); "
                     f"shape: {overview_analysis.get('overall_shape_summary', '')[:100]}"
                 )
+                if overview_analysis.get("dimension_locations"):
+                    console.print(
+                        f"  Dimensions: {overview_analysis['dimension_locations'][:160]}")
             else:
                 console.print("  [yellow]Overview analysis unavailable — proceeding "
                               "with per-view extraction only.[/yellow]")
