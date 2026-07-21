@@ -1,0 +1,94 @@
+LEARNING LOOP — SB 16247
+============================================================
+Run:     2026-07-20 13:01:25
+Status:  NOT READY
+Model:   gpt-5.6
+Outputs: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\449e6bb327fe\16247_1\output\SB_16247
+Fingerprint: 67d49f619f9df8bb
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - overview verification found CRITICAL gap(s)
+   - 1 reconciliation item(s) unresolved after 1 pass(es) — see SB_16247_reconciliation_report.json
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side view contains multiple faint short horizontal lines, but their exact correspondence to the two front-view slots and/or other edge conditions is not completely legible; more marks appear than the two obvious slot levels alone would suggest.
+       -> Inspect the original higher-resolution drawing or source CAD to determine whether these are hidden/visible slot edges, break marks, or additional machining features before programming manufacture.
+   - [HIGH] The note '.280 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y.' is legible in intent, but the stacked tolerance immediately above appears to read +.010/-.000 and should be verified from the original because scan quality is weak.
+       -> Confirm the exact thickness tolerance and whether .280 is finished thickness or stock-before-fit from the controlled drawing/source record.
+   - [MEDIUM] The two left-edge slots appear geometrically similar, and the .531 R TYP note likely governs both, but no explicit feature count is stated and the upper slot has no separate radius leader.
+       -> Verify that 'TYP' was intended to apply to both rounded slot ends and confirm no different upper-slot radius is specified in a revision or associated assembly drawing.
+   - [HIGH] No explicit section or unambiguous hidden-line convention confirms the slots are through-cuts; this is inferred from the face openings and edge-view indications.
+       -> Confirm through-all extent in the source CAD or assembly drawing before machining; do not interpret either feature as a blind pocket solely from this scan.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 5, HIGH 1, MEDIUM 6, LOW 1
+   - [CRITICAL] F002 (build): The .sldprt build SKIPPED feature F002 (extrude_cut): deferred_open (zero_thickness_or_geometry): cut F002 positioned OUTSIDE the solid — its profile (0.0, 0.0, 0.0406, 0.0406) m does not overlap the body (0.0254, 0.24
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (zero_thickness_or_geometry): cut F002 positioned OUTSIDE the solid — its profile (0.0, 0.0, 0.0406, 0.0406) m does not overlap the body (0.0254, 0.24
+       affects: feature F002
+   - [CRITICAL] F003 (build): The .sldprt build SKIPPED feature F003 (pattern): deferred_open (parameter_out_of_range): com_error: (-2147352561, 'Parameter not optional.', None, None)
+       decision: feature is absent from the .sldprt; the VBA macros still contain it as a step
+       why: deferred_open (parameter_out_of_range): com_error: (-2147352561, 'Parameter not optional.', None, None)
+       affects: feature F003
+   - [CRITICAL] OV001 (overview): The overview clearly shows 2x slot (Open-ended horizontal U-shaped edge slots/notches, each with a semicircular closed end., One near the upper left edge and one near the lower left edge.) but the build contains no matching feature.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: slot feature(s) — verify against the drawing
+   - [CRITICAL] OV002 (overview): The overview clearly shows 2x fillet (Semicircular slot-end radii; drawing notes .531 R TYP., Closed inner end of each of the two edge slots.) but the build contains no matching feature.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: fillet feature(s) — verify against the drawing
+   - [CRITICAL] F004 (reconciliation): Stage 10.5 reconciliation: chamfer F004 still unresolved after 1 pass(es)
+       decision: unresolved_after_pass_1
+       why: EXCLUDED FROM BUILD — chamfer F004 is missing distance. No value was read, and none could be derived from the constraint graph, a TYP sibling, or a standard size. Rather than emit a build step that fails or places wrong geometry, F004 was left OUT of the model and recorded as a model-derived assumption in Tab 3. Expected on host feature F001. Add the missing value on the drawing and re-run to include this feature.
+       affects: Re-ran Stage 2.5 resolution (pass 1) with every available requirements/overview-analysis signal reloaded from disk; the result was identical to the previous pass — no further information is available to resolve this without fabricating a value, which this pipeline never does.
+   - [HIGH] F003 (macro): Macro for F003 (pattern) needs manual review: Pattern left for manual application (see macro).
+       decision: macro 04_F003_Linear_pattern_creating_the_upper_notch_.vba generated with manual instructions
+       why: Pattern left for manual application (see macro).
+       affects: feature F003
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view contains multiple faint short horizontal lines, but their exact correspondence to the two front-view slots and/or other edge conditions is not completely legible; more marks appear than the two obvious slot levels alone would suggest. Recommendation: Inspect the original higher-resolution drawing or source CAD to determine whether these are hidden/visible slot edges, break marks, or additional machining features before programming manufacture.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (side): The note '.280 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y.' is legible in intent, but the stacked tolerance immediately above appears to read +.010/-.000 and should be verified from the original because scan quality is weak. Recommendation: Confirm the exact thickness tolerance and whether .280 is finished thickness or stock-before-fit from the controlled drawing/source record.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front): The two left-edge slots appear geometrically similar, and the .531 R TYP note likely governs both, but no explicit feature count is stated and the upper slot has no separate radius leader. Recommendation: Verify that 'TYP' was intended to apply to both rounded slot ends and confirm no different upper-slot radius is specified in a revision or associated assembly drawing.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-004 (overview_analysis): CROSS-VIEW CONFLICT (front, side): No explicit section or unambiguous hidden-line convention confirms the slots are through-cuts; this is inferred from the face openings and edge-view indications. Recommendation: Confirm through-all extent in the source CAD or assembly drawing before machining; do not interpret either feature as a blind pocket solely from this scan.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: F002 (extrude_cut) deferred_open after retries: cut F002 positioned OUTSIDE the solid — its profile (0.0, 0.0, 0.0406, 0.0406) m does not overlap the body (0.0254, 0.24
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: F003 (pattern) deferred_open after retries: com_error: (-2147352561, 'Parameter not optional.', None, None)
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV003 (overview): The overview shows content the checker cannot auto-match: Small rectangular edge interruptions visible in the thin side/profile view; may represent discrete edge notches or merely projection/detail lines, so their feature status is uncertain. (Right-hand side/profile view: two in the upper region and one near the lower region.)
+       decision: not automatically verified against the build
+       why: no direct counterpart in the build inventory or the non-feature taxonomy
+       affects: manual visual comparison recommended
+
+5. BUILD / MACRO FEATURE FAILURES
+   - feature F002 FAILED: cut F002 positioned OUTSIDE the solid — its profile (0.0, 0.0, 0.0406, 0.0406) m does not overlap the body (0.0254, 0.2445, 0.5143, 0.2953) m. Root cause: the feature's location was assumed (POSITION ASSUMED) and lands off the part. The Stage 2.5 completeness gate now excludes position-unresolved cuts before the build — add an X/Y location dimension on the drawing and re-run; do not patch the build.
+   - feature F003 FAILED: com_error: (-2147352561, 'Parameter not optional.', None, None)
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'SB 16247' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * skipped: macro_generator.py / solidworks_builder.py (prohibited/unsupported feature — add real support or a better manual step)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\449e6bb327fe\16247_1\output\SB_16247

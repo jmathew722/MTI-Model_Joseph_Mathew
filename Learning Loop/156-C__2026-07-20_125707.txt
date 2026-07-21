@@ -1,0 +1,62 @@
+LEARNING LOOP — 156-C
+============================================================
+Run:     2026-07-20 12:57:07
+Status:  NOT READY
+Model:   gpt-5.6
+Outputs: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\449e6bb327fe\A001561E_1\output\156-C
+Fingerprint: 275e552f08d28eec
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - overview verification found CRITICAL gap(s)
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - none
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The front view clearly shows a bottom-edge semicircular cutout, but the side/profile view appears substantially continuous and does not clearly show the corresponding interrupted edge or notch extent.
+       -> Verify whether the profile view is simplified and confirm that the 3.062 DIA semicircular feature is a full-thickness edge cutout, as its face-view outline strongly implies.
+   - [HIGH] The weather-stripping material is listed and a dashed rectangular path appears in the face view, but there is no clearly readable leader or assembly note explicitly assigning item 2 to that dashed path or defining which face receives it.
+       -> Confirm the intended strip path, face of application, corner treatment, and whether the listed 23 in quantity is a cut length or approximate requirement before fabrication/assembly.
+   - [MEDIUM] The finished width is dimensioned 10.500 while the material table specifies .105 x 6.50 x 11.00 stock and a separate 11.00 dimension appears above the face view. This is likely stock size versus finished size, but the relationship is not explicitly labeled at the dimension itself.
+       -> Treat 10.500 as the finished part width and 11.00 as supplied blank length only after checking the manufacturing intent or revision history; do not manufacture the finished cover at 11.00 based on the stock callout.
+   - [LOW] Inspection balloons marked 1/1, 2/2 with 6.50 IN., and 2/1 with 10.00 IN. are present. These are inspection references, not geometry; the 10.00 IN. balloon especially must not be interpreted as conflicting with the 10.500 finished width.
+       -> Resolve balloon identifiers against the first-article inspection report and exclude balloon values from the part definition.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, HIGH 1, MEDIUM 3
+   - [CRITICAL] OV-COUNT (overview_analysis): HOLE-COUNT DISAGREEMENT: the sheet's global callout "ITEM 1 — PLATE — 1018 STL. (12 GA) — .105 x 6.50 x 11.00" states 1 instance(s), but the per-view extraction captured hole group(s) of [7] (total 7). A cropped view cannot resolve this alone — check for an occluded instance (behind the title block or a leader line) before building, or the part will silently miss a feature.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] OV004 (overview): The overview clearly shows 1x shell (Flat rectangular sheet-metal plate/body., Overall part outline.) but the build contains no matching feature.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: shell feature(s) — verify against the drawing
+   - [HIGH] OV-004 (overview_analysis): INSPECTION-BALLOON REFERENCE (front, side_profile): Inspection balloons marked 1/1, 2/2 with 6.50 IN., and 2/1 with 10.00 IN. are present. These are inspection references, not geometry; the 10.00 IN. balloon especially must not be interpreted as conflicting with the 10.500 finished width. Recognized as an inspection dimension balloon (circled numeral / 'IN.' value), attached to part metadata — NOT a competing geometry dimension, so it is excluded from dimension-conflict reconciliation.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side_profile): The front view clearly shows a bottom-edge semicircular cutout, but the side/profile view appears substantially continuous and does not clearly show the corresponding interrupted edge or notch extent. Recommendation: Verify whether the profile view is simplified and confirm that the 3.062 DIA semicircular feature is a full-thickness edge cutout, as its face-view outline strongly implies.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (front, side_profile, bill_of_materials): The weather-stripping material is listed and a dashed rectangular path appears in the face view, but there is no clearly readable leader or assembly note explicitly assigning item 2 to that dashed path or defining which face receives it. Recommendation: Confirm the intended strip path, face of application, corner treatment, and whether the listed 23 in quantity is a cut length or approximate requirement before fabrication/assembly.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, bill_of_materials): The finished width is dimensioned 10.500 while the material table specifies .105 x 6.50 x 11.00 stock and a separate 11.00 dimension appears above the face view. This is likely stock size versus finished size, but the relationship is not explicitly labeled at the dimension itself. Recommendation: Treat 10.500 as the finished part width and 11.00 as supplied blank length only after checking the manufacturing intent or revision history; do not manufacture the finished cover at 11.00 based on the stock callout.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part '156-C' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\449e6bb327fe\A001561E_1\output\156-C
