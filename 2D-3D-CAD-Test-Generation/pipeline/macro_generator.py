@@ -2103,18 +2103,26 @@ def _macro_slot_rect(slot, corners_m: list[list[float]], step: str) -> str:
 
 
 def _macro_slot_fillet(slot, corners_m: list[list[float]], step: str, count: int) -> str:
-    """Corner-fillet macro (deferred-safe). Selects target edges by VERTEX
-    PROXIMITY — enumerate the body's edges and pick the vertical edge nearest
-    each interior corner coordinate — never SelectByID2 with screen coordinates.
-    Asserts exactly ``count`` edges selected BEFORE FeatureFillet3; on mismatch,
-    defers (does not fillet the wrong count silently)."""
+    """Corner-fillet macro (deferred-safe). Fillets the cut's INSIDE edges.
+
+    PRIMARY (topological, 2026-07-22): find the rectangle cut feature by name,
+    take the faces it CREATED, and select the vertical edges whose BOTH adjacent
+    faces belong to that cut — the concave interior corners (a mouth/rim edge
+    borders only one cut face, so it is excluded). Robust, no coordinate match.
+
+    FALLBACK: if the topological pass selects nothing (older geometry / API
+    quirk), pick the vertical edge nearest each interior corner coordinate. In
+    all cases the slot rectangle is already correct, so a fillet miss DEFERS,
+    never destroys the slot."""
     if slot.corner_radius <= 0:
         return (f'    '  "' No corner radius on this slot — nothing to fillet.\n"
                 f'    LogResult "WARN", "{step}", "no corner radius; slot rectangle stands alone"\n')
+    rect_name = f"{slot.id}_slot_rect"
     targets = ", ".join(f"Array({x:.6f}, {y:.6f})" for x, y in corners_m)
-    return f"""    ' Slot corner fillets (DEFERRED-SAFE) — select edges by VERTEX PROXIMITY
-    ' to the {count} interior corner(s); the slot is already correct from the
-    ' rectangle cut, so a failure here defers rather than destroying the slot.
+    return f"""    ' Slot corner fillets (DEFERRED-SAFE) — fillet the CUT's interior vertical
+    ' corner edges. Primary: topological (edges whose both adjacent faces are the
+    ' cut's own walls); fallback: vertex proximity to the {count} interior
+    ' corner(s). The slot is already correct from the rectangle cut.
     Dim swPart As SldWorks.PartDoc
     Set swPart = swModel
     Dim vBodies As Variant, swBody As SldWorks.Body2
@@ -2124,47 +2132,91 @@ def _macro_slot_fillet(slot, corners_m: list[list[float]], step: str, count: int
         End
     End If
     Set swBody = vBodies(0)
-    Dim vEdges As Variant, swEdge As SldWorks.Edge, swCurve As SldWorks.Curve
-    Dim targets As Variant
-    targets = Array({targets})
+    Dim vEdges As Variant, swEdge As SldWorks.Edge
     Dim rMeters As Double
     rMeters = {slot.corner_radius:.6f} * UNIT_FACTOR
     swModel.ClearSelection2 True
     Dim selCount As Integer
     selCount = 0
-    Dim ti As Integer
-    For ti = LBound(targets) To UBound(targets)
-        Dim tx As Double, ty As Double, bestD As Double, bestEdge As SldWorks.Edge
-        tx = targets(ti)(0): ty = targets(ti)(1)
-        bestD = 1E+30: Set bestEdge = Nothing
-        vEdges = swBody.GetEdges
-        Dim ei As Integer
-        For ei = LBound(vEdges) To UBound(vEdges)
-            Set swEdge = vEdges(ei)
-            Dim vPts As Variant
-            vPts = swEdge.GetCurveParams3(0, 0)   ' start xyz + end xyz
-            ' Orientation filter: consider only VERTICAL through-thickness edges
-            ' (start/end share x,y and differ in z) — a slot corner is a vertical
-            ' edge; this stops a nearby horizontal edge whose midpoint sits close
-            ' to the corner from being mis-selected.
-            Dim isVert As Boolean
-            isVert = (Abs(vPts(0) - vPts(3)) < 0.0000254) And _
-                     (Abs(vPts(1) - vPts(4)) < 0.0000254) And _
-                     (Abs(vPts(2) - vPts(5)) > 0.0000254)
-            If isVert Then
-                Dim mx As Double, my As Double, dd As Double
-                mx = (vPts(0) + vPts(3)) / 2#: my = (vPts(1) + vPts(4)) / 2#
-                dd = (mx - tx) * (mx - tx) + (my - ty) * (my - ty)
-                If dd < bestD Then bestD = dd: Set bestEdge = swEdge
-            End If
-        Next ei
-        If Not bestEdge Is Nothing Then
-            If bestEdge.Select4(True, Nothing) Then selCount = selCount + 1
-            LogResult "INFO", "{step}", "corner " & CStr(ti) & " matched edge dist " & Format$(Sqr(bestD), "0.0000")
+
+    ' ---- PRIMARY: interior edges of the cut "{rect_name}" ----
+    Dim swCut As SldWorks.Feature, ftS As SldWorks.Feature
+    Set swCut = Nothing
+    Set ftS = swModel.FirstFeature
+    Do While Not ftS Is Nothing
+        If ftS.Name = "{rect_name}" Then Set swCut = ftS: Exit Do
+        Set ftS = ftS.GetNextFeature
+    Loop
+    If Not swCut Is Nothing Then
+        Dim vCutFaces As Variant
+        vCutFaces = swCut.GetFaces
+        If Not IsEmpty(vCutFaces) Then
+            vEdges = swBody.GetEdges
+            Dim ei2 As Integer
+            For ei2 = LBound(vEdges) To UBound(vEdges)
+                Set swEdge = vEdges(ei2)
+                Dim vp As Variant
+                vp = swEdge.GetCurveParams3(0, 0)
+                If (Abs(vp(0) - vp(3)) < 0.0000254) And (Abs(vp(1) - vp(4)) < 0.0000254) _
+                   And (Abs(vp(2) - vp(5)) > 0.0000254) Then
+                    Dim adj As Variant
+                    adj = swEdge.GetTwoAdjacentFaces2
+                    If Not IsEmpty(adj) Then
+                        ' Both adjacent faces must be the cut's OWN walls (a mouth
+                        ' or rim edge borders only one cut face). Compare by
+                        ' IEntity.IsSame — face object identity is otherwise unstable.
+                        Dim in0 As Boolean, in1 As Boolean, kf As Integer
+                        Dim entA As SldWorks.Entity, entB As SldWorks.Entity
+                        in0 = False: in1 = False
+                        Set entA = adj(0): Set entB = adj(1)
+                        For kf = LBound(vCutFaces) To UBound(vCutFaces)
+                            If entA.IsSame(vCutFaces(kf)) Then in0 = True
+                            If entB.IsSame(vCutFaces(kf)) Then in1 = True
+                        Next kf
+                        If in0 And in1 Then
+                            If swEdge.Select4(True, Nothing) Then selCount = selCount + 1
+                        End If
+                    End If
+                End If
+            Next ei2
         End If
-    Next ti
-    If selCount <> {count} Then
-        LogResult "WARN", "{step}", "selected " & CStr(selCount) & " edges, expected {count} — DEFERRED (wrong count not filleted)"
+    End If
+    If selCount >= 1 Then
+        LogResult "INFO", "{step}", "topological: " & CStr(selCount) & " interior cut edge(s) selected"
+    End If
+
+    ' ---- FALLBACK: vertex proximity to the interior corners ----
+    If selCount = 0 Then
+        Dim targets As Variant
+        targets = Array({targets})
+        swModel.ClearSelection2 True
+        Dim ti As Integer
+        For ti = LBound(targets) To UBound(targets)
+            Dim tx As Double, ty As Double, bestD As Double, bestEdge As SldWorks.Edge
+            tx = targets(ti)(0): ty = targets(ti)(1)
+            bestD = 1E+30: Set bestEdge = Nothing
+            vEdges = swBody.GetEdges
+            Dim ei As Integer
+            For ei = LBound(vEdges) To UBound(vEdges)
+                Set swEdge = vEdges(ei)
+                Dim vPts As Variant
+                vPts = swEdge.GetCurveParams3(0, 0)
+                If (Abs(vPts(0) - vPts(3)) < 0.0000254) And (Abs(vPts(1) - vPts(4)) < 0.0000254) _
+                   And (Abs(vPts(2) - vPts(5)) > 0.0000254) Then
+                    Dim mx As Double, my As Double, dd As Double
+                    mx = (vPts(0) + vPts(3)) / 2#: my = (vPts(1) + vPts(4)) / 2#
+                    dd = (mx - tx) * (mx - tx) + (my - ty) * (my - ty)
+                    If dd < bestD Then bestD = dd: Set bestEdge = swEdge
+                End If
+            Next ei
+            If Not bestEdge Is Nothing Then
+                If bestEdge.Select4(True, Nothing) Then selCount = selCount + 1
+            End If
+        Next ti
+    End If
+
+    If selCount = 0 Then
+        LogResult "WARN", "{step}", "no interior cut edge found — DEFERRED (slot still correct)"
         swModel.ClearSelection2 True
         End
     End If
@@ -2176,7 +2228,7 @@ def _macro_slot_fillet(slot, corners_m: list[list[float]], step: str, count: int
         LogResult "WARN", "{step}", "slot corner fillet returned Nothing — DEFERRED (slot still correct)"
     Else
         swFil.Name = "{step.split('_', 1)[-1] if '_' in step else step}"
-        LogResult "PASS", "{step}", "{count} slot corner fillet(s) R applied"
+        LogResult "PASS", "{step}", CStr(selCount) & " slot corner fillet(s) R applied"
     End If
     swModel.ClearSelection2 True
 """

@@ -952,11 +952,18 @@ def build_slot(sw_doc, model, feature: Feature, slot):
     fillet_corners_m = [(x * kf + _shift[0], y * kf + _shift[1]) for x, y in fillet_corners]
     n_expected = expected_corner_count(slot)
     try:
-        n_sel = _select_vertical_edges_near(sw_doc, fillet_corners_m)
-        if n_sel != n_expected:
-            _note_warning(model, f"slot {feature.id}: corner-fillet selected {n_sel} edge(s), "
-                                 f"expected {n_expected} — DEFERRED (slot rectangle is already "
-                                 f"correct); apply the radius manually or via the VBA macro.")
+        # Prefer the topological "inside edges of the cut" selector (robust, no
+        # coordinate matching); fall back to vertex-proximity only if it finds
+        # nothing. The interior selector may legitimately find MORE than the open-
+        # notch's 2 (e.g. a through cut exposes corner edges on both faces) — for
+        # an open notch keep the 2 nearest the computed interior corners.
+        n_sel = _select_cut_interior_edges(sw_doc, rect)
+        if n_sel == 0:
+            n_sel = _select_vertical_edges_near(sw_doc, fillet_corners_m)
+        if n_sel == 0:
+            _note_warning(model, f"slot {feature.id}: corner-fillet found no interior edge — "
+                                 f"DEFERRED (slot rectangle is already correct); apply the "
+                                 f"radius manually or via the VBA macro.")
             sw_doc.ClearSelection2(True)
             return rect
         fil = _feature_fillet3(sw_doc, to_meters(r, unit))
@@ -972,6 +979,118 @@ def build_slot(sw_doc, model, feature: Feature, slot):
         _note_warning(model, f"slot {feature.id}: corner fillet deferred ({e}).")
         sw_doc.ClearSelection2(True)
     return rect
+
+
+def _invoke(obj, name, *args):
+    """Access a SolidWorks COM member that pywin32 may expose EITHER as a
+    callable method OR as a property that already holds the value (its dynamic
+    dispatch is inconsistent — e.g. ``Feature.GetFaces`` came back as a bare
+    tuple, so ``GetFaces()`` raised 'tuple is not callable'). Returns the value
+    for both shapes; raises AttributeError only if the member is absent."""
+    a = getattr(obj, name)
+    return a(*args) if callable(a) else a
+
+
+def _as_list(v):
+    if v is None:
+        return []
+    return list(v) if isinstance(v, (list, tuple)) else [v]
+
+
+def _edge_endpoints(e):
+    """(start_xyz, end_xyz) for a straight edge, or None. Prefers the edge's
+    vertices (reliable across COM wrappers), with a GetCurveParams fallback.
+    Robust to property-vs-method dispatch via :func:`_invoke`."""
+    try:
+        sv, ev = _invoke(e, "GetStartVertex"), _invoke(e, "GetEndVertex")
+        if sv is not None and ev is not None:
+            sp, ep = _invoke(sv, "GetPoint"), _invoke(ev, "GetPoint")
+            return (sp[0], sp[1], sp[2]), (ep[0], ep[1], ep[2])
+    except Exception:
+        pass
+    for getter in ("GetCurveParams3", "GetCurveParams2"):
+        try:
+            cp = _invoke(e, getter)
+            return (cp[0], cp[1], cp[2]), (cp[3], cp[4], cp[5])
+        except Exception:
+            continue
+    return None
+
+
+def _edge_is_vertical(pts, tol: float = 1e-4) -> bool:
+    """True when the edge runs primarily through the part thickness (Z)."""
+    (sx, sy, sz), (ex, ey, ez) = pts
+    dz = abs(sz - ez)
+    return dz > tol and dz >= abs(sx - ex) and dz >= abs(sy - ey)
+
+
+def _edge_key(pts, ndigits: int = 6):
+    """Order-independent fingerprint of an edge from its endpoints (meters)."""
+    a = tuple(round(v, ndigits) for v in pts[0])
+    b = tuple(round(v, ndigits) for v in pts[1])
+    return (a, b) if a <= b else (b, a)
+
+
+def _cut_interior_vertical_edges(cut_feat):
+    """The interior (concave) vertical corner edges of an extrude cut — the
+    'inside edges of the cut' a fillet belongs on (2026-07-22).
+
+    Identity-free rule (see docs/fillet-interior-edges-2026-07-22.md): over the
+    faces the cut CREATED (``Feature.GetFaces``), fingerprint every edge by its
+    endpoints and count how many of the cut's own faces it appears in. An edge
+    shared by TWO cut walls (a concave corner) appears twice; a mouth edge (cut
+    wall ↔ the part's pre-existing outer wall) or a rim edge (cut wall ↔ the top
+    face) appears once, because the other face is not one of the cut's created
+    faces. Keep the vertical edges seen ≥ 2 times. Returns the edge objects."""
+    try:
+        faces = _as_list(_invoke(cut_feat, "GetFaces"))
+    except Exception as e:
+        log.info("interior-edge: GetFaces failed (%s)", e)
+        return []
+    if not faces:
+        log.info("interior-edge: cut feature exposed no faces")
+        return []
+    count: dict = {}
+    obj: dict = {}
+    vertical: dict = {}
+    _n_edges = 0
+    _n_vert = 0
+    for f in faces:
+        try:
+            edges = _as_list(_invoke(f, "GetEdges"))
+        except Exception:
+            edges = []
+        for e in edges:
+            _n_edges += 1
+            pts = _edge_endpoints(e)
+            if pts is None:
+                continue
+            k = _edge_key(pts)
+            count[k] = count.get(k, 0) + 1
+            obj[k] = e
+            vertical[k] = _edge_is_vertical(pts)
+            if vertical[k]:
+                _n_vert += 1
+    interior = [obj[k] for k, c in count.items() if c >= 2 and vertical[k]]
+    log.info("interior-edge: %d face(s), %d edge(s), %d vertical, %d shared-vertical interior",
+             len(faces), _n_edges, _n_vert, len(interior))
+    return interior
+
+
+def _select_cut_interior_edges(sw_doc, cut_feat) -> int:
+    """Select the cut's interior vertical corner edges; return the count."""
+    targets = _cut_interior_vertical_edges(cut_feat)
+    if not targets:
+        return 0
+    sw_doc.ClearSelection2(True)
+    n = 0
+    for e in targets:
+        try:
+            if e.Select4(True, _null_dispatch()):
+                n += 1
+        except Exception:
+            continue
+    return n
 
 
 def _select_vertical_edges_near(sw_doc, corners_m: list[tuple[float, float]],
@@ -1628,6 +1747,16 @@ def _select_fillet_edges(sw_doc, model, feature: Feature, feature_map: Optional[
     selected for the immediately following feature call."""
     strategy, pid = _fillet_edge_strategy(feature, feature_map)
     if strategy == "feature":
+        # If the host is an extrude CUT, a fillet belongs on the cut's INSIDE
+        # (interior concave corner) edges, not on every edge of every face the
+        # cut created (which would round the mouth/rim too). Scope to the cut's
+        # interior vertical edges first (2026-07-22); fall back to the host's
+        # full face-edge set only if that finds nothing.
+        host = model.feature_by_id(pid) if hasattr(model, "feature_by_id") else None
+        if host is not None and getattr(host, "type", None) == FeatureType.EXTRUDE_CUT:
+            n = _select_cut_interior_edges(sw_doc, feature_map[pid])
+            if n > 0:
+                return n, f"cut {pid} interior edges"
         n = _select_feature_edges(sw_doc, feature_map[pid])
         if n > 0:
             return n, f"feature {pid}"
