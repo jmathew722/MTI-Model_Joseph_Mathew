@@ -1613,6 +1613,78 @@ def part_summary(session: str, part: str):
     return build_summary(pdir / "output")
 
 
+def _run_artifact_dir(pdir: Path) -> Path | None:
+    """The run's artifact subfolder under ``<part>/output/`` (the one holding
+    ``*_build_plan.json`` / ``*_engineering_review.txt``). The subfolder is named
+    after the PART NUMBER, not the UI part name, so it is discovered from disk."""
+    out = pdir / "output"
+    if not out.is_dir():
+        return None
+    for sub in sorted((p for p in out.iterdir() if p.is_dir()),
+                      key=lambda p: p.stat().st_mtime, reverse=True):
+        if any(sub.glob("*_build_plan.json")) or any(sub.glob("*_engineering_review.txt")):
+            return sub
+    return None
+
+
+@app.get("/api/parts/{session}/{part}/verification")
+def part_verification(session: str, part: str):
+    """Human-Verification view-model (Tab 3): the run's engineering flags, each
+    phrased as a concise confirmation question (GPT-5.6 via the pipeline's
+    provider, cached) with a fill-in answer. The operator's answers become
+    must-meet CORRECTION lines on re-run, clearing the flags. Never 500s on an
+    un-run part (returns count 0)."""
+    from pipeline.verification_questions import build_verification_items
+
+    pdir = _session_dir(session) / _sanitize(part)
+    if not pdir.is_dir():
+        raise HTTPException(404, "Unknown part")
+    adir = _run_artifact_dir(pdir)
+    if adir is None:
+        return {"ran": False, "part": _sanitize(part), "count": 0, "counts": {}, "items": []}
+    data = build_verification_items(adir)
+    data["ran"] = True
+    return data
+
+
+class _VerifyAnswers(BaseModel):
+    answers: dict[str, str] = {}
+    rerun: bool = True
+
+
+@app.post("/api/parts/{session}/{part}/verification")
+def post_verification(session: str, part: str, body: _VerifyAnswers):
+    """Apply the operator's per-flag answers: compile them into ONE must-meet
+    CORRECTION block and (by default) re-run the pipeline so specs-first
+    extraction + Stage 2.5 resolve the flagged items — clearing the flags. With
+    ``rerun=False`` the correction is only appended (applied on the next run)."""
+    from pipeline.verification_questions import build_verification_items, compile_corrections
+
+    pdir = _session_dir(session) / _sanitize(part)
+    if not pdir.is_dir():
+        raise HTTPException(404, "Unknown part")
+    adir = _run_artifact_dir(pdir)
+    if adir is None:
+        raise HTTPException(400, "This part has no run to verify yet.")
+    items = build_verification_items(adir, use_llm=False)["items"]
+    feedback = compile_corrections(items, body.answers or {})
+    if not feedback.strip():
+        raise HTTPException(400, "No answers provided — fill in at least one box.")
+    if body.rerun:
+        res = _launch_part_run(session, part, feedback, no_cache=True)
+        return {"applied": True, "reran": True, **res}
+    # Append the correction without launching (applied on the next run).
+    from datetime import datetime
+
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    line = f"CORRECTION ({stamp}): {feedback}"
+    for fname in ("must_meet_spec.txt", "notes.txt"):
+        f = pdir / fname
+        prev = (f.read_text(encoding="utf-8", errors="replace").rstrip("\n") + "\n") if f.is_file() else ""
+        f.write_text(prev + line + "\n", encoding="utf-8")
+    return {"applied": True, "reran": False}
+
+
 # ── Human-assist escalation queue (Task 4) ─────────────────────────────────
 def _assist_files(session: str):
     """Yield (part_output_dir, assist_queue_path) for every part in the session
@@ -1920,6 +1992,13 @@ def clear_run_history():
 @app.post("/api/run-part")
 def run_part(session: str = Form(...), part: str = Form(...),
              feedback: str = Form(""), no_cache: bool = Form(False)):
+    return _launch_part_run(session, part, feedback, no_cache)
+
+
+def _launch_part_run(session: str, part: str, feedback: str = "", no_cache: bool = False):
+    """Append any correction feedback to the part's must-meet spec and launch a
+    scoped pipeline run. Shared by the Pipeline-tab corrections box and the
+    Human-Verification tab (whose per-flag answers become one correction block)."""
     if not _has_api_key():
         raise HTTPException(
             400,

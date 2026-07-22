@@ -631,6 +631,37 @@
   .flags-scroll { flex:1 1 auto; overflow:auto; padding-bottom:var(--sp-3); }
   .flags-summary { padding:var(--sp-3) var(--sp-4) 0; font-size:var(--fs-body); color:var(--ink-3); }
 
+  /* Human Verification (Sheet 3): a flag → one confirmation question + fill-in.
+     Reuses the --sev-* tokens; no new visual language. */
+  .verify-wrap { flex:1 1 auto; overflow:auto; padding:var(--sp-4); display:flex; flex-direction:column; gap:var(--sp-3); }
+  .vflag { border:1px solid var(--line); border-left:3px solid var(--ink-4); border-radius:var(--r-md);
+           padding:var(--sp-3) var(--sp-4); background:var(--surface-1); }
+  .vflag.sev-CRITICAL { border-left-color:var(--sev-critical); }
+  .vflag.sev-HIGH { border-left-color:var(--sev-high); }
+  .vflag.sev-MEDIUM { border-left-color:var(--sev-medium); }
+  .vflag.sev-LOW { border-left-color:var(--sev-low); }
+  .vflag .vf-head { display:flex; align-items:center; gap:var(--sp-2); margin-bottom:var(--sp-2); }
+  .vflag .vf-sev { font:700 10px/16px var(--sans); letter-spacing:.06em; text-transform:uppercase;
+                   padding:1px 7px; border:1px solid; border-radius:999px; }
+  .vflag.sev-CRITICAL .vf-sev { color:var(--sev-critical); border-color:var(--sev-critical); background:rgba(240,84,92,.1); }
+  .vflag.sev-HIGH .vf-sev { color:var(--sev-high); border-color:var(--sev-high); background:rgba(227,161,60,.1); }
+  .vflag.sev-MEDIUM .vf-sev { color:var(--sev-medium); border-color:var(--sev-medium); background:rgba(210,195,85,.08); }
+  .vflag.sev-LOW .vf-sev { color:var(--sev-low); border-color:var(--sev-low); background:rgba(141,164,190,.08); }
+  .vflag .vf-id { font:400 var(--fs-caption)/1.6 var(--mono); color:var(--ink-3); }
+  .vflag .vf-src { font:400 var(--fs-caption)/1.6 var(--mono); color:var(--ink-4); margin-left:auto; }
+  .vflag .vf-q { color:var(--ink-1); font-size:var(--fs-body); margin-bottom:var(--sp-2); font-weight:600; }
+  .vflag textarea { width:100%; min-height:44px; resize:vertical; box-sizing:border-box;
+                    border:1px solid var(--line); border-radius:var(--r-sm); padding:var(--sp-2);
+                    font:400 var(--fs-body)/1.5 var(--sans); background:var(--surface-0); color:var(--ink-1); }
+  .vflag textarea:focus { outline:none; border-color:var(--blueprint-text); }
+  .vflag textarea.answered { border-color:var(--sev-low); background:rgba(141,164,190,.05); }
+  .vflag .vf-ctx { margin-top:var(--sp-2); }
+  .vflag .vf-ctx summary { cursor:pointer; color:var(--ink-3); font-size:var(--fs-caption); }
+  .vflag .vf-ctx .vf-ctx-body { margin-top:var(--sp-1); color:var(--ink-2); font-size:var(--fs-caption); line-height:1.6; }
+  .vflag .vf-ctx .vf-ctx-body b { color:var(--ink-3); }
+  .verify-actions { position:sticky; bottom:0; display:flex; align-items:center; gap:var(--sp-3);
+                    padding:var(--sp-3) var(--sp-4); border-top:1px solid var(--line); background:var(--surface-1); }
+
   /* Token / cost — mono, tabular; the part total leads */
   .cost-cards { display:flex; gap:var(--sp-3); padding:var(--sp-4) var(--sp-4) var(--sp-1); flex-wrap:wrap; }
   .cost-card { border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface);
@@ -785,7 +816,8 @@
 <nav class="tabs" id="tabbar">
   <button class="tab tab-c active" data-tab="intake"><span class="sheet-no">SHEET 1</span>Upload &amp; 3D Model <span class="badge">·</span></button>
   <button class="tab tab-c" data-tab="pipeline"><span class="sheet-no">SHEET 2</span>Pipeline</button>
-  <button class="tab tab-c" data-tab="outputs"><span class="sheet-no">SHEET 3</span>Run Outputs</button>
+  <button class="tab tab-c" data-tab="verify"><span class="sheet-no">SHEET 3</span>Human Verification <span class="badge-c warn" id="verify-tab-count" style="display:none">0</span></button>
+  <button class="tab tab-c" data-tab="outputs"><span class="sheet-no">SHEET 4</span>Run Outputs</button>
 </nav>
 
 <main>
@@ -993,6 +1025,34 @@
   </section>
 
   <!-- ── Sheet 4 · Run Outputs (browse every artifact of any completed run) ── -->
+  <!-- ── Sheet 3 · Human Verification ──────────────────────────────────────
+       Each engineering flag from the selected run becomes a concise, LLM-phrased
+       confirmation question with a fill-in box. The operator's answers are
+       compiled into ONE must-meet CORRECTION block and fed back through the
+       specs-first extraction + Stage 2.5 resolution on re-run — clearing the
+       flags at the source instead of shipping assumptions. ──────────────────── -->
+  <section class="panel" id="panel-verify">
+    <div class="outputs-head">
+      <span class="oh-title">HUMAN VERIFICATION</span>
+      <span class="oh-sub">answer a short question per engineering flag — your answers become authoritative corrections that resolve them on re-run</span>
+      <span class="grow"></span>
+      <label class="hint" for="verify-run-select" style="text-transform:none;letter-spacing:0">Select Run</label>
+      <select class="sel-input model-sel" id="verify-run-select" title="Pick a completed run to review its engineering flags">
+        <option value="">no completed runs yet</option>
+      </select>
+      <span class="badge-c warn" id="verify-count" title="Open flags for this run">0</span>
+    </div>
+    <div class="verify-wrap">
+      <div class="empty" id="verify-empty">Select a completed run above to review its engineering flags and confirm the drawing's intent.</div>
+      <div id="verify-list"></div>
+      <div class="verify-actions" id="verify-actions" style="display:none">
+        <button class="btn primary" id="verify-submit" title="Compile your answers into a must-meet correction and re-run the pipeline so the flags resolve">✓ Submit answers &amp; re-run</button>
+        <button class="btn secondary" id="verify-save" title="Append your answers as a correction without re-running now (applied on the next run)">Save answers only</button>
+        <span class="hint" id="verify-status"></span>
+      </div>
+    </div>
+  </section>
+
   <section class="panel" id="panel-outputs">
     <div class="outputs-head">
       <span class="oh-title">RUN OUTPUTS</span>
@@ -1123,7 +1183,7 @@
 <script src="/vendor/OrbitControls.js"></script>
 <script>
 // ── Tabs: 4 top-level sheets + a sub-tab dock for run outputs (Sheet 4) ─────
-const TOP_TABS = ['intake', 'pipeline', 'outputs'];
+const TOP_TABS = ['intake', 'pipeline', 'verify', 'outputs'];
 document.getElementById('tabbar').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab);
 });
@@ -1660,10 +1720,13 @@ async function refreshRunHistory(selectKey) {
   try { runHistory = (await (await fetch('/api/run-history')).json()).runs || []; }
   catch { return; }
   const modelSel = document.getElementById('model-select'), runSel = document.getElementById('run-select');
+  const verSel = document.getElementById('verify-run-select');
   fillRunSelect(modelSel, 'no part loaded', '— select a model —',
                 selectKey || (modelSel ? modelSel.value : ''));
   fillRunSelect(runSel, 'no completed runs yet', '— select a run —',
                 selectKey || (runSel ? runSel.value : ''));
+  fillRunSelect(verSel, 'no completed runs yet', '— select a run —',
+                selectKey || (verSel ? verSel.value : ''));
   if (selectKey && runSel && runSel.value === selectKey) syncOutputsToRun(selectKey, { repaint: false });
 }
 function runByKey(key) { return runHistory.find(r => historyKey(r) === key); }
@@ -1685,6 +1748,113 @@ async function syncOutputsToRun(key, opts) {
 document.getElementById('run-select').addEventListener('change', e => {
   if (e.target.value) syncOutputsToRun(e.target.value);
 });
+
+// ── Sheet 3 · Human Verification ────────────────────────────────────────────
+// Each engineering flag → a concise confirmation question + a fill-in box; the
+// answers compile into ONE must-meet correction fed back through re-run.
+let verifyCtx = null;   // {session, part}
+let verifyItems = [];
+function _esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+async function loadVerification(key) {
+  const r = runByKey(key);
+  const list = document.getElementById('verify-list');
+  const empty = document.getElementById('verify-empty');
+  const actions = document.getElementById('verify-actions');
+  const countEl = document.getElementById('verify-count');
+  const tabCount = document.getElementById('verify-tab-count');
+  const status = document.getElementById('verify-status');
+  status.textContent = '';
+  if (!r) { verifyCtx = null; verifyItems = []; list.innerHTML = ''; actions.style.display = 'none';
+            empty.style.display = ''; empty.textContent = 'Select a completed run above to review its engineering flags.';
+            countEl.textContent = '0'; tabCount.style.display = 'none'; return; }
+  verifyCtx = { session: r.session, part: r.part };
+  empty.style.display = ''; empty.textContent = 'Loading engineering flags…';
+  list.innerHTML = ''; actions.style.display = 'none';
+  let d;
+  try { d = await (await fetch(`/api/parts/${r.session}/${encodeURIComponent(r.part)}/verification`)).json(); }
+  catch (e) { empty.textContent = 'Could not load verification: ' + e.message; return; }
+  if (!verifyCtx || verifyCtx.session !== r.session || verifyCtx.part !== r.part) return; // switched away
+  verifyItems = d.items || [];
+  const n = verifyItems.length;
+  countEl.textContent = String(n);
+  tabCount.textContent = String(n); tabCount.style.display = n ? '' : 'none';
+  if (!d.ran) { empty.style.display = ''; empty.textContent = 'This part has not been run yet — run it first, then verify.'; return; }
+  if (!n) { empty.style.display = ''; empty.textContent = '✓ No engineering flags on this run — nothing to verify.'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = verifyItems.map(it => {
+    const sev = String(it.severity || 'MEDIUM').toUpperCase();
+    const ctx = [it.why ? `<div><b>Why:</b> ${_esc(it.why)}</div>` : '',
+                 it.affects ? `<div><b>Affects:</b> ${_esc(it.affects)}</div>` : '',
+                 it.what ? `<div><b>Flag:</b> ${_esc(it.what)}</div>` : ''].join('');
+    return `<div class="vflag sev-${_esc(sev)}">
+      <div class="vf-head"><span class="vf-sev">${_esc(sev)}</span>
+        ${it.flag_id ? `<span class="vf-id">${_esc(it.flag_id)}</span>` : ''}
+        <span class="vf-src">${_esc(it.source || '')}</span></div>
+      <div class="vf-q">${_esc(it.question)}</div>
+      <textarea data-item-id="${_esc(it.id)}" placeholder="Confirm, or type the correct value / clarification…"></textarea>
+      ${ctx ? `<details class="vf-ctx"><summary>flag detail</summary><div class="vf-ctx-body">${ctx}</div></details>` : ''}
+    </div>`;
+  }).join('');
+  actions.style.display = '';
+  list.querySelectorAll('textarea').forEach(t =>
+    t.addEventListener('input', () => t.classList.toggle('answered', !!t.value.trim())));
+}
+
+function _collectVerifyAnswers() {
+  const answers = {};
+  document.querySelectorAll('#verify-list textarea').forEach(t => {
+    const v = t.value.trim(); if (v) answers[t.dataset.itemId] = v;
+  });
+  return answers;
+}
+
+async function submitVerification(rerun) {
+  if (!verifyCtx) return;
+  const answers = _collectVerifyAnswers();
+  const status = document.getElementById('verify-status');
+  if (!Object.keys(answers).length) { status.textContent = 'Fill in at least one box first.'; return; }
+  const btnS = document.getElementById('verify-submit'), btnV = document.getElementById('verify-save');
+  btnS.disabled = btnV.disabled = true;
+  status.innerHTML = '<span class="spinner"></span>' + (rerun ? 'Applying answers & re-running…' : 'Saving answers…');
+  let res;
+  try {
+    res = await (await fetch(`/api/parts/${verifyCtx.session}/${encodeURIComponent(verifyCtx.part)}/verification`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers, rerun }) })).json();
+  } catch (e) { status.textContent = 'Failed: ' + e.message; btnS.disabled = btnV.disabled = false; return; }
+  if (res.detail || res.error) { status.textContent = res.detail || res.error; btnS.disabled = btnV.disabled = false; return; }
+  if (rerun && res.id) {
+    status.textContent = 'Re-run started — watch the Pipeline tab.';
+    selectedPart = res.part || verifyCtx.part;
+    currentRunId = res.id; monitorRun(res.id, selectedPart); showTab('pipeline');
+  } else {
+    status.textContent = '✓ Answers saved as a correction — they apply on the next run.';
+  }
+  btnS.disabled = btnV.disabled = false;
+}
+document.getElementById('verify-run-select').addEventListener('change', e => loadVerification(e.target.value));
+document.getElementById('verify-submit').addEventListener('click', () => submitVerification(true));
+document.getElementById('verify-save').addEventListener('click', () => submitVerification(false));
+// When the Human Verification tab opens, sync its run selector to the current
+// outputs run (so you verify the run you just inspected) and load its flags.
+(function () {
+  const prev = window.__onTab;
+  window.__onTab = function (name) {
+    if (typeof prev === 'function') { try { prev(name); } catch {} }
+    if (name !== 'verify') return;
+    const verSel = document.getElementById('verify-run-select');
+    const want = (outputsCtx && runHistory.length)
+      ? (runHistory.find(r => r.session === outputsCtx.session && r.part === outputsCtx.part) || {}).key
+      : '';
+    if (want && verSel.value !== want) { verSel.value = want; }
+    if (verSel.value && (!verifyCtx || historyKey({ session: verifyCtx.session, part: verifyCtx.part }) !== verSel.value)) {
+      loadVerification(verSel.value);
+    } else if (verSel.value && !verifyItems.length) {
+      loadVerification(verSel.value);
+    }
+  };
+})();
 // Put a specific image into the Full Overview View panel (left side, Sheet 2).
 function paintOverviewImage(url) {
   const img = document.getElementById('ov-img'), empty = document.getElementById('ov-empty');

@@ -1,0 +1,63 @@
+LEARNING LOOP — SB16247
+============================================================
+Run:     2026-07-21 20:49:33
+Status:  NOT READY
+Model:   gpt-5.6
+Outputs: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\11976da6d200\16247_1\output\SB16247
+Fingerprint: 77839e64e910b9e4
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - overview verification found CRITICAL gap(s)
+   - pre-validation error: StdFail_NotDone: BRep_API: command not done
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - verification error: StdFail_NotDone: BRep_API: command not done
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side view contains several short horizontal edge marks, but their exact one-to-one correspondence to every front-profile step is not fully explicit because there are no projection lines, section labels, or hidden-line conventions tying them together.
+       -> Verify the original CAD/source drawing or a higher-resolution scan and project each front-view profile elevation into the side view before interpreting any mark as a groove or local thickness change.
+   - [CRITICAL] The thickness/fit note is visually ambiguous: it reads approximately '+.010/-.000 .280 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y.' It is unclear whether .280 is the finished thickness, a gap/space, or another governing assembly dimension, and how the stated stock allowance modifies it.
+       -> Obtain the mating assembly or design authority clarification and confirm the required delivered shim thickness versus trim-to-fit stock before manufacture.
+   - [HIGH] No explicit THROUGH or depth notation is visible for the two edge slots/notches. Full-thickness cutting is inferred from the edge-on marks, not directly stated.
+       -> Confirm in the source drawing/CAD that both slots are cut through the full stock thickness; do not manufacture them as blind recesses from the profile view alone.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, MEDIUM 3, LOW 1
+   - [CRITICAL] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (side): The thickness/fit note is visually ambiguous: it reads approximately '+.010/-.000 .280 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y.' It is unclear whether .280 is the finished thickness, a gap/space, or another governing assembly dimension, and how the stated stock allowance modifies it. Recommendation: Obtain the mating assembly or design authority clarification and confirm the required delivered shim thickness versus trim-to-fit stock before manufacture.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [CRITICAL] OV002 (overview): The overview clearly shows 2x fillet (Semicircular slot-end radii, called out as .531 R TYP., Closed inner end of each of the two slots.) but the build contains no matching feature.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: fillet feature(s) — verify against the drawing
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front_profile, side): The side view contains several short horizontal edge marks, but their exact one-to-one correspondence to every front-profile step is not fully explicit because there are no projection lines, section labels, or hidden-line conventions tying them together. Recommendation: Verify the original CAD/source drawing or a higher-resolution scan and project each front-view profile elevation into the side view before interpreting any mark as a groove or local thickness change.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front_profile, side): No explicit THROUGH or depth notation is visible for the two edge slots/notches. Full-thickness cutting is inferred from the edge-on marks, not directly stated. Recommendation: Confirm in the source drawing/CAD that both slots are cut through the full stock thickness; do not manufacture them as blind recesses from the profile view alone.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: slot F002: corner-fillet selected 0 edge(s), expected 2 — DEFERRED (slot rectangle is already correct); apply the radius manually or via the VBA macro.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [LOW] OV003 (overview): Surface Finish note: Thin rectangular shim-plate body/profile. (Overall part.).
+       decision: attached to part metadata as a surface finish note
+       why: a note, not part geometry — no build counterpart expected
+       affects: metadata: surface finish
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'SB16247' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * prevalidation: cq_prevalidate.py (CadQuery geometry) vs build_plan.json (the single source of truth both build paths consume)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\11976da6d200\16247_1\output\SB16247
