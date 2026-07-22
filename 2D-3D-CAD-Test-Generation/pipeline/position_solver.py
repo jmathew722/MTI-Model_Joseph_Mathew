@@ -220,6 +220,12 @@ def _solve_one(feat: Feature, anchors: list[PositionAnchor], model: DrawingData,
             x = cx + radial.value * math.cos(ang)
             y = cy + radial.value * math.sin(ang)
             dim = ",".join(radial.dimension_ids) or "BSC"
+            if angular is None:
+                # A radial anchor with no angular partner defaults to 0° — flag
+                # it rather than silently collinear-stacking every instance.
+                trace.append(
+                    f"WARNING: polar anchor {dim} has no angular value — defaulted to 0°; "
+                    "verify the instance angle.")
             trace.append(
                 f"x,y = {cref}({_fmt(cx)}, {_fmt(cy)}) + {dim}({_fmt(radial.value)}) "
                 f"@ {_fmt(angular.value if angular else 0.0)}° [polar_bsc]")

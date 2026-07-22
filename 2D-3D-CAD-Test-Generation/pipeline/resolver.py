@@ -1856,7 +1856,56 @@ _DIM_EXTRA_KEYS = (
 _FEATURE_EXTRA_KEYS = (
     "build_status", "position_resolved", "position_assumption", "flag_tier", "human_note",
 )
-_TOP_EXTRA_KEYS = ("resolution", "overview_analysis")
+_TOP_EXTRA_KEYS = ("resolution", "overview_analysis", "resolved_away", "coordinate_frame")
+
+
+_FINISH_NOTE_PHRASES = (
+    "break all sharp", "break sharp", "break all edges", "break edges",
+    "break all corners", "deburr", "remove all burrs", "remove burrs",
+    "ease all edges", "ease sharp", "no sharp edges", "sharp edges per",
+)
+
+
+def _drop_general_finish_notes(resolved: dict, add_flag) -> int:
+    """Drop a valueless fillet/chamfer that is really a general shop-finishing
+    NOTE (e.g. 'BREAK ALL SHARP EDGES') rather than a dimensioned feature.
+
+    Such a feature has no radius/distance anywhere (nothing to build) and a
+    description matching a finishing-note phrase. Left in, it is EXCLUDED for a
+    missing dimension and then gates READY as an unresolved feature — but it was
+    never a modeled feature, so the correct outcome is to record it as a
+    non-geometric note and remove it from features/build_order. A fillet/chamfer
+    that DOES carry a value is untouched. Returns the count dropped."""
+    feats = resolved.get("features", []) or []
+    dims_by_id = {d.get("id"): d for d in resolved.get("dimensions", []) or []}
+    dropped = 0
+    keep: list[dict] = []
+    for feat in feats:
+        ftype = (feat.get("type") or "").lower()
+        desc = (feat.get("description") or "").lower()
+        if ftype in ("fillet", "chamfer") and any(p in desc for p in _FINISH_NOTE_PHRASES):
+            has_value = any(
+                float((dims_by_id.get(rid) or {}).get("value") or 0) > 0
+                for rid in (feat.get("related_dimensions") or []))
+            if not has_value:
+                fid = feat.get("id")
+                if fid in (resolved.get("build_order") or []):
+                    resolved["build_order"] = [x for x in resolved["build_order"] if x != fid]
+                # Justified drop, visible to reconciliation (which checks the RAW
+                # extraction) so a finishing NOTE never reads as a missing feature.
+                resolved.setdefault("resolved_away", {})[fid] = (
+                    "general shop-finishing note (no dimension) — non-geometric, not built")
+                add_flag({
+                    "feature_id": fid, "flag_tier": "LOW", "source": "resolver",
+                    "human_note": (f"{fid} ('{feat.get('description', '')[:60]}') is a general "
+                                   "shop-finishing note with no dimension — recorded as a "
+                                   "non-geometric note, not built (does not gate READY)."),
+                })
+                dropped += 1
+                continue
+        keep.append(feat)
+    resolved["features"] = keep
+    return dropped
 
 
 def schema_clean(resolved: dict) -> dict:
@@ -1960,9 +2009,21 @@ def resolve_extraction(raw: dict,
     # slot (fit / radius / anchor-semantics / through-all). A slot is always a
     # mandatory rectangle + deferred corner fillets — never an arc-bearing sketch.
     try:
-        from pipeline.slot_cut import normalize_legacy_slots, validate_slot
+        from pipeline.slot_cut import (
+            expand_slot_patterns,
+            normalize_legacy_slots,
+            validate_slot,
+        )
 
         normalize_legacy_slots(resolved, result.flags.append)
+        # A pattern whose seed is a slot becomes explicit per-instance slots
+        # (a U-notch decomposition cannot be reliably feature-patterned) — do
+        # this BEFORE validation so every generated slot is validated too.
+        expand_slot_patterns(resolved, result.flags.append)
+        # A valueless "break all sharp edges/corners" fillet/chamfer is a general
+        # shop-finishing NOTE, not a modeled feature — drop it so it doesn't gate
+        # READY as an unbuildable missing-dimension feature.
+        _drop_general_finish_notes(resolved, result.flags.append)
         if resolved.get("slot_cuts"):
             model = DrawingData.model_validate(schema_clean(resolved))  # re-coerce (schema-clean)
             for slot in model.slot_cuts:

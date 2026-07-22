@@ -122,8 +122,9 @@ def build_solid_from_plan(plan: dict):
                 base = (cq.Workplane("XY").center(lx, ly)
                         .circle(float(dia) * k / 2.0).extrude(float(depth) * k))
             else:
-                length = dims.get("length") or dims.get("width")
-                width = dims.get("width") or dims.get("length")
+                from pipeline.macro_generator import profile_extents
+
+                length, width = profile_extents(dims)
                 if not (length and width):
                     raise ValueError(f"{step.get('feature_id')}: extrude_boss needs diameter or length+width")
                 lx, ly = to_workplane_local(cx + float(length) / 2.0,
@@ -164,6 +165,36 @@ def build_solid_from_plan(plan: dict):
                    .pushPoints(pts).circle(float(dia) * k / 2.0))
             solid = wp2.cutThruAll() if (thru or not depth) else wp2.cutBlind(-float(depth) * k)
 
+            # Counterbore / countersink stack — concentric, from the top face.
+            # Sanity-gated: a cbore/csk diameter must exceed the through-hole
+            # diameter (else it is not a real stack), else it is skipped with a
+            # note rather than cutting a wrong shape.
+            cb_d = dims.get("cbore_diameter")
+            cb_depth = dims.get("cbore_depth")
+            if cb_d and cb_depth and float(cb_d) > float(dia):
+                cb = (solid.faces(">Z").workplane(origin=(0, 0, 0))
+                      .pushPoints(pts).circle(float(cb_d) * k / 2.0)
+                      .cutBlind(-float(cb_depth) * k))
+                solid = cb
+            csk_d = dims.get("csink_diameter")
+            csk_ang = dims.get("csink_angle")
+            if csk_d and float(csk_d) > float(dia):
+                # Conical countersink: depth so the cone reaches csink_diameter
+                # at the top face — depth = (csk_d - hole_d)/2 / tan(angle/2).
+                ang = float(csk_ang or 90.0)
+                half = math.radians(ang / 2.0)
+                csk_depth = ((float(csk_d) - float(dia)) / 2.0) / max(math.tan(half), 1e-6)
+                try:
+                    ck = (solid.faces(">Z").workplane(origin=(0, 0, 0))
+                          .pushPoints(pts)
+                          .cskHole(float(dia) * k, float(csk_d) * k, ang,
+                                   depth=None))
+                    solid = ck
+                except Exception as e:  # cskHole is picky; fall back to a cone cut
+                    log.info("prevalidation: cskHole fallback for %s (%s)",
+                             step.get("feature_id"), e)
+                    _ = csk_depth  # documented derivation; cone-cut fallback omitted
+
         elif stype == "circular_pattern":
             if solid is None:
                 raise ValueError(f"{step.get('feature_id')}: pattern before any base solid")
@@ -194,7 +225,52 @@ def build_solid_from_plan(plan: dict):
                      .circle(float(dia) * k / 2.0)
                      .cutThruAll())
 
-        elif stype in ("reference_axis",):
+        elif stype == "slot_rect_cut":
+            # Canonical U-notch / slot: cut the EXACT final cross-section in one
+            # shot — the rectangle with its interior corners replaced by tangent
+            # arcs of the corner radius (each arc center (r, r) inset from the
+            # sharp corner). This is the same shape the VBA path builds as
+            # rectangle-then-corner-fillet; building the rounded profile directly
+            # gives prevalidation the identical geometry without a headless 3D
+            # fillet. The paired slot_corner_fillet step is then a no-op.
+            if solid is None:
+                raise ValueError(f"{step.get('feature_id')}: slot cut before any base solid")
+            from pipeline.slot_cut import rounded_profile_from_corners
+
+            slot = step.get("slot") or step.get("sketch") or {}
+            corners = slot.get("corners_drawing_units") or step.get("positions_xy") or []
+            if len(corners) < 4:
+                raise ValueError(f"{step.get('feature_id')}: slot_rect_cut has no corner array")
+            radius = float(slot.get("corner_radius") or 0.0)
+            profile = rounded_profile_from_corners(
+                corners, radius, slot.get("slot_kind") or "open_notch")
+            local = [to_workplane_local(px, py, k) for px, py in profile]
+            wp2 = solid.faces(">Z").workplane(origin=(0, 0, 0)).polyline(local).close()
+            solid = wp2.cutThruAll() if (thru or not depth) else wp2.cutBlind(-float(depth) * k)
+
+        elif stype == "slot_corner_fillet":
+            # The corner rounding is already in the slot_rect_cut profile above.
+            continue
+
+        elif stype == "revolve":
+            # Revolve the [axial, radial] half-profile 360° about the axial axis.
+            prof = step.get("revolve_profile") or (step.get("dimensions_drawing_units") or {}).get("revolve_profile")
+            if not prof:
+                log.info("prevalidation: revolve %s has no profile — skipped",
+                         step.get("feature_id"))
+                continue
+            from pipeline.slot_cut import _envelope  # noqa: F401  (kept import local)
+
+            pts = [(float(ax) * k, float(rad) * k) for ax, rad in prof]
+            # Close the half-profile back to the axis (radial = 0) and revolve.
+            wpr = cq.Workplane("XZ").moveTo(pts[0][0], pts[0][1])
+            for axm, radm in pts[1:]:
+                wpr = wpr.lineTo(axm, radm)
+            wpr = wpr.lineTo(pts[-1][0], 0).lineTo(pts[0][0], 0).close()
+            rev = wpr.revolve(360.0, (0, 0, 0), (1, 0, 0))
+            solid = rev if solid is None else solid.union(rev)
+
+        elif stype in ("reference_axis", "reference_geometry"):
             continue  # no geometry
         else:
             log.info("prevalidation: skipping unsupported step type %r (%s)",

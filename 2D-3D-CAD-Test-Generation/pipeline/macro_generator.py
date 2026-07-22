@@ -309,6 +309,10 @@ def _circular_positions(model: DrawingData, h: HoleCallout) -> Optional[list[tup
     ``start_angle`` (degrees, CCW from +X). The center comes from
     ``bolt_circle_center`` when given, else the part-envelope center — so a bolt
     pattern lands as a real ring of holes instead of the single-instance fallback.
+
+    A partial arc (``arc_angle`` < 360) places the qty holes over that span with
+    a hole at BOTH ends (step = arc/(qty-1)); a full circle keeps 360/qty with no
+    duplicate at the wrap — matching CadQuery ``polarArray`` fill semantics.
     """
     if h.pattern != PatternKind.CIRCULAR or h.bolt_circle_diameter <= 0 or h.qty < 1:
         return None
@@ -324,7 +328,12 @@ def _circular_positions(model: DrawingData, h: HoleCallout) -> Optional[list[tup
         cx = (length / 2.0) if length else radius
         cy = (width / 2.0) if width else radius
     start = math.radians(h.start_angle)
-    step = 2.0 * math.pi / h.qty
+    arc = float(getattr(h, "arc_angle", 360.0) or 360.0)
+    if arc >= 360.0 - 1e-6 or h.qty < 2:
+        step = 2.0 * math.pi / h.qty
+    else:
+        # Partial arc: inclusive of both ends.
+        step = math.radians(arc) / (h.qty - 1)
     return [
         (cx + radius * math.cos(start + i * step), cy + radius * math.sin(start + i * step))
         for i in range(h.qty)
@@ -464,6 +473,16 @@ def revolve_sketch_points(
     pts = [(float(a), float(r)) for a, r in profile]
     if len(pts) < 2:
         raise MacroGenerationError("revolve profile needs at least 2 points.")
+    # A revolve is only valid when the whole half-profile stays on one side of
+    # the axis (no negative radius — that would cross the axis and self-intersect
+    # the solid) and spans a real axial length (>=2 distinct axial stations).
+    if any(r < -1e-9 for _a, r in pts):
+        raise MacroGenerationError(
+            "revolve profile has a NEGATIVE radial value — the half-profile crosses the "
+            "revolve axis, which cannot revolve into a valid solid.")
+    if len({round(a, 6) for a, _r in pts}) < 2:
+        raise MacroGenerationError(
+            "revolve profile has <2 distinct axial stations — it has no length to revolve.")
     xs = [p[0] for p in pts]
     x_min, x_max = min(xs), max(xs)
     closed = list(pts)
@@ -776,6 +795,11 @@ def _build_plan_dict(model: DrawingData, pkg: MacroPackage, unit_factor: float,
         # part's coordinates use (datum-hole pair > declared dimension origin >
         # default lower-left corner). Stated once, never inferred downstream.
         "coordinate_frame": canonical_frame(model),
+        # Features intentionally resolved away (pattern→explicit slots, or a
+        # valueless finishing note) with the reason — so reconciliation, which
+        # checks the RAW extraction, treats these ids as justified, not missing.
+        "resolved_away": (getattr(resolution, "resolved_extraction", {}) or {}).get(
+            "resolved_away", {}) if resolution is not None else {},
         "coordinate_origin": "lower_left_corner_of_base_solid",
         "x_direction": "positive_right",
         "y_direction": "positive_up",
@@ -1050,6 +1074,31 @@ def _sketch_close_fully_define(step: str) -> str:
 """
 
 
+def profile_extents(dims: dict[str, float]) -> tuple[Optional[float], Optional[float]]:
+    """The base rectangle's (HORIZONTAL, VERTICAL) extents in drawing units,
+    orientation-preserving (2026-07-21). The two profile sides are the two
+    LARGEST of length/width/height (the extrude depth — always the smallest, a
+    plate thickness — drops out), but returned in drawing orientation:
+    length/width is horizontal (x), height is vertical (y). This fixes the
+    width+height (no length) front-view case (e.g. 16247: 2 wide × 19.25 tall),
+    which the old two-largest-unordered pick built rotated 90° — so the slots
+    dimensioned up the tall edge fell off the part. length+width parts (top
+    view) are unchanged. The SAME function feeds the VBA, CadQuery, and COM base
+    builds so all three agree on orientation.
+    """
+    order = {"length": 0, "width": 1, "height": 2}  # 0/1 = horizontal, 2 = vertical
+    cand = [(k, float(dims[k])) for k in ("length", "width", "height")
+            if dims.get(k) and float(dims[k]) > 0]
+    if len(cand) >= 2:
+        cand.sort(key=lambda kv: kv[1], reverse=True)
+        (k1, v1), (k2, v2) = cand[0], cand[1]
+        # Put the more-horizontal dim first (horizontal, vertical).
+        return (v2, v1) if order[k1] > order[k2] else (v1, v2)
+    if len(cand) == 1:
+        return cand[0][1], cand[0][1]
+    return None, None
+
+
 def _profile_vba(dims: dict[str, float], cx: float, cy: float, step: str) -> tuple[str, dict[str, float]]:
     """VBA to draw a circle (centered at cx, cy) or rectangle (lower-left corner
     at cx, cy) profile.
@@ -1060,8 +1109,10 @@ def _profile_vba(dims: dict[str, float], cx: float, cy: float, step: str) -> tup
     """
     used: dict[str, float] = {}
     diameter = dims.get("diameter") or dims.get("hole_diameter")
-    length = dims.get("length") or dims.get("width")
-    width = dims.get("width") or dims.get("length")
+    # Orientation-preserving profile extents (horizontal, vertical) — shared with
+    # the CadQuery + COM base builds so all three agree; fixes the width+height
+    # (no length) front-view base that used to build rotated/collapsed.
+    length, width = profile_extents(dims)
     if diameter:
         used["diameter"] = diameter
         # Single-record template fill: this circle can only carry THIS feature's
@@ -1145,26 +1196,64 @@ def _cut4(depth_expr: str, thru: bool, var: str = "swFeat") -> str:
     )
 
 
-def _attach_anchor_provenance(step: "BuildStep", feature: Feature, solved: dict) -> None:
-    """Attach the feature's anchors + the position solver's derivation trace to
-    the build step (dimensioning-architecture overhaul, 2026-07-17). Absolute
-    coordinates stay the executable truth; this records where they came from.
-    A solver/executable disagreement on an explicitly-anchored feature is
-    logged — the solver is the authority for anchored features going forward."""
+def _feature_is_single_instance(model: "DrawingData", feature: Feature) -> bool:
+    """True when the feature places exactly one instance (so a single solved
+    coordinate fully describes it). A qty>1 hole callout or a pattern is
+    multi-instance and keeps its per-instance layout."""
+    if feature.type == FeatureType.HOLE:
+        h = model.hole_callout_for_feature(feature.id)
+        if h is not None and (int(getattr(h, "qty", 1) or 1) > 1
+                              or (getattr(h, "instance_positions", None) or [])):
+            return False
+    return int(getattr(feature, "quantity", 1) or 1) <= 1
+
+
+def _apply_solver_authority(feature: Feature, solved: dict, model: "DrawingData") -> None:
+    """Make the position solver AUTHORITATIVE for an explicitly-anchored,
+    grounded, single-instance feature (2026-07-21): stamp the solved coordinate
+    onto ``feature.offset_x/offset_y`` (and mark ``position_known``) BEFORE the
+    macro body is generated, so the emitted VBA, the build-plan positions, and
+    the macro-echo check all read the SAME drawing-anchored coordinate.
+
+    Previously the solver was advisory — it logged a disagreement while the
+    legacy baked float still drove the geometry, so the tested-correct
+    anchor math never reached the part. An ungrounded solve leaves the stored
+    coordinate untouched and records a MEDIUM warning (never a silent fallback)."""
+    if not getattr(feature, "anchors", None):
+        return
+    sol = solved.get(feature.id)
+    if sol is None:
+        return
+    if not sol.grounded:
+        msg = (f"{feature.id}: anchors present but the position could not be grounded to a "
+               f"real entity — built from the stored coordinate instead.")
+        if msg not in model.warnings:
+            model.warnings.append(msg)
+        return
+    if not _feature_is_single_instance(model, feature):
+        return
+    if abs(feature.offset_x - sol.x) > 1e-3 or abs(feature.offset_y - sol.y) > 1e-3:
+        log.info("%s: position solver authoritative — (%.6g, %.6g) replaces stored (%.6g, %.6g)",
+                 feature.id, sol.x, sol.y, feature.offset_x, feature.offset_y)
+    feature.offset_x, feature.offset_y = round(sol.x, 6), round(sol.y, 6)
+    feature.position_known = True
+
+
+def _attach_anchor_provenance(step: "BuildStep", feature: Feature, solved: dict,
+                              model: "DrawingData" = None) -> None:
+    """Record the feature's anchors + the position solver's derivation trace on
+    the build step (the coordinate itself was already made authoritative by
+    :func:`_apply_solver_authority` before body generation)."""
     from pipeline.position_solver import anchors_for
 
     step.anchors = [a.model_dump() for a in anchors_for(feature)]
     sol = solved.get(feature.id)
-    if sol is None:
-        return
-    step.position_derivation = list(sol.trace)
-    if feature.anchors and step.positions_xy:
-        px, py = step.positions_xy[0][0], step.positions_xy[0][1]
-        if abs(px - sol.x) > 1e-3 or abs(py - sol.y) > 1e-3:
-            note = (f"anchor-solved position ({sol.x:.6g}, {sol.y:.6g}) differs from "
-                    f"executable position ({px:.6g}, {py:.6g})")
-            step.position_derivation.append(f"NOTE: {note}")
-            log.warning("%s: %s", feature.id, note)
+    if sol is not None:
+        step.position_derivation = list(sol.trace)
+        if feature.anchors and sol.grounded:
+            step.position_derivation.append(
+                f"AUTHORITATIVE: position anchored to the drawing's scheme "
+                f"→ ({sol.x:.6g}, {sol.y:.6g}).")
 
 
 def _anchor_vba_block(feature: Feature, solved: dict) -> str:
@@ -1301,16 +1390,43 @@ def _macro_holes(model: DrawingData, feature: Feature, step: str) -> tuple[str, 
     LogResult "PASS", "{step}", "Counterbore created"
 """
 
-    # Countersink: flag for manual chamfer on the hole edge (selection is visual).
+    # Countersink: cut the conical relief as a concentric blind cut of the mouth
+    # diameter to the cone depth (envelope of the cone) — real geometry, not a
+    # manual TODO. csink_diameter must exceed the hole diameter (sanity gate).
+    # Depth = (csk_d - hole_d)/2 / tan(angle/2), the standard relation. The exact
+    # conical FACE is produced on the CadQuery path (cskHole); this envelope keeps
+    # the VBA build self-contained and consistent across paths.
     if h.type == HoleType.COUNTERSINK and h.csink_diameter > 0:
-        used["csink_diameter"], used["csink_angle"] = h.csink_diameter, h.csink_angle or 90.0
-        body += f"""
-    ' TODO: VERIFY API CALL - countersink
-    ' Apply a chamfer of dia {_v(h.csink_diameter)} at {_v(h.csink_angle or 90.0)} deg included angle
-    ' to the hole rim edge(s). Edge selection by coordinate is unreliable in a
-    ' generated macro: select the hole edge(s) manually, then use Insert >
-    ' Features > Chamfer with the values above.
-    LogResult "WARN", "{step}", "Countersink requires manual chamfer - see macro comments"
+        csk_ang = h.csink_angle or 90.0
+        used["csink_diameter"], used["csink_angle"] = h.csink_diameter, csk_ang
+        if h.csink_diameter <= diameter:
+            body += f"""
+    ' Countersink dia {_v(h.csink_diameter)} is not larger than the hole {_v(diameter)} —
+    ' skipped (sanity gate: not a real countersink stack).
+    LogResult "WARN", "{step}", "Countersink dia <= hole dia; skipped (sanity gate)"
+"""
+        else:
+            import math as _m
+            cone_depth = ((h.csink_diameter - diameter) / 2.0) / max(
+                _m.tan(_m.radians(csk_ang / 2.0)), 1e-6)
+            used["csink_depth"] = round(cone_depth, 4)
+            body += f"""
+    ' ---- COUNTERSINK: {_v(csk_ang)} deg cone, mouth dia {_v(h.csink_diameter)}, depth {_v(cone_depth)} ----
+    ' Built as the concentric relief (mouth dia to cone depth); refine to the exact
+    ' cone/chamfer interactively if required.
+"""
+            body += _sketch_open(plane, step + "_csk")
+            for x, y in positions:
+                body += _tmpl_fill("sketch_circle.vba.tmpl",
+                                   {"CX": _v(x), "CY": _v(y), "DIA": _v(h.csink_diameter)})
+            body += _sketch_close_fully_define(step + "_csk")
+            body += "\n"
+            body += _cut4(f"{_v(cone_depth)} * UNIT_FACTOR", thru=False, var="swFeatCsk")
+            body += f"""
+    If swFeatCsk Is Nothing Then
+{_fail_block(step, "Countersink relief cut failed.", "        ")}    End If
+    swFeatCsk.Name = "{feature.id}_csk"
+    LogResult "PASS", "{step}", "Countersink relief created"
 """
 
     # Tapped: cosmetic thread only, marked for verification.
@@ -1676,7 +1792,9 @@ def canonical_circular_pattern(model: DrawingData, feature: Feature,
         # INCLUDES the seed: qty 6 = seed + 5 patterned copies.
         "total_instances": int(h.qty),
         "equal_spacing": True,
-        "total_angle_deg": 360.0,
+        # Full circle (360) or the callout's partial-arc span — never hardcoded,
+        # so a 3-hole 90° arc no longer builds as a full ring.
+        "total_angle_deg": float(getattr(h, "arc_angle", 360.0) or 360.0),
         "reverse_direction": False,
         "instances_to_skip": [],
         "geometry_pattern": False,
@@ -1888,6 +2006,7 @@ def _emit_slot_decomposition(model: DrawingData, feature: Feature, slot,
     rect_step.sketch_plane = "REF_DATUM_A"
     rect_step.slot = {
         "slot_kind": slot.slot_kind, "open_edge": slot.open_edge,
+        "corner_radius": slot.corner_radius,
         "corners_drawing_units": corners, "corners_meters": corners_m,
         "dimension_scheme": [
             {"dim": slot.anchor_dimension_id or "", "from": f"part_{slot.anchor_edge}_edge",
@@ -2024,10 +2143,20 @@ def _macro_slot_fillet(slot, corners_m: list[list[float]], step: str, count: int
             Set swEdge = vEdges(ei)
             Dim vPts As Variant
             vPts = swEdge.GetCurveParams3(0, 0)   ' start xyz + end xyz
-            Dim mx As Double, my As Double, dd As Double
-            mx = (vPts(0) + vPts(3)) / 2#: my = (vPts(1) + vPts(4)) / 2#
-            dd = (mx - tx) * (mx - tx) + (my - ty) * (my - ty)
-            If dd < bestD Then bestD = dd: Set bestEdge = swEdge
+            ' Orientation filter: consider only VERTICAL through-thickness edges
+            ' (start/end share x,y and differ in z) — a slot corner is a vertical
+            ' edge; this stops a nearby horizontal edge whose midpoint sits close
+            ' to the corner from being mis-selected.
+            Dim isVert As Boolean
+            isVert = (Abs(vPts(0) - vPts(3)) < 0.0000254) And _
+                     (Abs(vPts(1) - vPts(4)) < 0.0000254) And _
+                     (Abs(vPts(2) - vPts(5)) > 0.0000254)
+            If isVert Then
+                Dim mx As Double, my As Double, dd As Double
+                mx = (vPts(0) + vPts(3)) / 2#: my = (vPts(1) + vPts(4)) / 2#
+                dd = (mx - tx) * (mx - tx) + (my - ty) * (my - ty)
+                If dd < bestD Then bestD = dd: Set bestEdge = swEdge
+            End If
         Next ei
         If Not bestEdge Is Nothing Then
             If bestEdge.Select4(True, Nothing) Then selCount = selCount + 1
@@ -2846,6 +2975,13 @@ def generate_macro_package(
         fname = f"{seq:02d}_{feature.id}_{_vba_name(feature.description)}.vba"
         status, notes, used = "generated", "", {}
 
+        # Position solver AUTHORITATIVE (2026-07-21): for an explicitly-anchored,
+        # grounded, single-instance feature, stamp the solver's derived
+        # coordinate onto the feature BEFORE body generation, so the emitted VBA,
+        # the build-plan positions, and the echo check all agree — the drawing's
+        # own dimensioning scheme drives the geometry, not a legacy baked float.
+        _apply_solver_authority(feature, solved_positions, model)
+
         header = _vba_header(
             f"{step_name} - {feature.type.value}: {feature.description}",
             model.display_name, unit_factor,
@@ -2916,7 +3052,7 @@ def generate_macro_package(
         step = BuildStep(seq, fname, feature.id, feature.type.value, feature.description,
                          status, dimensions=used, notes=notes)
         _enrich_feature_step(step, model, feature, resolution, step_flags)
-        _attach_anchor_provenance(step, feature, solved_positions)
+        _attach_anchor_provenance(step, feature, solved_positions, model)
         pkg.steps.append(step)
         if status == "needs_review":
             pkg.needs_review.append(step)

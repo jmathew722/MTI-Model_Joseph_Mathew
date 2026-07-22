@@ -172,9 +172,15 @@ def diff_checklist(
     still needs attention, worded with the SPECIFIC missing parameter."""
     disp_by_id = {d.get("feature_id"): d for d in dispositions}
     skipped_ids = set(build_plan.get("skipped_prohibited", []) or [])
+    # Features the resolver intentionally transformed away (a pattern expanded
+    # into explicit slots, a valueless finishing note) — justified, not missing.
+    # The raw-extraction checklist still lists them, so accept them here.
+    resolved_away = dict(build_plan.get("resolved_away", {}) or {})
     unresolved: list[UnresolvedItem] = []
 
     for item in checklist:
+        if item.feature_id in resolved_away:
+            continue  # intentionally resolved away (recorded with a reason)
         disp = disp_by_id.get(item.feature_id)
         if disp is None:
             # Structurally should not happen (build_sequencer records every

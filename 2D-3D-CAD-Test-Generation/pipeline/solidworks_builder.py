@@ -343,23 +343,14 @@ def get_dimensions_for_feature(model: DrawingData, feature: Feature) -> dict[str
 
 
 def _rect_sides(dims: dict[str, float]) -> tuple[Optional[float], Optional[float]]:
-    """Pick two distinct in-plane rectangle sides from the resolved dims.
+    """The base rectangle's (HORIZONTAL, VERTICAL) sides in meters, orientation-
+    preserving. Delegates to the ONE shared ``profile_extents`` (drawing units)
+    so the COM base matches the VBA and CadQuery bases exactly — including the
+    width+height (no length) front-view case that used to build rotated 90°.
+    dims here are already in METERS (from get_dimensions_for_feature)."""
+    from pipeline.macro_generator import profile_extents
 
-    Prefers length/width/height (the in-plane envelope) over the extrude axis
-    (depth/thickness). Returns the two largest distinct values; falls back to a
-    square when only one in-plane size is known, or (None, None) when none is.
-    """
-    seen: list[float] = []
-    for k in ("length", "width", "height"):
-        v = dims.get(k)
-        if v and v > 0 and v not in seen:
-            seen.append(v)
-    if len(seen) >= 2:
-        seen.sort(reverse=True)
-        return seen[0], seen[1]
-    if len(seen) == 1:
-        return seen[0], seen[0]
-    return None, None
+    return profile_extents(dims)
 
 
 def _select_plane(sw_doc, sketch_plane: Optional[str]) -> None:
@@ -892,6 +883,153 @@ def build_extrude_cut(sw_doc, model, feature: Feature, dims: dict[str, float]):
     return _do_cut(sw_doc, feature, through_all, depth)
 
 
+def build_slot(sw_doc, model, feature: Feature, slot):
+    """Build a canonical U-notch / slot on the COM path the SAME way the VBA
+    macros do (2026-07-21): a mandatory rectangle cut from the single corner
+    array, then constant-radius fillets on the interior corners selected by
+    vertex proximity. Previously the COM builder had no slot awareness — a slot
+    arrived as a plain ``extrude_cut`` (built sharp-cornered and frequently
+    mis-positioned, the 16247 'cut positioned outside the solid' failure) plus a
+    detached fillet. Routing through the slot decomposition makes the COM build
+    produce the same geometry as the VBA and CadQuery paths.
+
+    The rectangle cut is mandatory (raises on failure); the corner fillets are
+    deferred-safe (a failure is a warning — the slot is already correct)."""
+    from pipeline.slot_cut import corner_array, expected_corner_count, interior_corners
+    from utils.unit_converter import CONVERSION_TO_METERS
+
+    if not _solid_body_exists(sw_doc):
+        raise SolidWorksError(f"slot {feature.id} requires an existing solid body.")
+    unit = model.units.value
+    # SIGNED coordinate conversion: a slot's open-side corners intentionally
+    # overshoot PAST the part edge (negative coordinate), which to_meters()
+    # correctly rejects for a magnitude but is valid for a position. Convert with
+    # the raw unit factor so the overshoot survives.
+    kf = CONVERSION_TO_METERS[str(unit).lower().strip()]
+    corners = corner_array(slot, model)
+    corners_m = [(x * kf, y * kf) for x, y in corners]
+
+    # Align the drawing-frame slot to the ACTUAL body: the corner array is in the
+    # part's lower-left-origin drawing frame, but build_extrude_boss may place the
+    # base body's lower-left corner somewhere other than the global origin. Shift
+    # every corner by the body's actual min corner so an edge-referenced slot
+    # lands on the real edge regardless of base placement (same robustness the
+    # hole path uses). Without this the slot lands off the solid.
+    body_box = _body_bbox_xy_m(sw_doc)
+    if body_box is not None:
+        bx0, by0 = body_box[0], body_box[1]
+        corners_m = [(x + bx0, y + by0) for x, y in corners_m]
+
+    # 1) Mandatory rectangle cut — 4 lines from the corner array.
+    _begin_sketch(sw_doc, "front", f"slot {feature.id} rectangle")
+    for i in range(4):
+        x1, y1 = corners_m[i]
+        x2, y2 = corners_m[(i + 1) % 4]
+        if sw_doc.SketchManager.CreateLine(x1, y1, 0.0, x2, y2, 0.0) is None:
+            raise SolidWorksError(f"slot {feature.id}: CreateLine returned None for the rectangle.")
+    _verify_sketch_fully_defined(sw_doc)
+    sw_doc.SketchManager.InsertSketch(True)
+    xs = [p[0] for p in corners_m]
+    ys = [p[1] for p in corners_m]
+    _assert_cut_intersects_body(sw_doc, feature, (min(xs), min(ys), max(xs), max(ys)))
+    depth_m = to_meters(slot.depth, unit) if not slot.thru else None
+    rect = _do_cut(sw_doc, feature, through_all=bool(slot.thru), depth_m=depth_m)
+    if rect is None:
+        raise SolidWorksError(f"slot {feature.id}: mandatory rectangle cut returned None.")
+    try:
+        rect.Name = f"{feature.id}_slot_rect"
+    except Exception:
+        pass
+
+    # 2) Deferred-safe corner fillets on the interior corners (vertex proximity,
+    # restricted to through-thickness vertical edges — the orientation filter
+    # that stops a nearby horizontal edge from being mis-selected).
+    r = float(getattr(slot, "corner_radius", 0.0) or 0.0)
+    if r <= 0:
+        return rect
+    fillet_corners = interior_corners(slot, corners)
+    _shift = (body_box[0], body_box[1]) if body_box is not None else (0.0, 0.0)
+    fillet_corners_m = [(x * kf + _shift[0], y * kf + _shift[1]) for x, y in fillet_corners]
+    n_expected = expected_corner_count(slot)
+    try:
+        n_sel = _select_vertical_edges_near(sw_doc, fillet_corners_m)
+        if n_sel != n_expected:
+            _note_warning(model, f"slot {feature.id}: corner-fillet selected {n_sel} edge(s), "
+                                 f"expected {n_expected} — DEFERRED (slot rectangle is already "
+                                 f"correct); apply the radius manually or via the VBA macro.")
+            sw_doc.ClearSelection2(True)
+            return rect
+        fil = _feature_fillet3(sw_doc, to_meters(r, unit))
+        if fil is None:
+            _note_warning(model, f"slot {feature.id}: corner fillet returned None — DEFERRED "
+                                 f"(slot still correct from the rectangle cut).")
+        else:
+            try:
+                fil.Name = f"{feature.id}_slot_fillet"
+            except Exception:
+                pass
+    except Exception as e:  # deferred-safe: never fail the build over the radius
+        _note_warning(model, f"slot {feature.id}: corner fillet deferred ({e}).")
+        sw_doc.ClearSelection2(True)
+    return rect
+
+
+def _select_vertical_edges_near(sw_doc, corners_m: list[tuple[float, float]],
+                                tol: float = 1e-3) -> int:
+    """Select the body edge nearest each (x, y) corner AMONG through-thickness
+    vertical edges only (start/end share x,y and differ in z). The orientation
+    filter is the fix for the selector picking a stray horizontal edge whose
+    midpoint happens to sit near the corner. Returns the count selected."""
+    part = sw_doc
+    bodies = part.GetBodies2(_const("swSolidBody", 0), True)
+    if not bodies:
+        return 0
+    body = bodies[0] if isinstance(bodies, (list, tuple)) else bodies
+    edges = body.GetEdges()
+    if not edges:
+        return 0
+    def _endpoints(e):
+        """(start_xyz, end_xyz) for a straight edge, or None. Uses the edge's
+        vertices (reliable for straight edges) with a GetCurveParams fallback."""
+        try:
+            sv, ev = e.GetStartVertex(), e.GetEndVertex()
+            if sv is not None and ev is not None:
+                sp, ep = sv.GetPoint(), ev.GetPoint()
+                return (sp[0], sp[1], sp[2]), (ep[0], ep[1], ep[2])
+        except Exception:
+            pass
+        for getter in ("GetCurveParams3", "GetCurveParams2"):
+            try:
+                cp = getattr(e, getter)()
+                return (cp[0], cp[1], cp[2]), (cp[3], cp[4], cp[5])
+            except Exception:
+                continue
+        return None
+
+    selected = 0
+    for tx, ty in corners_m:
+        best_d = 1e30
+        best_edge = None
+        for e in edges:
+            pts = _endpoints(e)
+            if pts is None:
+                continue
+            (sx, sy, sz), (ex, ey, ez) = pts
+            # Orientation filter: keep only vertical (through-thickness) edges
+            # (start/end share x,y and differ in z).
+            if abs(sx - ex) > tol or abs(sy - ey) > tol or abs(sz - ez) <= tol:
+                continue
+            d = (sx - tx) ** 2 + (sy - ty) ** 2
+            if d < best_d:
+                best_d = d
+                best_edge = e
+        # Only accept a genuinely NEAR edge (within ~2 mm) so we never fillet a
+        # far edge just because it was the closest vertical one.
+        if best_edge is not None and best_d <= (2e-3) ** 2 and best_edge.Select4(True, _null_dispatch()):
+            selected += 1
+    return selected
+
+
 def build_revolve(sw_doc, model, feature: Feature, dims: dict[str, float]):
     """Create a revolved solid from the extracted half-profile.
 
@@ -1260,12 +1398,69 @@ def build_hole(sw_doc, model, feature: Feature, dims: dict[str, float]):
     feat = _circular_cut_at(sw_doc, feature, positions_m, dia_m / 2.0, thru, depth_m)
 
     # Counterbore: a second concentric blind cut with the larger diameter.
+    # Sanity-gated (2026-07-21): a cbore must be WIDER than the through hole and
+    # shallower than the plate, else it is not a real stack — flag, don't cut a
+    # wrong shape.
     if h.type == HoleType.COUNTERBORE and h.cbore_diameter > 0 and h.cbore_depth > 0:
-        _circular_cut_at(
-            sw_doc, feature, positions_m, to_meters(h.cbore_diameter, unit) / 2.0,
-            through_all=False, depth_m=to_meters(h.cbore_depth, unit),
-        )
+        if h.cbore_diameter <= h.diameter:
+            _note_warning(model, f"hole {h.id}: counterbore diameter {h.cbore_diameter:g} is not "
+                                 f"larger than the hole {h.diameter:g} — counterbore skipped "
+                                 f"(sanity gate).")
+        else:
+            _thk = _model_thickness_in(model)
+            if _thk and h.cbore_depth >= _thk:
+                _note_warning(model, f"hole {h.id}: counterbore depth {h.cbore_depth:g} >= plate "
+                                     f"thickness {_thk:g} — verify; cutting anyway as a deep relief.")
+            _circular_cut_at(
+                sw_doc, feature, positions_m, to_meters(h.cbore_diameter, unit) / 2.0,
+                through_all=False, depth_m=to_meters(h.cbore_depth, unit),
+            )
+
+    # Countersink: a conical relief at the mouth. csink_diameter must exceed the
+    # hole diameter (sanity gate). The exact cone depth is
+    # (csk_d - hole_d)/2 / tan(angle/2); the through hole above is the real
+    # geometry, and the cone is applied as a top-edge chamfer, deferred-safe (a
+    # selection failure never loses the hole).
+    if h.type == HoleType.COUNTERSINK and getattr(h, "csink_diameter", 0) > 0:
+        if h.csink_diameter <= h.diameter:
+            _note_warning(model, f"hole {h.id}: countersink diameter {h.csink_diameter:g} is not "
+                                 f"larger than the hole {h.diameter:g} — countersink skipped "
+                                 f"(sanity gate).")
+        else:
+            _apply_countersink_relief(sw_doc, model, feature, h, positions_m)
     return feat
+
+
+def _model_thickness_in(model) -> float:
+    """Plate thickness (drawing units) from a thickness/height dimension, 0 if none."""
+    for d in model.dimensions:
+        if (d.applies_to or "").lower() in ("thickness", "depth") and d.value > 0:
+            return float(d.value)
+    return 0.0
+
+
+def _apply_countersink_relief(sw_doc, model, feature, h, positions_m) -> None:
+    """Best-effort conical countersink at each hole mouth (deferred-safe). Cuts a
+    shallow larger-diameter blind relief to the computed cone depth so the
+    countersink ENVELOPE is present in the COM solid; the exact cone face is
+    produced on the CadQuery path (cskHole) and can be refined interactively.
+    A failure here is a warning — the through hole is already built."""
+    import math
+
+    unit = model.units.value
+    ang = float(getattr(h, "csink_angle", 0) or 90.0)
+    cone_depth = ((float(h.csink_diameter) - float(h.diameter)) / 2.0) / max(
+        math.tan(math.radians(ang / 2.0)), 1e-6)
+    try:
+        _circular_cut_at(sw_doc, feature, positions_m,
+                         to_meters(h.csink_diameter, unit) / 2.0,
+                         through_all=False, depth_m=to_meters(cone_depth, unit))
+        _note_warning(model, f"hole {h.id}: countersink built as a {h.csink_diameter:g} dia relief "
+                             f"{cone_depth:.3f} deep (envelope of the {ang:g}° cone); verify the "
+                             f"conical face against the drawing.")
+    except SolidWorksError as e:
+        _note_warning(model, f"hole {h.id}: countersink relief deferred ({e}); the through hole "
+                             f"is built.")
 
 
 # Sentinel: a feature that is intentionally a no-op (already realized elsewhere or
@@ -1439,6 +1634,20 @@ def _select_fillet_edges(sw_doc, model, feature: Feature, feature_map: Optional[
     return _select_all_body_edges(sw_doc), "all edges"
 
 
+def _feature_fillet3(sw_doc, radius_m: float):
+    """The SINGLE wrapper for the fragile ``FeatureFillet3`` COM call (minimal
+    constant-radius form). Every fillet — general fillets and slot corner
+    fillets alike — goes through here so the API call has one precondition-
+    verified call site (P4 hygiene invariant). Assumes the target edges are
+    already selected. Returns the feature or None."""
+    return sw_doc.FeatureManager.FeatureFillet3(
+        195,  # default fillet options bitmask (propagate, etc.)
+        radius_m, 0, 0, 0, 0, 0,
+        _null_dispatch(), _null_dispatch(), _null_dispatch(), _null_dispatch(),
+        _null_dispatch(), _null_dispatch(), _null_dispatch(),
+    )
+
+
 def build_fillet(sw_doc, model, feature: Feature, dims: dict[str, float], feature_map: Optional[dict] = None):
     """Apply a constant-radius fillet. FRAGILE — wrapped by the orchestrator (a
     failure is demoted to a warning, not fatal).
@@ -1468,13 +1677,7 @@ def build_fillet(sw_doc, model, feature: Feature, dims: dict[str, float], featur
         raise SolidWorksError(
             f"fillet {feature.id}: PRECONDITION FAILED — 0 edges selected for scope "
             f"'{scope}'; no candidate edge exists within tolerance, so the fillet is not applied.")
-    # FeatureFillet3(Options, R1, Ftyp, OverflowType, ...) — minimal constant-radius form.
-    feat = sw_doc.FeatureManager.FeatureFillet3(
-        195,  # default fillet options bitmask (propagate, etc.)
-        radius, 0, 0, 0, 0, 0,
-        _null_dispatch(), _null_dispatch(), _null_dispatch(), _null_dispatch(),
-        _null_dispatch(), _null_dispatch(), _null_dispatch(),
-    )
+    feat = _feature_fillet3(sw_doc, radius)
     if feat is None:
         # Never a bare None: every precondition was verified (radius>0 in meters,
         # n>0 edges selected for the named scope), so enumerate them so the failure
@@ -1728,7 +1931,15 @@ def build_model(
 
         try:
             try:
-                result = dispatch_feature_builder(sw_doc, model, feature, dims, feature_map)
+                # Canonical slot / U-notch: build via the slot decomposition
+                # (rectangle + corner fillets), the SAME geometry as the VBA and
+                # CadQuery paths — never as a plain extrude_cut (which lands
+                # sharp-cornered and often off-solid). 2026-07-21.
+                slot = model.slot_cut_for_feature(feature_id)
+                if slot is not None:
+                    result = build_slot(sw_doc, model, feature, slot)
+                else:
+                    result = dispatch_feature_builder(sw_doc, model, feature, dims, feature_map)
             except SolidWorksError:
                 raise
             except Exception as e:

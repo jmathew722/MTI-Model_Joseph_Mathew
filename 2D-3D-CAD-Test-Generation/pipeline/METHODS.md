@@ -40,30 +40,53 @@ to iterate; promote to default here once it passes Phase A across the golden set
 
 ---
 
-## Slots (straight obround)
+## Slots / U-notches (CANONICAL: rectangle + corner fillets)
 
-**Verified method: `slot2d` (CadQuery) / `create_sketch_slot` (SolidWorks).**
-One primitive yields a closed, fully-defined obround (two arcs of radius = width/2
-+ parallel flats) — no hand-drawn capsule profile. Build-plan steps carry
-`profile: "slot"`; the CadQuery pre-validator emits
-`center(cx, cy).slot2D(length, width, 0).cutThruAll()`. The SolidWorks path is
-`ISketchManager::CreateSketchSlot` (straight-slot type, endpoints from the
-resolved center/length/orientation in the origin frame), verified fully-defined
-before cutting.
+**Verified method: the two-step slot decomposition (`pipeline/slot_cut.py`).**
+A U-shaped cutout / open notch / keyway / slot is NEVER built as a single
+arc-bearing sketch. It decomposes into exactly two ordered, adjacent steps:
+
+  A. **`slot_rect_cut`** — a rectangular through-cut from the single corner
+     array (`corner_array`), at the dimensioned position. Mandatory
+     (`must_complete`): 4 lines + a cut is near-unfailable and carries the
+     slot's position + size truth.
+  B. **`slot_corner_fillet`** — constant-radius fillets on the rectangle's
+     INTERIOR corners (2 for an open notch, 4 for a closed slot). Deferred-safe:
+     a fillet failure never destroys the already-correct rectangle. Each arc
+     centre sits exactly `(r, r)` inset from the sharp corner along both walls
+     (a filleted corner, by construction) — proven by
+     `slot_cut.arc_centers` / `rounded_profile_from_corners` and asserted in
+     `tests/test_slot_cut.py`.
+
+The corner array is the ONE source of truth both steps derive from, so the
+fillet can never target a location other than the rectangle that was cut. All
+three builders now build this SAME shape (2026-07-21): the VBA macro
+(`_macro_slot_rect` + `_macro_slot_fillet`), the SolidWorks COM path
+(`build_slot`), and the CadQuery pre-validator (which cuts the exact rounded
+profile from `rounded_profile_from_corners` in one shot). Edge selection for the
+corner fillets is restricted to VERTICAL through-thickness edges (an orientation
+filter), so a stray horizontal edge near the corner is never mis-selected.
+
+**`slot2D` / native obround is used ONLY for a true obround** — a `closed_slot`
+whose `2·corner_radius == width` (full-radius ends), reclassified as
+`slot_kind == "obround"` by `validate_slot`. For any slot with a corner radius
+SMALLER than half the width (the common U-notch / keyway), the obround is the
+WRONG shape (it would round the entire end), so the rectangle+fillet
+decomposition is used. This supersedes the earlier "straight obround is the
+verified method" note — that guidance was correct only for the obround special
+case.
 
 Evidence:
-- Scratch slot experiment (`run_slot_experiment`), CadQuery, 2026-07-10:
-  `slot2d` built a valid watertight obround and verified `OK` (winner). The
-  alternative `capsule_profile` (two circles + rect) also verified `OK` but is
-  more fragile (three operations, trim seams) — kept only as an experiment
-  comparand.
-- Phase A recognises a slot's obround boundary as the cut's own footprint (not a
-  phantom hole), so a correctly-built slot verifies clean.
-
-> Wiring note: slot *detection* (drawing callout → a `profile:"slot"` cut step)
-> is not yet emitted by extraction/resolution for every slot; the construction +
-> verification methods above are proven and ready for when it is. `A001551E`
-> (per the acceptance set) is the intended first production slot.
+- `pipeline/slot_cut.py` corner-array + `(r, r)` inset math, unit-tested in
+  `tests/test_slot_cut.py` (corner placement, near-edge/centerline offset,
+  `2R ≤ width` / `R ≤ depth` gates, and the arc-centre inset).
+- 16247 (two left-edge U-notches, `.531 R TYP`) builds both notches as
+  rectangle+corner-fillet across all three paths; the second notch, extracted as
+  a linear pattern of the first, is expanded into an explicit second slot
+  (`expand_slot_patterns`) because a U-notch decomposition cannot be reliably
+  feature-patterned.
+- Phase A recognises a slot's boundary as the cut's own footprint (not a phantom
+  hole), so a correctly-built slot verifies clean.
 
 ---
 

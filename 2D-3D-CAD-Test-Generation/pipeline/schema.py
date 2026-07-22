@@ -263,6 +263,16 @@ class HoleCallout(BaseModel):
             "on the bolt circle; 0.0 if the first hole sits on the +X axis or is unknown."
         ),
     )
+    arc_angle: float = Field(
+        default=360.0,
+        description=(
+            "For a circular / bolt-circle pattern: the TOTAL angular span (degrees) the "
+            "holes occupy. 360 = a full circle (holes equally spaced 360/qty apart, no hole "
+            "at the wrap). A value < 360 is a PARTIAL arc: the qty holes are spaced over "
+            "this span with a hole at BOTH ends (step = arc_angle/(qty-1)). Set this only "
+            "when the holes clearly do NOT go all the way around; default 360."
+        ),
+    )
     instance_positions: list[list[float]] = Field(
         default_factory=list,
         description=(
