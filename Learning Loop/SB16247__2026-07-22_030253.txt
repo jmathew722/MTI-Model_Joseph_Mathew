@@ -1,0 +1,67 @@
+LEARNING LOOP — SB16247
+============================================================
+Run:     2026-07-22 03:02:53
+Status:  NOT READY
+Model:   gpt-5.6
+Outputs: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\650e73bcc3e3\16247_1\output\SB16247
+Fingerprint: 60f12162bd1f1837
+
+Every failure/flag from this run, followed by a paste-ready brief for Claude.
+============================================================
+1. GATE / STATUS — NOT READY
+   - overview verification found CRITICAL gap(s)
+   - pre-validation error: StdFail_NotDone: BRep_API: command not done
+
+2. MUST-MEET CONSTRAINT FAILURES  (pre-validation (CadQuery, before SolidWorks))
+   - verification error: StdFail_NotDone: BRep_API: command not done
+
+3. CROSS-VIEW CONFLICTS (Stage 1.5 overview analysis)
+   - [MEDIUM] The side view contains multiple short transverse marks, but their exact one-to-one mapping to the two front-view cutouts and lower step is not fully explicit because there are no projection lines or section labels.
+       -> Verify the original high-resolution drawing/CAD projection and confirm that each edge mark represents a through-cut boundary rather than a surface step or break convention.
+   - [HIGH] The .280 note reads '+.010/-.000 .280 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y.' The relationship between nominal .280 and the stated .030-.040 fitting stock is not fully defined on this sheet alone and could affect finished thickness.
+       -> Confirm the mating assembly requirement and whether .280 is the supplied thickness, final fitted thickness, or a thickness including removable stock before manufacture.
+   - [HIGH] No explicit THROUGH or depth notation is visible for either rounded slot/notch; through-cut interpretation relies on the edge view and the nature of a shim plate.
+       -> Confirm against the source CAD or assembly drawing before machining; add 'THRU' to both cutout callouts if that is the design intent.
+
+4. ENGINEERING FLAGS — ALL SEVERITIES (CRITICAL → HIGH → MEDIUM → LOW)
+   Totals: CRITICAL 2, MEDIUM 5
+   - [CRITICAL] D007 (dimension): D007 reading (0.531) is illegible/ambiguous with no alternative or chain to confirm it; kept as a best guess for fillet_radius — MUST verify before rebuild.
+       decision: resolved value 0.531
+       why: unverifiable reading
+       affects: dimension D007
+   - [CRITICAL] OV002 (overview): The overview clearly shows 2x fillet (Semicircular radiused ends at the roots of the two edge cutouts; drawing notes .531 R TYP, Inner end of each upper and lower cutout) but the build contains no matching feature.
+       decision: feature is absent from the final part
+       why: present in the overview drawing, missing from the extraction/build
+       affects: fillet feature(s) — verify against the drawing
+   - [MEDIUM] OV-001 (overview_analysis): CROSS-VIEW CONFLICT (front, side): The side view contains multiple short transverse marks, but their exact one-to-one mapping to the two front-view cutouts and lower step is not fully explicit because there are no projection lines or section labels. Recommendation: Verify the original high-resolution drawing/CAD projection and confirm that each edge mark represents a through-cut boundary rather than a surface step or break convention.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-002 (overview_analysis): CROSS-VIEW CONFLICT (side): The .280 note reads '+.010/-.000 .280 ALLOWS .030-.040 STOCK TO FIT AT ASS'Y.' The relationship between nominal .280 and the stated .030-.040 fitting stock is not fully defined on this sheet alone and could affect finished thickness. Recommendation: Confirm the mating assembly requirement and whether .280 is the supplied thickness, final fitted thickness, or a thickness including removable stock before manufacture.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM] OV-003 (overview_analysis): CROSS-VIEW CONFLICT (front, side): No explicit THROUGH or depth notation is visible for either rounded slot/notch; through-cut interpretation relies on the edge view and the nature of a shim plate. Recommendation: Confirm against the source CAD or assembly drawing before machining; add 'THRU' to both cutout callouts if that is the design intent.
+       decision: flagged for human verification; the per-view extracted geometry was kept (tier 1 owns dimensions)
+       why: raised by the Stage 1.5 holistic overview analysis (tier2_overview) — cross-view context a single cropped view cannot provide
+       affects: cross-view consistency of the whole part
+   - [MEDIUM]  (build): Build caveat: slot F002: corner-fillet selected 0 edge(s), expected 2 — DEFERRED (slot rectangle is already correct); apply the radius manually or via the VBA macro.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+   - [MEDIUM]  (build): Build caveat: slot F002_P1: corner-fillet selected 0 edge(s), expected 2 — DEFERRED (slot rectangle is already correct); apply the radius manually or via the VBA macro.
+       decision: applied automatically during the .sldprt build
+       why: the 2D drawing carries no per-edge topology, so scope was chosen automatically
+       affects: see caveat text
+
+5. BUILD / MACRO FEATURE FAILURES
+   - none
+
+FIXES FOR FABLE (paste this whole file to Claude to plan & apply code fixes)
+   - Part 'SB16247' finished NOT READY. Address the items above so the next run on this drawing improves. Suspected code areas:
+     * constraint: constraint_verify.py / cq_prevalidate.py (measurement) + macro_generator.py & solidworks_builder.py (the feature that produced the wrong geometry; for hole counts check the circular-pattern seed inclusion)
+     * macro: solidworks_builder.py (COM feature build) + macro_generator.py (VBA for that feature type)
+     * overview: overview_analysis.py (holistic read) + resolver.py (tier-2 flag / count cross-check) + extractor.py (per-view hole capture)
+     * prevalidation: cq_prevalidate.py (CadQuery geometry) vs build_plan.json (the single source of truth both build paths consume)
+   - Prefer a fix that generalizes (fixes the class of failure), not a one-off patch for this single part.
+   - Cross-check against the artifacts in: C:\Users\joeka\MTI_Claude\2D-3D-CAD-Test-Generation\webapp\parts\650e73bcc3e3\16247_1\output\SB16247
